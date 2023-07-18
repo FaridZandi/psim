@@ -2,7 +2,9 @@
 
 Define protocols and networks, run the protocols and see the results!
 
-# Build 
+### Build 
+
+build is done with cmake. 
 
 ```
 mkdir build 
@@ -11,6 +13,6 @@ cmake ..
 make 
 ```
 
-# Run 
+### Run 
 cd build
 run ./psim
