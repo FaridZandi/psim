@@ -14,5 +14,8 @@ make
 ```
 
 ### Run 
+
+```
 cd build
 run ./psim
+```

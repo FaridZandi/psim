@@ -5,30 +5,25 @@ project(
   VERSION 1.0
   LANGUAGES CXX)
 
-# If you set any CMAKE_ variables, that can go here.
-# (But usually don't do this, except maybe for C++ standard)
+set (CMAKE_CXX_STANDARD 11)
+# set(CMAKE_VERBOSE_MAKEFILE ON)
 
-# Find packages go here.
-
-# You should usually split this into folders, but this is a simple example
-
-# This is a "default" library, and will match the *** variable setting.
-# Other common choices are STATIC, SHARED, and MODULE
-# Including header files here helps IDEs but is not required.
-# Output libname matches target name, with the usual extensions on your system
-# add_library(MyLibExample simple_lib.cpp simple_lib.hpp)
-
-# Link each target with other targets or add options, etc.
-
-# Adding something we can run - Output name matches target name
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_NUMPY")
 
 include_directories(include)
 
+# any python version
+find_package(PythonLibs REQUIRED)
+
+include_directories(${PYTHON_INCLUDE_DIRS})
+message(STATUS "PYTHON_INCLUDE_DIRS = ${PYTHON_INCLUDE_DIRS}")
+
 set(SOURCES src/main.cc 
-            src/psim.cc)
+            src/psim.cc
+            src/network.cc
+            src/protocol.cc)
 
 add_executable(psim ${SOURCES})
+target_link_libraries(psim ${PYTHON_LIBRARIES})
 
-# Make sure you link your targets with this command. It can also link libraries and
-# even flags, so linking a target that does not exist will not give a configure-time error.
-# target_link_libraries(MyExample PRIVATE MyLibExample)
