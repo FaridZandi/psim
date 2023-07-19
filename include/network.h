@@ -5,6 +5,7 @@
 #include <vector>
 #include <map>
 #include <queue>
+#include <deque>
 #include "protocol.h"
 #include "constants.h"
 

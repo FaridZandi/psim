@@ -11,6 +11,14 @@ set (CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_NUMPY")
 
+
+set(Boost_USE_STATIC_LIBS OFF) 
+set(Boost_USE_MULTITHREADED ON)  
+set(Boost_USE_STATIC_RUNTIME OFF) 
+
+find_package(Boost 1.71.0 COMPONENTS serialization) 
+
+
 include_directories(include)
 
 # any python version
@@ -25,5 +33,10 @@ set(SOURCES src/main.cc
             src/protocol.cc)
 
 add_executable(psim ${SOURCES})
+
 target_link_libraries(psim ${PYTHON_LIBRARIES})
 
+if (Boost_FOUND)
+  include_directories(${Boost_INCLUDE_DIRS}) 
+  target_link_libraries(psim ${Boost_LIBRARIES})
+endif()

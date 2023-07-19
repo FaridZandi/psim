@@ -3,10 +3,13 @@
 #include "network.h"
 #include "protocol.h"
 
+
 using namespace psim;
 
 int Network::bottleneck_counter = 0;
 static int simulation_counter = 0; 
+
+
 
 PSim::PSim() : 
     PSim(new Protocol()) {} 

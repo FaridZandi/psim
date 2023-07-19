@@ -1,0 +1,22 @@
+[ ] Change the way that flows and computes are iterated in the make progress thing. make a copy of the array and remove anything that should be removed on the spot. Just like the python implementation. 
+
+[ ] Implement a more complicated kind of network, like the FatTree in the python code. 
+
+[ ] Create a protocol builder class or function or whatever. I like to create some protocols and and how they would work in action.  
+    [ ] Create a protocol builder of random entities.  
+    [ ] Create a protocol for distributed ML, sort of. 
+
+[ ] Collect some stastics, like the amount of compute and communication, plot them in the end. 
+
+[ ] bulid the logical and physical machines, link them in a reasonable manner. 
+
+[ ] Implement the event system, pretty much like the python version. 
+
+[ ] create placement algorithm to handle logical to physical mapping of the elements.  
+
+
+[ ] Use case: the program is started, and it receives the protocol over a pipe. then it runs the protocal and returns the simulation time and other required info. This way, the code can be added to any other project. But what if they are python code? This is hard to decide then. 
+
+[*] Add boost to the project build. I would like to see how it is done. 
+
+[*] learn how to use boost for objects serialization. some code residue left in main for later reference.  
