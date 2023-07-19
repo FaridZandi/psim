@@ -67,7 +67,6 @@ Bottleneck* Network::create_bottleneck(double bandwidth) {
 
 BigSwitchNetwork::BigSwitchNetwork(double iface_bandwidth): Network() {
 
-    iface_bandwidth = iface_bandwidth / 1000.0 / 1000.0 * 8; 
 
     for (int i = 0; i < this->server_count; i++) {
         Machine *machine = get_machine(i);
@@ -187,7 +186,6 @@ bool Bottleneck::should_drop(double step_size){
     double excess = total_register - bandwidth;
 
     if (excess > 0) {
-
         // probablity of dropping a packet is proportional to the excess rate 
         double drop_prob = excess / bandwidth;
         // drop_prob = 1 - pow(1 - drop_prob, step_size);

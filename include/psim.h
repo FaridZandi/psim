@@ -56,5 +56,5 @@ private:
 
 }; 
 
-} // namespace havij
+} // namespace psim
 #endif // PSIM_H

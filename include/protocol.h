@@ -131,7 +131,8 @@ public:
 
     void build_dependency_graph();
 
-    void export_graph(std::ofstream protocol_log);
+    void export_graph(std::ofstream& protocol_log);
+    void export_dot(std::string filename);
 
     std::vector<PTask *> tasks;
     std::map<int, PTask *> task_map;
@@ -139,6 +140,9 @@ public:
 
     int total_task_count;
     int finished_task_count;
+
+    static Protocol* build_random_protocol(int num_comp, int machine_count); 
+
 private:
 
 };

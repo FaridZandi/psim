@@ -119,5 +119,5 @@ public:
 private: 
 };
 
-} // namespace havij
+} // namespace psim
 #endif // NETWORK_H

@@ -1,4 +1,3 @@
-#include "matplotlibcpp.h"
 #include "psim.h"
 #include "protocol.h"
 #include <iostream>
@@ -7,6 +6,8 @@
 #include <boost/archive/text_iarchive.hpp>
 #include <boost/serialization/vector.hpp> 
 
+
+using namespace psim;
 
 
 class Test {
@@ -37,21 +38,22 @@ public:
 void serialize_date();
 
 int main() {
-    psim::Protocol* proto = new psim::Protocol();
-    psim::PSim* psim = new psim::PSim(proto);
+    srand(time(NULL));
     
+    Protocol* proto = Protocol::build_random_protocol(1600, 16);
 
-    psim::PTask* new_havij_task;
-    new_havij_task = proto->create_task(psim::PTaskType::COMPUTE, 10);
-    psim::PComp* new_compute_task = (psim::PComp*) new_havij_task;
-    new_compute_task->size = 200;
+    // std::string path = "logs/protocol_log.txt";
+    // std::ofstream simulation_log;
+    // simulation_log.open(path);
+    // proto->export_graph(simulation_log);
+    // simulation_log.close();
+    // proto->export_dot("logs/protocol.dot");
 
+    PSim* psim = new PSim(proto);
 
     proto->build_dependency_graph();
     double psim_time = psim->simulate();
     std::cout << "havij time:" << psim_time << std::endl;
-
-    serialize_date();
 
     return 0;
 }

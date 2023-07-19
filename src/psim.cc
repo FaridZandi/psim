@@ -2,9 +2,12 @@
 #include "psim.h"
 #include "network.h"
 #include "protocol.h"
+#include "matplotlibcpp.h"
 
 
 using namespace psim;
+
+namespace plt = matplotlibcpp;
 
 int Network::bottleneck_counter = 0;
 static int simulation_counter = 0; 
@@ -15,10 +18,9 @@ PSim::PSim() :
     PSim(new Protocol()) {} 
 
 PSim::PSim(Protocol* protocol) : protocol(protocol) {
-    srand(time(NULL));
     this->timer = 0;  
     this->step_size = step_size_constant;
-    this->network = new BigSwitchNetwork(10);
+    this->network = new BigSwitchNetwork(1);
 }
 
 
@@ -119,6 +121,9 @@ double PSim::simulate() {
     double total_comm = 0; 
     double total_comp = 0;
 
+    std::vector<double> comm_log;
+    std::vector<double> comp_log;
+
     while (true) {
 
         std::vector<Flow *> step_finished_flows;
@@ -130,6 +135,9 @@ double PSim::simulate() {
         total_comm += step_comm;
         total_comp += stop_comp;
 
+        comm_log.push_back(step_comm);
+        comp_log.push_back(stop_comp);
+                
         for (auto& flow : step_finished_flows) {
             finished_flows.push_back(flow);
             flow->end_time = timer;
@@ -151,7 +159,7 @@ double PSim::simulate() {
         
         timer += step_size;
 
-        if (true) {
+        if (false) {
             simulation_log << "Time: " << timer << std::endl; 
             simulation_log << "Task Completion: " << this->protocol->finished_task_count;
             simulation_log << "/" << this->protocol->total_task_count;
@@ -176,6 +184,13 @@ double PSim::simulate() {
         }
     }
 
+
+    // plot the data with matplotlibcpp: comm_log, comp_log
+    plt::figure_size(1200, 780);
+    plt::plot(comm_log, {{"label", "Comm"}});
+    plt::plot(comp_log, {{"label", "Comp"}});
+    plt::legend();
+    plt::savefig("fig.png", {{"bbox_inches", "tight"}});
     // std::cout << "Timer: " << timer << ", Task Completion: " << this->protocol->finished_task_count << "/" << this->protocol->total_task_count << ", Comm: " << total_comm << ", Comp: " << total_comp << std::endl;
 
 
