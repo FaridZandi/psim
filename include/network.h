@@ -64,7 +64,7 @@ private:
     std::map<int, Bottleneck *> server_bottlenecks_downstream;
     std::map<int, Bottleneck *> server_bottlenecks_upstream;
 
-    int server_count = 16;
+    int server_count = 128;
     int switch_capacity = 40;
     int server_switch_link_capacity = 40;
 };

@@ -57,6 +57,9 @@ public:
 
     virtual PTaskType get_type() = 0;
     virtual void print_task_info(std::ostream& os) = 0;
+    virtual void reset(); 
+
+    virtual PTask* make_shallow_copy() = 0; 
 private:    
 
 };
@@ -70,6 +73,9 @@ public:
 
     void print_task_info(std::ostream& os);
 
+    void reset(); 
+
+    PTask* make_shallow_copy(); 
 private:
 
 };
@@ -99,6 +105,9 @@ public:
 
     void print_task_info(std::ostream& os);
 
+    void reset(); 
+
+    PTask* make_shallow_copy(); 
 private:
 
 };
@@ -118,6 +127,9 @@ public:
 
     void print_task_info(std::ostream& os);
 
+    void reset(); 
+    PTask* make_shallow_copy(); 
+
 private:
 
 };
@@ -127,12 +139,24 @@ class Protocol {
 public:
     Protocol();
     virtual ~Protocol();
+
+    PTask* create_task(PTaskType type);
     PTask* create_task(PTaskType type, int id);
+    void add_to_tasks(PTask *task);
 
     void build_dependency_graph();
 
     void export_graph(std::ofstream& protocol_log);
     void export_dot(std::string filename);
+
+    Protocol *make_copy(bool build_dependency_graph = true); 
+
+    static Protocol* build_random_protocol(int num_comp, int machine_count); 
+    static Protocol* load_protocol_from_file(std::string file_path); 
+    static Protocol* pipelinize_protocol(Protocol *proto, int num_replicas, bool tight_connections = false);
+    static Protocol* super_simple_protocol();
+    static Protocol* simple_pipeline_protocol(int length);
+
 
     std::vector<PTask *> tasks;
     std::map<int, PTask *> task_map;
@@ -141,7 +165,7 @@ public:
     int total_task_count;
     int finished_task_count;
 
-    static Protocol* build_random_protocol(int num_comp, int machine_count); 
+    int max_allocated_id; 
 
 private:
 

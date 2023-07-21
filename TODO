@@ -3,7 +3,8 @@
 [ ] Implement a more complicated kind of network, like the FatTree in the python code. 
 
 [ ] Create a protocol builder class or function or whatever. I like to create some protocols and and how they would work in action.  
-    [*] Create a protocol builder of random entities.  
+    [*] Create a protocol builder of random entities. 
+    [ ] Allow loading a protocol from file. 
     [ ] Create a protocol for distributed ML, sort of. 
 
 

@@ -20,7 +20,7 @@ PSim::PSim() :
 PSim::PSim(Protocol* protocol) : protocol(protocol) {
     this->timer = 0;  
     this->step_size = step_size_constant;
-    this->network = new BigSwitchNetwork(1);
+    this->network = new BigSwitchNetwork(1000);
 }
 
 
@@ -190,7 +190,7 @@ double PSim::simulate() {
     plt::plot(comm_log, {{"label", "Comm"}});
     plt::plot(comp_log, {{"label", "Comp"}});
     plt::legend();
-    plt::savefig("fig.png", {{"bbox_inches", "tight"}});
+    plt::savefig("logs/fig.png", {{"bbox_inches", "tight"}});
     // std::cout << "Timer: " << timer << ", Task Completion: " << this->protocol->finished_task_count << "/" << this->protocol->total_task_count << ", Comm: " << total_comm << ", Comp: " << total_comp << std::endl;
 
 

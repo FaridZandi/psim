@@ -6,12 +6,14 @@
 #include "protocol.h"
 #include <cmath>
 #include <fstream>
+#include <sstream>
 
 using namespace psim;
 
 Protocol::Protocol() {
     finished_task_count = 0; 
     total_task_count = 0; 
+    max_allocated_id = 0; 
 }
 
 Protocol::~Protocol() {
@@ -20,8 +22,26 @@ Protocol::~Protocol() {
     }
 }
 
+void Protocol::add_to_tasks(PTask *task){
+    if(task->id == -1) {
+        task->id = max_allocated_id + 1;
+    }
+
+    max_allocated_id = std::max(max_allocated_id, task->id);
+
+    this->tasks.push_back(task);
+    this->task_map[task->id] = task;
+
+    this->total_task_count += 1;
+}
+
+PTask* Protocol::create_task(PTaskType type) {
+    return create_task(type, -1);
+}
+
 
 PTask* Protocol::create_task(PTaskType type, int id) {
+    
     PTask *task;
 
     switch (type) {
@@ -41,9 +61,7 @@ PTask* Protocol::create_task(PTaskType type, int id) {
     }
 
     task->id = id;
-    this->tasks.push_back(task);
-    this->task_map[id] = task;
-    this->total_task_count += 1;
+    add_to_tasks(task);
 
     return task;
 }
@@ -55,14 +73,15 @@ void Protocol::build_dependency_graph() {
             task->add_to_next(next_task);
             next_task->is_initiator = false;
         }
+        task->next_task_ids.clear();
     }
 
     for (auto task : this->tasks) {
         if (task->is_initiator) {
+            task->is_initiator = false; 
             this->initiators.push_back(task);
         }
     }
-
     // std::cout << "total tasks in protocol " << this->tasks.size() << std::endl;
 }
 
@@ -74,14 +93,43 @@ void Protocol::export_graph(std::ofstream& protocol_log){
 
 void Protocol::export_dot(std::string filename){
     std::ofstream protocol_log;
-    protocol_log.open(filename);
+    
+    std::string dot_path = "logs/" + filename + ".dot";
+    std::string png_path = "logs/" + filename + ".png";
+
+    protocol_log.open(dot_path);
 
     protocol_log << "digraph G {" << std::endl;
     protocol_log << "node [shape=record];" << std::endl;
 
     for (auto& task : this->tasks) {
         // print task info in dot format
-        protocol_log << task->id << " [label=\"" << task->id << "\"";
+        // label is in the format:
+        // for compute tasks: Work <task_size> \n on M<task_dev_id>
+        // for flow tasks: Comm <task_size> \n from M<task_src_dev_id> to M<task_dst_dev_id>        
+        std::string label = "";
+        if (task->get_type() == PTaskType::COMPUTE) {
+            PComp *compute_task = (PComp *)task;
+            // round the size to 2 decimal places
+            std::stringstream stream;
+            stream << std::fixed << std::setprecision(2) << compute_task->size;
+            std::string size_str = stream.str();
+            label = "Work\n" + size_str + "\non M" + std::to_string(compute_task->dev_id);
+
+        } else if (task->get_type() == PTaskType::FLOW) {
+            Flow *flow = (Flow *)task;
+            
+            std::stringstream stream;
+            stream << std::fixed << std::setprecision(2) << flow->size;
+            std::string size_str = stream.str();
+            
+            label = "Comm\n" + size_str + "\nM" + std::to_string(flow->src_dev_id) + "->M" + std::to_string(flow->dst_dev_id);
+        } else {
+            label = "AllR";
+        }
+
+        protocol_log << task->id << " [label=\"" << task->id << "|" << label << "\"";
+
         protocol_log << " shape="; 
         if (task->get_type() == PTaskType::COMPUTE) {
             protocol_log << "box";
@@ -90,12 +138,22 @@ void Protocol::export_dot(std::string filename){
         } else {
             protocol_log << "diamond";
         }
+
+        protocol_log << " color=";
+        if (task->get_type() == PTaskType::COMPUTE) {
+            protocol_log << "blue";
+        } else if (task->get_type() == PTaskType::FLOW) {
+            protocol_log << "green";
+        } else {
+            protocol_log << "red";
+        }
+
         protocol_log << "];" << std::endl;
     }
 
     for (auto& task : this->tasks) {
-        for (auto& next_task : task->next_task_ids) {
-            protocol_log << task->id << " -> " << next_task << ";" << std::endl;
+        for (auto& next_task : task->next_tasks) {
+            protocol_log << task->id << " -> " << next_task->id << ";" << std::endl;
         }
     }
 
@@ -103,81 +161,67 @@ void Protocol::export_dot(std::string filename){
     protocol_log.close();
 
     // run dot command to generate png
-    std::string dot_command = "dot -Tpng " + filename + " -o " + filename + ".png";
+    std::string dot_command = "dot -Tpng " + dot_path + " -o " + png_path;
     int ret = system(dot_command.c_str());
 
 }
 
-Protocol* Protocol::build_random_protocol(int num_comp, int machine_count){
-    Protocol *protocol = new Protocol();
 
-    // create compute tasks 
-    std::map<int, PComp *> task_map;
+Protocol* Protocol::make_copy(bool build_dependency_graph){
+    Protocol *replica = new Protocol();
+
+    for (auto& task : this->tasks) {
+        PTask *new_task = replica->create_task(task->get_type(), task->id);
+
+        if (task->get_type() == PTaskType::COMPUTE) {
+            PComp *compute_task = (PComp *)task;
+            PComp *new_compute_task = (PComp *)new_task;
+
+            new_compute_task->size = compute_task->size;
+            new_compute_task->dev_id = compute_task->dev_id;
+        } else if (task->get_type() == PTaskType::FLOW) {
+            Flow *flow = (Flow *)task;
+            Flow *new_flow = (Flow *)new_task;
+
+            new_flow->size = flow->size;
+            new_flow->src_dev_id = flow->src_dev_id;
+            new_flow->dst_dev_id = flow->dst_dev_id;
+        } else {
+            // empty task
+        }
+
+        for (auto& next_task_id : task->next_task_ids) {
+            new_task->add_next_task_id(next_task_id);
+        }
+    }
     
-    int task_counter = 0;
-    for (int i = 0; i < num_comp; i++) {
-        PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE, task_counter);
-        task_map[i] = pc;
-        pc->size = 100;
-        pc->dev_id = rand() % 16;
-        task_counter += 1;
+    if (build_dependency_graph){
+        replica->build_dependency_graph();
     }
 
-    // reachable tasks 
-    std::vector<int> reachable_tasks;
-    reachable_tasks.push_back(0);
+    return replica;
+} 
 
-    // create enough connection such that all tasks are reachable
-    for (int i = 1; i < num_comp; i++) {
-        int connection_count = rand() % 3 + 1;
-        connection_count = std::min(connection_count, (int)reachable_tasks.size());
-
-        // get connection_count different random samples from reachable_tasks
-        std::vector<int> samples;
-        for (int j = 0; j < connection_count; j++) {
-            int sample = rand() % reachable_tasks.size();
-            while (std::find(samples.begin(), samples.end(), sample) != samples.end()) {
-                sample = rand() % reachable_tasks.size();
-            }
-            samples.push_back(sample);
-        }
-
-        for (int j = 0; j < connection_count; j++) {
-            int prev = samples[j];
-
-            if (task_map[prev]->dev_id == task_map[i]->dev_id) {
-                task_map[prev]->add_next_task_id(i);
-            } else {
-                Flow *flow = (Flow*)protocol->create_task(PTaskType::FLOW, task_counter);
-                task_counter += 1;
-
-                flow->src_dev_id = task_map[prev]->dev_id;
-                flow->dst_dev_id = task_map[i]->dev_id;
-                flow->size = 100;
-
-                task_map[prev]->add_next_task_id(flow->id);
-                flow->add_next_task_id(task_map[i]->id);
-            }
-        }
-
-        reachable_tasks.push_back(i);
-    }
-
-    return protocol;
-}
 
 PTask::PTask() {
-    is_initiator = true; 
-    status = PTaskStatus::BLOCKED;
-    dep_left = 0;
-    start_time = 0; 
-    end_time = 0; 
+    reset();
 }
 
 
 PTask::~PTask() {
     
 }
+
+void PTask::reset(){
+    is_initiator = true;
+    status = PTaskStatus::BLOCKED;
+    dep_left = 0; 
+    start_time = 0;
+    end_time = 0;
+    next_tasks.clear();
+    next_task_ids.clear();
+    id = -1;  
+} 
 
 void PTask::add_next_task_id(int id) {
     this->next_task_ids.push_back(id);
@@ -190,7 +234,7 @@ void PTask::add_to_next(PTask *task) {
 
 
 EmptyTask::EmptyTask() : PTask() {
-    
+    reset();
 }
 
 EmptyTask::~EmptyTask() {
@@ -219,9 +263,24 @@ EmptyTask::print_task_info(std::ostream& os){
     os << std::endl;
 }
 
+
+
+void EmptyTask::reset(){
+    
+} 
+
+PTask* EmptyTask::make_shallow_copy(){
+    EmptyTask *new_task = new EmptyTask();
+    return new_task;
+} 
+
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
 Flow::Flow() : PTask() {
-    progress = 0;
-    current_rate = initial_rate_constant; 
+    reset();
 }
 
 Flow::~Flow() {
@@ -300,8 +359,34 @@ Flow::print_task_info(std::ostream& os){
     os << std::endl;
 }
 
+void Flow::reset(){
+    size = 0;
+    progress = 0;
+    current_rate = initial_rate_constant; 
+    registered_rate = 0; 
+    src_dev_id = -1; 
+    dst_dev_id = -1;
+    path.clear();
+    src = nullptr;
+    dst = nullptr;
+} 
+
+PTask* Flow::make_shallow_copy(){
+    Flow *new_task = new Flow();
+    new_task->size = this->size;
+    new_task->src_dev_id = this->src_dev_id;
+    new_task->dst_dev_id = this->dst_dev_id;
+    return new_task;
+
+} 
+
+
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////
+
 PComp::PComp() : PTask() {
-    progress = 0; 
+    reset();    
 }
 
 
@@ -330,3 +415,19 @@ PComp::print_task_info(std::ostream& os){
 
     os << std::endl;
 }
+
+void PComp::reset(){
+    progress = 0; 
+    dev_id = 0;
+    size = 0;
+    machine = nullptr;
+}
+
+
+PTask* PComp::make_shallow_copy(){
+    PComp *new_task = new PComp();
+    new_task->size = this->size;
+    new_task->dev_id = this->dev_id;
+
+    return new_task;
+} 
