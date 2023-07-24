@@ -44,6 +44,8 @@ public:
     
     void add_to_next(PTask *task);
 
+    Protocol *protocol;
+    
     std::vector<PTask *> next_tasks;
     std::vector<int> next_task_ids;
     int dep_left; 

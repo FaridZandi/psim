@@ -19,11 +19,17 @@ Network::~Network() {
 
 
 double Network::make_progress_on_machines(double step_size, 
-                                        std::vector<PComp*> & step_finished_tasks){
+                                          std::vector<PComp*> & step_finished_tasks){
     double step_comp = 0;
 
     for (auto& machine : this->machines) {
         step_comp += machine->make_progress(step_size, step_finished_tasks);
+    }
+
+    if (GConf::inst().record_machine_history){
+        for (auto& machine: this->machines) {
+            machine->task_queue_length_history.push_back(machine->task_queue.size());
+        }
     }
 
     return step_comp; 

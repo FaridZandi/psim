@@ -11,10 +11,7 @@ cd $BUILD_PATH
 make -j 48
 cd $RUN_PATH
 cmd="$PSIM_EXE --protocol-file-path=$INPUT_PATH \
-               --protocol-file-name=simple.txt \
-               --machine-count=128 \
-               --plot-graphs \
-               --initial-rate 10 \
+               --protocol-file-name=vgg.txt \
                $ARGS"
 eval $cmd
 

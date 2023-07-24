@@ -99,6 +99,7 @@ public:
     double make_progress(double step_size, std::vector<PComp*> & step_finished_tasks);
     std::queue<PComp*, std::deque<PComp*> > task_queue;
 
+    std::vector<int> task_queue_length_history;
 private:
 };
 
@@ -115,7 +116,10 @@ public:
     double bandwidth;
     double total_register;
     double total_allocated; 
-    int id;  
+    int id;
+
+    std::vector<double> total_register_history;
+    std::vector<double> total_allocated_history; 
 private: 
 };
 

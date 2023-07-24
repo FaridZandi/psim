@@ -16,30 +16,20 @@ int main(int argc, char** argv) {
     parse_arguments_boost(argc, argv);
     
     std::string path = GConf::inst().protocol_file_path + "/" + GConf::inst().protocol_file_name;
-
-    // Protocol* proto = Protocol::build_random_protocol(1600, 16);
-    Protocol* base_proto = Protocol::load_protocol_from_file(path);
-    // Protocol* base_proto = Protocol::super_simple_protocol();
-    // Protocol* base_proto = Protocol::super_simple_protocol();
-
-    base_proto->build_dependency_graph();
-
-    // Protocol* proto = Protocol::pipelinize_protocol(base_proto, 2, true);
-    // Protocol* proto = base_proto->make_copy(true);
-    Protocol* proto = base_proto; 
-
-    // std::string path = "logs/protocol_log.txt";
-    // std::ofstream simulation_log;
-    // simulation_log.open(path);
-    // proto->export_graph(simulation_log);
-    // simulation_log.close();
+    Protocol* proto = Protocol::load_protocol_from_file(path);
+    Protocol* proto2 = Protocol::load_protocol_from_file(path);
+    proto->build_dependency_graph();
+    proto2->build_dependency_graph();
 
     if (GConf::inst().export_dot){
         proto->export_dot("protocol");
     }
 
     if (GConf::inst().verbose) std::cout << "Running protocol" << std::endl;
-    PSim* psim = new PSim(proto);
+    PSim* psim = new PSim();
+    psim->add_protocol(proto);
+    psim->add_protocol(proto2);
+
     double psim_time = psim->simulate();
     std::cout << "havij time:" << psim_time << std::endl;
 
@@ -63,6 +53,8 @@ void parse_arguments_boost(int argc, char** argv){
         ("protocol-file-path", po::value<std::string>(), "set protocol file path")
         ("plot-graphs", po::value<int>()->implicit_value(1), "enable plotting graphs")
         ("export-dot", po::value<int>()->implicit_value(1), "enable exporting dot")
+        ("record-bottleneck-history", po::value<int>()->implicit_value(1), "enable recording bottleneck history")
+        ("record-machine-history", po::value<int>()->implicit_value(1), "enable recording machine history")
     ;
 
     po::variables_map vm;
@@ -132,6 +124,18 @@ void parse_arguments_boost(int argc, char** argv){
         GConf::inst().export_dot = true;
         if (GConf::inst().verbose) {
             std::cout << "export-dot set to " << GConf::inst().export_dot << ".\n";
+        }
+    }
+    if (vm.count("record-bottleneck-history")) {
+        GConf::inst().record_bottleneck_history = true;
+        if (GConf::inst().verbose) {
+            std::cout << "record-bottleneck-history set to " << GConf::inst().record_bottleneck_history << ".\n";
+        }
+    }
+    if (vm.count("record-machine-history")) {
+        GConf::inst().record_machine_history = true;
+        if (GConf::inst().verbose) {
+            std::cout << "record-machine-history set to " << GConf::inst().record_machine_history << ".\n";
         }
     }
 

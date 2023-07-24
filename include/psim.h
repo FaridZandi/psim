@@ -30,15 +30,14 @@ public:
     
     PSim();
 
-    PSim(Protocol *protocol);
-    
     virtual ~PSim();
 
     virtual double simulate();
 
-    Protocol *protocol;
-
+    void add_protocol(Protocol *protocol);
 private: 
+    std::vector<Protocol *> protocols;
+
     double timer;
     double step_size;
 

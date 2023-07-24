@@ -29,6 +29,8 @@ void Protocol::add_to_tasks(PTask *task){
 
     max_allocated_id = std::max(max_allocated_id, task->id);
 
+    task->protocol = this;
+    
     this->tasks.push_back(task);
     this->task_map[task->id] = task;
 
@@ -221,6 +223,7 @@ void PTask::reset(){
     next_tasks.clear();
     next_task_ids.clear();
     id = -1;  
+    protocol = nullptr;
 } 
 
 void PTask::add_next_task_id(int id) {

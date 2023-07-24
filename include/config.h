@@ -21,6 +21,8 @@ public:
     std::string protocol_file_name;
     bool plot_graphs;
     bool export_dot; 
+    bool record_bottleneck_history;
+    bool record_machine_history;
 
 private:
     GConf() {
@@ -34,6 +36,8 @@ private:
         protocol_file_name = "vgg.txt";
         plot_graphs = false;
         export_dot = false;
+        record_bottleneck_history = false;
+        record_machine_history = false;
     }
 };
 
