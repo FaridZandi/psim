@@ -189,7 +189,7 @@ double PSim::simulate() {
     // make the logs directory if it doesn't exist
 
 
-    if (GConf::inst().should_plot_graphs) {
+    if (GConf::inst().plot_graphs) {
         // plot the data with matplotlibcpp: comm_log, comp_log
         plt::figure_size(1200, 780);
         plt::plot(comm_log, {{"label", "Comm"}});

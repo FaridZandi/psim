@@ -33,8 +33,12 @@ int main(int argc, char** argv) {
     // simulation_log.open(path);
     // proto->export_graph(simulation_log);
     // simulation_log.close();
-    // proto->export_dot("protocol");
 
+    if (GConf::inst().export_dot){
+        proto->export_dot("protocol");
+    }
+
+    if (GConf::inst().verbose) std::cout << "Running protocol" << std::endl;
     PSim* psim = new PSim(proto);
     double psim_time = psim->simulate();
     std::cout << "havij time:" << psim_time << std::endl;
@@ -57,7 +61,8 @@ void parse_arguments_boost(int argc, char** argv){
         ("link-bandwidth", po::value<double>(), "set link bandwidth")
         ("protocol-file-name", po::value<std::string>(), "set protocol file name")
         ("protocol-file-path", po::value<std::string>(), "set protocol file path")
-        ("should-plot-graphs", po::value<int>()->implicit_value(1), "enable plotting graphs")
+        ("plot-graphs", po::value<int>()->implicit_value(1), "enable plotting graphs")
+        ("export-dot", po::value<int>()->implicit_value(1), "enable exporting dot")
     ;
 
     po::variables_map vm;
@@ -117,10 +122,17 @@ void parse_arguments_boost(int argc, char** argv){
             std::cout << "protocol-file-path set to " << GConf::inst().protocol_file_path << ".\n";
         }
     }
-    if (vm.count("should-plot-graphs")) {
-        GConf::inst().should_plot_graphs = true;
+    if (vm.count("plot-graphs")) {
+        GConf::inst().plot_graphs = true;
         if (GConf::inst().verbose) {
-            std::cout << "should-plot-graphs set to " << GConf::inst().should_plot_graphs << ".\n";
+            std::cout << "plot-graphs set to " << GConf::inst().plot_graphs << ".\n";
         }
     }
+    if (vm.count("export-dot")) {
+        GConf::inst().export_dot = true;
+        if (GConf::inst().verbose) {
+            std::cout << "export-dot set to " << GConf::inst().export_dot << ".\n";
+        }
+    }
+
 }
