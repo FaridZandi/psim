@@ -19,8 +19,8 @@ PSim::PSim() :
 
 PSim::PSim(Protocol* protocol) : protocol(protocol) {
     this->timer = 0;  
-    this->step_size = step_size_constant;
-    this->network = new BigSwitchNetwork(1000);
+    this->step_size = GConf::inst().step_size_constant;
+    this->network = new BigSwitchNetwork();
 }
 
 

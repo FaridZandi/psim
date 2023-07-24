@@ -5,7 +5,7 @@
 #include <map>
 #include <ostream>
 #include "network.h"
-#include "constants.h"
+#include "config.h"
 
 
 namespace psim {
@@ -87,6 +87,7 @@ public:
     
     double current_rate; 
     double registered_rate; 
+    double rate_increase_constant; 
 
     int src_dev_id; 
     int dst_dev_id; 

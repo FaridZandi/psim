@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <fstream>
-#include "constants.h"
+#include "config.h"
 
 namespace psim {
 

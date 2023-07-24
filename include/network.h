@@ -7,7 +7,7 @@
 #include <queue>
 #include <deque>
 #include "protocol.h"
-#include "constants.h"
+#include "config.h"
 
 
 namespace psim {
@@ -54,7 +54,7 @@ private:
 
 class BigSwitchNetwork : public Network {
 public:
-    BigSwitchNetwork(double iface_bandwidth);
+    BigSwitchNetwork();
     virtual ~BigSwitchNetwork();
 
     void set_path(Flow* flow);
@@ -65,7 +65,7 @@ private:
     std::map<int, Bottleneck *> server_bottlenecks_upstream;
 
     int server_count = 128;
-    int switch_capacity = 40;
+    int switch_capacity;
     int server_switch_link_capacity = 40;
 };
 

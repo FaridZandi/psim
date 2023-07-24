@@ -65,20 +65,22 @@ Bottleneck* Network::create_bottleneck(double bandwidth) {
 //==============================================================================
 
 
-BigSwitchNetwork::BigSwitchNetwork(double iface_bandwidth): Network() {
+BigSwitchNetwork::BigSwitchNetwork(): Network() {
 
+    double link_bandwidth = GConf::inst().link_bandwidth;
+    this->server_count = GConf::inst().machine_count;
 
     for (int i = 0; i < this->server_count; i++) {
         Machine *machine = get_machine(i);
     }
 
-    this->switch_bottleneck = create_bottleneck(iface_bandwidth);
+    this->switch_bottleneck = create_bottleneck(link_bandwidth);
     
     for (int i = 0; i < this->server_count; i++) {
-        Bottleneck *ds_bn = create_bottleneck(iface_bandwidth);
+        Bottleneck *ds_bn = create_bottleneck(link_bandwidth);
         this->server_bottlenecks_downstream[i] = ds_bn;
 
-        Bottleneck *us_bn = create_bottleneck(iface_bandwidth);
+        Bottleneck *us_bn = create_bottleneck(link_bandwidth);
         this->server_bottlenecks_upstream[i] = us_bn;
     }
 }

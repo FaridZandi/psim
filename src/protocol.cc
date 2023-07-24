@@ -362,7 +362,8 @@ Flow::print_task_info(std::ostream& os){
 void Flow::reset(){
     size = 0;
     progress = 0;
-    current_rate = initial_rate_constant; 
+    current_rate = GConf::inst().initial_rate_constant; 
+    rate_increase_constant = GConf::inst().rate_increase_constant;
     registered_rate = 0; 
     src_dev_id = -1; 
     dst_dev_id = -1;
