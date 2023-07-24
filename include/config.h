@@ -12,24 +12,26 @@ public:
     void operator=(GConf const&) = delete;
 
     bool verbose;
-    double step_size_constant;
-    double rate_increase_constant;
-    double initial_rate_constant; 
+    double step_size;
+    double rate_increase;
+    double initial_rate; 
     int machine_count; 
     double link_bandwidth;
     std::string protocol_file_path;
     std::string protocol_file_name;
+    bool should_plot_graphs;
 
 private:
     GConf() {
         verbose = false;
-        step_size_constant = 1;
-        rate_increase_constant = 1.1;
-        initial_rate_constant = 1000;
-        machine_count = 128;
-        link_bandwidth = 1000;
+        step_size = 0.1;
+        rate_increase = 1.1;
+        initial_rate = 10;
+        machine_count = 16;
+        link_bandwidth = 100;
         protocol_file_path = "../input/";
-        protocol_file_name = "simple.txt";
+        protocol_file_name = "vgg.txt";
+        should_plot_graphs = false;
     }
 };
 

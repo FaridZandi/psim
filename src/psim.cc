@@ -19,7 +19,7 @@ PSim::PSim() :
 
 PSim::PSim(Protocol* protocol) : protocol(protocol) {
     this->timer = 0;  
-    this->step_size = GConf::inst().step_size_constant;
+    this->step_size = GConf::inst().step_size;
     this->network = new BigSwitchNetwork();
 }
 
@@ -109,8 +109,10 @@ double PSim::make_progress_on_flows(std::vector<Flow*> & step_finished_flows){
 
 
 double PSim::simulate() {
+
+
     simulation_counter += 1;
-    std::string path = "logs/protocol_log_" + std::to_string(simulation_counter) + ".txt";
+    std::string path = "out/protocol_log_" + std::to_string(simulation_counter) + ".txt";
     std::ofstream simulation_log;
     simulation_log.open(path);
 
@@ -184,19 +186,25 @@ double PSim::simulate() {
         }
     }
 
+    // make the logs directory if it doesn't exist
 
-    // plot the data with matplotlibcpp: comm_log, comp_log
-    plt::figure_size(1200, 780);
-    plt::plot(comm_log, {{"label", "Comm"}});
-    plt::plot(comp_log, {{"label", "Comp"}});
-    plt::legend();
-    plt::savefig("logs/fig.png", {{"bbox_inches", "tight"}});
-    // std::cout << "Timer: " << timer << ", Task Completion: " << this->protocol->finished_task_count << "/" << this->protocol->total_task_count << ", Comm: " << total_comm << ", Comp: " << total_comp << std::endl;
+
+    if (GConf::inst().should_plot_graphs) {
+        // plot the data with matplotlibcpp: comm_log, comp_log
+        plt::figure_size(1200, 780);
+        plt::plot(comm_log, {{"label", "Comm"}});
+        plt::plot(comp_log, {{"label", "Comp"}});
+        plt::legend();
+        plt::savefig("out/fig.png", {{"bbox_inches", "tight"}});
+    }
+
+    if (GConf::inst().verbose) {
+        std::cout << "Timer: " << timer << ", Task Completion: " << this->protocol->finished_task_count << "/" << this->protocol->total_task_count << ", Comm: " << total_comm << ", Comp: " << total_comp << std::endl;
+    }
 
 
     // this->protocol->export_graph(simulation_log);
     simulation_log.close();
-
     return timer;
 }
 

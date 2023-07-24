@@ -87,7 +87,7 @@ public:
     
     double current_rate; 
     double registered_rate; 
-    double rate_increase_constant; 
+    double rate_increase; 
 
     int src_dev_id; 
     int dst_dev_id; 

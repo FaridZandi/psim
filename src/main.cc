@@ -12,10 +12,10 @@ void parse_arguments_boost(int argc, char** argv);
 
 int main(int argc, char** argv) {
     srand(time(NULL));
-
+    int ret = system("mkdir -p out");
     parse_arguments_boost(argc, argv);
     
-    std::string path = GConf::inst().protocol_file_path + GConf::inst().protocol_file_name;
+    std::string path = GConf::inst().protocol_file_path + "/" + GConf::inst().protocol_file_name;
 
     // Protocol* proto = Protocol::build_random_protocol(1600, 16);
     Protocol* base_proto = Protocol::load_protocol_from_file(path);
@@ -50,13 +50,14 @@ void parse_arguments_boost(int argc, char** argv){
     desc.add_options()
         ("help", "produce help message")
         ("verbose", po::value<int>()->implicit_value(1), "enable verbosity")
-        ("step-size-constant", po::value<double>(), "set step size constant")
-        ("rate-increase-constant", po::value<double>(), "set rate increase constant")
-        ("initial-rate-constant", po::value<double>(), "set initial rate constant")
+        ("step-size", po::value<double>(), "set step size constant")
+        ("rate-increase", po::value<double>(), "set rate increase constant")
+        ("initial-rate", po::value<double>(), "set initial rate constant")
         ("machine-count", po::value<int>(), "set machine count")
         ("link-bandwidth", po::value<double>(), "set link bandwidth")
         ("protocol-file-name", po::value<std::string>(), "set protocol file name")
         ("protocol-file-path", po::value<std::string>(), "set protocol file path")
+        ("should-plot-graphs", po::value<int>()->implicit_value(1), "enable plotting graphs")
     ;
 
     po::variables_map vm;
@@ -70,34 +71,56 @@ void parse_arguments_boost(int argc, char** argv){
     }
     if (vm.count("verbose")) {
         GConf::inst().verbose = true;
-        std::cout << "verbose set to " << GConf::inst().verbose << ".\n";
+        if (GConf::inst().verbose) {
+            std::cout << "verbose set to " << GConf::inst().verbose << ".\n";
+        }
     }
-    if (vm.count("step-size-constant")) {
-        GConf::inst().step_size_constant = vm["step-size-constant"].as<double>();
-        std::cout << "step-size-constant set to " << GConf::inst().step_size_constant << ".\n";
+    if (vm.count("step-size")) {
+        GConf::inst().step_size = vm["step-size"].as<double>();
+        if (GConf::inst().verbose) {    
+            std::cout << "step-size set to " << GConf::inst().step_size << ".\n";
+        }
     }
-    if (vm.count("rate-increase-constant")) {
-        GConf::inst().rate_increase_constant = vm["rate-increase-constant"].as<double>();
-        std::cout << "rate-increase-constant set to " << GConf::inst().rate_increase_constant << ".\n";
+    if (vm.count("rate-increase")) {
+        GConf::inst().rate_increase = vm["rate-increase"].as<double>();
+        if (GConf::inst().verbose) {    
+            std::cout << "rate-increase set to " << GConf::inst().rate_increase << ".\n";
+        }
     }
-    if (vm.count("initial-rate-constant")) {
-        GConf::inst().initial_rate_constant = vm["initial-rate-constant"].as<double>();
-        std::cout << "initial-rate-constant set to " << GConf::inst().initial_rate_constant << ".\n";
+    if (vm.count("initial-rate")) {
+        GConf::inst().initial_rate = vm["initial-rate"].as<double>();
+        if (GConf::inst().verbose) {    
+            std::cout << "initial-rate set to " << GConf::inst().initial_rate << ".\n";
+        }
     }
     if (vm.count("machine-count")) {
         GConf::inst().machine_count = vm["machine-count"].as<int>();
-        std::cout << "machine-count set to " << GConf::inst().machine_count << ".\n";
+        if (GConf::inst().verbose) {    
+            std::cout << "machine-count set to " << GConf::inst().machine_count << ".\n";
+        }
     }
     if (vm.count("link-bandwidth")) {
         GConf::inst().link_bandwidth = vm["link-bandwidth"].as<double>();
-        std::cout << "link-bandwidth set to " << GConf::inst().link_bandwidth << ".\n";
+        if (GConf::inst().verbose) {    
+            std::cout << "link-bandwidth set to " << GConf::inst().link_bandwidth << ".\n";
+        }
     }
     if (vm.count("protocol-file-name")) {
         GConf::inst().protocol_file_name = vm["protocol-file-name"].as<std::string>();
-        std::cout << "protocol-file-name set to " << GConf::inst().protocol_file_name << ".\n";
+        if (GConf::inst().verbose) {    
+            std::cout << "protocol-file-name set to " << GConf::inst().protocol_file_name << ".\n";
+        }
     }
     if (vm.count("protocol-file-path")) {
         GConf::inst().protocol_file_path = vm["protocol-file-path"].as<std::string>();
-        std::cout << "protocol-file-path set to " << GConf::inst().protocol_file_path << ".\n";
+        if (GConf::inst().verbose) {    
+            std::cout << "protocol-file-path set to " << GConf::inst().protocol_file_path << ".\n";
+        }
+    }
+    if (vm.count("should-plot-graphs")) {
+        GConf::inst().should_plot_graphs = true;
+        if (GConf::inst().verbose) {
+            std::cout << "should-plot-graphs set to " << GConf::inst().should_plot_graphs << ".\n";
+        }
     }
 }

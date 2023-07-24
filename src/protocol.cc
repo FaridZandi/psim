@@ -94,8 +94,8 @@ void Protocol::export_graph(std::ofstream& protocol_log){
 void Protocol::export_dot(std::string filename){
     std::ofstream protocol_log;
     
-    std::string dot_path = "logs/" + filename + ".dot";
-    std::string png_path = "logs/" + filename + ".png";
+    std::string dot_path = "out/" + filename + ".dot";
+    std::string png_path = "out/" + filename + ".png";
 
     protocol_log.open(dot_path);
 
@@ -309,7 +309,7 @@ void Flow::update_rate(double step_size) {
     if (should_drop) {
         current_rate /= 2;
     } else {
-        double multipier = pow(rate_increase_constant, step_size);
+        double multipier = pow(rate_increase, step_size);
         current_rate = current_rate * multipier;
     }
 
@@ -362,8 +362,8 @@ Flow::print_task_info(std::ostream& os){
 void Flow::reset(){
     size = 0;
     progress = 0;
-    current_rate = GConf::inst().initial_rate_constant; 
-    rate_increase_constant = GConf::inst().rate_increase_constant;
+    current_rate = GConf::inst().initial_rate; 
+    rate_increase = GConf::inst().rate_increase;
     registered_rate = 0; 
     src_dev_id = -1; 
     dst_dev_id = -1;
