@@ -17,12 +17,13 @@ public:
     double initial_rate; 
     int machine_count; 
     double link_bandwidth;
-    std::string protocol_file_path;
+    std::string protocol_file_dir;
     std::string protocol_file_name;
     bool plot_graphs;
     bool export_dot; 
     bool record_bottleneck_history;
     bool record_machine_history;
+    std::string output_dir;
 
 private:
     GConf() {
@@ -32,12 +33,13 @@ private:
         initial_rate = 10;
         machine_count = 16;
         link_bandwidth = 100;
-        protocol_file_path = "../input/";
+        protocol_file_dir = "../input/";
         protocol_file_name = "vgg.txt";
         plot_graphs = false;
         export_dot = false;
         record_bottleneck_history = false;
         record_machine_history = false;
+        output_dir = "out/";
     }
 };
 

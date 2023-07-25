@@ -96,8 +96,8 @@ void Protocol::export_graph(std::ofstream& protocol_log){
 void Protocol::export_dot(std::string filename){
     std::ofstream protocol_log;
     
-    std::string dot_path = "out/" + filename + ".dot";
-    std::string png_path = "out/" + filename + ".png";
+    std::string dot_path = GConf::inst().output_dir + filename + ".dot";
+    std::string png_path = GConf::inst().output_dir + filename + ".png";
 
     protocol_log.open(dot_path);
 

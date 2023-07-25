@@ -5,12 +5,13 @@ PSIM_EXE=$BUILD_PATH/psim
 INPUT_PATH=$BASE_DIR/input
 ARGS="$@"
 
-echo "Running PSim with args: $ARGS"
 
 cd $BUILD_PATH
 make -j 48
+
+echo "Running PSim with args: $ARGS"
 cd $RUN_PATH
-cmd="$PSIM_EXE --protocol-file-path=$INPUT_PATH \
+cmd="$PSIM_EXE --protocol-file-dir=$INPUT_PATH \
                --protocol-file-name=vgg.txt \
                $ARGS"
 eval $cmd

@@ -1,21 +1,25 @@
 #include "psim.h"
 #include "protocol.h"
 #include <iostream>
+#include <boost/program_options.hpp>
+#include "spdlog/spdlog.h"
 
-
+namespace po = boost::program_options;
 using namespace psim;
 
 
-#include <boost/program_options.hpp>
-namespace po = boost::program_options;
 void parse_arguments_boost(int argc, char** argv);
 
+void init();
+
 int main(int argc, char** argv) {
-    srand(time(NULL));
-    int ret = system("mkdir -p out");
+
     parse_arguments_boost(argc, argv);
+
+    init(); 
     
-    std::string path = GConf::inst().protocol_file_path + "/" + GConf::inst().protocol_file_name;
+    
+    std::string path = GConf::inst().protocol_file_dir + "/" + GConf::inst().protocol_file_name;
     Protocol* proto = Protocol::load_protocol_from_file(path);
     Protocol* proto2 = Protocol::load_protocol_from_file(path);
     proto->build_dependency_graph();
@@ -23,7 +27,11 @@ int main(int argc, char** argv) {
 
     if (GConf::inst().export_dot){
         proto->export_dot("protocol");
-    }
+    }  
+
+    spdlog::info("Welcome to spdlog!");
+
+
 
     if (GConf::inst().verbose) std::cout << "Running protocol" << std::endl;
     PSim* psim = new PSim();
@@ -31,9 +39,21 @@ int main(int argc, char** argv) {
     psim->add_protocol(proto2);
 
     double psim_time = psim->simulate();
-    std::cout << "havij time:" << psim_time << std::endl;
+    std::cout << "havij time: " << psim_time << std::endl;
 
     return 0;
+}
+
+void init(){
+    srand(time(NULL));
+
+    std::string rm_command = "rm -rf " + GConf::inst().output_dir;
+    std::string mkdir_command = "mkdir " + GConf::inst().output_dir;
+
+    int ret = system(rm_command.c_str());
+    ret = system(mkdir_command.c_str());
+
+    std::string log_path = GConf::inst().output_dir + "/log.txt";
 }
 
 
@@ -50,11 +70,12 @@ void parse_arguments_boost(int argc, char** argv){
         ("machine-count", po::value<int>(), "set machine count")
         ("link-bandwidth", po::value<double>(), "set link bandwidth")
         ("protocol-file-name", po::value<std::string>(), "set protocol file name")
-        ("protocol-file-path", po::value<std::string>(), "set protocol file path")
+        ("protocol-file-dir", po::value<std::string>(), "set protocol file path")
         ("plot-graphs", po::value<int>()->implicit_value(1), "enable plotting graphs")
         ("export-dot", po::value<int>()->implicit_value(1), "enable exporting dot")
         ("record-bottleneck-history", po::value<int>()->implicit_value(1), "enable recording bottleneck history")
         ("record-machine-history", po::value<int>()->implicit_value(1), "enable recording machine history")
+        ("output-dir", po::value<std::string>(), "set output directory")
     ;
 
     po::variables_map vm;
@@ -108,10 +129,10 @@ void parse_arguments_boost(int argc, char** argv){
             std::cout << "protocol-file-name set to " << GConf::inst().protocol_file_name << ".\n";
         }
     }
-    if (vm.count("protocol-file-path")) {
-        GConf::inst().protocol_file_path = vm["protocol-file-path"].as<std::string>();
+    if (vm.count("protocol-file-dir")) {
+        GConf::inst().protocol_file_dir = vm["protocol-file-dir"].as<std::string>();
         if (GConf::inst().verbose) {    
-            std::cout << "protocol-file-path set to " << GConf::inst().protocol_file_path << ".\n";
+            std::cout << "protocol-file-dir set to " << GConf::inst().protocol_file_dir << ".\n";
         }
     }
     if (vm.count("plot-graphs")) {
@@ -138,5 +159,10 @@ void parse_arguments_boost(int argc, char** argv){
             std::cout << "record-machine-history set to " << GConf::inst().record_machine_history << ".\n";
         }
     }
-
+    if (vm.count("output-dir")) {
+        GConf::inst().output_dir = vm["output-dir"].as<std::string>();
+        if (GConf::inst().verbose) {    
+            std::cout << "output-dir set to " << GConf::inst().output_dir << ".\n";
+        }
+    }
 }

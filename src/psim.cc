@@ -122,7 +122,8 @@ double PSim::simulate() {
 
 
     simulation_counter += 1;
-    std::string path = "out/protocol_log_" + std::to_string(simulation_counter) + ".txt";
+    
+    std::string path = GConf::inst().output_dir + "protocol_log_" + std::to_string(simulation_counter) + ".txt";
     std::ofstream simulation_log;
     simulation_log.open(path);
 
@@ -131,12 +132,6 @@ double PSim::simulate() {
             this->start_task(task);
         }
     }
-
-    double total_comm = 0; 
-    double total_comp = 0;
-
-    std::vector<double> comm_log;
-    std::vector<double> comp_log;
 
     while (true) {
         std::vector<Flow *> step_finished_flows;
@@ -196,8 +191,15 @@ double PSim::simulate() {
     }
 
     // make the logs directory if it doesn't exist
+    save_run_results();
+
+    // this->protocol->export_graph(simulation_log);
+    simulation_log.close();
+    return timer;
+}
 
 
+void PSim::save_run_results(){
     if (GConf::inst().plot_graphs) {
         // plot the data with matplotlibcpp: comm_log, comp_log
         plt::figure_size(1200, 780);
@@ -211,23 +213,27 @@ double PSim::simulate() {
 
 
         if (GConf::inst().record_machine_history) {
+            std::string mkdir_command = "mkdir -p " + GConf::inst().output_dir + "/machines";
+            int ret = system(mkdir_command.c_str());
+
             for (auto& machine: network->machines) {
                 plt::plot(machine->task_queue_length_history, {{"label", "Comm"}});
                 plt::legend();
-                std::string plot_name = "out/machine_" + std::to_string(machine->name) + ".png";
+                std::string plot_name = "out/machines/machine_" + std::to_string(machine->name) + ".png";
                 plt::savefig(plot_name, {{"bbox_inches", "tight"}});
                 plt::clf();
             }
         }
 
         if (GConf::inst().record_bottleneck_history){
+            std::string mkdir_command = "mkdir -p " + GConf::inst().output_dir + "/bottlenecks";
+            int ret = system(mkdir_command.c_str());
+
             for (auto& bn: network->bottlenecks){
-                // bn->total_register_history
-                // bn->total_allocated_history
                 plt::plot(bn->total_register_history, {{"label", "Registered"}});
                 plt::plot(bn->total_allocated_history, {{"label", "Allocated"}});
                 plt::legend();
-                std::string plot_name = "out/bottleneck_" + std::to_string(bn->id) + ".png";
+                std::string plot_name = "out/bottlenecks/bottleneck_" + std::to_string(bn->id) + ".png";
                 plt::savefig(plot_name, {{"bbox_inches", "tight"}});
                 plt::clf();
             }
@@ -245,10 +251,5 @@ double PSim::simulate() {
 
         std::cout << "Timer: " << timer << ", Task Completion: " << total_finished_task_count << "/" << total_task_count << ", Comm: " << total_comm << ", Comp: " << total_comp << std::endl;
     }
-
-
-    // this->protocol->export_graph(simulation_log);
-    simulation_log.close();
-    return timer;
 }
 

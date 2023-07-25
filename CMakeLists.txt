@@ -6,8 +6,6 @@ project(
   LANGUAGES CXX)
 
 set (CMAKE_CXX_STANDARD 11)
-# set(CMAKE_VERBOSE_MAKEFILE ON)
-
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_NUMPY")
 
@@ -18,8 +16,9 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 
 find_package(Boost 1.71.0 COMPONENTS serialization program_options) 
 
-
 include_directories(include)
+
+include_directories(deps/spdlog/include)
 
 # any python version
 find_package(PythonLibs REQUIRED)
