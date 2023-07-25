@@ -3,6 +3,8 @@
 #include <iostream>
 #include <boost/program_options.hpp>
 #include "spdlog/spdlog.h"
+#include "spdlog/sinks/basic_file_sink.h"
+#include "spdlog/sinks/stdout_color_sinks.h"
 
 namespace po = boost::program_options;
 using namespace psim;
@@ -17,29 +19,24 @@ int main(int argc, char** argv) {
     parse_arguments_boost(argc, argv);
 
     init(); 
-    
+
+    spdlog::info("Starting simulation.");
+    spdlog::debug("Starting simulation.");
+    spdlog::critical("Starting simulation.");
+
     
     std::string path = GConf::inst().protocol_file_dir + "/" + GConf::inst().protocol_file_name;
     Protocol* proto = Protocol::load_protocol_from_file(path);
-    Protocol* proto2 = Protocol::load_protocol_from_file(path);
     proto->build_dependency_graph();
-    proto2->build_dependency_graph();
-
     if (GConf::inst().export_dot){
         proto->export_dot("protocol");
     }  
 
-    spdlog::info("Welcome to spdlog!");
-
-
-
-    if (GConf::inst().verbose) std::cout << "Running protocol" << std::endl;
     PSim* psim = new PSim();
     psim->add_protocol(proto);
-    psim->add_protocol(proto2);
 
     double psim_time = psim->simulate();
-    std::cout << "havij time: " << psim_time << std::endl;
+    spdlog::info("psim time: {}.", psim_time);
 
     return 0;
 }
@@ -53,7 +50,18 @@ void init(){
     int ret = system(rm_command.c_str());
     ret = system(mkdir_command.c_str());
 
+
+    auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
+    console_sink->set_pattern("[%H:%M:%S:%e] [%^%l%$] %v");
+    console_sink->set_level(spdlog::level::level_enum(GConf::inst().console_log_level));
+
     std::string log_path = GConf::inst().output_dir + "/log.txt";
+    auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path, true);
+    file_sink->set_pattern("[%H:%M:%S:%e] [%^%l%$] %v");
+    file_sink->set_level(spdlog::level::level_enum(GConf::inst().file_log_level));
+
+    spdlog::set_default_logger(std::make_shared<spdlog::logger>("multi_sink", spdlog::sinks_init_list({console_sink, file_sink})));
+    spdlog::set_level(spdlog::level::trace);
 }
 
 
@@ -63,7 +71,6 @@ void parse_arguments_boost(int argc, char** argv){
     po::options_description desc("Allowed options");
     desc.add_options()
         ("help", "produce help message")
-        ("verbose", po::value<int>()->implicit_value(1), "enable verbosity")
         ("step-size", po::value<double>(), "set step size constant")
         ("rate-increase", po::value<double>(), "set rate increase constant")
         ("initial-rate", po::value<double>(), "set initial rate constant")
@@ -73,9 +80,11 @@ void parse_arguments_boost(int argc, char** argv){
         ("protocol-file-dir", po::value<std::string>(), "set protocol file path")
         ("plot-graphs", po::value<int>()->implicit_value(1), "enable plotting graphs")
         ("export-dot", po::value<int>()->implicit_value(1), "enable exporting dot")
-        ("record-bottleneck-history", po::value<int>()->implicit_value(1), "enable recording bottleneck history")
-        ("record-machine-history", po::value<int>()->implicit_value(1), "enable recording machine history")
+        ("record-bottleneck-history", po::value<int>()->implicit_value(1), "record bn history")
+        ("record-machine-history", po::value<int>()->implicit_value(1), "record machine history")
         ("output-dir", po::value<std::string>(), "set output directory")
+        ("console-log-level", po::value<int>(), "set console log level")
+        ("file-log-level", po::value<int>(), "set file log level")
     ;
 
     po::variables_map vm;
@@ -87,82 +96,60 @@ void parse_arguments_boost(int argc, char** argv){
         std::cout << desc << "\n";
         exit(0);
     }
-    if (vm.count("verbose")) {
-        GConf::inst().verbose = true;
-        if (GConf::inst().verbose) {
-            std::cout << "verbose set to " << GConf::inst().verbose << ".\n";
-        }
-    }
     if (vm.count("step-size")) {
         GConf::inst().step_size = vm["step-size"].as<double>();
-        if (GConf::inst().verbose) {    
-            std::cout << "step-size set to " << GConf::inst().step_size << ".\n";
-        }
+        spdlog::info("step-size set to {}.", GConf::inst().step_size);
     }
     if (vm.count("rate-increase")) {
         GConf::inst().rate_increase = vm["rate-increase"].as<double>();
-        if (GConf::inst().verbose) {    
-            std::cout << "rate-increase set to " << GConf::inst().rate_increase << ".\n";
-        }
+        spdlog::info("rate-increase set to {}.", GConf::inst().rate_increase);
     }
     if (vm.count("initial-rate")) {
         GConf::inst().initial_rate = vm["initial-rate"].as<double>();
-        if (GConf::inst().verbose) {    
-            std::cout << "initial-rate set to " << GConf::inst().initial_rate << ".\n";
-        }
+        spdlog::info("initial-rate set to {}.", GConf::inst().initial_rate);
     }
     if (vm.count("machine-count")) {
         GConf::inst().machine_count = vm["machine-count"].as<int>();
-        if (GConf::inst().verbose) {    
-            std::cout << "machine-count set to " << GConf::inst().machine_count << ".\n";
-        }
+        spdlog::info("machine-count set to {}.", GConf::inst().machine_count);
     }
     if (vm.count("link-bandwidth")) {
         GConf::inst().link_bandwidth = vm["link-bandwidth"].as<double>();
-        if (GConf::inst().verbose) {    
-            std::cout << "link-bandwidth set to " << GConf::inst().link_bandwidth << ".\n";
-        }
+        spdlog::info("link-bandwidth set to {}.", GConf::inst().link_bandwidth);
     }
     if (vm.count("protocol-file-name")) {
         GConf::inst().protocol_file_name = vm["protocol-file-name"].as<std::string>();
-        if (GConf::inst().verbose) {    
-            std::cout << "protocol-file-name set to " << GConf::inst().protocol_file_name << ".\n";
-        }
+        spdlog::info("protocol-file-name set to {}.", GConf::inst().protocol_file_name);
     }
     if (vm.count("protocol-file-dir")) {
         GConf::inst().protocol_file_dir = vm["protocol-file-dir"].as<std::string>();
-        if (GConf::inst().verbose) {    
-            std::cout << "protocol-file-dir set to " << GConf::inst().protocol_file_dir << ".\n";
-        }
+        spdlog::info("protocol-file-dir set to {}.", GConf::inst().protocol_file_dir);
     }
     if (vm.count("plot-graphs")) {
         GConf::inst().plot_graphs = true;
-        if (GConf::inst().verbose) {
-            std::cout << "plot-graphs set to " << GConf::inst().plot_graphs << ".\n";
-        }
+        spdlog::info("plot-graphs set to {}.", GConf::inst().plot_graphs);
     }
     if (vm.count("export-dot")) {
         GConf::inst().export_dot = true;
-        if (GConf::inst().verbose) {
-            std::cout << "export-dot set to " << GConf::inst().export_dot << ".\n";
-        }
+        spdlog::info("export-dot set to {}.", GConf::inst().export_dot);
     }
     if (vm.count("record-bottleneck-history")) {
         GConf::inst().record_bottleneck_history = true;
-        if (GConf::inst().verbose) {
-            std::cout << "record-bottleneck-history set to " << GConf::inst().record_bottleneck_history << ".\n";
-        }
+        spdlog::info("record-bottleneck-history set to {}.", GConf::inst().record_bottleneck_history);
     }
     if (vm.count("record-machine-history")) {
         GConf::inst().record_machine_history = true;
-        if (GConf::inst().verbose) {
-            std::cout << "record-machine-history set to " << GConf::inst().record_machine_history << ".\n";
-        }
+        spdlog::info("record-machine-history set to {}.", GConf::inst().record_machine_history);
     }
     if (vm.count("output-dir")) {
         GConf::inst().output_dir = vm["output-dir"].as<std::string>();
-        if (GConf::inst().verbose) {    
-            std::cout << "output-dir set to " << GConf::inst().output_dir << ".\n";
-        }
+        spdlog::info("output-dir set to {}.", GConf::inst().output_dir);
+    }
+    if (vm.count("console-log-level")) {
+        GConf::inst().console_log_level = vm["console-log-level"].as<int>();
+        spdlog::info("console-log-level set to {}.", GConf::inst().console_log_level);
+    }
+    if (vm.count("file-log-level")) {
+        GConf::inst().file_log_level = vm["file-log-level"].as<int>();
+        spdlog::info("file-log-level set to {}.", GConf::inst().file_log_level);
     }
 }

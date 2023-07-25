@@ -11,7 +11,6 @@ public:
     GConf(GConf const&) = delete;
     void operator=(GConf const&) = delete;
 
-    bool verbose;
     double step_size;
     double rate_increase;
     double initial_rate; 
@@ -24,10 +23,12 @@ public:
     bool record_bottleneck_history;
     bool record_machine_history;
     std::string output_dir;
+    int console_log_level = 0;
+    int file_log_level = 0;
+
 
 private:
     GConf() {
-        verbose = false;
         step_size = 0.01;
         rate_increase = 1.1;
         initial_rate = 10;
@@ -40,6 +41,8 @@ private:
         record_bottleneck_history = false;
         record_machine_history = false;
         output_dir = "out/";
+        console_log_level = 2;
+        file_log_level = 1; 
     }
 };
 

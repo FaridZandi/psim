@@ -8,6 +8,7 @@ project(
 set (CMAKE_CXX_STANDARD 11)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_NUMPY")
+set(CMAKE_BUILD_TYPE Release)
 
 
 set(Boost_USE_STATIC_LIBS OFF) 
@@ -16,9 +17,12 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 
 find_package(Boost 1.71.0 COMPONENTS serialization program_options) 
 
+
+
+add_subdirectory(deps/spdlog)
+
 include_directories(include)
 
-include_directories(deps/spdlog/include)
 
 # any python version
 find_package(PythonLibs REQUIRED)
@@ -34,9 +38,11 @@ set(SOURCES src/main.cc
 
 add_executable(psim ${SOURCES})
 
-target_link_libraries(psim ${PYTHON_LIBRARIES})
+target_link_libraries(psim ${PYTHON_LIBRARIES} spdlog::spdlog)
 
 if (Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS}) 
   target_link_libraries(psim ${Boost_LIBRARIES})
 endif()
+
+

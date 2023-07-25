@@ -3,7 +3,7 @@
 #include "network.h"
 #include "protocol.h"
 #include "matplotlibcpp.h"
-
+#include "spdlog/spdlog.h"
 
 using namespace psim;
 
@@ -185,6 +185,10 @@ double PSim::simulate() {
             simulation_log << std::endl;
         }
 
+        spdlog::debug("Time: {}, Comm: {}, Comp: {}", timer, total_comm, total_comp);
+
+
+
         if (flows.size() == 0 && compute_tasks.size() == 0) {
             break;
         }
@@ -240,7 +244,7 @@ void PSim::save_run_results(){
         }
     }
 
-    if (GConf::inst().verbose) {
+    if (true) {
         int total_task_count = 0;
         int total_finished_task_count = 0;
 
