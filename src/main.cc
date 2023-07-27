@@ -123,6 +123,7 @@ po::variables_map parse_arguments(int argc, char** argv){
         ("file-log-level", po::value<int>(), "set file log level")
         ("network-type", po::value<std::string>(), "set network type")
         ("bn-priority-levels", po::value<int>(), "set bn priority levels")
+        ("priority-allocator", po::value<std::string>(), "set priority allocator class")
 
         ("ft-server-per-rack", po::value<int>(), "set ft-server-per-rack")
         ("ft-rack-per-pod", po::value<int>(), "set ft-rack-per-pod")
@@ -151,6 +152,11 @@ po::variables_map parse_arguments(int argc, char** argv){
 
 
 void process_arguments(po::variables_map vm){
+
+    if (vm.count("priority-allocator")){
+        GConf::inst().priority_allocator = vm["priority-allocator"].as<std::string>();
+        spdlog::info("priority-allocator set to {}.", GConf::inst().priority_allocator);
+    }
     if (vm.count("bn-priority-levels")){
         GConf::inst().bn_priority_levels = vm["bn-priority-levels"].as<int>();
         spdlog::info("bn-priority-levels set to {}.", GConf::inst().bn_priority_levels);

@@ -8,7 +8,7 @@
 #include <deque>
 #include "protocol.h"
 #include "config.h"
-
+#include "prio.h"
 
 namespace psim {
 
@@ -149,22 +149,19 @@ public:
     Bottleneck(double bandwidth);
     virtual ~Bottleneck();
 
-    void register_rate(double rate, int priority = 0);
-    void reset_register(); 
-    double get_allocated_rate(double registered_rate, int priority = 0);
     bool should_drop(double step_size);
+
+    // priority allocation wrapper functions 
+    PriorityAllocator* pa; 
+    void register_rate(int id, double rate, int priority = 0);
+    void reset_register(); 
+    void compute_availability(); 
+    double get_allocated_rate(int id, double registered_rate, int priority = 0);
 
     // basic info
     int id;
     double bandwidth;
 
-    // bandwidth allocation
-    double total_register;
-    std::map<int, double> register_map;
-    std::map<int, double> availability_map;
-    void compute_availability(); 
-    double total_allocated; 
-    int priority_levels; 
     
     // history
     std::vector<double> total_register_history;

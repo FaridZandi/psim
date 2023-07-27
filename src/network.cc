@@ -298,65 +298,40 @@ double psim::Machine::make_progress(double step_size, std::vector<PComp*> & step
 
 Bottleneck::Bottleneck(double bandwidth) {
     this->bandwidth = bandwidth;
-    priority_levels = GConf::inst().bn_priority_levels;
-    total_register = 0;
-    for (int i = 0; i < priority_levels; i++) {
-        register_map[i] = 0;
-        availability_map[i] = 0;
-    }
     id = -1; 
+
+    if (GConf::inst().priority_allocator == "priorityqueue"){
+        pa = new PriorityQueuePriorityAllocator(this->bandwidth);
+    } else if (GConf::inst().priority_allocator == "fixedlevels"){
+        pa = new FixedLevelsPriorityAllocator(this->bandwidth);
+    } else {
+        spdlog::error("Invalid priority allocator");
+        exit(1);
+    }
 }
 
 Bottleneck::~Bottleneck() {
-    
+    delete pa;
 }
 
 void Bottleneck::reset_register(){
-    total_register = 0;
-    total_allocated = 0; 
-    for (int i = 0; i < priority_levels; i++) {
-        register_map[i] = 0;
-        availability_map[i] = 0;
-    }
+    pa->reset();
 }
 
-void Bottleneck::register_rate(double rate, int priority){
-    total_register += rate;
-    register_map[priority] += rate;
+void Bottleneck::register_rate(int id, double rate, int priority){
+    pa->register_rate(id, rate, priority);
 }
 
 void Bottleneck::compute_availability(){
-    double bandwidth_left = bandwidth;
-
-    for (int i = 0; i < priority_levels; i++) {
-        bool depleted = (register_map[i] >= bandwidth_left);
-
-        availability_map[i] = std::min(register_map[i], bandwidth_left);
-        bandwidth_left -= availability_map[i];
-
-        if (depleted) {
-            break;
-        }
-    }
+    pa->compute_allocations(); 
 }
 
-double Bottleneck::get_allocated_rate(double registered_rate, int priority){
-    
-    double allocated_rate = 0;
-    
-    if (total_register < bandwidth) {
-        allocated_rate = registered_rate;
-    } else {
-        allocated_rate = registered_rate * availability_map[priority] / register_map[priority];
-    }
-
-    total_allocated += allocated_rate;
-    return allocated_rate;
+double Bottleneck::get_allocated_rate(int id, double registered_rate, int priority){
+    return pa->get_allocated_rate(id, registered_rate, priority);
 }
 
 bool Bottleneck::should_drop(double step_size){
-
-    double excess = total_register - bandwidth;
+    double excess = pa->total_registered - bandwidth;
 
     if (excess > 0) {
         // probablity of dropping a packet is proportional to the excess rate 

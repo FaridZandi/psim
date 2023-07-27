@@ -119,8 +119,8 @@ double PSim::make_progress_on_flows(std::vector<Flow*> & step_finished_flows){
 
     if (GConf::inst().record_bottleneck_history){
         for (auto& bn: network->bottlenecks){
-            bn->total_register_history.push_back(bn->total_register);
-            bn->total_allocated_history.push_back(bn->total_allocated);
+            bn->total_register_history.push_back(bn->pa->total_registered);
+            bn->total_allocated_history.push_back(bn->pa->total_allocated);
         }
     }
 
@@ -155,8 +155,8 @@ double PSim::simulate() {
         total_comm += step_comm;
         total_comp += stop_comp;
 
-        comm_log.push_back(step_comm);
-        comp_log.push_back(stop_comp);
+        comm_log.push_back(step_comm / step_size);
+        comp_log.push_back(stop_comp / step_size);
 
 
         if (int(timer) % 1000 == 0 and int(timer) != last_summary_timer) {
@@ -166,7 +166,7 @@ double PSim::simulate() {
                 spdlog::info("Flow: {}, rank:{}, priority:{}, progress: {}/{}, registered: {}, allocated: {}", flow->id, flow->rank, flow->selected_priority, flow->progress, flow->size, flow->registered_rate, flow->bn_allocated_rate);
             }
             for (auto& bn: network->bottlenecks){
-                spdlog::info("Bottleneck: {}, total_register: {}, total_allocated: {}", bn->id, bn->total_register, bn->total_allocated);
+                spdlog::info("Bottleneck: {}, total_register: {}, total_allocated: {}", bn->id, bn->pa->total_registered, bn->pa->total_allocated);
             }
             for (auto& protocol : this->protocols) {
                 spdlog::info("Protocol, Task Completion: {}/{}", protocol->finished_task_count, protocol->total_task_count);

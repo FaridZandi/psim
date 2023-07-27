@@ -27,6 +27,7 @@ public:
     int file_log_level = 2; 
     std::string network_type = "fattree";
     int bn_priority_levels = 1; 
+    std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels"
 
     // int ft_server_per_rack = 4; 
     // int ft_rack_per_pod = 2;

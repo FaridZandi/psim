@@ -32,6 +32,7 @@ message(STATUS "PYTHON_INCLUDE_DIRS = ${PYTHON_INCLUDE_DIRS}")
 
 set(SOURCES src/main.cc 
             src/psim.cc
+            src/prio.cc
             src/network.cc
             src/protocol_builder.cc
             src/protocol.cc)

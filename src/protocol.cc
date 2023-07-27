@@ -326,24 +326,8 @@ void Flow::initiate(){
 }
 
 void Flow::compute_priority(){
-    // selected_priority  = int ((double) rank / (protocol->max_rank + 1) * bn_priority_levels);
-    selected_priority = 0;
-    if (size < 10) {
-        selected_priority = 0;
-    } else if (size < 100) {
-        selected_priority = 1;
-    } else if (size < 200) {
-        selected_priority = 2;
-    } else if (size < 1000) {
-        selected_priority = 3;
-    } else {
-        selected_priority = 4;
-    }
-
-    
-    if (selected_priority >= bn_priority_levels) {
-        selected_priority = bn_priority_levels - 1;
-    }
+    // selected_priority = id; 
+    selected_priority = rank; 
 }
 
 
@@ -353,7 +337,7 @@ void Flow::register_rate_on_path(double step_size){
     registered_rate = std::min(completion_rate, current_rate);
 
     for (auto& bottleneck : this->path) {
-        bottleneck->register_rate(registered_rate, selected_priority);
+        bottleneck->register_rate(id, registered_rate, selected_priority);
     }
 }
 
@@ -383,7 +367,7 @@ void Flow::update_rate(double step_size) {
 double Flow::make_progress(double step_size) {
     double allocated_rate = std::numeric_limits<double>::max();
     for (auto bottleneck : this->path) {
-        double bn_rate = bottleneck->get_allocated_rate(registered_rate, selected_priority);
+        double bn_rate = bottleneck->get_allocated_rate(id, registered_rate, selected_priority);
         allocated_rate = std::min(allocated_rate, bn_rate);
     }
     bn_allocated_rate = allocated_rate;
