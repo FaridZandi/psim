@@ -50,6 +50,8 @@ public:
     std::vector<int> next_task_ids;
     int dep_left; 
     int id;
+    int rank; 
+    bool rank_bfs_queued;
 
     double start_time; 
     double end_time;
@@ -88,18 +90,25 @@ public:
     virtual ~Flow();
     
     double current_rate; 
+    double initial_rate; 
     double registered_rate; 
+    double bn_allocated_rate;
     double rate_increase; 
 
     int src_dev_id; 
     int dst_dev_id; 
     double size;
     double progress;
+    
+    int selected_priority; 
+    int bn_priority_levels;
 
     std::vector<Bottleneck *> path;
     Machine *src;
     Machine *dst;
 
+    void initiate();
+    void compute_priority(); 
     void register_rate_on_path(double step_size);
     double make_progress(double step_size);
     void update_rate(double step_size);
@@ -164,6 +173,7 @@ public:
     std::vector<PTask *> tasks;
     std::map<int, PTask *> task_map;
     std::vector<PTask *> initiators;
+    int max_rank; 
 
     int total_task_count;
     int finished_task_count;

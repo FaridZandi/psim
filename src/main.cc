@@ -24,6 +24,8 @@ int main(int argc, char** argv) {
     
     std::string path = GConf::inst().protocol_file_dir + "/" + GConf::inst().protocol_file_name;
     Protocol* proto = Protocol::load_protocol_from_file(path);
+    // Protocol* proto = Protocol::super_simple_protocol();
+
     proto->build_dependency_graph();
     if (GConf::inst().export_dot){
         proto->export_dot("protocol");
@@ -120,6 +122,7 @@ po::variables_map parse_arguments(int argc, char** argv){
         ("console-log-level", po::value<int>(), "set console log level")
         ("file-log-level", po::value<int>(), "set file log level")
         ("network-type", po::value<std::string>(), "set network type")
+        ("bn-priority-levels", po::value<int>(), "set bn priority levels")
 
         ("ft-server-per-rack", po::value<int>(), "set ft-server-per-rack")
         ("ft-rack-per-pod", po::value<int>(), "set ft-rack-per-pod")
@@ -148,6 +151,10 @@ po::variables_map parse_arguments(int argc, char** argv){
 
 
 void process_arguments(po::variables_map vm){
+    if (vm.count("bn-priority-levels")){
+        GConf::inst().bn_priority_levels = vm["bn-priority-levels"].as<int>();
+        spdlog::info("bn-priority-levels set to {}.", GConf::inst().bn_priority_levels);
+    }
     if (vm.count("network-type")){
         GConf::inst().network_type = vm["network-type"].as<std::string>();
         spdlog::info("network-type set to {}.", GConf::inst().network_type);

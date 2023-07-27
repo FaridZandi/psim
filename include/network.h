@@ -39,6 +39,7 @@ public:
     Machine* get_machine(int name);
     
     void reset_bottleneck_registers();
+    void compute_bottleneck_availability();
 
     double make_progress_on_machines(double step_size, 
                                    std::vector<PComp*> & step_finished_tasks);
@@ -153,17 +154,23 @@ public:
     double get_allocated_rate(double registered_rate, int priority = 0);
     bool should_drop(double step_size);
 
+    // basic info
+    int id;
     double bandwidth;
+
+    // bandwidth allocation
     double total_register;
     std::map<int, double> register_map;
-    
+    std::map<int, double> availability_map;
+    void compute_availability(); 
     double total_allocated; 
-    int id;
-
+    int priority_levels; 
+    
+    // history
     std::vector<double> total_register_history;
     std::vector<double> total_allocated_history; 
 
-    static const int priority_levels = 3; 
+
 
 private: 
 };

@@ -11,8 +11,8 @@ make -j 48
 
 cd $RUN_PATH
 cmd="$PSIM_EXE --protocol-file-dir=$INPUT_PATH \
-               --protocol-file-name=transformer16-2.txt \
-               --machine-count=16 \
+               --protocol-file-name=transformer128.txt \
+               --machine-count=128 \
                $ARGS"
 echo $cmd
 eval $cmd

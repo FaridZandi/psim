@@ -26,16 +26,29 @@ public:
     int console_log_level = 2; 
     int file_log_level = 2; 
     std::string network_type = "fattree";
+    int bn_priority_levels = 1; 
 
-    int ft_server_per_rack = 4; 
+    // int ft_server_per_rack = 4; 
+    // int ft_rack_per_pod = 2;
+    // int ft_agg_per_pod = 2;
+    // int ft_pod_count = 2;
+    // int ft_core_count = 2;
+    // int ft_core_capacity_mult = 4;
+    // int ft_agg_capacity_mult = 2;
+    // int ft_tor_capacity_mult = 2;
+    // int ft_server_tor_link_capacity_mult = 2; 
+    // int ft_tor_agg_link_capacity_mult = 2; 
+    // int ft_agg_core_link_capacity_mult = 4;
+    
+    int ft_server_per_rack = 16; 
     int ft_rack_per_pod = 2;
     int ft_agg_per_pod = 2;
-    int ft_pod_count = 2;
-    int ft_core_count = 2;
-    int ft_core_capacity_mult = 8;
-    int ft_agg_capacity_mult = 4;
-    int ft_tor_capacity_mult = 4;
-    int ft_server_tor_link_capacity_mult = 1; 
+    int ft_pod_count = 4;
+    int ft_core_count = 4;
+    int ft_core_capacity_mult = 4;
+    int ft_agg_capacity_mult = 2;
+    int ft_tor_capacity_mult = 2;
+    int ft_server_tor_link_capacity_mult = 2; 
     int ft_tor_agg_link_capacity_mult = 2; 
     int ft_agg_core_link_capacity_mult = 4;
 

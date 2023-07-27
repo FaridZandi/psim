@@ -3,6 +3,7 @@
 #include <iostream>
 #include <cassert>
 #include "spdlog/spdlog.h"
+#include <algorithm>
 
 using namespace psim;
 
@@ -43,6 +44,14 @@ Network::reset_bottleneck_registers(){
         bottleneck->reset_register();
     }
 } 
+
+void 
+Network::compute_bottleneck_availability(){
+    for (auto bottleneck : this->bottlenecks) {
+        bottleneck->compute_availability();
+    }
+} 
+
 
 
 psim::Machine* Network::get_machine(int name){
@@ -289,9 +298,11 @@ double psim::Machine::make_progress(double step_size, std::vector<PComp*> & step
 
 Bottleneck::Bottleneck(double bandwidth) {
     this->bandwidth = bandwidth;
+    priority_levels = GConf::inst().bn_priority_levels;
     total_register = 0;
     for (int i = 0; i < priority_levels; i++) {
         register_map[i] = 0;
+        availability_map[i] = 0;
     }
     id = -1; 
 }
@@ -305,24 +316,41 @@ void Bottleneck::reset_register(){
     total_allocated = 0; 
     for (int i = 0; i < priority_levels; i++) {
         register_map[i] = 0;
+        availability_map[i] = 0;
     }
 }
 
 void Bottleneck::register_rate(double rate, int priority){
     total_register += rate;
+    register_map[priority] += rate;
+}
+
+void Bottleneck::compute_availability(){
+    double bandwidth_left = bandwidth;
+
+    for (int i = 0; i < priority_levels; i++) {
+        bool depleted = (register_map[i] >= bandwidth_left);
+
+        availability_map[i] = std::min(register_map[i], bandwidth_left);
+        bandwidth_left -= availability_map[i];
+
+        if (depleted) {
+            break;
+        }
+    }
 }
 
 double Bottleneck::get_allocated_rate(double registered_rate, int priority){
-    double allocated_rate;
-
-    if (total_register > bandwidth) {
-        allocated_rate = registered_rate * bandwidth / total_register;
-    } else {
+    
+    double allocated_rate = 0;
+    
+    if (total_register < bandwidth) {
         allocated_rate = registered_rate;
+    } else {
+        allocated_rate = registered_rate * availability_map[priority] / register_map[priority];
     }
 
     total_allocated += allocated_rate;
-
     return allocated_rate;
 }
 

@@ -67,6 +67,7 @@ void PSim::start_task(PTask *task) {
             flow->src = this->network->get_machine(flow->src_dev_id);
             flow->dst = this->network->get_machine(flow->dst_dev_id);
             this->network->set_path(flow);
+            flow->initiate(); 
 
             break;
         } case PTaskType::COMPUTE: {
@@ -105,6 +106,8 @@ double PSim::make_progress_on_flows(std::vector<Flow*> & step_finished_flows){
     for (auto& flow : flows) {
         flow->register_rate_on_path(step_size);
     }
+
+    network->compute_bottleneck_availability();
 
     for (auto& flow : flows) {
         step_comm += flow->make_progress(step_size); 
@@ -154,7 +157,22 @@ double PSim::simulate() {
 
         comm_log.push_back(step_comm);
         comp_log.push_back(stop_comp);
-                
+
+
+        if (int(timer) % 1000 == 0 and int(timer) != last_summary_timer) {
+            last_summary_timer = int(timer);
+            spdlog::info("Time: {}, Comm: {}, Comp: {}, Flows: {}", int(timer), total_comm, total_comp, flows.size());
+            for (auto& flow : this->flows) {
+                spdlog::info("Flow: {}, rank:{}, priority:{}, progress: {}/{}, registered: {}, allocated: {}", flow->id, flow->rank, flow->selected_priority, flow->progress, flow->size, flow->registered_rate, flow->bn_allocated_rate);
+            }
+            for (auto& bn: network->bottlenecks){
+                spdlog::info("Bottleneck: {}, total_register: {}, total_allocated: {}", bn->id, bn->total_register, bn->total_allocated);
+            }
+            for (auto& protocol : this->protocols) {
+                spdlog::info("Protocol, Task Completion: {}/{}", protocol->finished_task_count, protocol->total_task_count);
+            }
+        }
+
         for (auto& flow : step_finished_flows) {
             finished_flows.push_back(flow);
             flow->end_time = timer;
@@ -178,13 +196,7 @@ double PSim::simulate() {
 
         spdlog::debug("Time: {}, Comm: {}, Comp: {}", timer, total_comm, total_comp);
 
-        if (int(timer) % 1000 == 0 and int(timer) != last_summary_timer) {
-            last_summary_timer = int(timer);
-            spdlog::info("Time: {}, Comm: {}, Comp: {}", int(timer), total_comm, total_comp);
-            for (auto& protocol : this->protocols) {
-                spdlog::info("Protocol, Task Completion: {}/{}", protocol->finished_task_count, protocol->total_task_count);
-            }
-        }
+        
 
         if (flows.size() == 0 && compute_tasks.size() == 0) {
             break;

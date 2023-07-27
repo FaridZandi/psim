@@ -7,6 +7,8 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include "spdlog/spdlog.h"
+#include <queue>
 
 using namespace psim;
 
@@ -14,6 +16,7 @@ Protocol::Protocol() {
     finished_task_count = 0; 
     total_task_count = 0; 
     max_allocated_id = 0; 
+    max_rank = 0; 
 }
 
 Protocol::~Protocol() {
@@ -82,9 +85,35 @@ void Protocol::build_dependency_graph() {
         if (task->is_initiator) {
             task->is_initiator = false; 
             this->initiators.push_back(task);
+
+
         }
     }
-    // std::cout << "total tasks in protocol " << this->tasks.size() << std::endl;
+    
+    max_rank = 0;
+    std::queue<PTask *> queue;
+    for (auto task : this->initiators) {
+        task->rank_bfs_queued = true; 
+        task->rank = 0;
+        queue.push(task);
+    }
+
+    while (!queue.empty()) {
+        PTask *task = queue.front();
+        queue.pop();
+        for (auto next_task : task->next_tasks) {
+            next_task->rank = std::max(next_task->rank, task->rank + 1);
+            max_rank = std::max(max_rank, next_task->rank);
+
+            if (not next_task->rank_bfs_queued){
+                queue.push(next_task);
+                next_task->rank_bfs_queued = true;
+            }
+
+            spdlog::debug("task {} rank {}", next_task->id, next_task->rank);
+        }
+    }
+    spdlog::debug("total tasks in protocol {}", this->tasks.size());
 }
 
 void Protocol::export_graph(std::ofstream& protocol_log){
@@ -224,6 +253,8 @@ void PTask::reset(){
     next_task_ids.clear();
     id = -1;  
     protocol = nullptr;
+    rank = -1; 
+    rank_bfs_queued = false;
 } 
 
 void PTask::add_next_task_id(int id) {
@@ -290,12 +321,39 @@ Flow::~Flow() {
     
 }
 
+void Flow::initiate(){
+    compute_priority(); 
+}
+
+void Flow::compute_priority(){
+    // selected_priority  = int ((double) rank / (protocol->max_rank + 1) * bn_priority_levels);
+    selected_priority = 0;
+    if (size < 10) {
+        selected_priority = 0;
+    } else if (size < 100) {
+        selected_priority = 1;
+    } else if (size < 200) {
+        selected_priority = 2;
+    } else if (size < 1000) {
+        selected_priority = 3;
+    } else {
+        selected_priority = 4;
+    }
+
+    
+    if (selected_priority >= bn_priority_levels) {
+        selected_priority = bn_priority_levels - 1;
+    }
+}
+
+
+
 void Flow::register_rate_on_path(double step_size){
     double completion_rate = (size - progress) / step_size;
     registered_rate = std::min(completion_rate, current_rate);
 
     for (auto& bottleneck : this->path) {
-        bottleneck->register_rate(registered_rate);
+        bottleneck->register_rate(registered_rate, selected_priority);
     }
 }
 
@@ -316,14 +374,19 @@ void Flow::update_rate(double step_size) {
         current_rate = current_rate * multipier;
     }
 
+    if (current_rate < initial_rate) {
+        current_rate = initial_rate;
+    }
+
 }
 
 double Flow::make_progress(double step_size) {
     double allocated_rate = std::numeric_limits<double>::max();
     for (auto bottleneck : this->path) {
-        double bn_rate = bottleneck->get_allocated_rate(registered_rate);
+        double bn_rate = bottleneck->get_allocated_rate(registered_rate, selected_priority);
         allocated_rate = std::min(allocated_rate, bn_rate);
     }
+    bn_allocated_rate = allocated_rate;
     current_rate = allocated_rate;
 
     double step_progress = allocated_rate * step_size;
@@ -366,6 +429,7 @@ void Flow::reset(){
     size = 0;
     progress = 0;
     current_rate = GConf::inst().initial_rate; 
+    initial_rate = current_rate; 
     rate_increase = GConf::inst().rate_increase;
     registered_rate = 0; 
     src_dev_id = -1; 
@@ -373,6 +437,8 @@ void Flow::reset(){
     path.clear();
     src = nullptr;
     dst = nullptr;
+    bn_priority_levels = GConf::inst().bn_priority_levels;
+    selected_priority = -1; 
 } 
 
 PTask* Flow::make_shallow_copy(){
