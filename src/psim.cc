@@ -17,7 +17,15 @@ static int simulation_counter = 0;
 PSim::PSim() {
     this->timer = 0;  
     this->step_size = GConf::inst().step_size;
-    this->network = new BigSwitchNetwork();
+    
+    if (GConf::inst().network_type == "fattree"){
+        this->network = new FatTreeNetwork();
+    } else if (GConf::inst().network_type == "bigswitch"){
+        this->network = new BigSwitchNetwork();
+    } else {
+        spdlog::error("Unknown network type: {}", GConf::inst().network_type);
+        exit(1);
+    }
 } 
 
 void PSim::add_protocol(Protocol *protocol){
@@ -113,6 +121,9 @@ double PSim::make_progress_on_flows(std::vector<Flow*> & step_finished_flows){
         }
     }
 
+    flow_count_history.push_back(flows.size()); 
+
+
     return step_comm;
 } 
 
@@ -123,15 +134,13 @@ double PSim::simulate() {
 
     simulation_counter += 1;
     
-    std::string path = GConf::inst().output_dir + "protocol_log_" + std::to_string(simulation_counter) + ".txt";
-    std::ofstream simulation_log;
-    simulation_log.open(path);
-
     for (auto protocol : this->protocols) {
         for (auto task : protocol->initiators) {
             this->start_task(task);
         }
     }
+
+    int last_summary_timer = -1; 
 
     while (true) {
         std::vector<Flow *> step_finished_flows;
@@ -167,38 +176,23 @@ double PSim::simulate() {
         
         timer += step_size;
 
-        if (false) {
-            simulation_log << "Time: " << timer << std::endl; 
-            simulation_log << std::endl;
-            simulation_log << "Comp: " << stop_comp << "/" << total_comp << std::endl; 
-            simulation_log << "Comm: " << step_comm << "/" << total_comm << std::endl;
-
-            for (auto& bn: network->bottlenecks){
-                simulation_log << "BN: " << std::setw(3) << bn->id << ":"; 
-                simulation_log << " bw: " << std::setw(10) << bn->bandwidth << ", ";
-                simulation_log << " reg: " << std::setw(10) << bn->total_register << ", ";
-                simulation_log << " alloc: " << std::setw(10) << bn->total_allocated << ", ";
-                simulation_log << " util: " << std::setw(10) << bn->total_allocated / bn->bandwidth << ", ";
-                simulation_log << std::endl; 
-            }
-            simulation_log << "--------------------------------------";
-            simulation_log << std::endl;
-        }
-
         spdlog::debug("Time: {}, Comm: {}, Comp: {}", timer, total_comm, total_comp);
 
-
+        if (int(timer) % 1000 == 0 and int(timer) != last_summary_timer) {
+            last_summary_timer = int(timer);
+            spdlog::info("Time: {}, Comm: {}, Comp: {}", int(timer), total_comm, total_comp);
+            for (auto& protocol : this->protocols) {
+                spdlog::info("Protocol, Task Completion: {}/{}", protocol->finished_task_count, protocol->total_task_count);
+            }
+        }
 
         if (flows.size() == 0 && compute_tasks.size() == 0) {
             break;
         }
     }
-
-    // make the logs directory if it doesn't exist
+    
     save_run_results();
 
-    // this->protocol->export_graph(simulation_log);
-    simulation_log.close();
     return timer;
 }
 
@@ -212,7 +206,12 @@ void PSim::save_run_results(){
         plt::plot(comm_log, {{"label", "Comm"}});
         plt::plot(comp_log, {{"label", "Comp"}});
         plt::legend();
-        plt::savefig("out/fig.png", {{"bbox_inches", "tight"}});
+        plt::savefig("out/resources.png", {{"bbox_inches", "tight"}});
+        plt::clf();
+
+        plt::plot(flow_count_history, {{"label", "Flow Count"}});
+        plt::legend();
+        plt::savefig("out/flow_count.png", {{"bbox_inches", "tight"}});
         plt::clf();
 
 
@@ -244,16 +243,15 @@ void PSim::save_run_results(){
         }
     }
 
-    if (true) {
-        int total_task_count = 0;
-        int total_finished_task_count = 0;
+    int total_task_count = 0;
+    int total_finished_task_count = 0;
 
-        for (auto protocol : this->protocols) {
-            total_task_count += protocol->total_task_count;
-            total_finished_task_count += protocol->finished_task_count;
-        }
-
-        std::cout << "Timer: " << timer << ", Task Completion: " << total_finished_task_count << "/" << total_task_count << ", Comm: " << total_comm << ", Comp: " << total_comp << std::endl;
+    for (auto protocol : this->protocols) {
+        total_task_count += protocol->total_task_count;
+        total_finished_task_count += protocol->finished_task_count;
     }
+
+    spdlog::info("Timer: {}, Task Completion: {}/{}", timer, total_finished_task_count, total_task_count);
+    spdlog::info("Comm: {}, Comp: {}", total_comm, total_comp);
 }
 

@@ -9,10 +9,11 @@ ARGS="$@"
 cd $BUILD_PATH
 make -j 48
 
-echo "Running PSim with args: $ARGS"
 cd $RUN_PATH
 cmd="$PSIM_EXE --protocol-file-dir=$INPUT_PATH \
-               --protocol-file-name=vgg.txt \
+               --protocol-file-name=transformer16-2.txt \
+               --machine-count=16 \
                $ARGS"
+echo $cmd
 eval $cmd
 

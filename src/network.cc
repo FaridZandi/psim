@@ -1,6 +1,8 @@
 
 #include "network.h"
 #include <iostream>
+#include <cassert>
+#include "spdlog/spdlog.h"
 
 using namespace psim;
 
@@ -97,19 +99,100 @@ BigSwitchNetwork::~BigSwitchNetwork() {
 
 void BigSwitchNetwork::set_path(Flow* flow) {
     flow->path.push_back(server_bottlenecks_upstream[flow->src_dev_id]);
-    // flow->path.push_back(switch_bottleneck);
     flow->path.push_back(server_bottlenecks_downstream[flow->dst_dev_id]);
 }
+
+
+//==============================================================================
+//==============================================================================
+//==============================================================================
 
 
 
 FatTreeNetwork::FatTreeNetwork() : Network() {
 
-    Bottleneck *bottleneck = create_bottleneck(40);
     
-    for (int i = 0; i < 16; i++) {
-        Machine *machine = get_machine(i);
+
+    int link_bandwidth = GConf::inst().link_bandwidth;
+
+    server_count = GConf::inst().machine_count;
+    server_per_rack = GConf::inst().ft_server_per_rack; 
+    rack_per_pod = GConf::inst().ft_rack_per_pod;
+    agg_per_pod = GConf::inst().ft_agg_per_pod;
+    pod_count = GConf::inst().ft_pod_count;
+    core_count = GConf::inst().ft_core_count;
+
+    core_capacity = GConf::inst().ft_core_capacity_mult * link_bandwidth;
+    agg_capacity = GConf::inst().ft_agg_capacity_mult * link_bandwidth;
+    tor_capacity = GConf::inst().ft_tor_capacity_mult * link_bandwidth;
+    server_tor_link_capacity = GConf::inst().ft_server_tor_link_capacity_mult * link_bandwidth; 
+    tor_agg_link_capacity = GConf::inst().ft_tor_agg_link_capacity_mult * link_bandwidth; 
+    agg_core_link_capacity = GConf::inst().ft_agg_core_link_capacity_mult * link_bandwidth;
+
+    if (server_count != server_per_rack * rack_per_pod * pod_count) {
+        spdlog::error("server_count must be equal to server_per_rack * rack_per_pod * pod_count");
+        exit(1);
     }
+
+    if (core_count % agg_per_pod != 0) {
+        spdlog::error("core_count must be divisible by agg_per_pod");
+        exit(1);
+    }
+
+    core_link_per_agg = core_count / agg_per_pod;
+
+    for (int i = 0; i < core_count; i++) {
+        Bottleneck *bn = create_bottleneck(core_capacity);
+        core_bottlenecks[ft_loc{-1, -1, -1, -1, i}] = bn;
+    }
+
+    for (int i = 0; i < pod_count; i++) {
+        for (int j = 0; j < agg_per_pod; j++) {
+            Bottleneck *bn = create_bottleneck(agg_capacity);
+            agg_bottlenecks[ft_loc{i, j, -1, -1, -1}] = bn;
+        }
+
+        for (int j = 0; j < rack_per_pod; j++) {
+            Bottleneck *bn = create_bottleneck(tor_capacity);
+            tor_bottlenecks[ft_loc{i, j, -1, -1, -1}] = bn;
+
+
+            for (int k = 0; k < server_per_rack; k++) {
+                int machine_num = i * rack_per_pod * server_per_rack + j * server_per_rack + k;
+                Machine *machine = get_machine(machine_num);
+                server_loc_map[machine_num] = ft_loc{i, j, k, -1, -1};
+
+                Bottleneck *bn_up = create_bottleneck(server_tor_link_capacity);
+                server_tor_bottlenecks[ft_loc{i, j, k, 1, -1}] = bn_up;
+
+                Bottleneck *bn_down = create_bottleneck(server_tor_link_capacity);
+                server_tor_bottlenecks[ft_loc{i, j, k, 2, -1}] = bn_down;
+            }
+        }
+
+        for (int j = 0; j < rack_per_pod; j++){
+            for (int k = 0; k < agg_per_pod; k++) {
+                Bottleneck *bn_up = create_bottleneck(tor_agg_link_capacity);
+                tor_agg_bottlenecks[ft_loc{i, j, k, 1, -1}] = bn_up;
+
+                Bottleneck *bn_down = create_bottleneck(tor_agg_link_capacity);
+                tor_agg_bottlenecks[ft_loc{i, j, k, 2, -1}] = bn_down;
+            }
+        }
+
+        for (int c = 0; c < core_count; c++) {
+            int agg_num = c / (core_link_per_agg);
+
+            Bottleneck *bn_up = create_bottleneck(agg_core_link_capacity);
+            pod_core_bottlenecks[ft_loc{i, -1, -1, 1, c}] = bn_up;
+
+            Bottleneck *bn_down = create_bottleneck(agg_core_link_capacity);
+            pod_core_bottlenecks[ft_loc{i, -1, -1, 2, c}] = bn_down;
+
+            pod_core_agg_map[ft_loc{i, -1, -1, -1, c}] = agg_num;
+        }
+    }
+
 }
 
 FatTreeNetwork::~FatTreeNetwork() {
@@ -117,7 +200,55 @@ FatTreeNetwork::~FatTreeNetwork() {
 }
 
 void FatTreeNetwork::set_path(Flow* flow) {
-    flow->path.push_back(bottlenecks[0]);
+    int src = flow->src_dev_id;
+    int dst = flow->dst_dev_id;
+
+    ft_loc src_loc = server_loc_map[src];
+    ft_loc dst_loc = server_loc_map[dst];
+
+    bool same_pod = (src_loc.pod == dst_loc.pod);
+    bool same_rack = same_pod && (src_loc.rack == dst_loc.rack);
+    bool same_machine = same_rack && (src_loc.server == dst_loc.server);
+
+    // flow->path.push_back(x)
+
+    if (same_machine) {
+        return; 
+    } else if (same_rack) {
+        flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
+        flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
+        flow->path.push_back(server_tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_loc.server, 2, -1}]);
+    }
+    else if (same_pod) {
+
+        int agg_num = rand() % agg_per_pod;
+
+        flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
+        flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
+        flow->path.push_back(tor_agg_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, agg_num, 1, -1}]);
+        flow->path.push_back(agg_bottlenecks[ft_loc{src_loc.pod, agg_num, -1, -1, -1}]);
+        flow->path.push_back(tor_agg_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, agg_num, 2, -1}]);
+        flow->path.push_back(tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, -1, -1, -1}]);
+        flow->path.push_back(server_tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_loc.server, 2, -1}]);
+    } else {
+        int core_num = rand() % core_count;
+
+        int src_agg = pod_core_agg_map[ft_loc{src_loc.pod, -1, -1, -1, core_num}];
+        int dst_agg = pod_core_agg_map[ft_loc{dst_loc.pod, -1, -1, -1, core_num}];
+
+        flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
+        flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
+        flow->path.push_back(tor_agg_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_agg, 1, -1}]);
+        flow->path.push_back(agg_bottlenecks[ft_loc{src_loc.pod, src_agg, -1, -1, -1}]);
+        flow->path.push_back(pod_core_bottlenecks[ft_loc{src_loc.pod, -1, -1, 1, core_num}]);
+        flow->path.push_back(core_bottlenecks[ft_loc{-1, -1, -1, -1, core_num}]);
+        flow->path.push_back(pod_core_bottlenecks[ft_loc{dst_loc.pod, -1, -1, 2, core_num}]);
+        flow->path.push_back(agg_bottlenecks[ft_loc{dst_loc.pod, dst_agg, -1, -1, -1}]);
+        flow->path.push_back(tor_agg_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_agg, 2, -1}]);
+        flow->path.push_back(tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, -1, -1, -1}]);
+        flow->path.push_back(server_tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_loc.server, 2, -1}]);
+    }
+
 }
 
 //==============================================================================
@@ -159,6 +290,9 @@ double psim::Machine::make_progress(double step_size, std::vector<PComp*> & step
 Bottleneck::Bottleneck(double bandwidth) {
     this->bandwidth = bandwidth;
     total_register = 0;
+    for (int i = 0; i < priority_levels; i++) {
+        register_map[i] = 0;
+    }
     id = -1; 
 }
 
@@ -169,13 +303,16 @@ Bottleneck::~Bottleneck() {
 void Bottleneck::reset_register(){
     total_register = 0;
     total_allocated = 0; 
+    for (int i = 0; i < priority_levels; i++) {
+        register_map[i] = 0;
+    }
 }
 
-void Bottleneck::register_rate(double rate){
+void Bottleneck::register_rate(double rate, int priority){
     total_register += rate;
 }
 
-double Bottleneck::get_allocated_rate(double registered_rate){
+double Bottleneck::get_allocated_rate(double registered_rate, int priority){
     double allocated_rate;
 
     if (total_register > bandwidth) {

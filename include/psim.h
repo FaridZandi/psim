@@ -51,6 +51,7 @@ private:
     std::vector<PComp *> finished_compute_tasks;
     std::vector<double> comm_log;
     std::vector<double> comp_log;
+    std::vector<int> flow_count_history; 
     double total_comm = 0; 
     double total_comp = 0;
 
