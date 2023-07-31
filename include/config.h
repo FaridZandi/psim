@@ -14,7 +14,7 @@ public:
     double step_size = 0.01;
     double rate_increase = 1.1; 
     double initial_rate = 10;  
-    int machine_count = 16;  
+    double min_rate = 1; 
     double link_bandwidth = 100; 
     std::string protocol_file_dir = "../input";
     std::string protocol_file_name = "vgg.txt";
@@ -29,6 +29,7 @@ public:
     int bn_priority_levels = 1; 
     std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels"
 
+    // int machine_count = 16;  
     // int ft_server_per_rack = 4; 
     // int ft_rack_per_pod = 2;
     // int ft_agg_per_pod = 2;
@@ -41,17 +42,18 @@ public:
     // int ft_tor_agg_link_capacity_mult = 2; 
     // int ft_agg_core_link_capacity_mult = 4;
     
-    int ft_server_per_rack = 16; 
-    int ft_rack_per_pod = 2;
-    int ft_agg_per_pod = 2;
+    int machine_count = 128;  
+    int ft_server_per_rack = 8; 
+    int ft_rack_per_pod = 4;
+    int ft_agg_per_pod = 4;
     int ft_pod_count = 4;
     int ft_core_count = 4;
-    int ft_core_capacity_mult = 4;
-    int ft_agg_capacity_mult = 2;
-    int ft_tor_capacity_mult = 2;
-    int ft_server_tor_link_capacity_mult = 2; 
+    int ft_core_capacity_mult = 16;
+    int ft_agg_capacity_mult = 8;
+    int ft_tor_capacity_mult = 8;
+    int ft_server_tor_link_capacity_mult = 1; 
     int ft_tor_agg_link_capacity_mult = 2; 
-    int ft_agg_core_link_capacity_mult = 4;
+    int ft_agg_core_link_capacity_mult = 8;
 
 private:
     GConf() {}

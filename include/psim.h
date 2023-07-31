@@ -37,7 +37,7 @@ private:
 
     void start_next_tasks(PTask *task);
     void start_task(PTask *task);
-    double make_progress_on_flows(std::vector<Flow*> & step_finished_flows); 
+    double make_progress_on_flows(double current_time, std::vector<Flow*> & step_finished_flows); 
     void save_run_results();
 
     std::vector<Protocol *> protocols;

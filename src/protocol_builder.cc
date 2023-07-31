@@ -65,32 +65,35 @@ Protocol::pipelinize_protocol(Protocol *proto, int num_replicas, bool tight_conn
 
 Protocol* Protocol::super_simple_protocol(){
     Protocol *protocol = new Protocol();
+    
+    PComp* ptask1 = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+    ptask1->size = 100; 
+    ptask1->dev_id = 0;
 
-    PComp *pc1 = (PComp*)protocol->create_task(PTaskType::COMPUTE, 0);
-    pc1->size = 100;
-    pc1->dev_id = 0;
+    Flow* ptask2 = (Flow*)protocol->create_task(PTaskType::FLOW);
+    Flow* ptask3 = (Flow*)protocol->create_task(PTaskType::FLOW); 
+    
+    ptask2->size = 10000; 
+    ptask2->src_dev_id = 0;
+    ptask2->dst_dev_id = 1;
 
-    PComp *pc2 = (PComp*)protocol->create_task(PTaskType::COMPUTE, 1);
-    pc2->size = 100;
-    pc2->dev_id = 0;
+    ptask3->size = 10000;
+    ptask3->src_dev_id = 0;
+    ptask3->dst_dev_id = 2;
 
-    Flow *flow = (Flow*)protocol->create_task(PTaskType::FLOW, 2);
-    flow->src_dev_id = 0;
-    flow->dst_dev_id = 1;
-    flow->size = 100;
+    PComp* ptask4 = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+    ptask4->size = 100;
+    ptask4->dev_id = 1;
 
-    PComp *pc3 = (PComp*)protocol->create_task(PTaskType::COMPUTE, 3);
-    pc3->size = 100;
-    pc3->dev_id = 1;    
+    PComp* ptask5 = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+    ptask5->size = 100;
+    ptask5->dev_id = 2;
 
-    PComp *pc4 = (PComp*)protocol->create_task(PTaskType::COMPUTE, 4);
-    pc4->size = 100;
-    pc4->dev_id = 1;
+    ptask1->add_next_task_id(ptask2->id);
+    ptask1->add_next_task_id(ptask3->id);
 
-    pc1->add_next_task_id(flow->id);
-    pc2->add_next_task_id(flow->id);
-    flow->add_next_task_id(pc3->id);
-    flow->add_next_task_id(pc4->id);
+    ptask2->add_next_task_id(ptask4->id);
+    ptask3->add_next_task_id(ptask5->id);
 
     return protocol;
 }
@@ -221,7 +224,6 @@ Protocol* Protocol::load_protocol_from_file(std::string file_path){
             }
 
             int task_id = std::stoi(tokens[1].substr(1, tokens[1].size() - 2));
-
             PTask *task = protocol->create_task(task_type, task_id);
             
             int i = 3;

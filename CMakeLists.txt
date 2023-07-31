@@ -14,7 +14,6 @@ set(CMAKE_BUILD_TYPE Release)
 set(Boost_USE_STATIC_LIBS OFF) 
 set(Boost_USE_MULTITHREADED ON)  
 set(Boost_USE_STATIC_RUNTIME OFF) 
-
 find_package(Boost 1.71.0 COMPONENTS serialization program_options) 
 
 
@@ -35,6 +34,7 @@ set(SOURCES src/main.cc
             src/prio.cc
             src/network.cc
             src/protocol_builder.cc
+            src/flow.cc
             src/protocol.cc)
 
 add_executable(psim ${SOURCES})

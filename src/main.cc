@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
     // Protocol* proto = Protocol::super_simple_protocol();
 
     proto->build_dependency_graph();
+    
     if (GConf::inst().export_dot){
         proto->export_dot("protocol");
     }  
@@ -110,6 +111,7 @@ po::variables_map parse_arguments(int argc, char** argv){
         ("step-size", po::value<double>(), "set step size constant")
         ("rate-increase", po::value<double>(), "set rate increase constant")
         ("initial-rate", po::value<double>(), "set initial rate constant")
+        ("min-rate", po::value<int>(), "set min rate")
         ("machine-count", po::value<int>(), "set machine count")
         ("link-bandwidth", po::value<double>(), "set link bandwidth")
         ("protocol-file-name", po::value<std::string>(), "set protocol file name")
@@ -152,7 +154,10 @@ po::variables_map parse_arguments(int argc, char** argv){
 
 
 void process_arguments(po::variables_map vm){
-
+    if (vm.count("min-rate")) {
+        GConf::inst().min_rate = vm["min-rate"].as<int>();
+        spdlog::info("min-rate set to {}.", GConf::inst().min_rate); 
+    }
     if (vm.count("priority-allocator")){
         GConf::inst().priority_allocator = vm["priority-allocator"].as<std::string>();
         spdlog::info("priority-allocator set to {}.", GConf::inst().priority_allocator);

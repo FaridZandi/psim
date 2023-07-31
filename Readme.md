@@ -3,6 +3,12 @@
 Define protocols and networks, run the protocols and see the results!
 
 
+### get the code 
+```
+git clone --recursive git@github.com:FaridZandi/psim.git
+```
+
+
 ### dependencies 
 ```
 sudo apt-get install libboost-all-dev -y

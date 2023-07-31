@@ -98,7 +98,7 @@ void PSim::start_task(PTask *task) {
 }
  
 
-double PSim::make_progress_on_flows(std::vector<Flow*> & step_finished_flows){
+double PSim::make_progress_on_flows(double current_time, std::vector<Flow*> & step_finished_flows){
     double step_comm = 0; 
     
     network->reset_bottleneck_registers();        
@@ -110,7 +110,7 @@ double PSim::make_progress_on_flows(std::vector<Flow*> & step_finished_flows){
     network->compute_bottleneck_availability();
 
     for (auto& flow : flows) {
-        step_comm += flow->make_progress(step_size); 
+        step_comm += flow->make_progress(current_time, step_size); 
         
         if (flow->status == PTaskStatus::FINISHED) {
             step_finished_flows.push_back(flow);
@@ -149,28 +149,29 @@ double PSim::simulate() {
         std::vector<Flow *> step_finished_flows;
         std::vector<PComp *> step_finished_tasks; 
 
-        double step_comm = make_progress_on_flows(step_finished_flows);        
-        double stop_comp = network->make_progress_on_machines(step_size, step_finished_tasks);
+        double step_comm = make_progress_on_flows(timer, step_finished_flows);        
+        double stop_comp = network->make_progress_on_machines(timer, step_size, step_finished_tasks);
 
         total_comm += step_comm;
         total_comp += stop_comp;
 
-        comm_log.push_back(step_comm / step_size);
+        comm_log.push_back(step_comm / step_size / GConf::inst().link_bandwidth);
         comp_log.push_back(stop_comp / step_size);
 
 
         if (int(timer) % 1000 == 0 and int(timer) != last_summary_timer) {
             last_summary_timer = int(timer);
-            spdlog::info("Time: {}, Comm: {}, Comp: {}, Flows: {}", int(timer), total_comm, total_comp, flows.size());
-            for (auto& flow : this->flows) {
-                spdlog::info("Flow: {}, rank:{}, priority:{}, progress: {}/{}, registered: {}, allocated: {}", flow->id, flow->rank, flow->selected_priority, flow->progress, flow->size, flow->registered_rate, flow->bn_allocated_rate);
-            }
-            for (auto& bn: network->bottlenecks){
-                spdlog::info("Bottleneck: {}, total_register: {}, total_allocated: {}", bn->id, bn->pa->total_registered, bn->pa->total_allocated);
-            }
-            for (auto& protocol : this->protocols) {
-                spdlog::info("Protocol, Task Completion: {}/{}", protocol->finished_task_count, protocol->total_task_count);
-            }
+            spdlog::info("Time: {}, Flows: {}, Tasks: {}, Protocol0:{}/{}", int(timer), flows.size(), compute_tasks.size(), protocols[0]->finished_task_count, protocols[0]->total_task_count);
+
+            // for (auto& flow : this->flows) {
+            //     spdlog::debug("Flow: {}, rank:{}, priority:{}, progress: {}/{}, registered: {}, allocated: {}", flow->id, flow->rank, flow->selected_priority, flow->progress, flow->size, flow->registered_rate, flow->bn_allocated_rate);
+            // }
+            // for (auto& bn: network->bottlenecks){
+            //     spdlog::debug("Bottleneck: {}, total_register: {}, total_allocated: {}", bn->id, bn->pa->total_registered, bn->pa->total_allocated);
+            // }
+            // for (auto& protocol : this->protocols) {
+            //     spdlog::debug("Protocol, Task Completion: {}/{}", protocol->finished_task_count, protocol->total_task_count);
+            // }
         }
 
         for (auto& flow : step_finished_flows) {
@@ -194,9 +195,7 @@ double PSim::simulate() {
         
         timer += step_size;
 
-        spdlog::debug("Time: {}, Comm: {}, Comp: {}", timer, total_comm, total_comp);
-
-        
+        spdlog::debug("Time: {}, Flows: {}, Tasks: {}, Protocol0:{}/{}", int(timer), flows.size(), compute_tasks.size(), protocols[0]->finished_task_count, protocols[0]->total_task_count);
 
         if (flows.size() == 0 && compute_tasks.size() == 0) {
             break;
@@ -213,7 +212,6 @@ void PSim::save_run_results(){
     if (GConf::inst().plot_graphs) {
         // plot the data with matplotlibcpp: comm_log, comp_log
         plt::figure_size(1200, 780);
-
 
         plt::plot(comm_log, {{"label", "Comm"}});
         plt::plot(comp_log, {{"label", "Comp"}});
@@ -257,13 +255,18 @@ void PSim::save_run_results(){
 
     int total_task_count = 0;
     int total_finished_task_count = 0;
-
+    
     for (auto protocol : this->protocols) {
         total_task_count += protocol->total_task_count;
         total_finished_task_count += protocol->finished_task_count;
     }
 
+    spdlog::info("Simulation Finished at {}", timer);
     spdlog::info("Timer: {}, Task Completion: {}/{}", timer, total_finished_task_count, total_task_count);
     spdlog::info("Comm: {}, Comp: {}", total_comm, total_comp);
+
+    // for (auto& task: protocols[0]->tasks){
+    //     spdlog::info("task {}: start_time: {}, end_time: {}", task->id, task->start_time, task->end_time);
+    // }
 }
 

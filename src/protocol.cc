@@ -25,25 +25,24 @@ Protocol::~Protocol() {
     }
 }
 
-void Protocol::add_to_tasks(PTask *task){
-    if(task->id == -1) {
-        task->id = max_allocated_id + 1;
+void Protocol::add_to_tasks(PTask *task, int id){
+    if(id == -1) {
+        // spdlog::warn("Task id not specified, allocating id {}", max_allocated_id + 1);
+        id = max_allocated_id + 1;
+    } 
+
+    if (task_map.find(id) != task_map.end()) {
+        spdlog::error("Task id {} already exists", id);
+        exit(1);
     }
 
-    max_allocated_id = std::max(max_allocated_id, task->id);
-
-    task->protocol = this;
-    
+    task->id = id;
+    max_allocated_id = std::max(max_allocated_id, id);
+    task->protocol = this;    
     this->tasks.push_back(task);
     this->task_map[task->id] = task;
-
     this->total_task_count += 1;
 }
-
-PTask* Protocol::create_task(PTaskType type) {
-    return create_task(type, -1);
-}
-
 
 PTask* Protocol::create_task(PTaskType type, int id) {
     
@@ -65,8 +64,7 @@ PTask* Protocol::create_task(PTaskType type, int id) {
             break;
     }
 
-    task->id = id;
-    add_to_tasks(task);
+    add_to_tasks(task, id);
 
     return task;
 }
@@ -91,29 +89,32 @@ void Protocol::build_dependency_graph() {
     }
     
     max_rank = 0;
+    int ranked_tasks = 0;
+
     std::queue<PTask *> queue;
     for (auto task : this->initiators) {
         task->rank_bfs_queued = true; 
         task->rank = 0;
         queue.push(task);
+        ranked_tasks += 1;
     }
 
     while (!queue.empty()) {
         PTask *task = queue.front();
         queue.pop();
+
         for (auto next_task : task->next_tasks) {
             next_task->rank = std::max(next_task->rank, task->rank + 1);
             max_rank = std::max(max_rank, next_task->rank);
 
             if (not next_task->rank_bfs_queued){
                 queue.push(next_task);
+                ranked_tasks += 1;
                 next_task->rank_bfs_queued = true;
             }
-
-            spdlog::debug("task {} rank {}", next_task->id, next_task->rank);
         }
     }
-    spdlog::debug("total tasks in protocol {}", this->tasks.size());
+    spdlog::debug("total tasks in protocol {}, ranked tasks: {}, max rank: {}", this->tasks.size(), ranked_tasks, max_rank);
 }
 
 void Protocol::export_graph(std::ofstream& protocol_log){
@@ -255,6 +256,7 @@ void PTask::reset(){
     protocol = nullptr;
     rank = -1; 
     rank_bfs_queued = false;
+    about_to_finish = false; 
 } 
 
 void PTask::add_next_task_id(int id) {
@@ -313,126 +315,6 @@ PTask* EmptyTask::make_shallow_copy(){
 ////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////
 
-Flow::Flow() : PTask() {
-    reset();
-}
-
-Flow::~Flow() {
-    
-}
-
-void Flow::initiate(){
-    compute_priority(); 
-}
-
-void Flow::compute_priority(){
-    // selected_priority = id; 
-    selected_priority = rank; 
-}
-
-
-
-void Flow::register_rate_on_path(double step_size){
-    double completion_rate = (size - progress) / step_size;
-    registered_rate = std::min(completion_rate, current_rate);
-
-    for (auto& bottleneck : this->path) {
-        bottleneck->register_rate(id, registered_rate, selected_priority);
-    }
-}
-
-void Flow::update_rate(double step_size) {
-    bool should_drop = false;
-
-    for (auto bottleneck : this->path) {
-        if (bottleneck->should_drop(step_size)) {
-            should_drop = true;
-            break;
-        }
-    }
-
-    if (should_drop) {
-        current_rate /= 2;
-    } else {
-        double multipier = pow(rate_increase, step_size);
-        current_rate = current_rate * multipier;
-    }
-
-    if (current_rate < initial_rate) {
-        current_rate = initial_rate;
-    }
-
-}
-
-double Flow::make_progress(double step_size) {
-    double allocated_rate = std::numeric_limits<double>::max();
-    for (auto bottleneck : this->path) {
-        double bn_rate = bottleneck->get_allocated_rate(id, registered_rate, selected_priority);
-        allocated_rate = std::min(allocated_rate, bn_rate);
-    }
-    bn_allocated_rate = allocated_rate;
-    current_rate = allocated_rate;
-
-    double step_progress = allocated_rate * step_size;
-    progress += step_progress;
-    
-    if (progress >= size) {
-        progress = size; 
-        status = PTaskStatus::FINISHED;
-    }
-    
-    update_rate(step_size);
-
-    return step_progress;
-}
-
-
-void 
-Flow::print_task_info(std::ostream& os){
-    os << "Comm ";
-
-    // fill the space with zeros
-    os << "[" << std::setw(5) << std::setfill('0') 
-                << this->id << "]";
-
-    os << " next ";
-
-    for (auto next_task : this->next_task_ids) {
-        os << "[" << std::setw(5) << std::setfill('0') 
-                    << next_task << "] ";
-    }
-
-    os << " size " << this->size;
-    os << " from " << this->src_dev_id; 
-    os << " to " << this->dst_dev_id;
-
-    os << std::endl;
-}
-
-void Flow::reset(){
-    size = 0;
-    progress = 0;
-    current_rate = GConf::inst().initial_rate; 
-    initial_rate = current_rate; 
-    rate_increase = GConf::inst().rate_increase;
-    registered_rate = 0; 
-    src_dev_id = -1; 
-    dst_dev_id = -1;
-    path.clear();
-    src = nullptr;
-    dst = nullptr;
-    bn_priority_levels = GConf::inst().bn_priority_levels;
-    selected_priority = -1; 
-} 
-
-PTask* Flow::make_shallow_copy(){
-    Flow *new_task = new Flow();
-    new_task->size = this->size;
-    new_task->src_dev_id = this->src_dev_id;
-    new_task->dst_dev_id = this->dst_dev_id;
-    return new_task;
-
-} 
 
 
 ////////////////////////////////////////////////////////////////////////

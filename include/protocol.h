@@ -53,6 +53,7 @@ public:
     int rank; 
     bool rank_bfs_queued;
 
+    bool about_to_finish; // to deal with double precision errors
     double start_time; 
     double end_time;
 
@@ -91,6 +92,7 @@ public:
     
     double current_rate; 
     double initial_rate; 
+    double min_rate; 
     double registered_rate; 
     double bn_allocated_rate;
     double rate_increase; 
@@ -110,7 +112,7 @@ public:
     void initiate();
     void compute_priority(); 
     void register_rate_on_path(double step_size);
-    double make_progress(double step_size);
+    double make_progress(double current_time, double step_size);
     void update_rate(double step_size);
 
     PTaskType get_type() {return PTaskType::FLOW;}
@@ -152,9 +154,9 @@ public:
     Protocol();
     virtual ~Protocol();
 
-    PTask* create_task(PTaskType type);
-    PTask* create_task(PTaskType type, int id);
-    void add_to_tasks(PTask *task);
+    PTask* create_task(PTaskType type, int id = -1);
+
+    void add_to_tasks(PTask *task, int id = -1);
 
     void build_dependency_graph();
 

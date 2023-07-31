@@ -21,12 +21,12 @@ Network::~Network() {
 }
 
 
-double Network::make_progress_on_machines(double step_size, 
+double Network::make_progress_on_machines(double current_time, double step_size, 
                                           std::vector<PComp*> & step_finished_tasks){
     double step_comp = 0;
 
     for (auto& machine : this->machines) {
-        step_comp += machine->make_progress(step_size, step_finished_tasks);
+        step_comp += machine->make_progress(current_time, step_size, step_finished_tasks);
     }
 
     if (GConf::inst().record_machine_history){
@@ -272,19 +272,24 @@ psim::Machine::~Machine() {
     
 }
 
-double psim::Machine::make_progress(double step_size, std::vector<PComp*> & step_finished_tasks) {
-    double step_comp = 0; 
-
+double psim::Machine::make_progress(double current_time, double step_size, 
+                                    std::vector<PComp*> & step_finished_tasks) {
     if (this->task_queue.empty()) {
         return 0; 
     }
+
+    double step_comp = 0; 
     
     PComp* compute_task = this->task_queue.front();
     
+    if (compute_task->progress == 0){
+        compute_task->start_time = current_time; 
+    }
+
     compute_task->progress += step_size;
     step_comp += step_size;
 
-    if (compute_task->progress >= compute_task->size) {
+    if (compute_task->progress >= (compute_task->size - step_size / 100)) { // stupid floating point errors ... 
         step_comp -= (compute_task->progress - compute_task->size);
         compute_task->progress = compute_task->size;
 

@@ -41,8 +41,8 @@ public:
     void reset_bottleneck_registers();
     void compute_bottleneck_availability();
 
-    double make_progress_on_machines(double step_size, 
-                                   std::vector<PComp*> & step_finished_tasks);
+    double make_progress_on_machines(double current_time, double step_size, 
+                                     std::vector<PComp*> & step_finished_tasks);
 
     virtual void set_path(Flow* flow) = 0;
 
@@ -137,7 +137,7 @@ public:
     virtual ~Machine();
     int name;
     
-    double make_progress(double step_size, std::vector<PComp*> & step_finished_tasks);
+    double make_progress(double current_time, double step_size, std::vector<PComp*> & step_finished_tasks);
     std::queue<PComp*, std::deque<PComp*> > task_queue;
 
     std::vector<int> task_queue_length_history;
