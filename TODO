@@ -1,22 +1,20 @@
-[ ] Change the way that flows and computes are iterated in the make progress thing. make a copy of the array and remove anything that should be removed on the spot. Just like the python implementation. 
-
-[ ] Implement a more complicated kind of network, like the FatTree in the python code. 
-
-[ ] bulid the logical and physical machines, link them in a reasonable manner. 
-
+[ ] Add support for multigpu machines, with crazy bandwidth numbers between the GPUs on a machine. 
 [ ] Implement the event system, pretty much like the python version. 
+[ ] Create a system for making background flows in the network, using the event for better performance. 
 
+[ ] Change the way that flows and computes are iterated in the make progress thing. make a copy of the array and remove anything that should be removed on the spot. Just like the python implementation. 
+[ ] bulid the logical and physical machines, link them in a reasonable manner. 
 [ ] create placement algorithm to handle logical to physical mapping of the elements.  
 
-[ ] create a thing for configuration. 
 
 [ ] Use case: the program is started, and it receives the protocol over a pipe. then it runs the protocal and returns the simulation time and other required info. This way, the code can be added to any other project. But what if they are python code? This is hard to decide then. 
 
-
+[*] create a thing for global configuration. 
+[*] Implement a more complicated kind of network, like the FatTree in the python code. 
 [*] Create a protocol builder class or function or whatever. 
     [*] Create a protocol builder of random entities. 
     [*] Allow loading a protocol from file. 
-[*] Create a reasonable logging system.  
+[*] Setup a reasonable logging system. Used SPDLOG for this purpose.   
 [*] Collect some stastics, like the amount of compute and communication, plot them in the end. 
 [*] Add boost to the project build. I would like to see how it is done. 
-[*] learn how to use boost for objects serialization. some code residue left in main for later reference.  
+[*] learn how to use boost for objects serialization. some code residue left in main for later. 

@@ -110,6 +110,7 @@ public:
     Machine *dst;
 
     void initiate();
+    void finished(); 
     void compute_priority(); 
     void register_rate_on_path(double step_size);
     double make_progress(double current_time, double step_size);
@@ -148,6 +149,11 @@ private:
 
 };
 
+enum ProtocolType {
+    MAIN_PROTOCOL,
+    BACKGROUND_PROTOCOL,
+};
+
 
 class Protocol {
 public:
@@ -155,32 +161,22 @@ public:
     virtual ~Protocol();
 
     PTask* create_task(PTaskType type, int id = -1);
-
     void add_to_tasks(PTask *task, int id = -1);
-
     void build_dependency_graph();
 
     void export_graph(std::ofstream& protocol_log);
     void export_dot(std::string filename);
-
     Protocol *make_copy(bool build_dependency_graph = true); 
 
-    static Protocol* build_random_protocol(int num_comp, int machine_count); 
-    static Protocol* load_protocol_from_file(std::string file_path); 
-    static Protocol* pipelinize_protocol(Protocol *proto, int num_replicas, bool tight_connections = false);
-    static Protocol* super_simple_protocol();
-    static Protocol* simple_pipeline_protocol(int length);
-
-
+    ProtocolType type;
     std::vector<PTask *> tasks;
     std::map<int, PTask *> task_map;
     std::vector<PTask *> initiators;
     int max_rank; 
+    int max_allocated_id; 
 
     int total_task_count;
     int finished_task_count;
-
-    int max_allocated_id; 
 
 private:
 

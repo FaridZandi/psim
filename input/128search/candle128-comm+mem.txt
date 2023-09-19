@@ -1,0 +1,1739 @@
+Simulation started, Parallel Config: 
+--------------------------------------
+[Dense_100] num_dims(2) dims[1,2] device_ids[24,88]
+[Dense_101] num_dims(2) dims[1,2] device_ids[5,69]
+[Dense_102] num_dims(2) dims[1,4] device_ids[5,37,69,101]
+[Dense_103] num_dims(2) dims[1,4] device_ids[5,37,69,101]
+[Dense_104] num_dims(2) dims[1,4] device_ids[5,37,69,101]
+[Dense_105] num_dims(2) dims[1,4] device_ids[5,37,69,101]
+[Dense_106] num_dims(2) dims[1,2] device_ids[52,116]
+[Dense_107] num_dims(2) dims[1,2] device_ids[39,103]
+[Dense_108] num_dims(2) dims[1,2] device_ids[39,103]
+[Dense_109] num_dims(2) dims[1,2] device_ids[39,103]
+[Dense_110] num_dims(2) dims[1,2] device_ids[48,112]
+[Dense_111] num_dims(2) dims[1,2] device_ids[48,112]
+[Dense_112] num_dims(2) dims[1,2] device_ids[48,112]
+[Dense_113] num_dims(2) dims[1,2] device_ids[14,78]
+[Dense_114] num_dims(2) dims[1,2] device_ids[14,78]
+[Dense_115] num_dims(2) dims[1,2] device_ids[12,76]
+[Dense_116] num_dims(2) dims[1,2] device_ids[62,126]
+[Dense_117] num_dims(2) dims[1,2] device_ids[41,105]
+[Dense_118] num_dims(2) dims[1,4] device_ids[9,41,73,105]
+[Dense_119] num_dims(2) dims[1,4] device_ids[9,41,73,105]
+[Dense_120] num_dims(2) dims[1,4] device_ids[2,34,66,98]
+[Dense_121] num_dims(2) dims[1,4] device_ids[2,34,66,98]
+[Dense_122] num_dims(2) dims[1,2] device_ids[50,114]
+[Dense_123] num_dims(2) dims[1,2] device_ids[44,108]
+[Dense_124] num_dims(2) dims[1,2] device_ids[26,90]
+[Dense_125] num_dims(2) dims[1,2] device_ids[13,77]
+[Dense_126] num_dims(2) dims[1,2] device_ids[49,113]
+[Dense_127] num_dims(2) dims[1,2] device_ids[49,113]
+[Dense_128] num_dims(2) dims[1,2] device_ids[49,113]
+[Dense_129] num_dims(2) dims[1,2] device_ids[17,81]
+[Dense_130] num_dims(2) dims[1,2] device_ids[17,81]
+[Dense_131] num_dims(2) dims[1,2] device_ids[17,81]
+[Dense_132] num_dims(2) dims[1,4] device_ids[25,57,89,121]
+[Dense_133] num_dims(2) dims[1,2] device_ids[25,89]
+[Dense_134] num_dims(2) dims[1,2] device_ids[25,89]
+[Dense_135] num_dims(2) dims[1,2] device_ids[13,77]
+[Dense_136] num_dims(2) dims[1,2] device_ids[13,77]
+[Dense_137] num_dims(2) dims[1,2] device_ids[13,77]
+[Dense_138] num_dims(2) dims[1,2] device_ids[30,94]
+[Dense_139] num_dims(2) dims[1,2] device_ids[30,94]
+[Dense_140] num_dims(2) dims[1,2] device_ids[43,107]
+[Dense_141] num_dims(2) dims[1,2] device_ids[59,123]
+[Dense_142] num_dims(2) dims[1,2] device_ids[59,123]
+[Dense_143] num_dims(2) dims[1,2] device_ids[59,123]
+[Dense_144] num_dims(2) dims[1,2] device_ids[62,126]
+[Dense_145] num_dims(2) dims[1,4] device_ids[17,49,81,113]
+[Dense_146] num_dims(2) dims[1,2] device_ids[17,81]
+[Dense_147] num_dims(2) dims[1,2] device_ids[0,64]
+[Dense_148] num_dims(2) dims[1,2] device_ids[22,86]
+[Dense_149] num_dims(2) dims[1,2] device_ids[59,123]
+[Dense_150] num_dims(2) dims[1,2] device_ids[59,123]
+[Dense_151] num_dims(2) dims[1,4] device_ids[6,38,70,102]
+[Dense_152] num_dims(2) dims[1,4] device_ids[6,38,70,102]
+[Dense_153] num_dims(2) dims[1,2] device_ids[38,102]
+[Dense_154] num_dims(2) dims[1,4] device_ids[8,40,72,104]
+[Dense_155] num_dims(2) dims[1,4] device_ids[8,40,72,104]
+[Dense_156] num_dims(2) dims[1,2] device_ids[8,72]
+[Dense_157] num_dims(2) dims[1,2] device_ids[21,85]
+[Dense_158] num_dims(2) dims[1,4] device_ids[21,53,85,117]
+[Dense_159] num_dims(2) dims[1,4] device_ids[21,53,85,117]
+[Dense_160] num_dims(2) dims[1,4] device_ids[21,53,85,117]
+[Dense_161] num_dims(2) dims[1,2] device_ids[53,117]
+[Dense_162] num_dims(2) dims[1,2] device_ids[33,97]
+[Dense_163] num_dims(2) dims[1,2] device_ids[0,64]
+[Dense_164] num_dims(2) dims[1,4] device_ids[2,34,66,98]
+[Dense_165] num_dims(2) dims[1,4] device_ids[2,34,66,98]
+[Dense_166] num_dims(2) dims[1,4] device_ids[2,34,66,98]
+[Dense_167] num_dims(2) dims[1,4] device_ids[2,34,66,98]
+[Dense_168] num_dims(2) dims[1,2] device_ids[59,123]
+[Dense_169] num_dims(2) dims[1,2] device_ids[59,123]
+[Dense_170] num_dims(2) dims[1,2] device_ids[35,99]
+[Dense_171] num_dims(2) dims[1,4] device_ids[3,35,67,99]
+[Dense_172] num_dims(2) dims[1,2] device_ids[3,67]
+[Dense_173] num_dims(2) dims[1,2] device_ids[3,67]
+[Dense_174] num_dims(2) dims[1,2] device_ids[3,67]
+[Dense_175] num_dims(2) dims[1,2] device_ids[27,91]
+[Dense_176] num_dims(2) dims[1,2] device_ids[28,92]
+[Dense_177] num_dims(2) dims[1,2] device_ids[39,103]
+[Dense_178] num_dims(2) dims[1,2] device_ids[39,103]
+[Dense_179] num_dims(2) dims[1,2] device_ids[18,82]
+[Concat_180] num_dims(2) dims[1,1] device_ids[96]
+[Dense_181] num_dims(2) dims[1,2] device_ids[32,96]
+[Dense_182] num_dims(2) dims[1,4] device_ids[0,32,64,96]
+[Dense_183] num_dims(2) dims[1,4] device_ids[0,32,64,96]
+[Dense_184] num_dims(2) dims[1,2] device_ids[5,69]
+[Dense_185] num_dims(2) dims[1,2] device_ids[5,69]
+[Dense_186] num_dims(2) dims[1,2] device_ids[5,69]
+[Dense_187] num_dims(2) dims[1,4] device_ids[5,37,69,101]
+[Dense_188] num_dims(2) dims[1,2] device_ids[40,104]
+[Dense_189] num_dims(2) dims[1,16] device_ids[0,8,16,24,32,40,48,56,64,72,80,88,96,104,112,120]
+[Dense_190] num_dims(2) dims[1,2] device_ids[53,117]
+--------------------------------------
+Forw [00000] next [00001] [00670]  size 29.9085 dev 24
+Forw [00080] next [00081] [00702]  size 153.319 dev 62
+Forw [00164] next [00165] [00170]  size 30.6356 dev 89
+Forw [00330] next [00331] [00338]  size 30.6356 dev 98
+Forw [00162] next [00163] [00746]  size 30.6356 dev 57
+Forw [00328] next [00329] [00336]  size 30.6356 dev 66
+Forw [00326] next [00327] [00334]  size 30.6356 dev 34
+Forw [00002] next [00003] [00672]  size 29.9085 dev 88
+Forw [00160] next [00161] [00168]  size 30.6356 dev 25
+Forw [00324] next [00325] [00332]  size 30.6356 dev 2
+Forw [00234] next [00235] [00788]  size 153.319 dev 86
+Forw [00082] next [00083] [00704]  size 153.319 dev 126
+Forw [00232] next [00233] [00786]  size 153.319 dev 22
+Forw [00166] next [00167] [00748]  size 30.6356 dev 121
+Comm [00670] next [00004]  size 32768 from 24 to 5
+Comm [00672] next [00006]  size 32768 from 88 to 69
+Comm [00746] next [00168]  size 16384 from 57 to 25
+Comm [00748] next [00170]  size 16384 from 121 to 89
+Forw [00336] next [00337] [00344]  size 234.864 dev 66
+Forw [00338] next [00339] [00346]  size 234.864 dev 98
+Forw [00334] next [00335] [00342]  size 234.864 dev 34
+Forw [00332] next [00333] [00340]  size 234.864 dev 2
+Comm [00786] next [00236]  size 32768 from 22 to 59
+Comm [00704] next [00086]  size 32768 from 126 to 105
+Comm [00702] next [00084]  size 32768 from 62 to 41
+Comm [00788] next [00238]  size 32768 from 86 to 123
+Forw [00168] next [00169] [00172]  size 469.394 dev 25
+Forw [00170] next [00171] [00174]  size 469.394 dev 89
+Forw [00342] next [00343] [00350]  size 234.864 dev 34
+Forw [00346] next [00347] [00354]  size 234.864 dev 98
+Forw [00344] next [00345] [00352]  size 234.864 dev 66
+Forw [00340] next [00341] [00348]  size 234.864 dev 2
+Forw [00006] next [00007] [00012] [00676]  size 469.394 dev 69
+Forw [00004] next [00005] [00008] [00674]  size 469.394 dev 5
+Forw [00084] next [00085] [00090] [00706]  size 469.394 dev 41
+Forw [00086] next [00087] [00094] [00708]  size 469.394 dev 105
+Forw [00238] next [00239] [00242]  size 469.394 dev 123
+Forw [00236] next [00237] [00240]  size 469.394 dev 59
+Forw [00352] next [00353] [00838]  size 234.864 dev 66
+Forw [00354] next [00355] [00840]  size 234.864 dev 98
+Forw [00348] next [00349] [00834]  size 234.864 dev 2
+Forw [00350] next [00351] [00836]  size 234.864 dev 34
+Forw [00172] next [00173] [00750]  size 469.394 dev 25
+Forw [00174] next [00175] [00752]  size 469.394 dev 89
+Comm [00834] next [00356]  size 16384 from 2 to 59
+Comm [00838] next [00358]  size 16384 from 66 to 123
+Comm [00840] next [00358]  size 16384 from 98 to 123
+Comm [00836] next [00356]  size 16384 from 34 to 59
+Forw [00012] next [00013] [00020]  size 234.864 dev 69
+Forw [00008] next [00009] [00016]  size 234.864 dev 5
+Comm [00676] next [00014]  size 16384 from 69 to 101
+Comm [00674] next [00010]  size 16384 from 5 to 37
+Comm [00708] next [00092]  size 16384 from 105 to 73
+Forw [00240] next [00241] [00790] [00792]  size 469.394 dev 59
+Comm [00706] next [00088]  size 16384 from 41 to 9
+Forw [00094] next [00095] [00102]  size 234.864 dev 105
+Forw [00090] next [00091] [00098]  size 234.864 dev 41
+Forw [00242] next [00243] [00794] [00796]  size 469.394 dev 123
+Forw [00014] next [00015] [00022]  size 234.864 dev 101
+Forw [00010] next [00011] [00018]  size 234.864 dev 37
+Forw [00016] next [00017] [00024]  size 234.864 dev 5
+Forw [00020] next [00021] [00028]  size 234.864 dev 69
+Forw [00358] next [00359] [00362]  size 469.394 dev 123
+Forw [00356] next [00357] [00360]  size 469.394 dev 59
+Forw [00092] next [00093] [00100]  size 234.864 dev 73
+Forw [00088] next [00089] [00096]  size 234.864 dev 9
+Comm [00750] next [00176]  size 32768 from 25 to 13
+Comm [00752] next [00178]  size 32768 from 89 to 77
+Forw [00098] next [00099] [00712]  size 234.864 dev 41
+Forw [00102] next [00103] [00716]  size 234.864 dev 105
+Forw [00022] next [00023] [00030]  size 234.864 dev 101
+Forw [00018] next [00019] [00026]  size 234.864 dev 37
+Forw [00024] next [00025] [00032]  size 234.864 dev 5
+Forw [00028] next [00029] [00036]  size 234.864 dev 69
+Forw [00100] next [00101] [00714]  size 234.864 dev 73
+Forw [00096] next [00097] [00710]  size 234.864 dev 9
+Comm [00794] next [00248]  size 16384 from 123 to 70
+Comm [00790] next [00244]  size 16384 from 59 to 6
+Comm [00796] next [00250]  size 16384 from 123 to 102
+Comm [00792] next [00246]  size 16384 from 59 to 38
+Comm [00712] next [00106]  size 16384 from 41 to 34
+Comm [00716] next [00110]  size 16384 from 105 to 98
+Forw [00026] next [00027] [00034]  size 234.864 dev 37
+Forw [00030] next [00031] [00038]  size 234.864 dev 101
+Forw [00176] next [00177] [00180]  size 469.394 dev 13
+Forw [00178] next [00179] [00182]  size 469.394 dev 77
+Forw [00036] next [00037] [00682]  size 234.864 dev 69
+Forw [00032] next [00033] [00678]  size 234.864 dev 5
+Forw [00248] next [00249] [00256]  size 234.864 dev 70
+Forw [00244] next [00245] [00252]  size 234.864 dev 6
+Forw [00110] next [00111] [00118]  size 234.864 dev 98
+Forw [00106] next [00107] [00114]  size 234.864 dev 34
+Comm [00714] next [00108]  size 16384 from 73 to 66
+Comm [00710] next [00104]  size 16384 from 9 to 2
+Forw [00034] next [00035] [00680]  size 234.864 dev 37
+Forw [00038] next [00039] [00684]  size 234.864 dev 101
+Forw [00250] next [00251] [00258]  size 234.864 dev 102
+Forw [00246] next [00247] [00254]  size 234.864 dev 38
+Forw [00108] next [00109] [00116]  size 234.864 dev 66
+Forw [00104] next [00105] [00112]  size 234.864 dev 2
+Comm [00678] next [00040]  size 16384 from 5 to 52
+Comm [00682] next [00042]  size 16384 from 69 to 116
+Forw [00256] next [00257] [00800]  size 234.864 dev 70
+Forw [00252] next [00253] [00798]  size 234.864 dev 6
+Forw [00114] next [00115] [00720]  size 234.864 dev 34
+Forw [00118] next [00119] [00724]  size 234.864 dev 98
+Forw [00362] next [00363] [00844]  size 469.394 dev 123
+Forw [00360] next [00361] [00842]  size 469.394 dev 59
+Comm [00680] next [00040]  size 16384 from 37 to 52
+Comm [00684] next [00042]  size 16384 from 101 to 116
+Forw [00180] next [00181] [00184]  size 469.394 dev 13
+Forw [00182] next [00183] [00186]  size 469.394 dev 77
+Forw [00254] next [00255] [00260]  size 234.864 dev 38
+Forw [00258] next [00259] [00262]  size 234.864 dev 102
+Forw [00112] next [00113] [00718]  size 234.864 dev 2
+Forw [00116] next [00117] [00722]  size 234.864 dev 66
+Comm [00798] next [00260]  size 16384 from 6 to 38
+Comm [00800] next [00262]  size 16384 from 70 to 102
+Comm [00724] next [00122]  size 16384 from 98 to 114
+Comm [00720] next [00120]  size 16384 from 34 to 50
+Forw [00040] next [00041] [00686]  size 469.394 dev 52
+Forw [00042] next [00043] [00688]  size 469.394 dev 116
+Forw [00260] next [00261] [00802] [00804]  size 469.394 dev 38
+Forw [00262] next [00263] [00806] [00808]  size 469.394 dev 102
+Comm [00722] next [00122]  size 16384 from 66 to 114
+Comm [00718] next [00120]  size 16384 from 2 to 50
+Comm [00842] next [00364]  size 32768 from 59 to 35
+Comm [00844] next [00366]  size 32768 from 123 to 99
+Forw [00122] next [00123] [00728]  size 469.394 dev 114
+Forw [00120] next [00121] [00726]  size 469.394 dev 50
+Forw [00186] next [00187] [00756]  size 469.394 dev 77
+Forw [00184] next [00185] [00754]  size 469.394 dev 13
+Comm [00686] next [00044]  size 32768 from 52 to 39
+Comm [00688] next [00046]  size 32768 from 116 to 103
+Forw [00366] next [00367] [00374] [00848]  size 469.394 dev 99
+Forw [00364] next [00365] [00370] [00846]  size 469.394 dev 35
+Comm [00806] next [00268]  size 16384 from 102 to 72
+Comm [00804] next [00266]  size 16384 from 38 to 40
+Comm [00802] next [00264]  size 16384 from 38 to 8
+Comm [00808] next [00270]  size 16384 from 102 to 104
+Forw [00268] next [00269] [00276]  size 234.864 dev 72
+Forw [00266] next [00267] [00274]  size 234.864 dev 40
+Comm [00728] next [00126]  size 32768 from 114 to 108
+Comm [00726] next [00124]  size 32768 from 50 to 44
+Comm [00754] next [00188]  size 32768 from 13 to 30
+Comm [00756] next [00190]  size 32768 from 77 to 94
+Forw [00044] next [00045] [00048]  size 469.394 dev 39
+Forw [00046] next [00047] [00050]  size 469.394 dev 103
+Forw [00264] next [00265] [00272]  size 234.864 dev 8
+Forw [00270] next [00271] [00278]  size 234.864 dev 104
+Forw [00274] next [00275] [00810]  size 234.864 dev 40
+Forw [00276] next [00277] [00282]  size 234.864 dev 72
+Comm [00846] next [00368]  size 16384 from 35 to 3
+Comm [00848] next [00372]  size 16384 from 99 to 67
+Forw [00370] next [00371] [00850]  size 234.864 dev 35
+Forw [00374] next [00375] [00852]  size 234.864 dev 99
+Forw [00126] next [00127] [00732]  size 469.394 dev 108
+Forw [00124] next [00125] [00730]  size 469.394 dev 44
+Forw [00188] next [00189] [00192]  size 469.394 dev 30
+Forw [00190] next [00191] [00194]  size 469.394 dev 94
+Forw [00278] next [00279] [00812]  size 234.864 dev 104
+Forw [00272] next [00273] [00280]  size 234.864 dev 8
+Forw [00368] next [00369] [00376]  size 234.864 dev 3
+Forw [00372] next [00373] [00378]  size 234.864 dev 67
+Comm [00810] next [00280]  size 16384 from 40 to 8
+Forw [00048] next [00049] [00052]  size 469.394 dev 39
+Forw [00050] next [00051] [00054]  size 469.394 dev 103
+Comm [00852] next [00378]  size 16384 from 99 to 67
+Comm [00850] next [00376]  size 16384 from 35 to 3
+Comm [00812] next [00282]  size 16384 from 104 to 72
+Forw [00280] next [00281] [00814]  size 469.394 dev 8
+Forw [00378] next [00379] [00382]  size 469.394 dev 67
+Forw [00376] next [00377] [00380]  size 469.394 dev 3
+Comm [00732] next [00130]  size 32768 from 108 to 90
+Comm [00730] next [00128]  size 32768 from 44 to 26
+Forw [00282] next [00283] [00816]  size 469.394 dev 72
+Forw [00194] next [00195] [00760]  size 469.394 dev 94
+Forw [00192] next [00193] [00758]  size 469.394 dev 30
+Forw [00054] next [00055] [00692]  size 469.394 dev 103
+Forw [00052] next [00053] [00690]  size 469.394 dev 39
+Comm [00814] next [00284]  size 32768 from 8 to 21
+Forw [00128] next [00129] [00734]  size 469.394 dev 26
+Forw [00130] next [00131] [00736]  size 469.394 dev 90
+Forw [00380] next [00381] [00384]  size 469.394 dev 3
+Forw [00382] next [00383] [00386]  size 469.394 dev 67
+Comm [00816] next [00286]  size 32768 from 72 to 85
+Comm [00760] next [00198]  size 32768 from 94 to 107
+Comm [00758] next [00196]  size 32768 from 30 to 43
+Forw [00284] next [00285] [00288] [00818]  size 469.394 dev 21
+Comm [00690] next [00056]  size 32768 from 39 to 48
+Comm [00692] next [00058]  size 32768 from 103 to 112
+Comm [00736] next [00134]  size 32768 from 90 to 77
+Comm [00734] next [00132]  size 32768 from 26 to 13
+Forw [00286] next [00287] [00292] [00820]  size 469.394 dev 85
+Forw [00198] next [00199] [00764]  size 469.394 dev 107
+Forw [00196] next [00197] [00762]  size 469.394 dev 43
+Forw [00386] next [00387] [00856]  size 469.394 dev 67
+Forw [00384] next [00385] [00854]  size 469.394 dev 3
+Forw [00058] next [00059] [00062]  size 469.394 dev 112
+Forw [00056] next [00057] [00060]  size 469.394 dev 48
+Forw [00288] next [00289] [00296]  size 234.864 dev 21
+Comm [00818] next [00290]  size 16384 from 21 to 53
+Forw [00132] next [00133] [00738]  size 469.394 dev 13
+Forw [00134] next [00135] [00740]  size 469.394 dev 77
+Forw [00292] next [00293] [00300]  size 234.864 dev 85
+Comm [00820] next [00294]  size 16384 from 85 to 117
+Forw [00290] next [00291] [00298]  size 234.864 dev 53
+Comm [00764] next [00202]  size 32768 from 107 to 123
+Comm [00762] next [00200]  size 32768 from 43 to 59
+Comm [00854] next [00388]  size 32768 from 3 to 27
+Comm [00856] next [00390]  size 32768 from 67 to 91
+Forw [00296] next [00297] [00304]  size 234.864 dev 21
+Forw [00294] next [00295] [00302]  size 234.864 dev 117
+Forw [00062] next [00063] [00066]  size 469.394 dev 112
+Forw [00060] next [00061] [00064]  size 469.394 dev 48
+Forw [00300] next [00301] [00308]  size 234.864 dev 85
+Forw [00298] next [00299] [00306]  size 234.864 dev 53
+Forw [00304] next [00305] [00822]  size 234.864 dev 21
+Comm [00740] next [00138]  size 32768 from 77 to 113
+Comm [00738] next [00136]  size 32768 from 13 to 49
+Forw [00202] next [00203] [00206]  size 469.394 dev 123
+Forw [00200] next [00201] [00204]  size 469.394 dev 59
+Forw [00390] next [00391] [00860]  size 469.394 dev 91
+Forw [00388] next [00389] [00858]  size 469.394 dev 27
+Forw [00302] next [00303] [00310]  size 234.864 dev 117
+Forw [00308] next [00309] [00824]  size 234.864 dev 85
+Forw [00306] next [00307] [00312]  size 234.864 dev 53
+Comm [00822] next [00312]  size 16384 from 21 to 53
+Forw [00310] next [00311] [00314]  size 234.864 dev 117
+Forw [00066] next [00067] [00696]  size 469.394 dev 112
+Forw [00064] next [00065] [00694]  size 469.394 dev 48
+Forw [00138] next [00139] [00142]  size 469.394 dev 113
+Forw [00136] next [00137] [00140]  size 469.394 dev 49
+Comm [00824] next [00314]  size 16384 from 85 to 117
+Forw [00312] next [00313] [00826]  size 469.394 dev 53
+Forw [00204] next [00205] [00208]  size 469.394 dev 59
+Forw [00206] next [00207] [00210]  size 469.394 dev 123
+Comm [00858] next [00392]  size 32768 from 27 to 28
+Comm [00860] next [00394]  size 32768 from 91 to 92
+Forw [00314] next [00315] [00828]  size 469.394 dev 117
+Comm [00694] next [00068]  size 32768 from 48 to 14
+Comm [00696] next [00070]  size 32768 from 112 to 78
+Forw [00140] next [00141] [00144]  size 469.394 dev 49
+Forw [00142] next [00143] [00146]  size 469.394 dev 113
+Forw [00394] next [00395] [00864]  size 469.394 dev 92
+Forw [00392] next [00393] [00862]  size 469.394 dev 28
+Comm [00826] next [00316]  size 32768 from 53 to 33
+Forw [00208] next [00209] [00766]  size 469.394 dev 59
+Forw [00210] next [00211] [00768]  size 469.394 dev 123
+Comm [00828] next [00318]  size 32768 from 117 to 97
+Forw [00068] next [00069] [00072]  size 469.394 dev 14
+Forw [00070] next [00071] [00074]  size 469.394 dev 78
+Forw [00316] next [00317] [00830]  size 469.394 dev 33
+Forw [00144] next [00145] [00742]  size 469.394 dev 49
+Forw [00146] next [00147] [00744]  size 469.394 dev 113
+Comm [00862] next [00396]  size 32768 from 28 to 39
+Comm [00864] next [00398]  size 32768 from 92 to 103
+Forw [00318] next [00319] [00832]  size 469.394 dev 97
+Comm [00768] next [00214]  size 32768 from 123 to 126
+Comm [00766] next [00212]  size 32768 from 59 to 62
+Forw [00074] next [00075] [00700]  size 469.394 dev 78
+Forw [00072] next [00073] [00698]  size 469.394 dev 14
+Forw [00398] next [00399] [00402]  size 469.394 dev 103
+Forw [00396] next [00397] [00400]  size 469.394 dev 39
+Comm [00830] next [00320]  size 32768 from 33 to 0
+Comm [00742] next [00148]  size 32768 from 49 to 17
+Comm [00744] next [00150]  size 32768 from 113 to 81
+Forw [00214] next [00215] [00774] [00776]  size 469.394 dev 126
+Forw [00212] next [00213] [00770] [00772]  size 469.394 dev 62
+Comm [00832] next [00322]  size 32768 from 97 to 64
+Forw [00320] next [00321] [00882]  size 469.394 dev 0
+Comm [00700] next [00078]  size 32768 from 78 to 76
+Comm [00698] next [00076]  size 32768 from 14 to 12
+Forw [00148] next [00149] [00152]  size 469.394 dev 17
+Forw [00150] next [00151] [00154]  size 469.394 dev 81
+Forw [00400] next [00401] [00866]  size 469.394 dev 39
+Forw [00402] next [00403] [00868]  size 469.394 dev 103
+Forw [00322] next [00323] [00884]  size 469.394 dev 64
+Comm [00774] next [00220]  size 16384 from 126 to 81
+Comm [00770] next [00216]  size 16384 from 62 to 17
+Comm [00776] next [00222]  size 16384 from 126 to 113
+Comm [00772] next [00218]  size 16384 from 62 to 49
+Forw [00078] next [00079] [00872]  size 469.394 dev 76
+Forw [00076] next [00077] [00870]  size 469.394 dev 12
+Forw [00220] next [00221] [00226]  size 234.864 dev 81
+Forw [00216] next [00217] [00224]  size 234.864 dev 17
+Comm [00882] next [00408]  size 32768 from 0 to 96
+Forw [00152] next [00153] [00156]  size 469.394 dev 17
+Forw [00154] next [00155] [00158]  size 469.394 dev 81
+Forw [00222] next [00223] [00780]  size 234.864 dev 113
+Forw [00218] next [00219] [00778]  size 234.864 dev 49
+Comm [00868] next [00406]  size 32768 from 103 to 82
+Comm [00866] next [00404]  size 32768 from 39 to 18
+Comm [00884] next [00408]  size 32768 from 64 to 96
+Comm [00780] next [00226]  size 16384 from 113 to 81
+Comm [00778] next [00224]  size 16384 from 49 to 17
+Comm [00872] next [00408]  size 32768 from 76 to 96
+Comm [00870] next [00408]  size 32768 from 12 to 96
+Forw [00406] next [00407] [00888]  size 469.394 dev 82
+Forw [00404] next [00405] [00886]  size 469.394 dev 18
+Forw [00226] next [00227] [00784]  size 469.394 dev 81
+Forw [00224] next [00225] [00782]  size 469.394 dev 17
+Forw [00158] next [00159] [00876]  size 469.394 dev 81
+Forw [00156] next [00157] [00874]  size 469.394 dev 17
+Comm [00888] next [00408]  size 32768 from 82 to 96
+Comm [00886] next [00408]  size 32768 from 18 to 96
+Comm [00782] next [00228]  size 32768 from 17 to 0
+Comm [00784] next [00230]  size 32768 from 81 to 64
+Forw [00228] next [00229] [00878]  size 469.394 dev 0
+Forw [00230] next [00231] [00880]  size 469.394 dev 64
+Comm [00876] next [00408]  size 32768 from 81 to 96
+Comm [00874] next [00408]  size 32768 from 17 to 96
+Comm [00880] next [00408]  size 32768 from 64 to 96
+Comm [00878] next [00408]  size 32768 from 0 to 96
+Forw [00408] next [00409] [00412] [00890]  size 17.9112 dev 96
+Comm [00890] next [00410]  size 163844 from 96 to 32
+Forw [00412] next [00413] [00420] [00894]  size 3007.78 dev 96
+Forw [00410] next [00411] [00416] [00892]  size 3007.78 dev 32
+Comm [00894] next [00418]  size 16384 from 96 to 64
+Forw [00420] next [00421] [00428]  size 234.864 dev 96
+Forw [00418] next [00419] [00426]  size 234.864 dev 64
+Forw [00428] next [00429] [00902]  size 234.864 dev 96
+Forw [00426] next [00427] [00900]  size 234.864 dev 64
+Comm [00902] next [00432]  size 16384 from 96 to 69
+Comm [00900] next [00432]  size 16384 from 64 to 69
+Forw [00432] next [00433] [00436]  size 469.394 dev 69
+Forw [00436] next [00437] [00440]  size 469.394 dev 69
+Forw [00416] next [00417] [00424]  size 234.864 dev 32
+Comm [00892] next [00414]  size 16384 from 32 to 0
+Forw [00440] next [00441] [00446] [00906]  size 469.394 dev 69
+Forw [00414] next [00415] [00422]  size 234.864 dev 0
+Forw [00424] next [00425] [00898]  size 234.864 dev 32
+Forw [00422] next [00423] [00896]  size 234.864 dev 0
+Comm [00898] next [00430]  size 16384 from 32 to 5
+Forw [00446] next [00447] [00912]  size 234.864 dev 69
+Comm [00906] next [00448]  size 16384 from 69 to 101
+Comm [00896] next [00430]  size 16384 from 0 to 5
+Forw [00448] next [00449] [00914]  size 234.864 dev 101
+Comm [00912] next [00452]  size 16384 from 69 to 104
+Forw [00430] next [00431] [00434]  size 469.394 dev 5
+Comm [00914] next [00452]  size 16384 from 101 to 104
+Forw [00452] next [00453] [00480] [00930] [00932] [00934] [00936] [00938] [00940] [00942]  size 469.394 dev 104
+Forw [00434] next [00435] [00438]  size 469.394 dev 5
+Comm [00932] next [00472]  size 4096 from 104 to 72
+Forw [00480] next [00481] [00970]  size 0.109363 dev 104
+Comm [00942] next [00484]  size 4096 from 104 to 120
+Comm [00938] next [00478]  size 4096 from 104 to 96
+Comm [00930] next [00470]  size 4096 from 104 to 64
+Comm [00936] next [00476]  size 4096 from 104 to 88
+Comm [00934] next [00474]  size 4096 from 104 to 80
+Comm [00940] next [00482]  size 4096 from 104 to 112
+Comm [00970] next [00488]  size 0.25 from 104 to 117
+Forw [00472] next [00473] [00962]  size 0.109363 dev 72
+Comm [00962] next [00488]  size 0.25 from 72 to 117
+Forw [00484] next [00485] [00974]  size 0.109363 dev 120
+Comm [00974] next [00488]  size 0.25 from 120 to 117
+Forw [00478] next [00479] [00968]  size 0.109363 dev 96
+Comm [00968] next [00488]  size 0.25 from 96 to 117
+Forw [00470] next [00471] [00960]  size 0.109363 dev 64
+Comm [00960] next [00488]  size 0.25 from 64 to 117
+Forw [00438] next [00439] [00442] [00904]  size 469.394 dev 5
+Forw [00476] next [00477] [00966]  size 0.109363 dev 88
+Comm [00966] next [00488]  size 0.25 from 88 to 117
+Forw [00474] next [00475] [00964]  size 0.109363 dev 80
+Comm [00964] next [00488]  size 0.25 from 80 to 117
+Forw [00482] next [00483] [00972]  size 0.109363 dev 112
+Comm [00972] next [00488]  size 0.25 from 112 to 117
+Forw [00488] next [00489]  size 0.010752 dev 117
+Forw [00489] next [00668] [00669] [00961] [00963] [00965] [00967] [00969] [00971] [00973] [00975]  size 0.0238592 dev 117
+Comm [00961] next [00471]  size 0.25 from 117 to 64
+Comm [00967] next [00477]  size 0.25 from 117 to 88
+Comm [00969] next [00479]  size 0.25 from 117 to 96
+Comm [00975] next [00485]  size 0.25 from 117 to 120
+Comm [00963] next [00473]  size 0.25 from 117 to 72
+Comm [00965] next [00475]  size 0.25 from 117 to 80
+Comm [00971] next [00481]  size 0.25 from 117 to 104
+Comm [00973] next [00483]  size 0.25 from 117 to 112
+Forw [00471] next [00666] [00667] [00931]  size 0.34089 dev 64
+Forw [00477] next [00666] [00667] [00937]  size 0.34089 dev 88
+Forw [00479] next [00666] [00667] [00939]  size 0.34089 dev 96
+Forw [00485] next [00666] [00667] [00943]  size 0.34089 dev 120
+Forw [00473] next [00666] [00667] [00933]  size 0.34089 dev 72
+Forw [00475] next [00666] [00667] [00935]  size 0.34089 dev 80
+Forw [00481] next [00453] [00666] [00667]  size 0.34089 dev 104
+Forw [00483] next [00666] [00667] [00941]  size 0.34089 dev 112
+Comm [00931] next [00453]  size 4096 from 64 to 104
+Comm [00937] next [00453]  size 4096 from 88 to 104
+Comm [00939] next [00453]  size 4096 from 96 to 104
+Comm [00943] next [00453]  size 4096 from 120 to 104
+Comm [00933] next [00453]  size 4096 from 72 to 104
+Comm [00935] next [00453]  size 4096 from 80 to 104
+Comm [00941] next [00453]  size 4096 from 112 to 104
+Forw [00453] next [00664] [00665] [00913] [00915]  size 934.779 dev 104
+Comm [00904] next [00444]  size 16384 from 5 to 37
+Forw [00442] next [00443] [00908]  size 234.864 dev 5
+Forw [00444] next [00445] [00910]  size 234.864 dev 37
+Comm [00908] next [00450]  size 16384 from 5 to 40
+Comm [00910] next [00450]  size 16384 from 37 to 40
+Forw [00450] next [00451] [00464] [00916] [00918] [00920] [00922] [00924] [00926] [00928]  size 469.394 dev 40
+Comm [00913] next [00447]  size 16384 from 104 to 69
+Comm [00915] next [00449]  size 16384 from 104 to 101
+Forw [00447] next [00441] [00662] [00663]  size 483.397 dev 69
+Comm [00916] next [00454]  size 4096 from 40 to 0
+Comm [00924] next [00462]  size 4096 from 40 to 32
+Comm [00922] next [00460]  size 4096 from 40 to 24
+Comm [00926] next [00466]  size 4096 from 40 to 48
+Comm [00920] next [00458]  size 4096 from 40 to 16
+Comm [00928] next [00468]  size 4096 from 40 to 56
+Comm [00918] next [00456]  size 4096 from 40 to 8
+Forw [00464] next [00465] [00954]  size 0.109363 dev 40
+Comm [00954] next [00486]  size 0.25 from 40 to 53
+Forw [00454] next [00455] [00944]  size 0.109363 dev 0
+Comm [00944] next [00486]  size 0.25 from 0 to 53
+Forw [00462] next [00463] [00952]  size 0.109363 dev 32
+Comm [00952] next [00486]  size 0.25 from 32 to 53
+Forw [00460] next [00461] [00950]  size 0.109363 dev 24
+Comm [00950] next [00486]  size 0.25 from 24 to 53
+Forw [00449] next [00662] [00663] [00907]  size 483.397 dev 101
+Forw [00466] next [00467] [00956]  size 0.109363 dev 48
+Comm [00956] next [00486]  size 0.25 from 48 to 53
+Forw [00458] next [00459] [00948]  size 0.109363 dev 16
+Comm [00948] next [00486]  size 0.25 from 16 to 53
+Forw [00468] next [00469] [00958]  size 0.109363 dev 56
+Comm [00958] next [00486]  size 0.25 from 56 to 53
+Forw [00456] next [00457] [00946]  size 0.109363 dev 8
+Comm [00946] next [00486]  size 0.25 from 8 to 53
+Forw [00486] next [00487]  size 0.010752 dev 53
+Forw [00487] next [00668] [00669] [00945] [00947] [00949] [00951] [00953] [00955] [00957] [00959]  size 0.0238592 dev 53
+AllR [00668] next [00977] [00978]  size 0 dev 0
+AllR [00669] next [00980] [00981]  size 0 dev 0
+Comm [00951] next [00461]  size 0.25 from 53 to 24
+Comm [00959] next [00469]  size 0.25 from 53 to 56
+Comm [00978] next [00976]  size 3.05176e-05 from 117 to 53
+Comm [00981] next [00979]  size 3.05176e-05 from 117 to 53
+Comm [00949] next [00459]  size 0.25 from 53 to 16
+Comm [00980] next [00979]  size 3.05176e-05 from 53 to 117
+Comm [00977] next [00976]  size 3.05176e-05 from 53 to 117
+Comm [00945] next [00455]  size 0.25 from 53 to 0
+Comm [00947] next [00457]  size 0.25 from 53 to 8
+Comm [00957] next [00467]  size 0.25 from 53 to 48
+Comm [00953] next [00463]  size 0.25 from 53 to 32
+Comm [00955] next [00465]  size 0.25 from 53 to 40
+Forw [00461] next [00666] [00667] [00923]  size 0.34089 dev 24
+Forw [00469] next [00666] [00667] [00929]  size 0.34089 dev 56
+Forw [00459] next [00666] [00667] [00921]  size 0.34089 dev 16
+Forw [00979] next  size 0 dev 53
+Forw [00976] next  size 0 dev 53
+Forw [00455] next [00666] [00667] [00917]  size 0.34089 dev 0
+Forw [00457] next [00666] [00667] [00919]  size 0.34089 dev 8
+Forw [00467] next [00666] [00667] [00927]  size 0.34089 dev 48
+Forw [00463] next [00666] [00667] [00925]  size 0.34089 dev 32
+Forw [00465] next [00451] [00666] [00667]  size 0.34089 dev 40
+Comm [00923] next [00451]  size 4096 from 24 to 40
+Comm [00929] next [00451]  size 4096 from 56 to 40
+Comm [00921] next [00451]  size 4096 from 16 to 40
+Comm [00917] next [00451]  size 4096 from 0 to 40
+Comm [00919] next [00451]  size 4096 from 8 to 40
+Comm [00927] next [00451]  size 4096 from 48 to 40
+Comm [00925] next [00451]  size 4096 from 32 to 40
+AllR [00667] next [00983] [00984] [00985] [00986] [00987] [00988] [00989] [00990] [00991] [00992] [00993] [00994] [00995] [00996] [00997] [00998]  size 0 dev 0
+AllR [00666] next [01000] [01001] [01002] [01003] [01004] [01005] [01006] [01007] [01008] [01009] [01010] [01011] [01012] [01013] [01014] [01015]  size 0 dev 0
+Comm [00985] next [00982]  size 5.34058e-05 from 112 to 104
+Comm [00986] next [00982]  size 5.34058e-05 from 104 to 96
+Comm [00994] next [00982]  size 5.34058e-05 from 40 to 32
+Comm [00998] next [00982]  size 5.34058e-05 from 8 to 0
+Comm [01012] next [00999]  size 0.9375 from 32 to 24
+Comm [01015] next [00999]  size 0.9375 from 8 to 0
+Comm [01014] next [00999]  size 0.9375 from 16 to 8
+Comm [01011] next [00999]  size 0.9375 from 40 to 32
+Comm [00993] next [00982]  size 5.34058e-05 from 48 to 40
+Comm [01009] next [00999]  size 0.9375 from 56 to 48
+Comm [01010] next [00999]  size 0.9375 from 48 to 40
+Comm [01008] next [00999]  size 0.9375 from 64 to 56
+Comm [01007] next [00999]  size 0.9375 from 72 to 64
+Comm [01006] next [00999]  size 0.9375 from 80 to 72
+Comm [01004] next [00999]  size 0.9375 from 96 to 88
+Comm [01003] next [00999]  size 0.9375 from 104 to 96
+Comm [01002] next [00999]  size 0.9375 from 112 to 104
+Comm [01001] next [00999]  size 0.9375 from 120 to 112
+Comm [01000] next [00999]  size 0.9375 from 0 to 120
+Comm [00997] next [00982]  size 5.34058e-05 from 16 to 8
+Comm [00996] next [00982]  size 5.34058e-05 from 24 to 16
+Comm [01013] next [00999]  size 0.9375 from 24 to 16
+Comm [00991] next [00982]  size 5.34058e-05 from 64 to 56
+Comm [00992] next [00982]  size 5.34058e-05 from 56 to 48
+Comm [01005] next [00999]  size 0.9375 from 88 to 80
+Comm [00990] next [00982]  size 5.34058e-05 from 72 to 64
+Comm [00989] next [00982]  size 5.34058e-05 from 80 to 72
+Comm [00983] next [00982]  size 5.34058e-05 from 0 to 120
+Comm [00984] next [00982]  size 5.34058e-05 from 120 to 112
+Comm [00988] next [00982]  size 5.34058e-05 from 88 to 80
+Comm [00995] next [00982]  size 5.34058e-05 from 32 to 24
+Comm [00987] next [00982]  size 5.34058e-05 from 96 to 88
+Forw [00451] next [00664] [00665] [00909] [00911]  size 934.779 dev 40
+Forw [00982] next  size 0 dev 0
+Forw [00999] next  size 0 dev 0
+Comm [00907] next [00441]  size 16384 from 101 to 69
+Forw [00441] next [00437] [00660] [00661]  size 934.779 dev 69
+Comm [00911] next [00445]  size 16384 from 40 to 37
+AllR [00665] next [01017] [01018]  size 0 dev 0
+Comm [00909] next [00443]  size 16384 from 40 to 5
+Comm [01018] next [01016]  size 0.5 from 104 to 40
+AllR [00664] next [01020] [01021]  size 0 dev 0
+Comm [01017] next [01016]  size 0.5 from 40 to 104
+Comm [01021] next [01019]  size 8192 from 104 to 40
+Comm [01020] next [01019]  size 8192 from 40 to 104
+Forw [00445] next [00662] [00663] [00905]  size 483.397 dev 37
+Forw [00437] next [00433] [00658] [00659]  size 934.779 dev 69
+Forw [00443] next [00439] [00662] [00663]  size 483.397 dev 5
+Forw [01016] next  size 0 dev 40
+Forw [01019] next  size 0 dev 40
+Comm [00905] next [00439]  size 16384 from 37 to 5
+AllR [00663] next [01023] [01024] [01025] [01026]  size 0 dev 0
+AllR [00662] next [01028] [01029] [01030] [01031]  size 0 dev 0
+Comm [01025] next [01022]  size 0.75 from 69 to 37
+Comm [01026] next [01022]  size 0.75 from 37 to 5
+Comm [01028] next [01027]  size 12288 from 5 to 37
+Comm [01031] next [01027]  size 12288 from 101 to 5
+Comm [01030] next [01027]  size 12288 from 69 to 101
+Comm [01023] next [01022]  size 0.75 from 5 to 101
+Comm [01024] next [01022]  size 0.75 from 101 to 69
+Comm [01029] next [01027]  size 12288 from 37 to 69
+Forw [00439] next [00435] [00660] [00661]  size 934.779 dev 5
+Forw [01022] next  size 0 dev 5
+Forw [01027] next  size 0 dev 5
+Forw [00433] next [00656] [00657] [00901] [00903]  size 934.779 dev 69
+Forw [00435] next [00431] [00658] [00659]  size 934.779 dev 5
+AllR [00660] next [01033] [01034]  size 0 dev 0
+AllR [00661] next [01036] [01037]  size 0 dev 0
+Comm [01033] next [01032]  size 8192 from 5 to 69
+Comm [01034] next [01032]  size 8192 from 69 to 5
+Comm [01036] next [01035]  size 0.5 from 5 to 69
+Comm [01037] next [01035]  size 0.5 from 69 to 5
+Forw [01032] next  size 0 dev 5
+Forw [01035] next  size 0 dev 5
+Comm [00903] next [00429]  size 16384 from 69 to 96
+Comm [00901] next [00427]  size 16384 from 69 to 64
+Forw [00429] next [00421] [00654] [00655]  size 483.397 dev 96
+Forw [00427] next [00419] [00654] [00655]  size 483.397 dev 64
+AllR [00659] next [01039] [01040]  size 0 dev 0
+Forw [00431] next [00656] [00657] [00897] [00899]  size 934.779 dev 5
+Comm [01040] next [01038]  size 0.5 from 69 to 5
+AllR [00658] next [01042] [01043]  size 0 dev 0
+Comm [01039] next [01038]  size 0.5 from 5 to 69
+Comm [01042] next [01041]  size 8192 from 5 to 69
+Comm [01043] next [01041]  size 8192 from 69 to 5
+Forw [01038] next  size 0 dev 5
+Forw [00421] next [00413] [00652] [00653]  size 483.397 dev 96
+Forw [01041] next  size 0 dev 5
+Forw [00419] next [00652] [00653] [00895]  size 483.397 dev 64
+Comm [00895] next [00413]  size 16384 from 64 to 96
+Forw [00413] next [00409] [00650] [00651]  size 4673.36 dev 96
+Comm [00899] next [00425]  size 16384 from 5 to 32
+AllR [00657] next [01045] [01046]  size 0 dev 0
+Comm [00897] next [00423]  size 16384 from 5 to 0
+AllR [00656] next [01048] [01049]  size 0 dev 0
+Comm [01045] next [01044]  size 0.5 from 5 to 69
+Comm [01049] next [01047]  size 8192 from 69 to 5
+Comm [01046] next [01044]  size 0.5 from 69 to 5
+Comm [01048] next [01047]  size 8192 from 5 to 69
+Forw [00425] next [00417] [00654] [00655]  size 483.397 dev 32
+Forw [00423] next [00415] [00654] [00655]  size 483.397 dev 0
+Forw [01044] next  size 0 dev 5
+Forw [01047] next  size 0 dev 5
+Forw [00417] next [00411] [00652] [00653]  size 483.397 dev 32
+Forw [00415] next [00652] [00653] [00893]  size 483.397 dev 0
+AllR [00655] next [01051] [01052] [01053] [01054]  size 0 dev 0
+AllR [00654] next [01056] [01057] [01058] [01059]  size 0 dev 0
+Comm [01052] next [01050]  size 0.75 from 96 to 64
+Comm [01053] next [01050]  size 0.75 from 64 to 32
+Comm [01059] next [01055]  size 12288 from 96 to 0
+Comm [01051] next [01050]  size 0.75 from 0 to 96
+Comm [01058] next [01055]  size 12288 from 64 to 96
+Comm [01057] next [01055]  size 12288 from 32 to 64
+Comm [01056] next [01055]  size 12288 from 0 to 32
+Comm [01054] next [01050]  size 0.75 from 32 to 0
+Forw [01055] next  size 0 dev 0
+Forw [01050] next  size 0 dev 0
+Comm [00893] next [00411]  size 16384 from 0 to 32
+AllR [00652] next [01061] [01062] [01063] [01064]  size 0 dev 0
+AllR [00653] next [01066] [01067] [01068] [01069]  size 0 dev 0
+Comm [01061] next [01060]  size 12288 from 0 to 32
+Comm [01064] next [01060]  size 12288 from 96 to 0
+Comm [01067] next [01065]  size 0.75 from 96 to 64
+Comm [01069] next [01065]  size 0.75 from 32 to 0
+Comm [01066] next [01065]  size 0.75 from 0 to 96
+Comm [01062] next [01060]  size 12288 from 32 to 64
+Comm [01068] next [01065]  size 0.75 from 64 to 32
+Comm [01063] next [01060]  size 12288 from 64 to 96
+Forw [00411] next [00650] [00651] [00891]  size 4673.36 dev 32
+Forw [01065] next  size 0 dev 0
+Forw [01060] next  size 0 dev 0
+AllR [00650] next [01071] [01072]  size 0 dev 0
+AllR [00651] next [01074] [01075]  size 0 dev 0
+Comm [01071] next [01070]  size 40961 from 32 to 96
+Comm [01072] next [01070]  size 40961 from 96 to 32
+Comm [01075] next [01073]  size 0.5 from 96 to 32
+Comm [01074] next [01073]  size 0.5 from 32 to 96
+Comm [00891] next [00409]  size 163844 from 32 to 96
+Forw [01070] next  size 0 dev 32
+Forw [01073] next  size 0 dev 32
+Forw [00409] next [00871] [00873] [00875] [00877] [00879] [00881] [00883] [00885] [00887] [00889]  size 25.2391 dev 96
+Comm [00871] next [00077]  size 32768 from 96 to 12
+Comm [00875] next [00157]  size 32768 from 96 to 17
+Comm [00883] next [00321]  size 32768 from 96 to 0
+Comm [00889] next [00407]  size 32768 from 96 to 82
+Comm [00881] next [00231]  size 32768 from 96 to 64
+Comm [00873] next [00079]  size 32768 from 96 to 76
+Comm [00879] next [00229]  size 32768 from 96 to 0
+Comm [00877] next [00159]  size 32768 from 96 to 81
+Comm [00887] next [00405]  size 32768 from 96 to 18
+Comm [00885] next [00323]  size 32768 from 96 to 64
+Forw [00077] next [00520] [00521] [00699]  size 934.779 dev 12
+Forw [00157] next [00153] [00552] [00553]  size 934.779 dev 17
+Forw [00321] next [00616] [00617] [00831]  size 934.779 dev 0
+Comm [00699] next [00073]  size 32768 from 12 to 14
+Forw [00407] next [00648] [00649] [00869]  size 934.779 dev 82
+Forw [00153] next [00149] [00550] [00551]  size 934.779 dev 17
+Forw [00073] next [00069] [00518] [00519]  size 934.779 dev 14
+Forw [00231] next [00584] [00585] [00785]  size 934.779 dev 64
+Comm [00831] next [00317]  size 32768 from 0 to 33
+Forw [00079] next [00520] [00521] [00701]  size 934.779 dev 76
+Comm [00869] next [00403]  size 32768 from 82 to 103
+Forw [00317] next [00614] [00615] [00827]  size 934.779 dev 33
+Forw [00229] next [00584] [00585] [00783]  size 934.779 dev 0
+Forw [00149] next [00548] [00549] [00743]  size 934.779 dev 17
+Forw [00069] next [00516] [00517] [00695]  size 934.779 dev 14
+Comm [00785] next [00227]  size 32768 from 64 to 81
+Forw [00403] next [00399] [00646] [00647]  size 934.779 dev 103
+Forw [00159] next [00155] [00552] [00553]  size 934.779 dev 81
+AllR [00521] next [01077] [01078]  size 0 dev 0
+Comm [00701] next [00075]  size 32768 from 76 to 78
+AllR [00520] next [01080] [01081]  size 0 dev 0
+Comm [01077] next [01076]  size 0.5 from 12 to 76
+Comm [01078] next [01076]  size 0.5 from 76 to 12
+Comm [01080] next [01079]  size 8192 from 12 to 76
+Comm [01081] next [01079]  size 8192 from 76 to 12
+Forw [00227] next [00221] [00582] [00583] [00781]  size 934.779 dev 81
+Forw [00405] next [00648] [00649] [00867]  size 934.779 dev 18
+Comm [00827] next [00313]  size 32768 from 33 to 53
+Comm [00783] next [00225]  size 32768 from 0 to 17
+AllR [00585] next [01083] [01084]  size 0 dev 0
+AllR [00584] next [01086] [01087]  size 0 dev 0
+Comm [01083] next [01082]  size 0.5 from 0 to 64
+Comm [01084] next [01082]  size 0.5 from 64 to 0
+Comm [01086] next [01085]  size 8192 from 0 to 64
+Comm [01087] next [01085]  size 8192 from 64 to 0
+Forw [00075] next [00071] [00518] [00519]  size 934.779 dev 78
+Forw [01076] next  size 0 dev 12
+Forw [01079] next  size 0 dev 12
+Forw [00323] next [00616] [00617] [00833]  size 934.779 dev 64
+Comm [00743] next [00145]  size 32768 from 17 to 49
+Comm [00695] next [00065]  size 32768 from 14 to 48
+Forw [00399] next [00644] [00645] [00865]  size 934.779 dev 103
+Forw [00313] next [00307] [00612] [00613] [00823]  size 934.779 dev 53
+AllR [00553] next [01089] [01090]  size 0 dev 0
+AllR [00552] next [01092] [01093]  size 0 dev 0
+Forw [00155] next [00151] [00550] [00551]  size 934.779 dev 81
+Comm [01093] next [01091]  size 8192 from 81 to 17
+Comm [01089] next [01088]  size 0.5 from 17 to 81
+Comm [01090] next [01088]  size 0.5 from 81 to 17
+Comm [01092] next [01091]  size 8192 from 17 to 81
+Forw [00225] next [00217] [00582] [00583] [00779]  size 934.779 dev 17
+Forw [01082] next  size 0 dev 0
+Forw [01085] next  size 0 dev 0
+Forw [00145] next [00141] [00546] [00547]  size 934.779 dev 49
+Forw [00065] next [00061] [00514] [00515]  size 934.779 dev 48
+Forw [01088] next  size 0 dev 17
+Forw [01091] next  size 0 dev 17
+AllR [00649] next [01095] [01096]  size 0 dev 0
+AllR [00648] next [01098] [01099]  size 0 dev 0
+Comm [01096] next [01094]  size 0.5 from 82 to 18
+Comm [01098] next [01097]  size 8192 from 18 to 82
+Comm [01099] next [01097]  size 8192 from 82 to 18
+Comm [00867] next [00401]  size 32768 from 18 to 39
+Comm [01095] next [01094]  size 0.5 from 18 to 82
+Forw [01097] next  size 0 dev 18
+Forw [00071] next [00516] [00517] [00697]  size 934.779 dev 78
+AllR [00518] next [01101] [01102]  size 0 dev 0
+AllR [00519] next [01104] [01105]  size 0 dev 0
+Comm [01101] next [01100]  size 8192 from 14 to 78
+Comm [01102] next [01100]  size 8192 from 78 to 14
+Comm [01104] next [01103]  size 0.5 from 14 to 78
+Comm [01105] next [01103]  size 0.5 from 78 to 14
+Forw [01100] next  size 0 dev 14
+Forw [01103] next  size 0 dev 14
+Comm [00833] next [00319]  size 32768 from 64 to 97
+AllR [00617] next [01107] [01108]  size 0 dev 0
+AllR [00616] next [01110] [01111]  size 0 dev 0
+Comm [01107] next [01106]  size 0.5 from 0 to 64
+Comm [01111] next [01109]  size 8192 from 64 to 0
+Comm [01108] next [01106]  size 0.5 from 64 to 0
+Comm [01110] next [01109]  size 8192 from 0 to 64
+Forw [00401] next [00397] [00646] [00647]  size 934.779 dev 39
+Forw [01094] next  size 0 dev 18
+Comm [00865] next [00395]  size 32768 from 103 to 92
+Forw [00307] next [00299] [00610] [00611]  size 483.397 dev 53
+Comm [00823] next [00305]  size 16384 from 53 to 21
+Comm [00781] next [00223]  size 16384 from 81 to 113
+Forw [00221] next [00580] [00581] [00775]  size 483.397 dev 81
+AllR [00582] next [01113] [01114]  size 0 dev 0
+Forw [00217] next [00580] [00581] [00771]  size 483.397 dev 17
+Comm [01114] next [01112]  size 8192 from 81 to 17
+Comm [00779] next [00219]  size 16384 from 17 to 49
+Comm [01113] next [01112]  size 8192 from 17 to 81
+AllR [00583] next [01116] [01117]  size 0 dev 0
+Comm [01116] next [01115]  size 0.5 from 17 to 81
+Comm [01117] next [01115]  size 0.5 from 81 to 17
+Forw [00305] next [00297] [00610] [00611]  size 483.397 dev 21
+Forw [00319] next [00614] [00615] [00829]  size 934.779 dev 97
+Forw [00141] next [00137] [00544] [00545]  size 934.779 dev 49
+Forw [00061] next [00057] [00512] [00513]  size 934.779 dev 48
+Forw [00223] next [00580] [00581] [00777]  size 483.397 dev 113
+Forw [00219] next [00580] [00581] [00773]  size 483.397 dev 49
+Forw [01109] next  size 0 dev 0
+Forw [01106] next  size 0 dev 0
+Forw [00395] next [00642] [00643] [00861]  size 934.779 dev 92
+Forw [01112] next  size 0 dev 17
+Forw [01115] next  size 0 dev 17
+Forw [00299] next [00291] [00608] [00609]  size 483.397 dev 53
+Comm [00771] next [00213]  size 16384 from 17 to 62
+Forw [00297] next [00289] [00608] [00609]  size 483.397 dev 21
+Comm [00697] next [00067]  size 32768 from 78 to 112
+AllR [00517] next [01119] [01120]  size 0 dev 0
+AllR [00516] next [01122] [01123]  size 0 dev 0
+Comm [01119] next [01118]  size 0.5 from 14 to 78
+Comm [01123] next [01121]  size 8192 from 78 to 14
+Comm [01120] next [01118]  size 0.5 from 78 to 14
+Comm [01122] next [01121]  size 8192 from 14 to 78
+Comm [00777] next [00215]  size 16384 from 113 to 126
+Forw [00397] next [00644] [00645] [00863]  size 934.779 dev 39
+AllR [00646] next [01125] [01126]  size 0 dev 0
+AllR [00647] next [01128] [01129]  size 0 dev 0
+Comm [01126] next [01124]  size 8192 from 103 to 39
+Comm [01128] next [01127]  size 0.5 from 39 to 103
+Comm [01129] next [01127]  size 0.5 from 103 to 39
+Comm [01125] next [01124]  size 8192 from 39 to 103
+Forw [01127] next  size 0 dev 39
+Forw [01124] next  size 0 dev 39
+Forw [00291] next [00606] [00607] [00819]  size 483.397 dev 53
+AllR [00550] next [01131] [01132]  size 0 dev 0
+AllR [00551] next [01134] [01135]  size 0 dev 0
+Forw [00151] next [00548] [00549] [00745]  size 934.779 dev 81
+Comm [01131] next [01130]  size 8192 from 17 to 81
+Comm [01132] next [01130]  size 8192 from 81 to 17
+Comm [01134] next [01133]  size 0.5 from 17 to 81
+Comm [01135] next [01133]  size 0.5 from 81 to 17
+Forw [00067] next [00063] [00514] [00515]  size 934.779 dev 112
+Forw [01130] next  size 0 dev 17
+Forw [01121] next  size 0 dev 14
+Forw [01133] next  size 0 dev 17
+Forw [01118] next  size 0 dev 14
+AllR [00614] next [01137] [01138]  size 0 dev 0
+AllR [00615] next [01140] [01141]  size 0 dev 0
+Comm [00829] next [00315]  size 32768 from 97 to 117
+Comm [01137] next [01136]  size 8192 from 33 to 97
+Comm [01138] next [01136]  size 8192 from 97 to 33
+Comm [01140] next [01139]  size 0.5 from 33 to 97
+Comm [01141] next [01139]  size 0.5 from 97 to 33
+Forw [00289] next [00285] [00606] [00607]  size 483.397 dev 21
+Forw [00137] next [00542] [00543] [00739]  size 934.779 dev 49
+Forw [00057] next [00510] [00511] [00691]  size 934.779 dev 48
+Comm [00861] next [00391]  size 32768 from 92 to 91
+Comm [00819] next [00285]  size 16384 from 53 to 21
+Forw [00315] next [00311] [00612] [00613] [00825]  size 934.779 dev 117
+Comm [00775] next [00215]  size 16384 from 81 to 126
+Forw [01136] next  size 0 dev 33
+Forw [01139] next  size 0 dev 33
+Forw [00391] next [00640] [00641] [00857]  size 934.779 dev 91
+Forw [00285] next [00604] [00605] [00815]  size 934.779 dev 21
+AllR [00580] next [01143] [01144] [01145] [01146]  size 0 dev 0
+AllR [00581] next [01148] [01149] [01150] [01151]  size 0 dev 0
+Comm [01146] next [01142]  size 12288 from 113 to 17
+Comm [01148] next [01147]  size 0.75 from 17 to 113
+Comm [01149] next [01147]  size 0.75 from 113 to 81
+Comm [01150] next [01147]  size 0.75 from 81 to 49
+Comm [01151] next [01147]  size 0.75 from 49 to 17
+Comm [00773] next [00213]  size 16384 from 49 to 62
+Comm [01143] next [01142]  size 12288 from 17 to 49
+Comm [01144] next [01142]  size 12288 from 49 to 81
+Comm [01145] next [01142]  size 12288 from 81 to 113
+Forw [00215] next [00578] [00579] [00769]  size 934.779 dev 126
+Forw [01147] next  size 0 dev 17
+Comm [00863] next [00393]  size 32768 from 39 to 28
+AllR [00645] next [01153] [01154]  size 0 dev 0
+AllR [00644] next [01156] [01157]  size 0 dev 0
+Comm [01153] next [01152]  size 0.5 from 39 to 103
+Comm [01154] next [01152]  size 0.5 from 103 to 39
+Comm [01156] next [01155]  size 8192 from 39 to 103
+Comm [01157] next [01155]  size 8192 from 103 to 39
+Forw [00213] next [00578] [00579] [00767]  size 934.779 dev 62
+AllR [00515] next [01159] [01160]  size 0 dev 0
+Forw [00063] next [00059] [00512] [00513]  size 934.779 dev 112
+AllR [00514] next [01162] [01163]  size 0 dev 0
+Comm [01159] next [01158]  size 0.5 from 48 to 112
+Comm [01162] next [01161]  size 8192 from 48 to 112
+Comm [01163] next [01161]  size 8192 from 112 to 48
+Comm [01160] next [01158]  size 0.5 from 112 to 48
+Forw [01142] next  size 0 dev 17
+Forw [01161] next  size 0 dev 48
+Forw [01158] next  size 0 dev 48
+Comm [00691] next [00053]  size 32768 from 48 to 39
+Forw [00393] next [00642] [00643] [00859]  size 934.779 dev 28
+Forw [01152] next  size 0 dev 39
+Forw [01155] next  size 0 dev 39
+Forw [00311] next [00303] [00610] [00611]  size 483.397 dev 117
+AllR [00613] next [01165] [01166]  size 0 dev 0
+Comm [00825] next [00309]  size 16384 from 117 to 85
+AllR [00612] next [01168] [01169]  size 0 dev 0
+Comm [01165] next [01164]  size 0.5 from 53 to 117
+Comm [01166] next [01164]  size 0.5 from 117 to 53
+Comm [01168] next [01167]  size 8192 from 53 to 117
+Comm [01169] next [01167]  size 8192 from 117 to 53
+AllR [00549] next [01171] [01172]  size 0 dev 0
+Comm [00745] next [00147]  size 32768 from 81 to 113
+AllR [00548] next [01174] [01175]  size 0 dev 0
+Comm [01171] next [01170]  size 0.5 from 17 to 81
+Comm [01172] next [01170]  size 0.5 from 81 to 17
+Comm [01174] next [01173]  size 8192 from 17 to 81
+Comm [01175] next [01173]  size 8192 from 81 to 17
+Forw [00053] next [00049] [00508] [00509]  size 934.779 dev 39
+Comm [00857] next [00387]  size 32768 from 91 to 67
+Comm [00815] next [00281]  size 32768 from 21 to 8
+Forw [00309] next [00301] [00610] [00611]  size 483.397 dev 85
+Forw [01164] next  size 0 dev 53
+Comm [00739] next [00133]  size 32768 from 49 to 13
+Comm [00769] next [00211]  size 32768 from 126 to 123
+Forw [01167] next  size 0 dev 53
+Comm [00767] next [00209]  size 32768 from 62 to 59
+AllR [00579] next [01177] [01178]  size 0 dev 0
+AllR [00578] next [01180] [01181]  size 0 dev 0
+Comm [01177] next [01176]  size 0.5 from 62 to 126
+Comm [01178] next [01176]  size 0.5 from 126 to 62
+Comm [01180] next [01179]  size 8192 from 62 to 126
+Comm [01181] next [01179]  size 8192 from 126 to 62
+Forw [00147] next [00143] [00546] [00547]  size 934.779 dev 113
+Forw [01170] next  size 0 dev 17
+Forw [01173] next  size 0 dev 17
+Forw [00303] next [00295] [00608] [00609]  size 483.397 dev 117
+AllR [00513] next [01183] [01184]  size 0 dev 0
+AllR [00512] next [01186] [01187]  size 0 dev 0
+Forw [00059] next [00510] [00511] [00693]  size 934.779 dev 112
+Comm [01183] next [01182]  size 0.5 from 48 to 112
+Comm [01184] next [01182]  size 0.5 from 112 to 48
+Comm [01186] next [01185]  size 8192 from 48 to 112
+Comm [01187] next [01185]  size 8192 from 112 to 48
+Forw [00387] next [00383] [00638] [00639]  size 934.779 dev 67
+Forw [01182] next  size 0 dev 48
+Forw [00281] next [00273] [00602] [00603] [00811]  size 934.779 dev 8
+Forw [00133] next [00540] [00541] [00735]  size 934.779 dev 13
+Forw [00211] next [00207] [00576] [00577]  size 934.779 dev 123
+Forw [01185] next  size 0 dev 48
+Forw [00301] next [00293] [00608] [00609]  size 483.397 dev 85
+AllR [00610] next [01189] [01190] [01191] [01192]  size 0 dev 0
+AllR [00611] next [01194] [01195] [01196] [01197]  size 0 dev 0
+Comm [01189] next [01188]  size 12288 from 21 to 117
+Comm [01190] next [01188]  size 12288 from 117 to 85
+Comm [01195] next [01193]  size 0.75 from 53 to 85
+Comm [01197] next [01193]  size 0.75 from 117 to 21
+Comm [01196] next [01193]  size 0.75 from 85 to 117
+Comm [01191] next [01188]  size 12288 from 85 to 53
+Comm [01192] next [01188]  size 12288 from 53 to 21
+Comm [01194] next [01193]  size 0.75 from 21 to 53
+AllR [00643] next [01199] [01200]  size 0 dev 0
+Comm [00859] next [00389]  size 32768 from 28 to 27
+Comm [01199] next [01198]  size 0.5 from 28 to 92
+Comm [01200] next [01198]  size 0.5 from 92 to 28
+AllR [00642] next [01202] [01203]  size 0 dev 0
+Comm [01202] next [01201]  size 8192 from 28 to 92
+Comm [01203] next [01201]  size 8192 from 92 to 28
+Forw [00209] next [00205] [00576] [00577]  size 934.779 dev 59
+Forw [01176] next  size 0 dev 62
+Forw [01193] next  size 0 dev 21
+Forw [01179] next  size 0 dev 62
+Forw [01188] next  size 0 dev 21
+Forw [00295] next [00606] [00607] [00821]  size 483.397 dev 117
+Forw [00049] next [00045] [00506] [00507]  size 934.779 dev 39
+Forw [00389] next [00640] [00641] [00855]  size 934.779 dev 27
+Forw [01198] next  size 0 dev 28
+Forw [01201] next  size 0 dev 28
+AllR [00609] next [01205] [01206] [01207] [01208]  size 0 dev 0
+AllR [00608] next [01210] [01211] [01212] [01213]  size 0 dev 0
+Comm [01207] next [01204]  size 0.75 from 85 to 53
+Comm [01208] next [01204]  size 0.75 from 53 to 21
+Comm [01213] next [01209]  size 12288 from 53 to 21
+Comm [01210] next [01209]  size 12288 from 21 to 117
+Comm [01211] next [01209]  size 12288 from 117 to 85
+Comm [01212] next [01209]  size 12288 from 85 to 53
+Forw [00293] next [00287] [00606] [00607]  size 483.397 dev 85
+Comm [01205] next [01204]  size 0.75 from 21 to 117
+Comm [01206] next [01204]  size 0.75 from 117 to 85
+Forw [01209] next  size 0 dev 21
+Forw [01204] next  size 0 dev 21
+Forw [00143] next [00139] [00544] [00545]  size 934.779 dev 113
+AllR [00547] next [01215] [01216]  size 0 dev 0
+AllR [00546] next [01218] [01219]  size 0 dev 0
+Comm [01216] next [01214]  size 0.5 from 113 to 49
+Comm [01218] next [01217]  size 8192 from 49 to 113
+Comm [01219] next [01217]  size 8192 from 113 to 49
+Comm [01215] next [01214]  size 0.5 from 49 to 113
+Forw [01217] next  size 0 dev 49
+Forw [01214] next  size 0 dev 49
+Comm [00693] next [00055]  size 32768 from 112 to 103
+AllR [00511] next [01221] [01222]  size 0 dev 0
+AllR [00510] next [01224] [01225]  size 0 dev 0
+Comm [01221] next [01220]  size 0.5 from 48 to 112
+Comm [01222] next [01220]  size 0.5 from 112 to 48
+Comm [01224] next [01223]  size 8192 from 48 to 112
+Comm [01225] next [01223]  size 8192 from 112 to 48
+Forw [00383] next [00379] [00636] [00637]  size 934.779 dev 67
+Comm [00811] next [00275]  size 16384 from 8 to 40
+Forw [00273] next [00265] [00600] [00601]  size 483.397 dev 8
+Comm [00821] next [00287]  size 16384 from 117 to 85
+Comm [00735] next [00129]  size 32768 from 13 to 26
+Forw [00207] next [00203] [00574] [00575]  size 934.779 dev 123
+Forw [00275] next [00267] [00600] [00601]  size 483.397 dev 40
+AllR [00606] next [01227] [01228] [01229] [01230]  size 0 dev 0
+Forw [00287] next [00604] [00605] [00817]  size 934.779 dev 85
+Comm [01230] next [01226]  size 12288 from 53 to 21
+AllR [00607] next [01232] [01233] [01234] [01235]  size 0 dev 0
+Comm [01227] next [01226]  size 12288 from 21 to 117
+Comm [01232] next [01231]  size 0.75 from 21 to 53
+Comm [01235] next [01231]  size 0.75 from 117 to 21
+Comm [01233] next [01231]  size 0.75 from 53 to 85
+Comm [01234] next [01231]  size 0.75 from 85 to 117
+Comm [01228] next [01226]  size 12288 from 117 to 85
+Comm [01229] next [01226]  size 12288 from 85 to 53
+AllR [00577] next [01237] [01238]  size 0 dev 0
+AllR [00576] next [01240] [01241]  size 0 dev 0
+Comm [01238] next [01236]  size 0.5 from 123 to 59
+Comm [01240] next [01239]  size 8192 from 59 to 123
+Comm [01241] next [01239]  size 8192 from 123 to 59
+Forw [00205] next [00201] [00574] [00575]  size 934.779 dev 59
+Comm [01237] next [01236]  size 0.5 from 59 to 123
+Forw [01239] next  size 0 dev 59
+Forw [01236] next  size 0 dev 59
+Forw [01231] next  size 0 dev 21
+Forw [00055] next [00051] [00508] [00509]  size 934.779 dev 103
+Forw [01220] next  size 0 dev 48
+Forw [00129] next [00538] [00539] [00731]  size 934.779 dev 26
+Forw [01223] next  size 0 dev 48
+Forw [01226] next  size 0 dev 21
+Forw [00265] next [00598] [00599] [00803]  size 483.397 dev 8
+Forw [00045] next [00504] [00505] [00687]  size 934.779 dev 39
+Comm [00855] next [00385]  size 32768 from 27 to 3
+AllR [00640] next [01243] [01244]  size 0 dev 0
+AllR [00641] next [01246] [01247]  size 0 dev 0
+Comm [01243] next [01242]  size 8192 from 27 to 91
+Comm [01244] next [01242]  size 8192 from 91 to 27
+Comm [01246] next [01245]  size 0.5 from 27 to 91
+Comm [01247] next [01245]  size 0.5 from 91 to 27
+Forw [00267] next [00598] [00599] [00805]  size 483.397 dev 40
+Forw [00139] next [00542] [00543] [00741]  size 934.779 dev 113
+AllR [00544] next [01249] [01250]  size 0 dev 0
+AllR [00545] next [01252] [01253]  size 0 dev 0
+Comm [01250] next [01248]  size 8192 from 113 to 49
+Comm [01252] next [01251]  size 0.5 from 49 to 113
+Comm [01253] next [01251]  size 0.5 from 113 to 49
+Comm [01249] next [01248]  size 8192 from 49 to 113
+Forw [00385] next [00381] [00638] [00639]  size 934.779 dev 3
+Forw [01251] next  size 0 dev 49
+Forw [01248] next  size 0 dev 49
+Forw [00379] next [00373] [00634] [00635] [00853]  size 934.779 dev 67
+Forw [01242] next  size 0 dev 27
+Forw [01245] next  size 0 dev 27
+Comm [00803] next [00261]  size 16384 from 8 to 38
+Forw [00203] next [00572] [00573] [00765]  size 934.779 dev 123
+AllR [00604] next [01255] [01256]  size 0 dev 0
+Comm [00817] next [00283]  size 32768 from 85 to 72
+AllR [00605] next [01258] [01259]  size 0 dev 0
+Comm [01255] next [01254]  size 8192 from 21 to 85
+Comm [01256] next [01254]  size 8192 from 85 to 21
+Comm [01258] next [01257]  size 0.5 from 21 to 85
+Comm [01259] next [01257]  size 0.5 from 85 to 21
+Comm [00805] next [00261]  size 16384 from 40 to 38
+AllR [00575] next [01261] [01262]  size 0 dev 0
+AllR [00574] next [01264] [01265]  size 0 dev 0
+Forw [00201] next [00572] [00573] [00763]  size 934.779 dev 59
+Comm [01261] next [01260]  size 0.5 from 59 to 123
+Comm [01262] next [01260]  size 0.5 from 123 to 59
+Comm [01264] next [01263]  size 8192 from 59 to 123
+Comm [01265] next [01263]  size 8192 from 123 to 59
+Forw [01260] next  size 0 dev 59
+Forw [01263] next  size 0 dev 59
+AllR [00509] next [01267] [01268]  size 0 dev 0
+AllR [00508] next [01270] [01271]  size 0 dev 0
+Forw [00051] next [00047] [00506] [00507]  size 934.779 dev 103
+Comm [01267] next [01266]  size 0.5 from 39 to 103
+Comm [01268] next [01266]  size 0.5 from 103 to 39
+Comm [01270] next [01269]  size 8192 from 39 to 103
+Comm [01271] next [01269]  size 8192 from 103 to 39
+Forw [01266] next  size 0 dev 39
+Forw [00261] next [00255] [00596] [00597] [00799]  size 934.779 dev 38
+Comm [00731] next [00125]  size 32768 from 26 to 44
+Forw [01269] next  size 0 dev 39
+Comm [00687] next [00041]  size 32768 from 39 to 52
+Forw [00283] next [00277] [00602] [00603] [00813]  size 934.779 dev 72
+Forw [01254] next  size 0 dev 21
+Forw [01257] next  size 0 dev 21
+Forw [00125] next [00536] [00537] [00727]  size 934.779 dev 44
+AllR [00542] next [01273] [01274]  size 0 dev 0
+AllR [00543] next [01276] [01277]  size 0 dev 0
+Comm [01274] next [01272]  size 8192 from 113 to 49
+Comm [01276] next [01275]  size 0.5 from 49 to 113
+Comm [01277] next [01275]  size 0.5 from 113 to 49
+Comm [00741] next [00135]  size 32768 from 113 to 77
+Comm [01273] next [01272]  size 8192 from 49 to 113
+Forw [00041] next [00502] [00503] [00679] [00681]  size 934.779 dev 52
+AllR [00639] next [01279] [01280]  size 0 dev 0
+Forw [00381] next [00377] [00636] [00637]  size 934.779 dev 3
+Comm [01279] next [01278]  size 0.5 from 3 to 67
+Comm [01280] next [01278]  size 0.5 from 67 to 3
+AllR [00638] next [01282] [01283]  size 0 dev 0
+Comm [01282] next [01281]  size 8192 from 3 to 67
+Comm [01283] next [01281]  size 8192 from 67 to 3
+Forw [01278] next  size 0 dev 3
+Forw [01275] next  size 0 dev 49
+Forw [01272] next  size 0 dev 49
+Forw [00373] next [00632] [00633] [00849]  size 483.397 dev 67
+Comm [00853] next [00375]  size 16384 from 67 to 99
+Forw [01281] next  size 0 dev 3
+Comm [00765] next [00199]  size 32768 from 123 to 107
+Forw [00375] next [00367] [00632] [00633]  size 483.397 dev 99
+AllR [00573] next [01285] [01286]  size 0 dev 0
+AllR [00572] next [01288] [01289]  size 0 dev 0
+Comm [00763] next [00197]  size 32768 from 59 to 43
+Comm [01285] next [01284]  size 0.5 from 59 to 123
+Comm [01286] next [01284]  size 0.5 from 123 to 59
+Comm [01288] next [01287]  size 8192 from 59 to 123
+Comm [01289] next [01287]  size 8192 from 123 to 59
+Forw [00135] next [00540] [00541] [00737]  size 934.779 dev 77
+AllR [00506] next [01291] [01292]  size 0 dev 0
+AllR [00507] next [01294] [01295]  size 0 dev 0
+Comm [01292] next [01290]  size 8192 from 103 to 39
+Comm [01294] next [01293]  size 0.5 from 39 to 103
+Comm [01295] next [01293]  size 0.5 from 103 to 39
+Forw [00047] next [00504] [00505] [00689]  size 934.779 dev 103
+Comm [01291] next [01290]  size 8192 from 39 to 103
+Forw [00255] next [00247] [00594] [00595]  size 483.397 dev 38
+Comm [00799] next [00253]  size 16384 from 38 to 6
+Forw [00199] next [00570] [00571] [00761]  size 934.779 dev 107
+Forw [01290] next  size 0 dev 39
+Forw [01293] next  size 0 dev 39
+Comm [00849] next [00367]  size 16384 from 67 to 99
+AllR [00603] next [01297] [01298]  size 0 dev 0
+Comm [00813] next [00279]  size 16384 from 72 to 104
+Comm [01298] next [01296]  size 0.5 from 72 to 8
+AllR [00602] next [01300] [01301]  size 0 dev 0
+Comm [01297] next [01296]  size 0.5 from 8 to 72
+Comm [01301] next [01299]  size 8192 from 72 to 8
+Forw [00277] next [00269] [00600] [00601]  size 483.397 dev 72
+Comm [01300] next [01299]  size 8192 from 8 to 72
+Forw [00253] next [00245] [00594] [00595]  size 483.397 dev 6
+Forw [00197] next [00570] [00571] [00759]  size 934.779 dev 43
+Forw [01284] next  size 0 dev 59
+Forw [01287] next  size 0 dev 59
+Forw [00367] next [00630] [00631] [00845]  size 934.779 dev 99
+Forw [00279] next [00271] [00600] [00601]  size 483.397 dev 104
+Forw [01296] next  size 0 dev 8
+Comm [00727] next [00121]  size 32768 from 44 to 50
+Forw [01299] next  size 0 dev 8
+Comm [00679] next [00033]  size 16384 from 52 to 5
+Comm [00681] next [00035]  size 16384 from 52 to 37
+Forw [00247] next [00592] [00593] [00793]  size 483.397 dev 38
+AllR [00637] next [01303] [01304]  size 0 dev 0
+Forw [00377] next [00369] [00634] [00635] [00851]  size 934.779 dev 3
+Comm [01304] next [01302]  size 0.5 from 67 to 3
+AllR [00636] next [01306] [01307]  size 0 dev 0
+Comm [01303] next [01302]  size 0.5 from 3 to 67
+Comm [01306] next [01305]  size 8192 from 3 to 67
+Comm [01307] next [01305]  size 8192 from 67 to 3
+Forw [01302] next  size 0 dev 3
+Forw [01305] next  size 0 dev 3
+Forw [00033] next [00025] [00500] [00501]  size 483.397 dev 5
+Forw [00269] next [00598] [00599] [00807]  size 483.397 dev 72
+Forw [00245] next [00592] [00593] [00791]  size 483.397 dev 6
+Forw [00121] next [00534] [00535] [00719] [00721]  size 934.779 dev 50
+Forw [00035] next [00027] [00500] [00501]  size 483.397 dev 37
+AllR [00601] next [01309] [01310] [01311] [01312]  size 0 dev 0
+Forw [00271] next [00598] [00599] [00809]  size 483.397 dev 104
+Comm [01309] next [01308]  size 0.75 from 8 to 104
+Comm [01312] next [01308]  size 0.75 from 40 to 8
+Comm [01310] next [01308]  size 0.75 from 104 to 72
+Comm [01311] next [01308]  size 0.75 from 72 to 40
+AllR [00600] next [01314] [01315] [01316] [01317]  size 0 dev 0
+Comm [01314] next [01313]  size 12288 from 8 to 104
+Comm [01315] next [01313]  size 12288 from 104 to 72
+Comm [01316] next [01313]  size 12288 from 72 to 40
+Comm [01317] next [01313]  size 12288 from 40 to 8
+Forw [01308] next  size 0 dev 8
+AllR [00541] next [01319] [01320]  size 0 dev 0
+AllR [00540] next [01322] [01323]  size 0 dev 0
+Comm [01319] next [01318]  size 0.5 from 13 to 77
+Comm [01320] next [01318]  size 0.5 from 77 to 13
+Comm [01323] next [01321]  size 8192 from 77 to 13
+Comm [01322] next [01321]  size 8192 from 13 to 77
+Comm [00737] next [00131]  size 32768 from 77 to 90
+Forw [01318] next  size 0 dev 13
+AllR [00504] next [01325] [01326]  size 0 dev 0
+Comm [00689] next [00043]  size 32768 from 103 to 116
+Comm [01325] next [01324]  size 8192 from 39 to 103
+Comm [01326] next [01324]  size 8192 from 103 to 39
+AllR [00505] next [01328] [01329]  size 0 dev 0
+Comm [01328] next [01327]  size 0.5 from 39 to 103
+Comm [01329] next [01327]  size 0.5 from 103 to 39
+Forw [01313] next  size 0 dev 8
+Comm [00761] next [00195]  size 32768 from 107 to 94
+Forw [01321] next  size 0 dev 13
+Comm [00793] next [00241]  size 16384 from 38 to 59
+Forw [00025] next [00017] [00498] [00499]  size 483.397 dev 5
+AllR [00570] next [01331] [01332]  size 0 dev 0
+AllR [00571] next [01334] [01335]  size 0 dev 0
+Comm [00759] next [00193]  size 32768 from 43 to 30
+Comm [01335] next [01333]  size 0.5 from 107 to 43
+Comm [01331] next [01330]  size 8192 from 43 to 107
+Comm [01332] next [01330]  size 8192 from 107 to 43
+Comm [01334] next [01333]  size 0.5 from 43 to 107
+Comm [00807] next [00263]  size 16384 from 72 to 102
+Comm [00791] next [00241]  size 16384 from 6 to 59
+Comm [00845] next [00363]  size 32768 from 99 to 123
+Forw [00043] next [00502] [00503] [00683] [00685]  size 934.779 dev 116
+Forw [00027] next [00019] [00498] [00499]  size 483.397 dev 37
+Comm [00809] next [00263]  size 16384 from 104 to 102
+AllR [00599] next [01337] [01338] [01339] [01340]  size 0 dev 0
+AllR [00598] next [01342] [01343] [01344] [01345]  size 0 dev 0
+Comm [01337] next [01336]  size 0.75 from 8 to 40
+Comm [01338] next [01336]  size 0.75 from 40 to 72
+Comm [01343] next [01341]  size 12288 from 104 to 72
+Comm [01345] next [01341]  size 12288 from 40 to 8
+Comm [01344] next [01341]  size 12288 from 72 to 40
+Comm [01339] next [01336]  size 0.75 from 72 to 104
+Comm [01340] next [01336]  size 0.75 from 104 to 8
+Comm [01342] next [01341]  size 12288 from 8 to 104
+Forw [00195] next [00191] [00568] [00569]  size 934.779 dev 94
+Forw [00131] next [00538] [00539] [00733]  size 934.779 dev 90
+Forw [00241] next [00237] [00590] [00591]  size 934.779 dev 59
+Forw [01324] next  size 0 dev 39
+Forw [01327] next  size 0 dev 39
+Forw [00369] next [00632] [00633] [00847]  size 483.397 dev 3
+AllR [00635] next [01347] [01348]  size 0 dev 0
+Comm [00851] next [00371]  size 16384 from 3 to 35
+Comm [01347] next [01346]  size 0.5 from 3 to 67
+Comm [01348] next [01346]  size 0.5 from 67 to 3
+AllR [00634] next [01350] [01351]  size 0 dev 0
+Comm [01350] next [01349]  size 8192 from 3 to 67
+Comm [01351] next [01349]  size 8192 from 67 to 3
+Forw [00193] next [00189] [00568] [00569]  size 934.779 dev 30
+Forw [00263] next [00259] [00596] [00597] [00801]  size 934.779 dev 102
+Forw [01330] next  size 0 dev 43
+Forw [01333] next  size 0 dev 43
+Forw [00363] next [00359] [00628] [00629]  size 934.779 dev 123
+Forw [01341] next  size 0 dev 8
+Forw [01336] next  size 0 dev 8
+Forw [00371] next [00365] [00632] [00633]  size 483.397 dev 35
+Forw [01346] next  size 0 dev 3
+Forw [00017] next [00009] [00496] [00497]  size 483.397 dev 5
+Comm [00721] next [00115]  size 16384 from 50 to 34
+Comm [00719] next [00113]  size 16384 from 50 to 2
+Forw [01349] next  size 0 dev 3
+Forw [00019] next [00011] [00496] [00497]  size 483.397 dev 37
+Forw [00115] next [00107] [00532] [00533]  size 483.397 dev 34
+Comm [00847] next [00365]  size 16384 from 3 to 35
+Forw [00113] next [00105] [00532] [00533]  size 483.397 dev 2
+AllR [00633] next [01353] [01354] [01355] [01356]  size 0 dev 0
+Forw [00365] next [00630] [00631] [00843]  size 934.779 dev 35
+Comm [01353] next [01352]  size 0.75 from 3 to 99
+Comm [01354] next [01352]  size 0.75 from 99 to 67
+Comm [01355] next [01352]  size 0.75 from 67 to 35
+Comm [01356] next [01352]  size 0.75 from 35 to 3
+AllR [00632] next [01358] [01359] [01360] [01361]  size 0 dev 0
+Comm [01358] next [01357]  size 12288 from 3 to 35
+Comm [01359] next [01357]  size 12288 from 35 to 67
+Comm [01360] next [01357]  size 12288 from 67 to 99
+Comm [01361] next [01357]  size 12288 from 99 to 3
+Forw [01352] next  size 0 dev 3
+Forw [00009] next [00005] [00494] [00495]  size 483.397 dev 5
+Comm [00683] next [00037]  size 16384 from 116 to 69
+AllR [00503] next [01363] [01364]  size 0 dev 0
+AllR [00502] next [01366] [01367]  size 0 dev 0
+Comm [01363] next [01362]  size 0.5 from 52 to 116
+Comm [01364] next [01362]  size 0.5 from 116 to 52
+Comm [01366] next [01365]  size 8192 from 52 to 116
+Comm [01367] next [01365]  size 8192 from 116 to 52
+Comm [00685] next [00039]  size 16384 from 116 to 101
+Forw [01357] next  size 0 dev 3
+Forw [00191] next [00566] [00567] [00757]  size 934.779 dev 94
+Comm [00733] next [00127]  size 32768 from 90 to 108
+AllR [00539] next [01369] [01370]  size 0 dev 0
+AllR [00538] next [01372] [01373]  size 0 dev 0
+Comm [01370] next [01368]  size 0.5 from 90 to 26
+Comm [01372] next [01371]  size 8192 from 26 to 90
+Comm [01373] next [01371]  size 8192 from 90 to 26
+Comm [01369] next [01368]  size 0.5 from 26 to 90
+Forw [00237] next [00588] [00589] [00787]  size 934.779 dev 59
+Forw [00011] next [00494] [00495] [00675]  size 483.397 dev 37
+Forw [00107] next [00530] [00531] [00713]  size 483.397 dev 34
+Forw [00037] next [00029] [00500] [00501]  size 483.397 dev 69
+Forw [01362] next  size 0 dev 52
+AllR [00569] next [01375] [01376]  size 0 dev 0
+AllR [00568] next [01378] [01379]  size 0 dev 0
+Forw [00189] next [00566] [00567] [00755]  size 934.779 dev 30
+Comm [01379] next [01377]  size 8192 from 94 to 30
+Comm [01375] next [01374]  size 0.5 from 30 to 94
+Comm [01376] next [01374]  size 0.5 from 94 to 30
+Comm [01378] next [01377]  size 8192 from 30 to 94
+AllR [00596] next [01381] [01382]  size 0 dev 0
+AllR [00597] next [01384] [01385]  size 0 dev 0
+Comm [01381] next [01380]  size 8192 from 38 to 102
+Comm [01382] next [01380]  size 8192 from 102 to 38
+Comm [01384] next [01383]  size 0.5 from 38 to 102
+Comm [01385] next [01383]  size 0.5 from 102 to 38
+Forw [00259] next [00251] [00594] [00595]  size 483.397 dev 102
+Comm [00801] next [00257]  size 16384 from 102 to 70
+Forw [01365] next  size 0 dev 52
+Forw [00105] next [00530] [00531] [00711]  size 483.397 dev 2
+Forw [01374] next  size 0 dev 30
+Forw [01377] next  size 0 dev 30
+Forw [01380] next  size 0 dev 38
+Forw [01383] next  size 0 dev 38
+Forw [00359] next [00626] [00627] [00839] [00841]  size 934.779 dev 123
+Forw [00127] next [00536] [00537] [00729]  size 934.779 dev 108
+Forw [01368] next  size 0 dev 26
+Forw [00039] next [00031] [00500] [00501]  size 483.397 dev 101
+Forw [00257] next [00249] [00594] [00595]  size 483.397 dev 70
+Forw [01371] next  size 0 dev 26
+Comm [00675] next [00005]  size 16384 from 37 to 5
+Comm [00713] next [00099]  size 16384 from 34 to 41
+Forw [00029] next [00021] [00498] [00499]  size 483.397 dev 69
+Forw [00251] next [00592] [00593] [00797]  size 483.397 dev 102
+Forw [00005] next [00492] [00493] [00671]  size 934.779 dev 5
+Comm [00711] next [00097]  size 16384 from 2 to 9
+Forw [00099] next [00091] [00528] [00529]  size 483.397 dev 41
+AllR [00630] next [01387] [01388]  size 0 dev 0
+AllR [00631] next [01390] [01391]  size 0 dev 0
+Comm [01387] next [01386]  size 8192 from 35 to 99
+Comm [01388] next [01386]  size 8192 from 99 to 35
+Comm [01390] next [01389]  size 0.5 from 35 to 99
+Comm [01391] next [01389]  size 0.5 from 99 to 35
+Comm [00843] next [00361]  size 32768 from 35 to 59
+AllR [00501] next [01393] [01394] [01395] [01396]  size 0 dev 0
+AllR [00500] next [01398] [01399] [01400] [01401]  size 0 dev 0
+Comm [01393] next [01392]  size 0.75 from 5 to 101
+Comm [01394] next [01392]  size 0.75 from 101 to 69
+Comm [01399] next [01397]  size 12288 from 37 to 69
+Comm [01401] next [01397]  size 12288 from 101 to 5
+Comm [01400] next [01397]  size 12288 from 69 to 101
+Comm [01395] next [01392]  size 0.75 from 69 to 37
+Comm [01396] next [01392]  size 0.75 from 37 to 5
+Comm [01398] next [01397]  size 12288 from 5 to 37
+Forw [00031] next [00023] [00498] [00499]  size 483.397 dev 101
+Forw [01386] next  size 0 dev 35
+Forw [01389] next  size 0 dev 35
+Forw [00097] next [00089] [00528] [00529]  size 483.397 dev 9
+AllR [00594] next [01403] [01404] [01405] [01406]  size 0 dev 0
+AllR [00595] next [01408] [01409] [01410] [01411]  size 0 dev 0
+Comm [01403] next [01402]  size 12288 from 6 to 102
+Comm [01404] next [01402]  size 12288 from 102 to 70
+Comm [01409] next [01407]  size 0.75 from 102 to 70
+Comm [01411] next [01407]  size 0.75 from 38 to 6
+Comm [01410] next [01407]  size 0.75 from 70 to 38
+Comm [01405] next [01402]  size 12288 from 70 to 38
+Comm [01406] next [01402]  size 12288 from 38 to 6
+Comm [01408] next [01407]  size 0.75 from 6 to 102
+Forw [00249] next [00592] [00593] [00795]  size 483.397 dev 70
+Comm [00757] next [00187]  size 32768 from 94 to 77
+Comm [00787] next [00233]  size 32768 from 59 to 22
+Forw [01392] next  size 0 dev 5
+Forw [01402] next  size 0 dev 6
+Forw [01407] next  size 0 dev 6
+Forw [00021] next [00013] [00496] [00497]  size 483.397 dev 69
+Comm [00755] next [00185]  size 32768 from 30 to 13
+AllR [00566] next [01413] [01414]  size 0 dev 0
+AllR [00567] next [01416] [01417]  size 0 dev 0
+Comm [01414] next [01412]  size 8192 from 94 to 30
+Comm [01416] next [01415]  size 0.5 from 30 to 94
+Comm [01417] next [01415]  size 0.5 from 94 to 30
+Comm [01413] next [01412]  size 8192 from 30 to 94
+Forw [01397] next  size 0 dev 5
+Comm [00797] next [00243]  size 16384 from 102 to 123
+Forw [00091] next [00085] [00526] [00527]  size 483.397 dev 41
+Comm [00839] next [00353]  size 16384 from 123 to 66
+Forw [00361] next [00357] [00628] [00629]  size 934.779 dev 59
+Comm [00841] next [00355]  size 16384 from 123 to 98
+Forw [00187] next [00183] [00564] [00565]  size 934.779 dev 77
+AllR [00537] next [01419] [01420]  size 0 dev 0
+AllR [00536] next [01422] [01423]  size 0 dev 0
+Comm [00729] next [00123]  size 32768 from 108 to 114
+Comm [01423] next [01421]  size 8192 from 108 to 44
+Comm [01419] next [01418]  size 0.5 from 44 to 108
+Comm [01420] next [01418]  size 0.5 from 108 to 44
+Comm [01422] next [01421]  size 8192 from 44 to 108
+Forw [00233] next [00586] [00587]  size 306.162 dev 22
+Forw [00023] next [00015] [00496] [00497]  size 483.397 dev 101
+AllR [00499] next [01425] [01426] [01427] [01428]  size 0 dev 0
+AllR [00498] next [01430] [01431] [01432] [01433]  size 0 dev 0
+Comm [01426] next [01424]  size 0.75 from 37 to 69
+Comm [01427] next [01424]  size 0.75 from 69 to 101
+Comm [01432] next [01429]  size 12288 from 69 to 101
+Comm [01433] next [01429]  size 12288 from 101 to 5
+Comm [01428] next [01424]  size 0.75 from 101 to 5
+Comm [01430] next [01429]  size 12288 from 5 to 37
+Comm [01431] next [01429]  size 12288 from 37 to 69
+Comm [01425] next [01424]  size 0.75 from 5 to 37
+Forw [00089] next [00526] [00527] [00707]  size 483.397 dev 9
+Forw [00353] next [00345] [00624] [00625]  size 483.397 dev 66
+AllR [00593] next [01435] [01436] [01437] [01438]  size 0 dev 0
+AllR [00592] next [01440] [01441] [01442] [01443]  size 0 dev 0
+Comm [01436] next [01434]  size 0.75 from 102 to 70
+Comm [01437] next [01434]  size 0.75 from 70 to 38
+Comm [01442] next [01439]  size 12288 from 70 to 102
+Comm [01443] next [01439]  size 12288 from 102 to 6
+Comm [01438] next [01434]  size 0.75 from 38 to 6
+Comm [01440] next [01439]  size 12288 from 6 to 38
+Comm [01441] next [01439]  size 12288 from 38 to 70
+Comm [00795] next [00243]  size 16384 from 70 to 123
+Comm [01435] next [01434]  size 0.75 from 6 to 102
+Forw [00185] next [00181] [00564] [00565]  size 934.779 dev 13
+Forw [01415] next  size 0 dev 30
+Forw [01429] next  size 0 dev 5
+Forw [01424] next  size 0 dev 5
+Forw [01439] next  size 0 dev 6
+Forw [01434] next  size 0 dev 6
+Forw [01412] next  size 0 dev 30
+Forw [00355] next [00347] [00624] [00625]  size 483.397 dev 98
+Forw [00013] next [00007] [00494] [00495]  size 483.397 dev 69
+Comm [00671] next [00001]  size 32768 from 5 to 24
+Forw [00123] next [00534] [00535] [00723] [00725]  size 934.779 dev 114
+Forw [00243] next [00239] [00590] [00591]  size 934.779 dev 123
+Forw [01421] next  size 0 dev 44
+Forw [01418] next  size 0 dev 44
+AllR [00497] next [01445] [01446] [01447] [01448]  size 0 dev 0
+AllR [00496] next [01450] [01451] [01452] [01453]  size 0 dev 0
+Comm [01448] next [01444]  size 0.75 from 101 to 5
+Comm [01450] next [01449]  size 12288 from 5 to 37
+Comm [01451] next [01449]  size 12288 from 37 to 69
+Comm [01452] next [01449]  size 12288 from 69 to 101
+Comm [01453] next [01449]  size 12288 from 101 to 5
+Forw [00015] next [00494] [00495] [00677]  size 483.397 dev 101
+Comm [01445] next [01444]  size 0.75 from 5 to 37
+Comm [01446] next [01444]  size 0.75 from 37 to 69
+Comm [01447] next [01444]  size 0.75 from 69 to 101
+Comm [00707] next [00085]  size 16384 from 9 to 41
+Forw [00345] next [00337] [00622] [00623]  size 483.397 dev 66
+Forw [00001] next [00490] [00491]  size 58.0251 dev 24
+Forw [00085] next [00524] [00525] [00703]  size 934.779 dev 41
+Forw [00347] next [00339] [00622] [00623]  size 483.397 dev 98
+Forw [01449] next  size 0 dev 5
+Forw [01444] next  size 0 dev 5
+AllR [00629] next [01455] [01456]  size 0 dev 0
+AllR [00628] next [01458] [01459]  size 0 dev 0
+Forw [00357] next [00626] [00627] [00835] [00837]  size 934.779 dev 59
+Comm [01455] next [01454]  size 0.5 from 59 to 123
+Comm [01456] next [01454]  size 0.5 from 123 to 59
+Comm [01459] next [01457]  size 8192 from 123 to 59
+Comm [01458] next [01457]  size 8192 from 59 to 123
+Forw [01454] next  size 0 dev 59
+Forw [00183] next [00179] [00562] [00563]  size 934.779 dev 77
+Forw [01457] next  size 0 dev 59
+AllR [00494] next [01461] [01462] [01463] [01464]  size 0 dev 0
+Comm [00677] next [00007]  size 16384 from 101 to 69
+Comm [01464] next [01460]  size 12288 from 37 to 5
+AllR [00495] next [01466] [01467] [01468] [01469]  size 0 dev 0
+Comm [01461] next [01460]  size 12288 from 5 to 101
+Comm [01467] next [01465]  size 0.75 from 101 to 69
+Comm [01468] next [01465]  size 0.75 from 69 to 37
+Comm [01469] next [01465]  size 0.75 from 37 to 5
+Comm [01462] next [01460]  size 12288 from 101 to 69
+Comm [01463] next [01460]  size 12288 from 69 to 37
+Comm [01466] next [01465]  size 0.75 from 5 to 101
+Forw [00337] next [00329] [00620] [00621]  size 483.397 dev 66
+Forw [00181] next [00177] [00562] [00563]  size 934.779 dev 13
+AllR [00565] next [01471] [01472]  size 0 dev 0
+AllR [00564] next [01474] [01475]  size 0 dev 0
+Comm [01472] next [01470]  size 0.5 from 77 to 13
+Comm [01474] next [01473]  size 8192 from 13 to 77
+Comm [01475] next [01473]  size 8192 from 77 to 13
+Comm [01471] next [01470]  size 0.5 from 13 to 77
+Forw [01473] next  size 0 dev 13
+Forw [01470] next  size 0 dev 13
+Forw [00007] next [00492] [00493] [00673]  size 934.779 dev 69
+Forw [01465] next  size 0 dev 5
+Forw [00339] next [00331] [00620] [00621]  size 483.397 dev 98
+Comm [00725] next [00119]  size 16384 from 114 to 98
+Comm [00723] next [00117]  size 16384 from 114 to 66
+AllR [00535] next [01477] [01478]  size 0 dev 0
+AllR [00534] next [01480] [01481]  size 0 dev 0
+Comm [01477] next [01476]  size 0.5 from 50 to 114
+Comm [01481] next [01479]  size 8192 from 114 to 50
+Comm [01478] next [01476]  size 0.5 from 114 to 50
+Comm [01480] next [01479]  size 8192 from 50 to 114
+Forw [01460] next  size 0 dev 5
+Forw [00239] next [00588] [00589] [00789]  size 934.779 dev 123
+AllR [00591] next [01483] [01484]  size 0 dev 0
+AllR [00590] next [01486] [01487]  size 0 dev 0
+Comm [01484] next [01482]  size 0.5 from 123 to 59
+Comm [01486] next [01485]  size 8192 from 59 to 123
+Comm [01487] next [01485]  size 8192 from 123 to 59
+Comm [01483] next [01482]  size 0.5 from 59 to 123
+Forw [01485] next  size 0 dev 59
+Forw [01482] next  size 0 dev 59
+Forw [00119] next [00111] [00532] [00533]  size 483.397 dev 98
+Forw [00329] next [00618] [00619]  size 59.6011 dev 66
+Forw [00117] next [00109] [00532] [00533]  size 483.397 dev 66
+Comm [00703] next [00081]  size 32768 from 41 to 62
+Forw [01479] next  size 0 dev 50
+Forw [01476] next  size 0 dev 50
+Forw [00331] next [00618] [00619]  size 59.6011 dev 98
+Comm [00837] next [00351]  size 16384 from 59 to 34
+AllR [00627] next [01489] [01490]  size 0 dev 0
+Comm [00835] next [00349]  size 16384 from 59 to 2
+AllR [00626] next [01492] [01493]  size 0 dev 0
+Comm [01490] next [01488]  size 0.5 from 123 to 59
+Comm [01489] next [01488]  size 0.5 from 59 to 123
+Comm [01492] next [01491]  size 8192 from 59 to 123
+Comm [01493] next [01491]  size 8192 from 123 to 59
+Forw [00179] next [00560] [00561] [00753]  size 934.779 dev 77
+Forw [00351] next [00343] [00624] [00625]  size 483.397 dev 34
+Forw [00081] next [00522] [00523]  size 306.162 dev 62
+AllR [00563] next [01495] [01496]  size 0 dev 0
+Forw [00177] next [00560] [00561] [00751]  size 934.779 dev 13
+AllR [00562] next [01498] [01499]  size 0 dev 0
+Comm [01495] next [01494]  size 0.5 from 13 to 77
+Comm [01496] next [01494]  size 0.5 from 77 to 13
+Comm [01498] next [01497]  size 8192 from 13 to 77
+Comm [01499] next [01497]  size 8192 from 77 to 13
+Forw [01494] next  size 0 dev 13
+Forw [00109] next [00530] [00531] [00715]  size 483.397 dev 66
+Forw [01497] next  size 0 dev 13
+AllR [00492] next [01501] [01502]  size 0 dev 0
+Comm [00673] next [00003]  size 32768 from 69 to 88
+AllR [00493] next [01504] [01505]  size 0 dev 0
+Comm [01501] next [01500]  size 8192 from 5 to 69
+Comm [01502] next [01500]  size 8192 from 69 to 5
+Comm [01505] next [01503]  size 0.5 from 69 to 5
+Comm [01504] next [01503]  size 0.5 from 5 to 69
+Forw [00349] next [00341] [00624] [00625]  size 483.397 dev 2
+Forw [01488] next  size 0 dev 59
+AllR [00532] next [01507] [01508] [01509] [01510]  size 0 dev 0
+AllR [00533] next [01512] [01513] [01514] [01515]  size 0 dev 0
+Forw [00111] next [00530] [00531] [00717]  size 483.397 dev 98
+Comm [01514] next [01511]  size 0.75 from 66 to 98
+Comm [01515] next [01511]  size 0.75 from 98 to 2
+Comm [01508] next [01506]  size 12288 from 98 to 66
+Comm [01510] next [01506]  size 12288 from 34 to 2
+Comm [01512] next [01511]  size 0.75 from 2 to 34
+Comm [01513] next [01511]  size 0.75 from 34 to 66
+Comm [01509] next [01506]  size 12288 from 66 to 34
+Comm [01507] next [01506]  size 12288 from 2 to 98
+Forw [01491] next  size 0 dev 59
+Comm [00789] next [00235]  size 32768 from 123 to 86
+AllR [00589] next [01517] [01518]  size 0 dev 0
+AllR [00588] next [01520] [01521]  size 0 dev 0
+Comm [01517] next [01516]  size 0.5 from 59 to 123
+Comm [01518] next [01516]  size 0.5 from 123 to 59
+Comm [01520] next [01519]  size 8192 from 59 to 123
+Comm [01521] next [01519]  size 8192 from 123 to 59
+Forw [01506] next  size 0 dev 2
+Forw [01511] next  size 0 dev 2
+Forw [00343] next [00335] [00622] [00623]  size 483.397 dev 34
+Forw [00003] next [00490] [00491]  size 58.0251 dev 88
+AllR [00490] next [01523] [01524]  size 0 dev 0
+AllR [00491] next [01526] [01527]  size 0 dev 0
+Comm [01523] next [01522]  size 471 from 24 to 88
+Comm [01524] next [01522]  size 471 from 88 to 24
+Comm [01526] next [01525]  size 0.5 from 24 to 88
+Comm [01527] next [01525]  size 0.5 from 88 to 24
+Forw [01522] next  size 0 dev 24
+Forw [01525] next  size 0 dev 24
+Forw [01500] next  size 0 dev 5
+Forw [01503] next  size 0 dev 5
+Comm [00715] next [00101]  size 16384 from 66 to 73
+Forw [00235] next [00586] [00587]  size 306.162 dev 86
+Forw [01516] next  size 0 dev 59
+Forw [00341] next [00333] [00622] [00623]  size 483.397 dev 2
+AllR [00624] next [01529] [01530] [01531] [01532]  size 0 dev 0
+AllR [00625] next [01534] [01535] [01536] [01537]  size 0 dev 0
+Comm [01529] next [01528]  size 12288 from 2 to 98
+Comm [01532] next [01528]  size 12288 from 34 to 2
+Comm [01534] next [01533]  size 0.75 from 2 to 34
+Comm [01536] next [01533]  size 0.75 from 66 to 98
+Comm [01537] next [01533]  size 0.75 from 98 to 2
+Comm [01535] next [01533]  size 0.75 from 34 to 66
+Comm [01530] next [01528]  size 12288 from 98 to 66
+Comm [01531] next [01528]  size 12288 from 66 to 34
+Forw [01519] next  size 0 dev 59
+Comm [00717] next [00103]  size 16384 from 98 to 105
+AllR [00531] next [01539] [01540] [01541] [01542]  size 0 dev 0
+AllR [00530] next [01544] [01545] [01546] [01547]  size 0 dev 0
+Comm [01539] next [01538]  size 0.75 from 2 to 34
+Comm [01540] next [01538]  size 0.75 from 34 to 66
+Comm [01545] next [01543]  size 12288 from 34 to 66
+Comm [01547] next [01543]  size 12288 from 98 to 2
+Comm [01546] next [01543]  size 12288 from 66 to 98
+Comm [01541] next [01538]  size 0.75 from 66 to 98
+Comm [01542] next [01538]  size 0.75 from 98 to 2
+Comm [01544] next [01543]  size 12288 from 2 to 34
+Forw [00101] next [00093] [00528] [00529]  size 483.397 dev 73
+Forw [01533] next  size 0 dev 2
+Comm [00753] next [00175]  size 32768 from 77 to 89
+Forw [01528] next  size 0 dev 2
+Forw [00103] next [00095] [00528] [00529]  size 483.397 dev 105
+AllR [00586] next [01549] [01550]  size 0 dev 0
+AllR [00587] next [01552] [01553]  size 0 dev 0
+Comm [01549] next [01548]  size 2635 from 22 to 86
+Comm [01550] next [01548]  size 2635 from 86 to 22
+Comm [01552] next [01551]  size 0.5 from 22 to 86
+Comm [01553] next [01551]  size 0.5 from 86 to 22
+Forw [00335] next [00327] [00620] [00621]  size 483.397 dev 34
+Forw [01548] next  size 0 dev 22
+Forw [01551] next  size 0 dev 22
+Comm [00751] next [00173]  size 32768 from 13 to 25
+AllR [00561] next [01555] [01556]  size 0 dev 0
+AllR [00560] next [01558] [01559]  size 0 dev 0
+Comm [01555] next [01554]  size 0.5 from 13 to 77
+Comm [01556] next [01554]  size 0.5 from 77 to 13
+Comm [01558] next [01557]  size 8192 from 13 to 77
+Comm [01559] next [01557]  size 8192 from 77 to 13
+Forw [01543] next  size 0 dev 2
+Forw [01538] next  size 0 dev 2
+AllR [00623] next [01561] [01562] [01563] [01564]  size 0 dev 0
+AllR [00622] next [01566] [01567] [01568] [01569]  size 0 dev 0
+Comm [01561] next [01560]  size 0.75 from 2 to 98
+Comm [01563] next [01560]  size 0.75 from 66 to 34
+Comm [01564] next [01560]  size 0.75 from 34 to 2
+Comm [01566] next [01565]  size 12288 from 2 to 98
+Comm [01562] next [01560]  size 0.75 from 98 to 66
+Forw [00333] next [00325] [00620] [00621]  size 483.397 dev 2
+Comm [01567] next [01565]  size 12288 from 98 to 66
+Comm [01569] next [01565]  size 12288 from 34 to 2
+Comm [01568] next [01565]  size 12288 from 66 to 34
+Forw [01560] next  size 0 dev 2
+Forw [00175] next [00171] [00558] [00559]  size 934.779 dev 89
+Forw [01565] next  size 0 dev 2
+Forw [00093] next [00526] [00527] [00709]  size 483.397 dev 73
+Forw [00173] next [00169] [00558] [00559]  size 934.779 dev 25
+Forw [01554] next  size 0 dev 13
+Forw [01557] next  size 0 dev 13
+AllR [00529] next [01571] [01572] [01573] [01574]  size 0 dev 0
+AllR [00528] next [01576] [01577] [01578] [01579]  size 0 dev 0
+Comm [01571] next [01570]  size 0.75 from 9 to 41
+Comm [01573] next [01570]  size 0.75 from 73 to 105
+Comm [01574] next [01570]  size 0.75 from 105 to 9
+Comm [01576] next [01575]  size 12288 from 9 to 41
+Comm [01572] next [01570]  size 0.75 from 41 to 73
+Forw [00095] next [00087] [00526] [00527]  size 483.397 dev 105
+Comm [01577] next [01575]  size 12288 from 41 to 73
+Comm [01579] next [01575]  size 12288 from 105 to 9
+Comm [01578] next [01575]  size 12288 from 73 to 105
+Forw [01570] next  size 0 dev 9
+Forw [00327] next [00618] [00619]  size 59.6011 dev 34
+Forw [01575] next  size 0 dev 9
+Forw [00325] next [00618] [00619]  size 59.6011 dev 2
+AllR [00621] next [01581] [01582] [01583] [01584]  size 0 dev 0
+AllR [00620] next [01586] [01587] [01588] [01589]  size 0 dev 0
+Comm [01582] next [01580]  size 0.75 from 98 to 66
+Comm [01584] next [01580]  size 0.75 from 34 to 2
+Comm [01586] next [01585]  size 12288 from 2 to 34
+Comm [01587] next [01585]  size 12288 from 34 to 66
+Comm [01583] next [01580]  size 0.75 from 66 to 34
+Comm [01581] next [01580]  size 0.75 from 2 to 98
+Comm [01588] next [01585]  size 12288 from 66 to 98
+Comm [01589] next [01585]  size 12288 from 98 to 2
+AllR [00618] next [01591] [01592] [01593] [01594]  size 0 dev 0
+AllR [00619] next [01596] [01597] [01598] [01599]  size 0 dev 0
+Comm [01592] next [01590]  size 1536 from 98 to 66
+Comm [01594] next [01590]  size 1536 from 34 to 2
+Comm [01596] next [01595]  size 0.75 from 2 to 98
+Comm [01597] next [01595]  size 0.75 from 98 to 66
+Comm [01593] next [01590]  size 1536 from 66 to 34
+Comm [01591] next [01590]  size 1536 from 2 to 98
+Comm [01598] next [01595]  size 0.75 from 66 to 34
+Comm [01599] next [01595]  size 0.75 from 34 to 2
+Forw [01580] next  size 0 dev 2
+Comm [00709] next [00087]  size 16384 from 73 to 105
+Forw [01585] next  size 0 dev 2
+Forw [01595] next  size 0 dev 2
+Forw [01590] next  size 0 dev 2
+AllR [00527] next [01601] [01602] [01603] [01604]  size 0 dev 0
+AllR [00526] next [01606] [01607] [01608] [01609]  size 0 dev 0
+Comm [01601] next [01600]  size 0.75 from 9 to 41
+Comm [01608] next [01605]  size 12288 from 73 to 105
+Comm [01609] next [01605]  size 12288 from 105 to 9
+Comm [01602] next [01600]  size 0.75 from 41 to 73
+Comm [01604] next [01600]  size 0.75 from 105 to 9
+Comm [01606] next [01605]  size 12288 from 9 to 41
+Comm [01607] next [01605]  size 12288 from 41 to 73
+Comm [01603] next [01600]  size 0.75 from 73 to 105
+Forw [00087] next [00524] [00525] [00705]  size 934.779 dev 105
+Forw [01605] next  size 0 dev 9
+Forw [01600] next  size 0 dev 9
+Forw [00171] next [00165] [00556] [00557] [00749]  size 934.779 dev 89
+AllR [00559] next [01611] [01612]  size 0 dev 0
+AllR [00558] next [01614] [01615]  size 0 dev 0
+Forw [00169] next [00161] [00556] [00557] [00747]  size 934.779 dev 25
+Comm [01611] next [01610]  size 0.5 from 25 to 89
+Comm [01615] next [01613]  size 8192 from 89 to 25
+Comm [01612] next [01610]  size 0.5 from 89 to 25
+Comm [01614] next [01613]  size 8192 from 25 to 89
+Forw [01610] next  size 0 dev 25
+Forw [01613] next  size 0 dev 25
+Comm [00705] next [00083]  size 32768 from 105 to 126
+AllR [00524] next [01617] [01618]  size 0 dev 0
+AllR [00525] next [01620] [01621]  size 0 dev 0
+Comm [01617] next [01616]  size 8192 from 41 to 105
+Comm [01618] next [01616]  size 8192 from 105 to 41
+Comm [01620] next [01619]  size 0.5 from 41 to 105
+Comm [01621] next [01619]  size 0.5 from 105 to 41
+Forw [00165] next [00554] [00555]  size 59.6011 dev 89
+Comm [00749] next [00167]  size 16384 from 89 to 121
+Comm [00747] next [00163]  size 16384 from 25 to 57
+AllR [00557] next [01623] [01624]  size 0 dev 0
+AllR [00556] next [01626] [01627]  size 0 dev 0
+Forw [00161] next [00554] [00555]  size 59.6011 dev 25
+Comm [01623] next [01622]  size 0.5 from 25 to 89
+Comm [01627] next [01625]  size 8192 from 89 to 25
+Comm [01624] next [01622]  size 0.5 from 89 to 25
+Comm [01626] next [01625]  size 8192 from 25 to 89
+Forw [00083] next [00522] [00523]  size 306.162 dev 126
+Forw [00167] next [00554] [00555]  size 59.6011 dev 121
+Forw [01616] next  size 0 dev 41
+Forw [01619] next  size 0 dev 41
+Forw [00163] next [00554] [00555]  size 59.6011 dev 57
+Forw [01622] next  size 0 dev 25
+AllR [00555] next [01629] [01630] [01631] [01632]  size 0 dev 0
+AllR [00554] next [01634] [01635] [01636] [01637]  size 0 dev 0
+Comm [01630] next [01628]  size 0.75 from 57 to 89
+Comm [01631] next [01628]  size 0.75 from 89 to 121
+Comm [01637] next [01633]  size 1536 from 57 to 25
+Comm [01629] next [01628]  size 0.75 from 25 to 57
+Comm [01636] next [01633]  size 1536 from 89 to 57
+Comm [01635] next [01633]  size 1536 from 121 to 89
+Comm [01634] next [01633]  size 1536 from 25 to 121
+Comm [01632] next [01628]  size 0.75 from 121 to 25
+Forw [01625] next  size 0 dev 25
+Forw [01628] next  size 0 dev 25
+Forw [01633] next  size 0 dev 25
+AllR [00522] next [01639] [01640]  size 0 dev 0
+AllR [00523] next [01642] [01643]  size 0 dev 0
+Comm [01639] next [01638]  size 2635 from 62 to 126
+Comm [01642] next [01641]  size 0.5 from 62 to 126
+Comm [01640] next [01638]  size 2635 from 126 to 62
+Comm [01643] next [01641]  size 0.5 from 126 to 62
+Forw [01638] next  size 0 dev 62
+Forw [01641] next  size 0 dev 62
+Simulation finished, Time: 54027.2

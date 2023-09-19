@@ -120,7 +120,8 @@ void BigSwitchNetwork::set_path(Flow* flow) {
 
 FatTreeNetwork::FatTreeNetwork() : Network() {
 
-    
+
+
 
     int link_bandwidth = GConf::inst().link_bandwidth;
 
@@ -147,6 +148,16 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
         spdlog::error("core_count must be divisible by agg_per_pod");
         exit(1);
     }
+
+
+        
+    core_usage_count = new int[core_count];
+    core_usage_sum = new double[core_count];
+    for (int i = 0; i < core_count; i++) {
+        core_usage_count[i] = 0;
+        core_usage_sum[i] = 0; 
+    }
+
 
     core_link_per_agg = core_count / agg_per_pod;
 
@@ -201,8 +212,25 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
             pod_core_agg_map[ft_loc{i, -1, -1, -1, c}] = agg_num;
         }
     }
-
 }
+
+void FatTreeNetwork::print_core_link_status() {
+    for (int p = 0; p < pod_count; p++) {
+        for (int c = 0; c < core_count; c++) {
+            Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
+            Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
+
+            spdlog::info("pod {}, core {}, up: {}/{}, down: {}/{}", p, 
+                                                                    c, 
+                                                                    bn_up->current_flow_count,
+                                                                    bn_up->current_flow_size_sum,
+                                                                    bn_down->current_flow_count,
+                                                                    bn_down->current_flow_size_sum);
+            
+        }
+    }
+}
+
 
 FatTreeNetwork::~FatTreeNetwork() {
     
@@ -240,7 +268,37 @@ void FatTreeNetwork::set_path(Flow* flow) {
         flow->path.push_back(tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, -1, -1, -1}]);
         flow->path.push_back(server_tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_loc.server, 2, -1}]);
     } else {
-        int core_num = rand() % core_count;
+        int core_selection_mechanism = 1; // least loaded core 
+        // int core_selection_mechanism = 2; // random
+         
+        int core_num; 
+
+        if (core_selection_mechanism == 1) {
+            int best_core = -1;
+            double least_load = 1e9;
+            for (int c = 0; c < core_count; c++){
+                Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{src_loc.pod, -1, -1, 1, c}];
+                Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{dst_loc.pod, -1, -1, 2, c}];
+
+                double load = bn_up->pa->total_registered + bn_down->pa->total_registered;
+                spdlog::warn("core {} load: {}", c, load);
+                if (load < least_load){
+                    least_load = load;
+                    best_core = c;
+                }
+            }
+            core_num = best_core; 
+            spdlog::warn("best core: {}, added flow size: {}", core_num, flow->size);
+
+        } else if (core_selection_mechanism == 2) {
+            core_num = rand() % core_count;
+        }
+
+        core_usage_count[core_num] += 1;
+        core_usage_sum[core_num] += flow->size; 
+
+        // spdlog::info("core {} usage count: {}, usage_size: {}", core_num, core_usage_count[core_num], core_usage_sum[core_num]);
+
 
         int src_agg = pod_core_agg_map[ft_loc{src_loc.pod, -1, -1, -1, core_num}];
         int dst_agg = pod_core_agg_map[ft_loc{dst_loc.pod, -1, -1, -1, core_num}];
@@ -278,24 +336,38 @@ double psim::Machine::make_progress(double current_time, double step_size,
         return 0; 
     }
 
-    double step_comp = 0; 
-    
-    PComp* compute_task = this->task_queue.front();
-    
-    if (compute_task->progress == 0){
-        compute_task->start_time = current_time; 
-    }
+    double epsilon = step_size / 1000; // floating point errors ...
+    double step_comp = 0;
+    double avail_comp = step_size;
 
-    compute_task->progress += step_size;
-    step_comp += step_size;
+    int handled_tasks = 0; 
 
-    if (compute_task->progress >= (compute_task->size - step_size / 100)) { // stupid floating point errors ... 
-        step_comp -= (compute_task->progress - compute_task->size);
-        compute_task->progress = compute_task->size;
+    while (not this->task_queue.empty()){
+        PComp* compute_task = this->task_queue.front();
+        handled_tasks += 1;
+        
+        if (compute_task->progress == 0){
+            compute_task->start_time = current_time; 
+        }   
 
-        this->task_queue.pop();
-        compute_task->status = PTaskStatus::FINISHED;
-        step_finished_tasks.push_back(compute_task);
+        double task_remaining = compute_task->size - compute_task->progress;
+        double progress_to_make = std::min(avail_comp, task_remaining);
+
+        compute_task->progress += progress_to_make;
+        step_comp += progress_to_make;
+        avail_comp -= progress_to_make;
+        task_remaining -= progress_to_make;
+
+        if (task_remaining < epsilon) {
+            compute_task->progress = compute_task->size;
+            this->task_queue.pop();
+            compute_task->status = PTaskStatus::FINISHED;
+            step_finished_tasks.push_back(compute_task);
+        }
+
+        if (avail_comp < epsilon) {
+            break;
+        }
     }
 
     return step_comp; 
@@ -303,6 +375,9 @@ double psim::Machine::make_progress(double current_time, double step_size,
 
 Bottleneck::Bottleneck(double bandwidth) {
     this->bandwidth = bandwidth;
+    this->current_flow_count = 0;
+    this->current_flow_size_sum = 0;
+
     id = -1; 
 
     if (GConf::inst().priority_allocator == "priorityqueue"){

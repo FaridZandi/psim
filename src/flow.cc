@@ -22,13 +22,29 @@ Flow::~Flow() {
 
 void Flow::initiate(){
     compute_priority(); 
+    for (Bottleneck* bottleneck : this->path) {
+        bottleneck->current_flow_count += 1;
+        bottleneck->current_flow_size_sum += this->size; 
+    }
+}
+
+void Flow::finished() {
+    for (Bottleneck* bottleneck : this->path) {
+        bottleneck->current_flow_count -= 1;
+        bottleneck->current_flow_size_sum -= this->size; 
+    }
 }
 
 void Flow::compute_priority(){
-    // selected_priority = id; 
-    // selected_priority = rank; 
-    selected_priority = rank * protocol->tasks.size() + id; 
-    // selected_priority = (int) start_time;
+
+    if (id == -1){
+        selected_priority = 1e6; 
+    } else {
+        selected_priority = rank * protocol->tasks.size() + id; 
+        // selected_priority = id; 
+        // selected_priority = rank; 
+        // selected_priority = (int) start_time;
+    }
 }
 
 

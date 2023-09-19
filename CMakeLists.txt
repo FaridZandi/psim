@@ -14,7 +14,7 @@ set(CMAKE_BUILD_TYPE Release)
 set(Boost_USE_STATIC_LIBS OFF) 
 set(Boost_USE_MULTITHREADED ON)  
 set(Boost_USE_STATIC_RUNTIME OFF) 
-find_package(Boost 1.71.0 COMPONENTS serialization program_options) 
+find_package(Boost 1.71.0 COMPONENTS program_options) 
 
 
 
@@ -22,20 +22,21 @@ add_subdirectory(deps/spdlog)
 
 include_directories(include)
 
-
 # any python version
 find_package(PythonLibs REQUIRED)
 
 include_directories(${PYTHON_INCLUDE_DIRS})
 message(STATUS "PYTHON_INCLUDE_DIRS = ${PYTHON_INCLUDE_DIRS}")
 
-set(SOURCES src/main.cc 
-            src/psim.cc
+set(SOURCES src/psim.cc
             src/prio.cc
             src/network.cc
+            src/traffic_gen.cc
             src/protocol_builder.cc
             src/flow.cc
-            src/protocol.cc)
+            src/options.cc
+            src/protocol.cc
+            src/main.cc)
 
 add_executable(psim ${SOURCES})
 

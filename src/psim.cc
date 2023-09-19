@@ -16,8 +16,12 @@ static int simulation_counter = 0;
 
 PSim::PSim() {
     this->timer = 0;  
+    this->total_task_count = 0;
+    this->finished_task_count = 0;
     this->step_size = GConf::inst().step_size;
     
+    this->traffic_gen = new TrafficGen(0.5);
+
     if (GConf::inst().network_type == "fattree"){
         this->network = new FatTreeNetwork();
     } else if (GConf::inst().network_type == "bigswitch"){
@@ -30,6 +34,7 @@ PSim::PSim() {
 
 void PSim::add_protocol(Protocol *protocol){
     this->protocols.push_back(protocol);
+    this->total_task_count += protocol->total_task_count;
 }
 
 PSim::~PSim() {
@@ -39,9 +44,17 @@ PSim::~PSim() {
     }
 }
 
+void PSim::handle_task_completion(PTask *task) {
+    task->end_time = timer;
+    task->protocol->finished_task_count += 1;
+
+    if (task->protocol->type == ProtocolType::MAIN_PROTOCOL) {
+        this->finished_task_count += 1; 
+    }
+}
 
 void PSim::start_next_tasks(PTask *task){
-
+    
     for (auto next_task : task->next_tasks) {
         next_task->dep_left -= 1;
 
@@ -84,9 +97,7 @@ void PSim::start_task(PTask *task) {
         } case PTaskType::EMPTY: {
             task->status = PTaskStatus::FINISHED;
             task->start_time = timer;
-            task->end_time = timer; 
-            task->protocol->finished_task_count += 1;
-
+            handle_task_completion(task);
             start_next_tasks(task);
             break;
         } default: {
@@ -146,6 +157,11 @@ double PSim::simulate() {
     int last_summary_timer = -1; 
 
     while (true) {
+        // auto new_flows = traffic_gen->get_flows(timer);
+        // for (auto flow : new_flows) {
+        //     this->start_task(flow);
+        // }
+
         std::vector<Flow *> step_finished_flows;
         std::vector<PComp *> step_finished_tasks; 
 
@@ -161,7 +177,14 @@ double PSim::simulate() {
 
         if (int(timer) % 1000 == 0 and int(timer) != last_summary_timer) {
             last_summary_timer = int(timer);
-            spdlog::info("Time: {}, Flows: {}, Tasks: {}, Protocol0:{}/{}", int(timer), flows.size(), compute_tasks.size(), protocols[0]->finished_task_count, protocols[0]->total_task_count);
+            spdlog::info("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}", 
+                          int(timer), flows.size(), compute_tasks.size(), 
+                          this->finished_task_count, this->total_task_count);
+
+            network->print_core_link_status();
+
+            // this->log_flow_states(); 
+            // network->log_bottleneck_registers();
 
             // for (auto& flow : this->flows) {
             //     spdlog::debug("Flow: {}, rank:{}, priority:{}, progress: {}/{}, registered: {}, allocated: {}", flow->id, flow->rank, flow->selected_priority, flow->progress, flow->size, flow->registered_rate, flow->bn_allocated_rate);
@@ -176,8 +199,8 @@ double PSim::simulate() {
 
         for (auto& flow : step_finished_flows) {
             finished_flows.push_back(flow);
-            flow->end_time = timer;
-            flow->protocol->finished_task_count += 1;
+            handle_task_completion(flow);
+            flow->finished(); 
             // TODO: this seems to be a very time consuming 
             // operation, as far as I can tell. Is there a better way?
             flows.erase(std::remove(flows.begin(), flows.end(), flow), flows.end());
@@ -186,20 +209,34 @@ double PSim::simulate() {
 
         for (auto& task : step_finished_tasks) {
             this->finished_compute_tasks.push_back(task);
-            task->end_time = timer;
-            task->protocol->finished_task_count += 1;
+            handle_task_completion(task);
+
+
             // TODO: this seems to be a very time consuming operation. 
             compute_tasks.erase(std::remove(compute_tasks.begin(), compute_tasks.end(), task), compute_tasks.end());
             start_next_tasks(task);
         }
         
-        timer += step_size;
 
-        spdlog::debug("Time: {}, Flows: {}, Tasks: {}, Protocol0:{}/{}", int(timer), flows.size(), compute_tasks.size(), protocols[0]->finished_task_count, protocols[0]->total_task_count);
 
-        if (flows.size() == 0 && compute_tasks.size() == 0) {
+        
+        bool all_finished = true;
+        for (auto protocol : this->protocols) {
+            if (protocol->finished_task_count < protocol->total_task_count) {
+                all_finished = false;
+                break;
+            }
+        }
+        if (all_finished) {
             break;
         }
+
+
+        spdlog::debug("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}", 
+                      int(timer), flows.size(), compute_tasks.size(), 
+                      this->finished_task_count, this->total_task_count);
+
+        timer += step_size;
     }
     
     save_run_results();

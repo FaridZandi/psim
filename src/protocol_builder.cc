@@ -4,15 +4,15 @@
 #include <algorithm>
 #include <limits>
 #include "protocol.h"
+#include "protocol_builder.h"
 #include <cmath>
 #include <fstream>
 #include <sstream>
 
 using namespace psim;
 
-
 Protocol* 
-Protocol::pipelinize_protocol(Protocol *proto, int num_replicas, bool tight_connections){
+psim::pipelinize_protocol(Protocol *proto, int num_replicas, bool tight_connections){
     Protocol *combined_protocol = new Protocol();
     
     std::map<int, std::vector<int>> task_id_to_replica_ids;
@@ -63,7 +63,8 @@ Protocol::pipelinize_protocol(Protocol *proto, int num_replicas, bool tight_conn
     return combined_protocol;
 }
 
-Protocol* Protocol::super_simple_protocol(){
+Protocol* 
+psim::super_simple_protocol(){
     Protocol *protocol = new Protocol();
     
     PComp* ptask1 = (PComp*)protocol->create_task(PTaskType::COMPUTE);
@@ -98,7 +99,8 @@ Protocol* Protocol::super_simple_protocol(){
     return protocol;
 }
 
-Protocol* Protocol::simple_pipeline_protocol(int length){
+Protocol* 
+psim::simple_pipeline_protocol(int length){
     Protocol *protocol = new Protocol();
 
     int task_counter = 0;
@@ -123,10 +125,16 @@ Protocol* Protocol::simple_pipeline_protocol(int length){
     }
 
     return protocol;
-
 }
 
-Protocol* Protocol::build_random_protocol(int num_comp, int machine_count){
+Protocol* 
+psim::simple_protocol_v1(){
+    return NULL; 
+}
+
+
+Protocol* 
+psim::build_random_protocol(int num_comp, int machine_count){
     Protocol *protocol = new Protocol();
 
     // create compute tasks 
@@ -187,7 +195,8 @@ Protocol* Protocol::build_random_protocol(int num_comp, int machine_count){
 
 
 
-Protocol* Protocol::load_protocol_from_file(std::string file_path){
+Protocol* 
+psim::load_protocol_from_file(std::string file_path){
     Protocol *protocol = new Protocol();
     int task_counter = 0;
     
@@ -219,7 +228,6 @@ Protocol* Protocol::load_protocol_from_file(std::string file_path){
             } else if (task_type_str == "Forw" or task_type_str == "Back") {
                 task_type = PTaskType::COMPUTE;
             } else {
-                std::cout << "Unknown task type" << std::endl;
                 continue;
             }
 

@@ -25,7 +25,7 @@ public:
     std::string output_dir = "out/"; 
     int console_log_level = 2; 
     int file_log_level = 2; 
-    std::string network_type = "fattree";
+    std::string network_type = "fattree"; // "fattree" or "bigswitch"
     int bn_priority_levels = 1; 
     std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels"
 

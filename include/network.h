@@ -40,14 +40,16 @@ public:
     
     void reset_bottleneck_registers();
     void compute_bottleneck_availability();
-
     double make_progress_on_machines(double current_time, double step_size, 
                                      std::vector<PComp*> & step_finished_tasks);
 
     virtual void set_path(Flow* flow) = 0;
 
     Bottleneck* create_bottleneck(double bandwidth);
-    
+
+    //temp
+    virtual void print_core_link_status() {}; 
+
 private: 
 
 };
@@ -120,6 +122,9 @@ private:
 
     int core_link_per_agg;
 
+    int * core_usage_count;
+    double * core_usage_sum;
+
     std::map<ft_loc, Bottleneck *> tor_bottlenecks;
     std::map<ft_loc, Bottleneck *> agg_bottlenecks;
     std::map<ft_loc, Bottleneck *> core_bottlenecks;
@@ -129,6 +134,9 @@ private:
     
     std::map<int, ft_loc> server_loc_map;
     std::map<ft_loc, int> pod_core_agg_map;
+
+    void print_core_link_status();
+
 };
 
 class Machine {
@@ -161,7 +169,9 @@ public:
     // basic info
     int id;
     double bandwidth;
-
+    int current_flow_count; 
+    double current_flow_size_sum; 
+    
     
     // history
     std::vector<double> total_register_history;

@@ -17,6 +17,7 @@ Protocol::Protocol() {
     total_task_count = 0; 
     max_allocated_id = 0; 
     max_rank = 0; 
+    type = ProtocolType::MAIN_PROTOCOL;
 }
 
 Protocol::~Protocol() {
@@ -83,8 +84,6 @@ void Protocol::build_dependency_graph() {
         if (task->is_initiator) {
             task->is_initiator = false; 
             this->initiators.push_back(task);
-
-
         }
     }
     
