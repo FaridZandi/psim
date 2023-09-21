@@ -27,7 +27,7 @@ public:
     int file_log_level = 2; 
     std::string network_type = "fattree"; // "fattree" or "bigswitch"
     int bn_priority_levels = 1; 
-    std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels"
+    std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels" or "fairshare
 
     // int machine_count = 16;  
     // int ft_server_per_rack = 4; 
@@ -35,9 +35,6 @@ public:
     // int ft_agg_per_pod = 2;
     // int ft_pod_count = 2;
     // int ft_core_count = 2;
-    // int ft_core_capacity_mult = 4;
-    // int ft_agg_capacity_mult = 2;
-    // int ft_tor_capacity_mult = 2;
     // int ft_server_tor_link_capacity_mult = 2; 
     // int ft_tor_agg_link_capacity_mult = 2; 
     // int ft_agg_core_link_capacity_mult = 4;
@@ -48,12 +45,9 @@ public:
     int ft_agg_per_pod = 4;
     int ft_pod_count = 4;
     int ft_core_count = 4;
-    int ft_core_capacity_mult = 16;
-    int ft_agg_capacity_mult = 8;
-    int ft_tor_capacity_mult = 8;
-    int ft_server_tor_link_capacity_mult = 1; 
-    int ft_tor_agg_link_capacity_mult = 2; 
-    int ft_agg_core_link_capacity_mult = 8;
+    double ft_server_tor_link_capacity_mult = 1; 
+    double ft_tor_agg_link_capacity_mult = 2; 
+    double ft_agg_core_link_capacity_mult = 8;
 
 private:
     GConf() {}

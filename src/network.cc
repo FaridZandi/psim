@@ -79,25 +79,53 @@ Bottleneck* Network::create_bottleneck(double bandwidth) {
     return bottleneck;
 }
 
+
+double Network::total_link_bandwidth() {
+    static bool is_cached = false;
+    static double cached_total = 0;
+
+    if (is_cached) {
+        return cached_total;
+    } else {
+        double total = 0;
+
+        for (auto& bn : bottlenecks) {
+            total += bn->bandwidth;
+        }
+
+        cached_total = total;
+        is_cached = true;
+
+        return total;
+    }
+}
+
+double Network::total_allocated_bandwidth () {
+    double total = 0;
+
+    for (auto& bn : bottlenecks) {
+        total += bn->pa->total_allocated;
+    }
+
+    return total;
+}
 //==============================================================================
 
 
 BigSwitchNetwork::BigSwitchNetwork(): Network() {
 
-    double link_bandwidth = GConf::inst().link_bandwidth;
+    this->server_switch_link_capacity = GConf::inst().link_bandwidth;
     this->server_count = GConf::inst().machine_count;
 
     for (int i = 0; i < this->server_count; i++) {
         Machine *machine = get_machine(i);
     }
 
-    this->switch_bottleneck = create_bottleneck(link_bandwidth);
-    
     for (int i = 0; i < this->server_count; i++) {
-        Bottleneck *ds_bn = create_bottleneck(link_bandwidth);
+        Bottleneck *ds_bn = create_bottleneck(server_switch_link_capacity);
         this->server_bottlenecks_downstream[i] = ds_bn;
 
-        Bottleneck *us_bn = create_bottleneck(link_bandwidth);
+        Bottleneck *us_bn = create_bottleneck(server_switch_link_capacity);
         this->server_bottlenecks_upstream[i] = us_bn;
     }
 }
@@ -132,9 +160,6 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
     pod_count = GConf::inst().ft_pod_count;
     core_count = GConf::inst().ft_core_count;
 
-    core_capacity = GConf::inst().ft_core_capacity_mult * link_bandwidth;
-    agg_capacity = GConf::inst().ft_agg_capacity_mult * link_bandwidth;
-    tor_capacity = GConf::inst().ft_tor_capacity_mult * link_bandwidth;
     server_tor_link_capacity = GConf::inst().ft_server_tor_link_capacity_mult * link_bandwidth; 
     tor_agg_link_capacity = GConf::inst().ft_tor_agg_link_capacity_mult * link_bandwidth; 
     agg_core_link_capacity = GConf::inst().ft_agg_core_link_capacity_mult * link_bandwidth;
@@ -149,8 +174,6 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
         exit(1);
     }
 
-
-        
     core_usage_count = new int[core_count];
     core_usage_sum = new double[core_count];
     for (int i = 0; i < core_count; i++) {
@@ -158,25 +181,10 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
         core_usage_sum[i] = 0; 
     }
 
-
     core_link_per_agg = core_count / agg_per_pod;
 
-    for (int i = 0; i < core_count; i++) {
-        Bottleneck *bn = create_bottleneck(core_capacity);
-        core_bottlenecks[ft_loc{-1, -1, -1, -1, i}] = bn;
-    }
-
     for (int i = 0; i < pod_count; i++) {
-        for (int j = 0; j < agg_per_pod; j++) {
-            Bottleneck *bn = create_bottleneck(agg_capacity);
-            agg_bottlenecks[ft_loc{i, j, -1, -1, -1}] = bn;
-        }
-
         for (int j = 0; j < rack_per_pod; j++) {
-            Bottleneck *bn = create_bottleneck(tor_capacity);
-            tor_bottlenecks[ft_loc{i, j, -1, -1, -1}] = bn;
-
-
             for (int k = 0; k < server_per_rack; k++) {
                 int machine_num = i * rack_per_pod * server_per_rack + j * server_per_rack + k;
                 Machine *machine = get_machine(machine_num);
@@ -215,6 +223,8 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
 }
 
 void FatTreeNetwork::print_core_link_status() {
+    return; 
+
     for (int p = 0; p < pod_count; p++) {
         for (int c = 0; c < core_count; c++) {
             Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
@@ -253,7 +263,7 @@ void FatTreeNetwork::set_path(Flow* flow) {
         return; 
     } else if (same_rack) {
         flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
-        flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
+        // flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
         flow->path.push_back(server_tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_loc.server, 2, -1}]);
     }
     else if (same_pod) {
@@ -261,15 +271,15 @@ void FatTreeNetwork::set_path(Flow* flow) {
         int agg_num = rand() % agg_per_pod;
 
         flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
-        flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
+        // flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
         flow->path.push_back(tor_agg_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, agg_num, 1, -1}]);
-        flow->path.push_back(agg_bottlenecks[ft_loc{src_loc.pod, agg_num, -1, -1, -1}]);
+        // flow->path.push_back(agg_bottlenecks[ft_loc{src_loc.pod, agg_num, -1, -1, -1}]);
         flow->path.push_back(tor_agg_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, agg_num, 2, -1}]);
-        flow->path.push_back(tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, -1, -1, -1}]);
+        // flow->path.push_back(tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, -1, -1, -1}]);
         flow->path.push_back(server_tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_loc.server, 2, -1}]);
     } else {
-        int core_selection_mechanism = 1; // least loaded core 
-        // int core_selection_mechanism = 2; // random
+        // int core_selection_mechanism = 1; // least loaded core 
+        int core_selection_mechanism = 2; // random
          
         int core_num; 
 
@@ -281,14 +291,14 @@ void FatTreeNetwork::set_path(Flow* flow) {
                 Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{dst_loc.pod, -1, -1, 2, c}];
 
                 double load = bn_up->pa->total_registered + bn_down->pa->total_registered;
-                spdlog::warn("core {} load: {}", c, load);
+                // spdlog::warn("core {} load: {}", c, load);
                 if (load < least_load){
                     least_load = load;
                     best_core = c;
                 }
             }
             core_num = best_core; 
-            spdlog::warn("best core: {}, added flow size: {}", core_num, flow->size);
+            // spdlog::warn("best core: {}, added flow size: {}", core_num, flow->size);
 
         } else if (core_selection_mechanism == 2) {
             core_num = rand() % core_count;
@@ -304,15 +314,15 @@ void FatTreeNetwork::set_path(Flow* flow) {
         int dst_agg = pod_core_agg_map[ft_loc{dst_loc.pod, -1, -1, -1, core_num}];
 
         flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
-        flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
+        // flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
         flow->path.push_back(tor_agg_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_agg, 1, -1}]);
-        flow->path.push_back(agg_bottlenecks[ft_loc{src_loc.pod, src_agg, -1, -1, -1}]);
+        // flow->path.push_back(agg_bottlenecks[ft_loc{src_loc.pod, src_agg, -1, -1, -1}]);
         flow->path.push_back(pod_core_bottlenecks[ft_loc{src_loc.pod, -1, -1, 1, core_num}]);
-        flow->path.push_back(core_bottlenecks[ft_loc{-1, -1, -1, -1, core_num}]);
+        // flow->path.push_back(core_bottlenecks[ft_loc{-1, -1, -1, -1, core_num}]);
         flow->path.push_back(pod_core_bottlenecks[ft_loc{dst_loc.pod, -1, -1, 2, core_num}]);
-        flow->path.push_back(agg_bottlenecks[ft_loc{dst_loc.pod, dst_agg, -1, -1, -1}]);
+        // flow->path.push_back(agg_bottlenecks[ft_loc{dst_loc.pod, dst_agg, -1, -1, -1}]);
         flow->path.push_back(tor_agg_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_agg, 2, -1}]);
-        flow->path.push_back(tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, -1, -1, -1}]);
+        // flow->path.push_back(tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, -1, -1, -1}]);
         flow->path.push_back(server_tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_loc.server, 2, -1}]);
     }
 
@@ -384,6 +394,8 @@ Bottleneck::Bottleneck(double bandwidth) {
         pa = new PriorityQueuePriorityAllocator(this->bandwidth);
     } else if (GConf::inst().priority_allocator == "fixedlevels"){
         pa = new FixedLevelsPriorityAllocator(this->bandwidth);
+    } else if (GConf::inst().priority_allocator == "fairshare"){
+        pa = new FairSharePriorityAllocator(this->bandwidth);
     } else {
         spdlog::error("Invalid priority allocator");
         exit(1);

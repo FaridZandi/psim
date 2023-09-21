@@ -25,6 +25,18 @@ private:
 };
 
 
+class FairSharePriorityAllocator : public PriorityAllocator {
+public:
+    FairSharePriorityAllocator(double total_available);
+    virtual ~FairSharePriorityAllocator();
+
+    void reset();
+    void register_rate(int id, double rate, int priority);
+    void compute_allocations();
+    double get_allocated_rate(int id, double registered_rate = -1, int priority = -1);
+private:
+};
+
 class FixedLevelsPriorityAllocator : public PriorityAllocator {
 public:
     FixedLevelsPriorityAllocator(double total_available);

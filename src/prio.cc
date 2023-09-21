@@ -5,6 +5,58 @@
 
 using namespace psim;
 
+
+FairSharePriorityAllocator::FairSharePriorityAllocator(double total_available){
+    this->total_available = total_available;
+    total_registered = 0;
+    total_allocated = 0; 
+}
+
+FairSharePriorityAllocator::~FairSharePriorityAllocator(){
+
+}
+
+void FairSharePriorityAllocator::reset(){
+    total_registered = 0;
+    total_allocated = 0; 
+}
+
+void FairSharePriorityAllocator::register_rate(int id, double rate, int priority){
+    total_registered += rate;
+}
+
+void FairSharePriorityAllocator::compute_allocations(){
+
+}
+
+double FairSharePriorityAllocator::get_allocated_rate(int id, double registered_rate, int priority){
+    if (total_registered < total_available) {
+        total_allocated += registered_rate;
+        return registered_rate;
+    } else {
+        double allocated_rate = registered_rate * total_available / total_registered;
+        total_allocated += allocated_rate;
+        return allocated_rate;
+    }
+}
+
+
+
+
+
+
+
+
+
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+
+
+
+
+
+
 FixedLevelsPriorityAllocator::FixedLevelsPriorityAllocator(double total_available){
     this->total_available = total_available;
     this->priority_levels = GConf::inst().bn_priority_levels;

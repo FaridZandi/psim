@@ -38,12 +38,9 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("ft-agg-per-pod", po::value<int>(), "set ft-agg-per-pod")
         ("ft-pod-count", po::value<int>(), "set ft-pod-count")
         ("ft-core-count", po::value<int>(), "set ft-core-count")
-        ("ft-core-capacity-mult", po::value<int>(), "set ft-core-capacity-mult")
-        ("ft-agg-capacity-mult", po::value<int>(), "set ft-agg-capacity-mult")
-        ("ft-tor-capacity-mult", po::value<int>(), "set ft-tor-capacity-mult")
-        ("ft-server-tor-link-capacity-mult", po::value<int>(), "set ft-server-tor-link-capacity-mult")
-        ("ft-tor-agg-link-capacity-mult", po::value<int>(), "set ft-tor-agg-link-capacity-mult")
-        ("ft-agg-core-link-capacity-mult", po::value<int>(), "set ft-agg-core-link-capacity-mult")
+        ("ft-server-tor-link-capacity-mult", po::value<double>(), "set ft-server-tor-link-capacity-mult")
+        ("ft-tor-agg-link-capacity-mult", po::value<double>(), "set ft-tor-agg-link-capacity-mult")
+        ("ft-agg-core-link-capacity-mult", po::value<double>(), "set ft-agg-core-link-capacity-mult")
     ;
 
     po::variables_map vm;
@@ -123,23 +120,14 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("ft-core-count")) {
         GConf::inst().ft_core_count = vm["ft-core-count"].as<int>();
     }
-    if (vm.count("ft-core-capacity-mult")) {
-        GConf::inst().ft_core_capacity_mult = vm["ft-core-capacity-mult"].as<int>();
-    }
-    if (vm.count("ft-agg-capacity-mult")) {
-        GConf::inst().ft_agg_capacity_mult = vm["ft-agg-capacity-mult"].as<int>();
-    }
-    if (vm.count("ft-tor-capacity-mult")) {
-        GConf::inst().ft_tor_capacity_mult = vm["ft-tor-capacity-mult"].as<int>();
-    }
     if (vm.count("ft-server-tor-link-capacity-mult")) {
-        GConf::inst().ft_server_tor_link_capacity_mult = vm["ft-server-tor-link-capacity-mult"].as<int>();
+        GConf::inst().ft_server_tor_link_capacity_mult = vm["ft-server-tor-link-capacity-mult"].as<double>();
     }
     if (vm.count("ft-tor-agg-link-capacity-mult")) {
-        GConf::inst().ft_tor_agg_link_capacity_mult = vm["ft-tor-agg-link-capacity-mult"].as<int>();
+        GConf::inst().ft_tor_agg_link_capacity_mult = vm["ft-tor-agg-link-capacity-mult"].as<double>();
     }
     if (vm.count("ft-agg-core-link-capacity-mult")) {
-        GConf::inst().ft_agg_core_link_capacity_mult = vm["ft-agg-core-link-capacity-mult"].as<int>();
+        GConf::inst().ft_agg_core_link_capacity_mult = vm["ft-agg-core-link-capacity-mult"].as<double>();
     }
     if (vm.count("step-size")) {
         GConf::inst().step_size = vm["step-size"].as<double>();
@@ -204,9 +192,6 @@ void psim::log_config() {
     spdlog::info("ft_agg_per_pod: {}", GConf::inst().ft_agg_per_pod);
     spdlog::info("ft_pod_count: {}", GConf::inst().ft_pod_count);
     spdlog::info("ft_core_count: {}", GConf::inst().ft_core_count);
-    spdlog::info("ft_core_capacity_mult: {}", GConf::inst().ft_core_capacity_mult);
-    spdlog::info("ft_agg_capacity_mult: {}", GConf::inst().ft_agg_capacity_mult);
-    spdlog::info("ft_tor_capacity_mult: {}", GConf::inst().ft_tor_capacity_mult);
     spdlog::info("ft_server_tor_link_capacity_mult: {}", GConf::inst().ft_server_tor_link_capacity_mult);
     spdlog::info("ft_tor_agg_link_capacity_mult: {}", GConf::inst().ft_tor_agg_link_capacity_mult);
     spdlog::info("ft_agg_core_link_capacity_mult: {}", GConf::inst().ft_agg_core_link_capacity_mult);

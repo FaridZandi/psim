@@ -50,6 +50,8 @@ public:
     //temp
     virtual void print_core_link_status() {}; 
 
+    virtual double total_link_bandwidth(); 
+    virtual double total_allocated_bandwidth(); 
 private: 
 
 };
@@ -63,12 +65,10 @@ public:
     void set_path(Flow* flow);
 
 private: 
-    Bottleneck* switch_bottleneck;
     std::map<int, Bottleneck *> server_bottlenecks_downstream;
     std::map<int, Bottleneck *> server_bottlenecks_upstream;
 
     int server_count = 128;
-    int switch_capacity;
     int server_switch_link_capacity = 40;
 };
 
@@ -113,21 +113,15 @@ private:
     int pod_count;
     int core_count;
 
-    int core_capacity;
-    int agg_capacity;
-    int tor_capacity;
-    int server_tor_link_capacity; 
-    int tor_agg_link_capacity; 
-    int agg_core_link_capacity;
+    double server_tor_link_capacity; 
+    double tor_agg_link_capacity; 
+    double agg_core_link_capacity;
 
     int core_link_per_agg;
 
     int * core_usage_count;
     double * core_usage_sum;
 
-    std::map<ft_loc, Bottleneck *> tor_bottlenecks;
-    std::map<ft_loc, Bottleneck *> agg_bottlenecks;
-    std::map<ft_loc, Bottleneck *> core_bottlenecks;
     std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
     std::map<ft_loc, Bottleneck *> tor_agg_bottlenecks;
     std::map<ft_loc, Bottleneck *> pod_core_bottlenecks;
@@ -136,7 +130,6 @@ private:
     std::map<ft_loc, int> pod_core_agg_map;
 
     void print_core_link_status();
-
 };
 
 class Machine {

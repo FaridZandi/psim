@@ -2,7 +2,7 @@ import matplotlib.pyplot as plt
 import os
 from pprint import pprint
 
-base_path = "/home/faridzandi/git/psim/input/128search/"
+base_path = "/home/faridzandi/git/psim/input/128search-dpstart/"
 all_files = [f for f in os.listdir(base_path) if f.endswith(".txt")]
 print("all files:")
 pprint(all_files)

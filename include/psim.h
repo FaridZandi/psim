@@ -12,6 +12,7 @@
 #include <fstream>
 #include "config.h"
 #include "traffic_gen.h"
+#include <functional>
 
 namespace psim {
 
@@ -25,6 +26,31 @@ class Flow;
 class PTask;
 class PComp;
 class EmptyTask;
+
+struct history_entry {
+    int time;
+
+    int flow_count;
+    int step_finished_flows; 
+    int finished_flows_cumulative; 
+
+    int comp_task_count; 
+    int step_finished_comp_tasks;
+    int finished_comp_task_cumulative;
+    
+    double step_comm;
+    double total_comm_cumulative;
+
+    double step_comp;
+    double total_comp_cumulative;
+
+    double total_allocated_bandwidth;
+    double total_allocated_bandwidth_cumulative;
+
+    double total_link_bandwidth;
+    double total_link_bandwidth_cumulative;
+};
+
 
 class PSim {
 public:
@@ -41,25 +67,25 @@ private:
     double make_progress_on_flows(double current_time, std::vector<Flow*> & step_finished_flows); 
     void save_run_results();
 
+    Network *network;
     TrafficGen *traffic_gen;
     
     std::vector<Protocol *> protocols;
     std::vector<Flow *> flows; 
     std::vector<PComp *> compute_tasks;
-    Network *network;
-    double timer;
-    double step_size;
-    int total_task_count; 
-    int finished_task_count;
 
     std::vector<Flow *> finished_flows;
     std::vector<PComp *> finished_compute_tasks;
-    std::vector<double> comm_log;
-    std::vector<double> comp_log;
-    std::vector<int> flow_count_history; 
-    double total_comm = 0; 
-    double total_comp = 0;
 
+    double timer;
+    double step_size;
+
+    int total_task_count; 
+    int finished_task_count;
+
+    std::vector<history_entry> history;
+
+    void draw_plots(std::initializer_list<std::pair<std::string, std::function<double(history_entry)>>> plots);
 
 }; 
 

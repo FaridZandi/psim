@@ -22,7 +22,7 @@ void init(int argc, char** argv);
 int main(int argc, char** argv) {
     init(argc, argv); 
     
-    int rep_count = 20; 
+    int rep_count = 1; 
     double psim_time_sum = 0;
 
     for (int rep = 0; rep < rep_count; rep ++) {
@@ -59,7 +59,6 @@ void init(int argc, char** argv){
     srand(time(NULL));
 
     po::variables_map vm = parse_arguments(argc, argv);
-
     process_arguments(vm);
     setup_logger(vm);
     log_config(); 
