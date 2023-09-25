@@ -29,7 +29,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 message(STATUS "PYTHON_INCLUDE_DIRS = ${PYTHON_INCLUDE_DIRS}")
 
 set(SOURCES src/psim.cc
-            src/prio.cc
+            src/bwalloc.cc
             src/network.cc
             src/traffic_gen.cc
             src/protocol_builder.cc

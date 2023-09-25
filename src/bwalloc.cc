@@ -1,4 +1,4 @@
-#include "prio.h"
+#include "bwalloc.h"
 #include "config.h"
 #include <algorithm>
 #include "spdlog/spdlog.h"
@@ -6,31 +6,40 @@
 using namespace psim;
 
 
-FairSharePriorityAllocator::FairSharePriorityAllocator(double total_available){
+void BandwidthAllocator::reset() {
+    total_registered = 0;
+    total_allocated = 0; 
+    utilized_bandwidth = 0;
+}
+
+void BandwidthAllocator::register_utilization(double utilization) {
+    utilized_bandwidth += utilization;
+
+}
+
+FairShareBandwidthAllocator::FairShareBandwidthAllocator(double total_available){
     this->total_available = total_available;
-    total_registered = 0;
-    total_allocated = 0; 
+    BandwidthAllocator::reset(); 
 }
 
-FairSharePriorityAllocator::~FairSharePriorityAllocator(){
+FairShareBandwidthAllocator::~FairShareBandwidthAllocator(){
 
 }
 
-void FairSharePriorityAllocator::reset(){
-    total_registered = 0;
-    total_allocated = 0; 
+void FairShareBandwidthAllocator::reset(){
+    BandwidthAllocator::reset(); 
 }
 
-void FairSharePriorityAllocator::register_rate(int id, double rate, int priority){
+void FairShareBandwidthAllocator::register_rate(int id, double rate, int priority){
     total_registered += rate;
 }
 
-void FairSharePriorityAllocator::compute_allocations(){
+void FairShareBandwidthAllocator::compute_allocations(){
 
 }
 
-double FairSharePriorityAllocator::get_allocated_rate(int id, double registered_rate, int priority){
-    if (total_registered < total_available) {
+double FairShareBandwidthAllocator::get_allocated_rate(int id, double registered_rate, int priority){
+    if (total_registered <= total_available) {
         total_allocated += registered_rate;
         return registered_rate;
     } else {
@@ -43,11 +52,6 @@ double FairSharePriorityAllocator::get_allocated_rate(int id, double registered_
 
 
 
-
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -55,14 +59,11 @@ double FairSharePriorityAllocator::get_allocated_rate(int id, double registered_
 
 
 
-
-
-FixedLevelsPriorityAllocator::FixedLevelsPriorityAllocator(double total_available){
+FixedLevelsBandwidthAllocator::FixedLevelsBandwidthAllocator(double total_available){
     this->total_available = total_available;
     this->priority_levels = GConf::inst().bn_priority_levels;
 
-    total_registered = 0;
-    total_allocated = 0; 
+    BandwidthAllocator::reset(); 
 
     for (int i = 0; i < priority_levels; i++){
         register_map.push_back(0);
@@ -70,13 +71,12 @@ FixedLevelsPriorityAllocator::FixedLevelsPriorityAllocator(double total_availabl
     }
 }
 
-FixedLevelsPriorityAllocator::~FixedLevelsPriorityAllocator(){
+FixedLevelsBandwidthAllocator::~FixedLevelsBandwidthAllocator(){
 
 }
 
-void FixedLevelsPriorityAllocator::reset(){
-    total_registered = 0;
-    total_allocated = 0; 
+void FixedLevelsBandwidthAllocator::reset(){
+    BandwidthAllocator::reset(); 
 
     for (int i = 0; i < priority_levels; i++){
         register_map[i] = 0;
@@ -84,7 +84,7 @@ void FixedLevelsPriorityAllocator::reset(){
     }
 }
 
-void FixedLevelsPriorityAllocator::register_rate(int id, double rate, int priority){
+void FixedLevelsBandwidthAllocator::register_rate(int id, double rate, int priority){
     if (priority >= priority_levels) {
         priority = priority_levels - 1;
     }
@@ -93,7 +93,7 @@ void FixedLevelsPriorityAllocator::register_rate(int id, double rate, int priori
     total_registered += rate;
 }
 
-void FixedLevelsPriorityAllocator::compute_allocations(){
+void FixedLevelsBandwidthAllocator::compute_allocations(){
     double available = total_available;
 
     for (int i = 0; i < priority_levels; i++) {
@@ -108,7 +108,7 @@ void FixedLevelsPriorityAllocator::compute_allocations(){
     }
 }
 
-double FixedLevelsPriorityAllocator::get_allocated_rate(int id, double registered_rate, int priority){
+double FixedLevelsBandwidthAllocator::get_allocated_rate(int id, double registered_rate, int priority){
     if (priority >= priority_levels) {
         priority = priority_levels - 1;
     }
@@ -129,10 +129,6 @@ double FixedLevelsPriorityAllocator::get_allocated_rate(int id, double registere
 
 
 
-
-
-
-
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -144,32 +140,30 @@ double FixedLevelsPriorityAllocator::get_allocated_rate(int id, double registere
 
 
 
-PriorityQueuePriorityAllocator::PriorityQueuePriorityAllocator(double total_available){
+PriorityQueueBandwidthAllocator::PriorityQueueBandwidthAllocator(double total_available){
     this->total_available = total_available;
-    total_registered = 0;
-    total_allocated = 0; 
+    BandwidthAllocator::reset(); 
 }
 
-PriorityQueuePriorityAllocator::~PriorityQueuePriorityAllocator(){
+PriorityQueueBandwidthAllocator::~PriorityQueueBandwidthAllocator(){
 
 }
 
-void PriorityQueuePriorityAllocator::reset(){
-    total_registered = 0;
-    total_allocated = 0; 
+void PriorityQueueBandwidthAllocator::reset(){
+    BandwidthAllocator::reset(); 
 
     if (!register_queue.empty()) {
-        spdlog::warn("PriorityQueuePriorityAllocator::reset() called with non-empty register_queue");
+        spdlog::warn("PriorityQueueBandwidthAllocator::reset() called with non-empty register_queue");
     }
     allocations.clear();
 }
 
-void PriorityQueuePriorityAllocator::register_rate(int id, double rate, int priority){
+void PriorityQueueBandwidthAllocator::register_rate(int id, double rate, int priority){
     total_registered += rate;
     register_queue.push(std::make_pair(-1 * priority, std::make_pair(id, rate)));
 }
 
-void PriorityQueuePriorityAllocator::compute_allocations(){
+void PriorityQueueBandwidthAllocator::compute_allocations(){
     double available = total_available;
 
     while (!register_queue.empty()) {
@@ -195,7 +189,7 @@ void PriorityQueuePriorityAllocator::compute_allocations(){
 
 }
 
-double PriorityQueuePriorityAllocator::get_allocated_rate(int id, double registered_rate, int priority){
+double PriorityQueueBandwidthAllocator::get_allocated_rate(int id, double registered_rate, int priority){
     if (allocations.find(id) == allocations.end()) {
         return 0;
     } else {

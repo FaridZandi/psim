@@ -46,9 +46,9 @@ Network::reset_bottleneck_registers(){
 } 
 
 void 
-Network::compute_bottleneck_availability(){
+Network::compute_bottleneck_allocations(){
     for (auto bottleneck : this->bottlenecks) {
-        bottleneck->compute_availability();
+        bottleneck->allocate_bandwidths();
     }
 } 
 
@@ -104,7 +104,7 @@ double Network::total_allocated_bandwidth () {
     double total = 0;
 
     for (auto& bn : bottlenecks) {
-        total += bn->pa->total_allocated;
+        total += bn->bwalloc->utilized_bandwidth;
     }
 
     return total;
@@ -223,19 +223,17 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
 }
 
 void FatTreeNetwork::print_core_link_status() {
-    return; 
-
     for (int p = 0; p < pod_count; p++) {
         for (int c = 0; c < core_count; c++) {
             Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
             Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
 
-            spdlog::info("pod {}, core {}, up: {}/{}, down: {}/{}", p, 
-                                                                    c, 
-                                                                    bn_up->current_flow_count,
-                                                                    bn_up->current_flow_size_sum,
-                                                                    bn_down->current_flow_count,
-                                                                    bn_down->current_flow_size_sum);
+            spdlog::info("pod {}, core {}, up: {}/{}, down: {}/{}", 
+                         p, c, 
+                         bn_up->current_flow_count,
+                         bn_up->current_flow_size_sum,
+                         bn_down->current_flow_count,
+                         bn_down->current_flow_size_sum);
             
         }
     }
@@ -290,7 +288,7 @@ void FatTreeNetwork::set_path(Flow* flow) {
                 Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{src_loc.pod, -1, -1, 1, c}];
                 Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{dst_loc.pod, -1, -1, 2, c}];
 
-                double load = bn_up->pa->total_registered + bn_down->pa->total_registered;
+                double load = bn_up->bwalloc->total_registered + bn_down->bwalloc->total_registered;
                 // spdlog::warn("core {} load: {}", c, load);
                 if (load < least_load){
                     least_load = load;
@@ -383,6 +381,22 @@ double psim::Machine::make_progress(double current_time, double step_size,
     return step_comp; 
 }
 
+
+void Bottleneck::setup_bwalloc() {
+    std::string priority_allocator = GConf::inst().priority_allocator;
+    
+    if (priority_allocator == "priorityqueue"){
+        bwalloc = new PriorityQueueBandwidthAllocator(bandwidth);
+    } else if (priority_allocator == "fixedlevels"){
+        bwalloc = new FixedLevelsBandwidthAllocator(bandwidth);
+    } else if (priority_allocator == "fairshare"){
+        bwalloc = new FairShareBandwidthAllocator(bandwidth);
+    } else {
+        spdlog::error("Invalid priority allocator");
+        exit(1);
+    }
+}
+
 Bottleneck::Bottleneck(double bandwidth) {
     this->bandwidth = bandwidth;
     this->current_flow_count = 0;
@@ -390,40 +404,31 @@ Bottleneck::Bottleneck(double bandwidth) {
 
     id = -1; 
 
-    if (GConf::inst().priority_allocator == "priorityqueue"){
-        pa = new PriorityQueuePriorityAllocator(this->bandwidth);
-    } else if (GConf::inst().priority_allocator == "fixedlevels"){
-        pa = new FixedLevelsPriorityAllocator(this->bandwidth);
-    } else if (GConf::inst().priority_allocator == "fairshare"){
-        pa = new FairSharePriorityAllocator(this->bandwidth);
-    } else {
-        spdlog::error("Invalid priority allocator");
-        exit(1);
-    }
+    setup_bwalloc(); 
 }
 
 Bottleneck::~Bottleneck() {
-    delete pa;
+    delete bwalloc;
 }
 
 void Bottleneck::reset_register(){
-    pa->reset();
+    bwalloc->reset();
 }
 
 void Bottleneck::register_rate(int id, double rate, int priority){
-    pa->register_rate(id, rate, priority);
+    bwalloc->register_rate(id, rate, priority);
 }
 
-void Bottleneck::compute_availability(){
-    pa->compute_allocations(); 
+void Bottleneck::allocate_bandwidths(){
+    bwalloc->compute_allocations(); 
 }
 
 double Bottleneck::get_allocated_rate(int id, double registered_rate, int priority){
-    return pa->get_allocated_rate(id, registered_rate, priority);
+    return bwalloc->get_allocated_rate(id, registered_rate, priority);
 }
 
 bool Bottleneck::should_drop(double step_size){
-    double excess = pa->total_registered - bandwidth;
+    double excess = bwalloc->total_registered - bandwidth;
 
     if (excess > 0) {
         // probablity of dropping a packet is proportional to the excess rate 

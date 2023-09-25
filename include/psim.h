@@ -32,23 +32,13 @@ struct history_entry {
 
     int flow_count;
     int step_finished_flows; 
-    int finished_flows_cumulative; 
-
     int comp_task_count; 
     int step_finished_comp_tasks;
-    int finished_comp_task_cumulative;
-    
     double step_comm;
-    double total_comm_cumulative;
-
     double step_comp;
-    double total_comp_cumulative;
-
     double total_allocated_bandwidth;
-    double total_allocated_bandwidth_cumulative;
-
     double total_link_bandwidth;
-    double total_link_bandwidth_cumulative;
+    double total_accelerator_capacity;
 };
 
 

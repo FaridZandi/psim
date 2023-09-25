@@ -1,5 +1,5 @@
-#ifndef PRIO_H
-#define PRIO_H
+#ifndef BWALLOC_H
+#define BWALLOC_H
 
 #include <vector>
 #include <map>
@@ -8,27 +8,29 @@
 namespace psim {
 
 
-class PriorityAllocator {
+class BandwidthAllocator {
 public:
-    PriorityAllocator() {};
-    virtual ~PriorityAllocator() {};
+    BandwidthAllocator() {};
+    virtual ~BandwidthAllocator() {};
     
     double total_available;
     double total_registered;
     double total_allocated; 
+    double utilized_bandwidth;
 
-    virtual void reset() = 0;
+    virtual void reset();
     virtual void register_rate(int id, double rate, int priority) = 0;
     virtual void compute_allocations() = 0;
     virtual double get_allocated_rate(int id, double registered_rate = -1, int priority = -1) = 0;
+    virtual void register_utilization(double utilization);
 private: 
 };
 
 
-class FairSharePriorityAllocator : public PriorityAllocator {
+class FairShareBandwidthAllocator : public BandwidthAllocator {
 public:
-    FairSharePriorityAllocator(double total_available);
-    virtual ~FairSharePriorityAllocator();
+    FairShareBandwidthAllocator(double total_available);
+    virtual ~FairShareBandwidthAllocator();
 
     void reset();
     void register_rate(int id, double rate, int priority);
@@ -37,10 +39,10 @@ public:
 private:
 };
 
-class FixedLevelsPriorityAllocator : public PriorityAllocator {
+class FixedLevelsBandwidthAllocator : public BandwidthAllocator {
 public:
-    FixedLevelsPriorityAllocator(double total_available);
-    virtual ~FixedLevelsPriorityAllocator();
+    FixedLevelsBandwidthAllocator(double total_available);
+    virtual ~FixedLevelsBandwidthAllocator();
 
     int priority_levels; 
 
@@ -57,10 +59,10 @@ private:
 
 
 
-class PriorityQueuePriorityAllocator : public PriorityAllocator {
+class PriorityQueueBandwidthAllocator : public BandwidthAllocator {
 public:
-    PriorityQueuePriorityAllocator(double total_available);
-    virtual ~PriorityQueuePriorityAllocator();
+    PriorityQueueBandwidthAllocator(double total_available);
+    virtual ~PriorityQueueBandwidthAllocator();
 
     // a priority queue, items added with <priority, <id, rate> >
     std::priority_queue<std::pair<int, std::pair<int, double> > > register_queue; 
@@ -74,4 +76,4 @@ private:
 };
 
 } // namespace psim
-#endif // PRIO_H
+#endif // BWALLOC_H

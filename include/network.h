@@ -8,7 +8,7 @@
 #include <deque>
 #include "protocol.h"
 #include "config.h"
-#include "prio.h"
+#include "bwalloc.h"
 
 namespace psim {
 
@@ -39,7 +39,7 @@ public:
     Machine* get_machine(int name);
     
     void reset_bottleneck_registers();
-    void compute_bottleneck_availability();
+    void compute_bottleneck_allocations();
     double make_progress_on_machines(double current_time, double step_size, 
                                      std::vector<PComp*> & step_finished_tasks);
 
@@ -153,10 +153,10 @@ public:
     bool should_drop(double step_size);
 
     // priority allocation wrapper functions 
-    PriorityAllocator* pa; 
+    BandwidthAllocator* bwalloc; 
     void register_rate(int id, double rate, int priority = 0);
     void reset_register(); 
-    void compute_availability(); 
+    void allocate_bandwidths(); 
     double get_allocated_rate(int id, double registered_rate, int priority = 0);
 
     // basic info
@@ -170,9 +170,8 @@ public:
     std::vector<double> total_register_history;
     std::vector<double> total_allocated_history; 
 
-
-
 private: 
+    void setup_bwalloc(); 
 };
 
 } // namespace psim

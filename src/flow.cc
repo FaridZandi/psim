@@ -101,6 +101,10 @@ double Flow::make_progress(double current_time, double step_size) {
         status = PTaskStatus::FINISHED;
     }
     
+    for (auto bottleneck : this->path) {
+        bottleneck->bwalloc->register_utilization(step_progress);
+    }
+
     update_rate(step_size);
 
     return step_progress;
