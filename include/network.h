@@ -23,10 +23,15 @@ class PTask;
 class PComp;
 class EmptyTask;
 
+enum core_selection{
+    RANDOM,
+    ROUND_ROBIN,
+    LEAST_LOADED,
+    FUTURE_LOAD,
+};
+
 class Network {
 public:
-    static int bottleneck_counter;
-
     Network();
     virtual ~Network();
 
@@ -43,12 +48,12 @@ public:
     double make_progress_on_machines(double current_time, double step_size, 
                                      std::vector<PComp*> & step_finished_tasks);
 
-    virtual void set_path(Flow* flow) = 0;
+    virtual void set_path(Flow* flow, double timer) = 0;
 
     Bottleneck* create_bottleneck(double bandwidth);
 
     //temp
-    virtual void print_core_link_status() {}; 
+    virtual void print_core_link_status(double timer) {}; 
 
     virtual double total_link_bandwidth(); 
     virtual double total_allocated_bandwidth(); 
@@ -62,7 +67,7 @@ public:
     BigSwitchNetwork();
     virtual ~BigSwitchNetwork();
 
-    void set_path(Flow* flow);
+    void set_path(Flow* flow, double timer);
 
 private: 
     std::map<int, Bottleneck *> server_bottlenecks_downstream;
@@ -104,7 +109,7 @@ public:
     FatTreeNetwork();
     virtual ~FatTreeNetwork();
 
-    void set_path(Flow* flow);
+    void set_path(Flow* flow, double timer);
 private: 
     int server_count;
     int server_per_rack; 
@@ -129,8 +134,17 @@ private:
     std::map<int, ft_loc> server_loc_map;
     std::map<ft_loc, int> pod_core_agg_map;
 
-    void print_core_link_status();
+    void print_core_link_status(double timer);
+
+    int select_core(Flow* flow, 
+                    double timer, 
+                    core_selection mechanism = core_selection::ROUND_ROBIN);
+
+    int select_agg(Flow* flow);
 };
+
+
+
 
 class Machine {
 public:
@@ -144,6 +158,9 @@ public:
     std::vector<int> task_queue_length_history;
 private:
 };
+
+
+
 
 class Bottleneck {
 public:
@@ -164,13 +181,14 @@ public:
     double bandwidth;
     int current_flow_count; 
     double current_flow_size_sum; 
-    
-    
+    std::vector<Flow*> flows;
+
     // history
     std::vector<double> total_register_history;
     std::vector<double> total_allocated_history; 
 
 private: 
+    static int bottleneck_counter;
     void setup_bwalloc(); 
 };
 

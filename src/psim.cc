@@ -4,22 +4,19 @@
 #include "protocol.h"
 #include "matplotlibcpp.h"
 #include "spdlog/spdlog.h"
+#include "context.h"
 
 using namespace psim;
 
 namespace plt = matplotlibcpp;
 
-int Network::bottleneck_counter = 0;
 static int simulation_counter = 0; 
-
-
 
 PSim::PSim() {
     this->timer = 0;  
     this->total_task_count = 0;
     this->finished_task_count = 0;
     this->step_size = GConf::inst().step_size;
-    
     this->traffic_gen = new TrafficGen(0.5);
 
     if (GConf::inst().network_type == "fattree"){
@@ -79,7 +76,7 @@ void PSim::start_task(PTask *task) {
 
             flow->src = this->network->get_machine(flow->src_dev_id);
             flow->dst = this->network->get_machine(flow->dst_dev_id);
-            this->network->set_path(flow);
+            this->network->set_path(flow, timer);
             flow->initiate(); 
 
             break;
@@ -145,6 +142,7 @@ double PSim::make_progress_on_flows(double current_time,
 double PSim::simulate() {
     
     simulation_counter += 1;
+
     int last_summary_timer = -1; 
     
     for (auto protocol : this->protocols) {
@@ -166,8 +164,11 @@ double PSim::simulate() {
 
         double step_comm = make_progress_on_flows(timer, step_finished_flows);        
         double stop_comp = network->make_progress_on_machines(timer, step_size, step_finished_tasks);
+        
 
-        if (int(timer) % 1000 == 0 and int(timer) != last_summary_timer) {
+        int timer_interval = GConf::inst().core_status_profiling_interval; 
+
+        if (int(timer) % timer_interval == 0 and int(timer) != last_summary_timer) {
             last_summary_timer = int(timer);
 
             spdlog::info("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}", 
@@ -180,7 +181,11 @@ double PSim::simulate() {
 
             spdlog::info("Accelerator Utilization: {}/{}", 0, GConf::inst().machine_count);
 
-            network->print_core_link_status();
+            network->print_core_link_status(timer);
+
+
+
+
         }
 
         for (auto& flow : step_finished_flows) {
@@ -201,7 +206,6 @@ double PSim::simulate() {
 
 
         history_entry h; 
-
         h.time = timer;
         h.flow_count = flows.size();
         h.step_finished_flows = step_finished_flows.size();
@@ -211,9 +215,7 @@ double PSim::simulate() {
         h.step_comp = stop_comp;
         h.total_allocated_bandwidth = network->total_allocated_bandwidth(); 
         h.total_link_bandwidth = network->total_link_bandwidth();
-        h.total_accelerator_capacity = GConf::inst().machine_count;
-        
-
+        h.total_accelerator_capacity = GConf::inst().machine_count * step_size;
         history.push_back(h);
 
 
@@ -266,7 +268,7 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
 
     // drop the last underscore
     plot_name.pop_back();
-    plot_name = "out/" + plot_name + ".png";
+    plot_name = GConf::inst().output_dir + "/" + plot_name + ".png";
     plt::savefig(plot_name, {{"bbox_inches", "tight"}});
     plt::clf();
     

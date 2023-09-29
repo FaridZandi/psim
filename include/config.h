@@ -22,12 +22,14 @@ public:
     bool export_dot = false;  
     bool record_bottleneck_history = false; 
     bool record_machine_history = false; 
-    std::string output_dir = "out/"; 
+    std::string output_dir = "out"; 
     int console_log_level = 2; 
     int file_log_level = 2; 
     std::string network_type = "fattree"; // "fattree" or "bigswitch"
     int bn_priority_levels = 1; 
     std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels" or "fairshare
+    int rep_count = 2; 
+    int core_selection_mechanism = 0; 
 
     // int machine_count = 16;  
     // int ft_server_per_rack = 4; 
@@ -48,6 +50,11 @@ public:
     double ft_server_tor_link_capacity_mult = 1; 
     double ft_tor_agg_link_capacity_mult = 2; 
     double ft_agg_core_link_capacity_mult = 8;
+
+
+    // not added to input arguments yet. modify the options.cc file to add them.
+
+    int core_status_profiling_interval = 100;
 
 private:
     GConf() {}

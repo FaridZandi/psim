@@ -5,7 +5,7 @@
 namespace po = boost::program_options;
 
 namespace psim {
-    void setup_logger(po::variables_map vm); 
+    void setup_logger(); 
 
     po::variables_map parse_arguments(int argc, char** argv); 
 

@@ -41,6 +41,8 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("ft-server-tor-link-capacity-mult", po::value<double>(), "set ft-server-tor-link-capacity-mult")
         ("ft-tor-agg-link-capacity-mult", po::value<double>(), "set ft-tor-agg-link-capacity-mult")
         ("ft-agg-core-link-capacity-mult", po::value<double>(), "set ft-agg-core-link-capacity-mult")
+        ("rep-count", po::value<int>(), "set rep-count")
+        ("core-selection-mechanism", po::value<int>(), "set core selection mechanism")
     ;
 
     po::variables_map vm;
@@ -57,7 +59,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
 
 
 
-void psim::setup_logger(po::variables_map vm) {
+void psim::setup_logger() {
     // remove and create output directory
     std::string rm_command = "rm -rf " + GConf::inst().output_dir;
     std::string mkdir_command = "mkdir " + GConf::inst().output_dir;
@@ -84,6 +86,9 @@ void psim::setup_logger(po::variables_map vm) {
 
 
 void psim::process_arguments(po::variables_map vm){
+    if (vm.count("core-selection-mechanism")) {
+        GConf::inst().core_selection_mechanism = vm["core-selection-mechanism"].as<int>();
+    }
     if (vm.count("console-log-level")) {
         GConf::inst().console_log_level = vm["console-log-level"].as<int>();
     }
@@ -162,6 +167,9 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("record-machine-history")) {
         GConf::inst().record_machine_history = true;
     }
+    if (vm.count("rep-count")) {
+        GConf::inst().rep_count = vm["rep-count"].as<int>();
+    }
 }
 
 void psim::log_config() {
@@ -195,6 +203,8 @@ void psim::log_config() {
     spdlog::info("==== ft_server_tor_link_capacity_mult: {}", GConf::inst().ft_server_tor_link_capacity_mult);
     spdlog::info("==== ft_tor_agg_link_capacity_mult: {}", GConf::inst().ft_tor_agg_link_capacity_mult);
     spdlog::info("==== ft_agg_core_link_capacity_mult: {}", GConf::inst().ft_agg_core_link_capacity_mult);
+    spdlog::info("==== rep_count: {}", GConf::inst().rep_count);
+    spdlog::info("==== core_selection_mechanism: {}", GConf::inst().core_selection_mechanism);
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

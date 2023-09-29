@@ -9,6 +9,7 @@
 #include <sstream>
 #include "spdlog/spdlog.h"
 #include <queue>
+#include "context.h"
 
 using namespace psim;
 
@@ -21,10 +22,18 @@ Flow::~Flow() {
 }
 
 void Flow::initiate(){
+    min_bottleneck_rate = std::numeric_limits<double>::max();
+
+    for (Bottleneck* bottleneck : this->path) {
+        min_bottleneck_rate = std::min(min_bottleneck_rate, bottleneck->bandwidth);
+    }
+
     compute_priority(); 
+
     for (Bottleneck* bottleneck : this->path) {
         bottleneck->current_flow_count += 1;
         bottleneck->current_flow_size_sum += this->size; 
+        bottleneck->flows.push_back(this);
     }
 }
 
@@ -32,7 +41,20 @@ void Flow::finished() {
     for (Bottleneck* bottleneck : this->path) {
         bottleneck->current_flow_count -= 1;
         bottleneck->current_flow_size_sum -= this->size; 
+
+        // remove this flow from the bottleneck's flow list
+        bottleneck->flows.erase(std::remove(bottleneck->flows.begin(), 
+                                            bottleneck->flows.end(), 
+                                            this), 
+                                bottleneck->flows.end());
     }
+
+    double average_rate = this->size / (this->end_time - this->start_time);
+    GContext::inst().flow_avg_transfer_rate[this->id] = average_rate; 
+
+    GContext::this_run().flow_completion_time_map[this->id] = this->end_time - this->start_time;
+
+
 }
 
 void Flow::compute_priority(){
@@ -73,8 +95,10 @@ void Flow::update_rate(double step_size) {
     } else {
         double multipier = pow(rate_increase, step_size);
         current_rate = current_rate * multipier;
+        
     }
 
+    current_rate = std::min(current_rate, min_bottleneck_rate);
     current_rate = std::max(current_rate, min_rate);
 }
 
@@ -82,14 +106,23 @@ double Flow::make_progress(double current_time, double step_size) {
     double allocated_rate = std::numeric_limits<double>::max();
     
     for (auto bottleneck : this->path) {
-        double bn_rate = bottleneck->get_allocated_rate(id, registered_rate, selected_priority);
+        double bn_rate = bottleneck->get_allocated_rate(id, registered_rate, 
+                                                        selected_priority);
+                                                        
         allocated_rate = std::min(allocated_rate, bn_rate);
     }
 
-    bn_allocated_rate = allocated_rate;
     current_rate = allocated_rate;
+
     double step_progress = allocated_rate * step_size;
 
+
+    // TODO: fix this. The time that the flow was actually 
+    // initiated by the protocol runner can also be important. 
+    // In fact, both of these concepts are important. 
+    // So let's keep both numbers for the flow: 
+    // 1. Time that the flow inititiated by the protocol runner
+    // 2. Time that the flow was allowed to make any progress by the network. 
     if (progress == 0 and step_progress > 0) {
         start_time = current_time;
     }
@@ -102,9 +135,10 @@ double Flow::make_progress(double current_time, double step_size) {
     }
     
     for (auto bottleneck : this->path) {
-        bottleneck->bwalloc->register_utilization(step_progress);
+        bottleneck->bwalloc->register_utilization(allocated_rate);
     }
 
+    last_rate = current_rate; 
     update_rate(step_size);
 
     return step_progress;
@@ -137,6 +171,8 @@ void Flow::reset(){
     size = 0;
     progress = 0;
     current_rate = GConf::inst().initial_rate; 
+    min_bottleneck_rate = 0;
+    last_rate = 0; 
     initial_rate = current_rate; 
     rate_increase = GConf::inst().rate_increase;
     min_rate = GConf::inst().min_rate;

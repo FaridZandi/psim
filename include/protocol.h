@@ -91,11 +91,12 @@ public:
     virtual ~Flow();
     
     double current_rate; 
+    double last_rate; 
     double initial_rate; 
     double min_rate; 
     double registered_rate; 
-    double bn_allocated_rate;
     double rate_increase; 
+    double min_bottleneck_rate; 
 
     int src_dev_id; 
     int dst_dev_id; 
