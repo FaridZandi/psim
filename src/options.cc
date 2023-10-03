@@ -1,6 +1,7 @@
 #include "options.h"
 #include "config.h"
 #include <iostream> 
+#include <sys/stat.h>
 
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
@@ -57,21 +58,34 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
     return vm;
 }
 
+void psim::change_log_path(std::string output_dir, std::string log_file_name, bool recreate_dir){
+    GConf::inst().output_dir = output_dir;
+    GConf::inst().log_file_name = log_file_name;
 
+    psim::setup_logger(recreate_dir);
+    psim::log_config();
+}
 
-void psim::setup_logger() {
+void psim::setup_logger(bool recreate_dir) {
     // remove and create output directory
-    std::string rm_command = "rm -rf " + GConf::inst().output_dir;
-    std::string mkdir_command = "mkdir " + GConf::inst().output_dir;
-    int ret = system(rm_command.c_str());
-    ret = system(mkdir_command.c_str());
+
+    struct stat buffer;
+    bool dir_exists = (stat (GConf::inst().output_dir.c_str(), &buffer) == 0);
+    
+    if (recreate_dir or not dir_exists) {
+        std::string rm_command = "rm -rf " + GConf::inst().output_dir;
+        int ret = system(rm_command.c_str());
+
+        std::string mkdir_command = "mkdir -p " + GConf::inst().output_dir;
+        ret = system(mkdir_command.c_str());
+    }
 
     // setup logger
     auto console_sink = std::make_shared<spdlog::sinks::stdout_color_sink_mt>();
     console_sink->set_pattern("[%H:%M:%S.%e] [%^%l%$] %v");
     console_sink->set_level(spdlog::level::level_enum(GConf::inst().console_log_level));
 
-    std::string log_path = GConf::inst().output_dir + "/log.log";
+    std::string log_path = GConf::inst().output_dir + "/" + GConf::inst().log_file_name;
     auto file_sink = std::make_shared<spdlog::sinks::basic_file_sink_mt>(log_path, true);
     file_sink->set_pattern("[%H:%M:%S.%e] [%^%l%$] %v");
     file_sink->set_level(spdlog::level::level_enum(GConf::inst().file_log_level));

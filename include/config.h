@@ -22,7 +22,7 @@ public:
     bool export_dot = false;  
     bool record_bottleneck_history = false; 
     bool record_machine_history = false; 
-    std::string output_dir = "out"; 
+    std::string output_dir = "output/"; 
     int console_log_level = 2; 
     int file_log_level = 2; 
     std::string network_type = "fattree"; // "fattree" or "bigswitch"
@@ -55,6 +55,7 @@ public:
     // not added to input arguments yet. modify the options.cc file to add them.
 
     int core_status_profiling_interval = 100;
+    std::string log_file_name = "log.txt";
 
 private:
     GConf() {}

@@ -215,6 +215,11 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
             pod_core_agg_map[ft_loc{i, -1, -1, -1, c}] = agg_num;
         }
     }
+
+    last_agg_in_pod = new int[pod_count];
+    for (int i = 0; i < pod_count; i++) {
+        last_agg_in_pod[i] = 0;
+    }
 }
 
 FatTreeNetwork::~FatTreeNetwork() {
@@ -234,9 +239,6 @@ void FatTreeNetwork::print_core_link_status(double timer) {
 
     auto& status_up = status.core_link_registered_rate_map_up;
     auto& status_down = status.core_link_registered_rate_map_down;
-    auto& effective_flow_rate_buckets = status.effective_flow_rate_buckets;
-    auto& current_flow_rate_buckets = status.current_flow_rate_buckets;
-    auto& last_flow_rate_buckets = status.last_flow_rate_buckets;
     auto& current_flow_rate_sum = status.current_flow_rate_sum;
     auto& last_flow_rate_sum = status.last_flow_rate_sum;
 
@@ -247,44 +249,17 @@ void FatTreeNetwork::print_core_link_status(double timer) {
             Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
             Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{p, -1, -1, 2, c}];
 
-            // std::cout << "pod: " << p << ", core: " << c << ", up_flows: " << bn_up->bwalloc->utilized_bandwidth << ", down_flows: " << bn_down->bwalloc->utilized_bandwidth  << std::endl;
-
-            // for (auto& flow : bn_up->flows) {
-            //     if (timer == flow->start_time) {
-            //         continue; 
-            //     }
-
-            //     double bw = GConf::inst().link_bandwidth;
-                
-            //     double flow_transmission_time = timer - flow->start_time;
-            //     double effective_rate = flow->progress / flow_transmission_time;
-            //     int effective_rate_bucket = int(effective_rate * 10 / bw);
-            //     effective_flow_rate_buckets[effective_rate_bucket] += 1;
-
-            //     int current_rate_bucket = int(flow->current_rate * 10 / bw);
-            //     current_flow_rate_buckets[current_rate_bucket] += 1;
-            //     current_flow_rate_sum += flow->current_rate;
-
-            //     int last_rate_bucket = int(flow->last_rate * 10 / bw);
-            //     last_flow_rate_buckets[last_rate_bucket] += 1;
-            //     last_flow_rate_sum += flow->last_rate;
-            // }
-            
-
             status_up[std::make_pair(p, c)] = bn_up->bwalloc->total_registered;
             status_down[std::make_pair(p, c)] = bn_down->bwalloc->total_registered;
             
         }
     }
-
-    
 }
 
 
-int FatTreeNetwork::select_agg(Flow* flow) {
-    static int last_agg = 0;
-    int agg_num = last_agg;
-    last_agg = (last_agg + 1) % agg_per_pod;
+int FatTreeNetwork::select_agg(Flow* flow, int pod_number) {
+    int agg_num = last_agg_in_pod[pod_number];
+    last_agg_in_pod[pod_number] = (last_agg_in_pod[pod_number] + 1) % agg_per_pod;
     return agg_num;
 }
 
@@ -471,7 +446,7 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
 
 
 
-        int agg_num = select_agg(flow);
+        int agg_num = select_agg(flow, src_loc.pod);
 
         flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
         // flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);

@@ -22,27 +22,13 @@ void init(int argc, char** argv);
 // main function
 int main(int argc, char** argv) {
     init(argc, argv); 
-
-    int rep_count = GConf::inst().rep_count; 
-
     std::vector<double> psim_time_list;     
-
     
-    for (int rep = 0; rep < rep_count; rep ++) {
-        // GConf::inst().step_size = rep_coun - rep;
-        GConf::inst().output_dir = "output/run-" + std::to_string(rep);
-
-        setup_logger();
-        log_config();
-
-        
-        auto& ctx = GContext::inst();
-
-        // TODO: move this to the context class
-        ctx.run_info_list.push_back(run_info());
+    for (int rep = 0; rep < GConf::inst().rep_count; rep ++) {
+        change_log_path("output/run-" + std::to_string(rep), "runtime.txt", true);
+        GContext::start_new_run();
 
         PSim* psim = new PSim();
-
 
         std::vector<std::string> protocol_file_names;
         boost::split(protocol_file_names, GConf::inst().protocol_file_name, boost::is_any_of(","));
@@ -61,6 +47,7 @@ int main(int argc, char** argv) {
         psim_time_list.push_back(psim_time);
         delete psim;
 
+        change_log_path("output/run-" + std::to_string(rep), "results.txt", false);
         spdlog::critical("psim time: {}.", psim_time);
     }
 
@@ -80,6 +67,6 @@ void init(int argc, char** argv){
     po::variables_map vm = parse_arguments(argc, argv);
     process_arguments(vm);
 
-    setup_logger();
+    setup_logger(true);
     log_config(); 
 }

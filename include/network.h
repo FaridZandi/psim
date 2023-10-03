@@ -116,8 +116,8 @@ private:
     int rack_per_pod;
     int agg_per_pod;
     int pod_count;
-    int core_count;
 
+    int core_count;
     double server_tor_link_capacity; 
     double tor_agg_link_capacity; 
     double agg_core_link_capacity;
@@ -140,9 +140,10 @@ private:
                     double timer, 
                     core_selection mechanism = core_selection::ROUND_ROBIN);
 
-    int select_agg(Flow* flow);
-};
+    int* last_agg_in_pod;
 
+    int select_agg(Flow* flow, int pod_number);
+};
 
 
 
@@ -158,7 +159,6 @@ public:
     std::vector<int> task_queue_length_history;
 private:
 };
-
 
 
 

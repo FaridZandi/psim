@@ -14,10 +14,6 @@ struct core_link_status{
 
     std::set<Flow*> flows;
 
-    int effective_flow_rate_buckets[11]; 
-    int current_flow_rate_buckets[11]; 
-    int last_flow_rate_buckets[11]; 
-
     double current_flow_rate_sum = 0;
     double last_flow_rate_sum = 0; 
 };
@@ -55,6 +51,10 @@ public:
 
     static const int last_decision(int flow_id) {
         return last_run().core_selection_decision_map[flow_id];
+    }
+
+    static void start_new_run() {
+        inst().run_info_list.push_back(run_info());
     }
 
     GContext(GContext const&) = delete;
