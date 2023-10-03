@@ -8,6 +8,7 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
+#include "context.h"
 
 using namespace psim;
 
@@ -246,6 +247,9 @@ psim::load_protocol_from_file(std::string file_path){
                 PComp *compute_task = (PComp *)task;
                 compute_task->size = std::stod(tokens[i + 1]);
                 compute_task->dev_id = std::stoi(tokens[i + 3]);
+                if (GConf::inst().shuffle_device_map){
+                    compute_task->dev_id = GContext::get_device_shuffle_map(compute_task->dev_id);
+                }
 
             } else if (task_type == PTaskType::FLOW) {
 
@@ -253,6 +257,10 @@ psim::load_protocol_from_file(std::string file_path){
                 flow->size = std::stod(tokens[i + 1]);
                 flow->src_dev_id = std::stoi(tokens[i + 3]);
                 flow->dst_dev_id = std::stoi(tokens[i + 5]);
+                if (GConf::inst().shuffle_device_map){
+                    flow->src_dev_id = GContext::get_device_shuffle_map(flow->src_dev_id);
+                    flow->dst_dev_id = GContext::get_device_shuffle_map(flow->dst_dev_id);
+                }
             } else {
                 // empty task
             }

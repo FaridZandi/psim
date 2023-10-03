@@ -176,7 +176,7 @@ double PSim::simulate() {
                           this->finished_task_count, this->total_task_count);
 
             spdlog::info("Bandwidth Utilization: {}/{}", 
-                         network->total_allocated_bandwidth(),
+                         network->total_bw_utilization(),
                          network->total_link_bandwidth());
 
             spdlog::info("Accelerator Utilization: {}/{}", 0, GConf::inst().machine_count);
@@ -213,7 +213,8 @@ double PSim::simulate() {
         h.step_finished_comp_tasks = step_finished_tasks.size();
         h.step_comm = step_comm;
         h.step_comp = stop_comp;
-        h.total_allocated_bandwidth = network->total_allocated_bandwidth(); 
+        h.total_bw_utilization = network->total_bw_utilization(); 
+        h.total_core_bw_utilization = network->total_core_bw_utilization();
         h.total_link_bandwidth = network->total_link_bandwidth();
         h.total_accelerator_capacity = GConf::inst().machine_count * step_size;
         history.push_back(h);
@@ -271,6 +272,7 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
     plot_name = GConf::inst().output_dir + "/" + plot_name + ".png";
     plt::savefig(plot_name, {{"bbox_inches", "tight"}});
     plt::clf();
+    plt::close(); 
     
 }
 
@@ -287,19 +289,19 @@ void PSim::save_run_results(){
         });
 
         draw_plots({
-            {"network-util", [](history_entry h){return h.total_allocated_bandwidth / h.total_link_bandwidth;}},
+            {"network-util", [](history_entry h){return h.total_bw_utilization / h.total_link_bandwidth;}},
             {"accel-util", [](history_entry h){return h.step_comp / h.total_accelerator_capacity;}}
         });
 
         draw_plots({
-            {"t1", [](history_entry h){return h.total_allocated_bandwidth;}},
+            {"t1", [](history_entry h){return h.total_bw_utilization;}},
             {"t2", [](history_entry h){return h.total_link_bandwidth;}},
         });
 
-
-
-
-
+        draw_plots({
+            {"network-util", [](history_entry h){return h.total_bw_utilization;}},
+            {"core-util", [](history_entry h){return h.total_core_bw_utilization;}},
+        });
 
 
         if (GConf::inst().record_machine_history) {
@@ -312,6 +314,7 @@ void PSim::save_run_results(){
                 std::string plot_name = "out/machines/machine_" + std::to_string(machine->name) + ".png";
                 plt::savefig(plot_name, {{"bbox_inches", "tight"}});
                 plt::clf();
+                plt::close(); 
             }
         }
 
@@ -326,6 +329,7 @@ void PSim::save_run_results(){
                 std::string plot_name = "out/bottlenecks/bottleneck_" + std::to_string(bn->id) + ".png";
                 plt::savefig(plot_name, {{"bbox_inches", "tight"}});
                 plt::clf();
+                plt::close(); 
             }
         }
     }

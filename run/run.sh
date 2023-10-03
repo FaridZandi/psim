@@ -19,17 +19,18 @@ cmd="$PSIM_EXE --protocol-file-dir=$INPUT_PATH \
                --protocol-file-name=candle128-simtime.txt \
                --step-size=10 \
                --link-bandwidth=100 \
-               --initial-rate=20 \
-               --min-rate=20 \
+               --initial-rate=100 \
+               --min-rate=5 \
                --ft-core-count=8 \
-               --ft-agg-per-pod=2 \
+               --ft-agg-per-pod=4 \
                --console-log-level=4 \
                --ft-server-tor-link-capacity-mult=1 \
                --ft-tor-agg-link-capacity-mult=1 \
-               --ft-agg-core-link-capacity-mult=1000 \
+               --ft-agg-core-link-capacity-mult=1 \
                --priority-allocator=fairshare \
                --core-selection-mechanism=3 \
                --rep-count=100 \
+               --shuffle-device-map
                $ARGS"
 
 

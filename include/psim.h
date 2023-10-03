@@ -36,7 +36,8 @@ struct history_entry {
     int step_finished_comp_tasks;
     double step_comm;
     double step_comp;
-    double total_allocated_bandwidth;
+    double total_bw_utilization;
+    double total_core_bw_utilization;
     double total_link_bandwidth;
     double total_accelerator_capacity;
 };

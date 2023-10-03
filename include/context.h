@@ -57,6 +57,22 @@ public:
         inst().run_info_list.push_back(run_info());
     }
 
+    static void initiate_device_shuffle_map(){
+        // shuffle nambers between 0 and 127, store them in the map. 
+        std::vector<int> shuffle_list;
+        for(int i = 0; i < 128; i++){
+            shuffle_list.push_back(i);
+        }
+        std::random_shuffle(shuffle_list.begin(), shuffle_list.end());
+        for(int i = 0; i < 128; i++){
+            inst().device_shuffle_map[i] = shuffle_list[i];
+        }
+    }
+
+    static int get_device_shuffle_map(int device_id){
+        return inst().device_shuffle_map[device_id];
+    }
+
     GContext(GContext const&) = delete;
     void operator=(GContext const&) = delete;
 
@@ -65,6 +81,8 @@ public:
     int cut_off_time = 10000000; 
 
     std::vector<run_info> run_info_list;
+
+    std::map<int, int> device_shuffle_map; 
 
 private:
     GContext() {}

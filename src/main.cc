@@ -24,6 +24,8 @@ int main(int argc, char** argv) {
     init(argc, argv); 
     std::vector<double> psim_time_list;     
     
+    GContext::initiate_device_shuffle_map();
+    
     for (int rep = 0; rep < GConf::inst().rep_count; rep ++) {
         change_log_path("output/run-" + std::to_string(rep), "runtime.txt", true);
         GContext::start_new_run();

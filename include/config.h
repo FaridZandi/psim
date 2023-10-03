@@ -30,6 +30,7 @@ public:
     std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels" or "fairshare
     int rep_count = 2; 
     int core_selection_mechanism = 0; 
+    bool shuffle_device_map = false; 
 
     // int machine_count = 16;  
     // int ft_server_per_rack = 4; 

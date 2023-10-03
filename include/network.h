@@ -56,7 +56,8 @@ public:
     virtual void print_core_link_status(double timer) {}; 
 
     virtual double total_link_bandwidth(); 
-    virtual double total_allocated_bandwidth(); 
+    virtual double total_bw_utilization(); 
+    virtual double total_core_bw_utilization();
 private: 
 
 };
@@ -143,6 +144,9 @@ private:
     int* last_agg_in_pod;
 
     int select_agg(Flow* flow, int pod_number);
+
+    double total_core_bw_utilization();
+
 };
 
 

@@ -44,6 +44,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("ft-agg-core-link-capacity-mult", po::value<double>(), "set ft-agg-core-link-capacity-mult")
         ("rep-count", po::value<int>(), "set rep-count")
         ("core-selection-mechanism", po::value<int>(), "set core selection mechanism")
+        ("shuffle-device-map", po::value<int>()->implicit_value(1), "shuffle device map")
     ;
 
     po::variables_map vm;
@@ -100,6 +101,9 @@ void psim::setup_logger(bool recreate_dir) {
 
 
 void psim::process_arguments(po::variables_map vm){
+    if (vm.count("shuffle-device-map")) {
+        GConf::inst().shuffle_device_map = true;
+    }
     if (vm.count("core-selection-mechanism")) {
         GConf::inst().core_selection_mechanism = vm["core-selection-mechanism"].as<int>();
     }
@@ -219,6 +223,7 @@ void psim::log_config() {
     spdlog::info("==== ft_agg_core_link_capacity_mult: {}", GConf::inst().ft_agg_core_link_capacity_mult);
     spdlog::info("==== rep_count: {}", GConf::inst().rep_count);
     spdlog::info("==== core_selection_mechanism: {}", GConf::inst().core_selection_mechanism);
+    spdlog::info("==== shuffle_device_map: {}", GConf::inst().shuffle_device_map);
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

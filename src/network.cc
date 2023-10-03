@@ -100,7 +100,7 @@ double Network::total_link_bandwidth() {
     }
 }
 
-double Network::total_allocated_bandwidth () {
+double Network::total_bw_utilization () {
     double total = 0;
 
     for (auto& bn : bottlenecks) {
@@ -109,6 +109,11 @@ double Network::total_allocated_bandwidth () {
 
     return total;
 }
+
+double Network::total_core_bw_utilization() {
+    return 0; 
+}
+
 //==============================================================================
 
 
@@ -482,6 +487,24 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
     }
 
 }
+
+
+double FatTreeNetwork::total_core_bw_utilization(){
+    double total_utilization = 0; 
+
+    for (int p = 0; p < pod_count; p++) {
+        for (int c = 0; c < core_count; c++) {
+            Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
+            Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{p, -1, -1, 2, c}];
+
+            total_utilization += bn_up->bwalloc->utilized_bandwidth;
+            total_utilization += bn_down->bwalloc->utilized_bandwidth;
+        }
+    }
+
+    return total_utilization;
+}
+
 
 //==============================================================================
 //==============================================================================
