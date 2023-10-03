@@ -50,10 +50,9 @@ void Flow::finished() {
     }
 
     double average_rate = this->size / (this->end_time - this->start_time);
+
     GContext::inst().flow_avg_transfer_rate[this->id] = average_rate; 
-
     GContext::this_run().flow_completion_time_map[this->id] = this->end_time - this->start_time;
-
 
 }
 
@@ -72,6 +71,7 @@ void Flow::compute_priority(){
 
 
 void Flow::register_rate_on_path(double step_size){
+
     double completion_rate = (size - progress) / step_size;
     registered_rate = std::min(completion_rate, current_rate);
 
@@ -123,9 +123,9 @@ double Flow::make_progress(double current_time, double step_size) {
     // So let's keep both numbers for the flow: 
     // 1. Time that the flow inititiated by the protocol runner
     // 2. Time that the flow was allowed to make any progress by the network. 
-    if (progress == 0 and step_progress > 0) {
-        start_time = current_time;
-    }
+    // if (progress == 0 and step_progress > 0) {
+    //     start_time = current_time;
+    // }
 
     progress += step_progress;
     

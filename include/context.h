@@ -6,8 +6,6 @@
 
 
 namespace psim {
-
-
 class Flow; 
 
 struct core_link_status{
@@ -22,14 +20,12 @@ struct core_link_status{
 
     double current_flow_rate_sum = 0;
     double last_flow_rate_sum = 0; 
-
 };
 
 struct run_info{
     std::map<int, core_link_status> core_link_status_map;
-
+    std::map<int, int> core_selection_decision_map; 
     std::map<int, double> flow_completion_time_map;
-    
     int max_time_step = 0;
 };
 
@@ -49,8 +45,16 @@ public:
         return inst().run_info_list[inst().run_info_list.size() - 2];
     }
 
-    static bool last_run_exists() {
-        return inst().run_info_list.size() > 1;
+    static bool first_run() {
+        return inst().run_info_list.size() == 1;
+    }   
+
+    static void save_decision(int flow_id, int decision) {
+        this_run().core_selection_decision_map[flow_id] = decision;
+    }
+
+    static const int last_decision(int flow_id) {
+        return last_run().core_selection_decision_map[flow_id];
     }
 
     GContext(GContext const&) = delete;
@@ -58,7 +62,7 @@ public:
 
     std::map<int, int> core_selection; 
     std::map<int, double> flow_avg_transfer_rate;
-    int cut_off = 0; 
+    int cut_off_time = 10000000; 
 
     std::vector<run_info> run_info_list;
 
