@@ -170,22 +170,7 @@ double PSim::simulate() {
 
         if (int(timer) % timer_interval == 0 and int(timer) != last_summary_timer) {
             last_summary_timer = int(timer);
-
-            spdlog::info("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}", 
-                          int(timer), flows.size(), compute_tasks.size(), 
-                          this->finished_task_count, this->total_task_count);
-
-            spdlog::info("Bandwidth Utilization: {}/{}", 
-                         network->total_bw_utilization(),
-                         network->total_link_bandwidth());
-
-            spdlog::info("Accelerator Utilization: {}/{}", 0, GConf::inst().machine_count);
-
-            network->print_core_link_status(timer);
-
-
-
-
+            network->record_core_link_status(timer);
         }
 
         for (auto& flow : step_finished_flows) {
@@ -215,9 +200,12 @@ double PSim::simulate() {
         h.step_comp = stop_comp;
         h.total_bw_utilization = network->total_bw_utilization(); 
         h.total_core_bw_utilization = network->total_core_bw_utilization();
+        h.min_core_link_bw_utilization = network->min_core_link_bw_utilization();
+        h.max_core_link_bw_utilization = network->max_core_link_bw_utilization();
         h.total_link_bandwidth = network->total_link_bandwidth();
         h.total_accelerator_capacity = GConf::inst().machine_count * step_size;
         history.push_back(h);
+        log_history_entry(h);
 
 
         spdlog::debug("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}", 
@@ -244,6 +232,21 @@ double PSim::simulate() {
     return timer;
 }
 
+void PSim::log_history_entry(history_entry& h){
+    spdlog::info("Time: {}", h.time); 
+    spdlog::info("Flows: {}", h.flow_count);
+    spdlog::info("Step Finished Flows: {}", h.step_finished_flows);
+    spdlog::info("Comp Tasks: {}", h.comp_task_count);
+    spdlog::info("Step Finished Comp Tasks: {}", h.step_finished_comp_tasks);
+    spdlog::info("Step Comm: {}", h.step_comm);
+    spdlog::info("Step Comp: {}", h.step_comp);
+    spdlog::info("Total BW Utilization: {}", h.total_bw_utilization);
+    spdlog::info("Total Core BW Utilization: {}", h.total_core_bw_utilization);
+    spdlog::info("Min Core Link BW Utilization: {}", h.min_core_link_bw_utilization);
+    spdlog::info("Max Core Link BW Utilization: {}", h.max_core_link_bw_utilization);
+    spdlog::info("Total Link Bandwidth: {}", h.total_link_bandwidth);
+    spdlog::info("Total Accelerator Capacity: {}", h.total_accelerator_capacity);
+}
 
 // a function that receives a names and fields, plots them and saves them to a file. 
 // any number of such inputs can be given to the function. 
@@ -281,26 +284,18 @@ void PSim::save_run_results(){
         // plot the data with matplotlibcpp: comm_log, comp_log
 
         draw_plots({
-            {"comp", [](history_entry h){return h.step_comp;}}
-        });
-
-        draw_plots({
-            {"comm", [](history_entry h){return h.step_comm;}},
-        });
-
-        draw_plots({
             {"network-util", [](history_entry h){return h.total_bw_utilization / h.total_link_bandwidth;}},
             {"accel-util", [](history_entry h){return h.step_comp / h.total_accelerator_capacity;}}
         });
 
         draw_plots({
-            {"t1", [](history_entry h){return h.total_bw_utilization;}},
-            {"t2", [](history_entry h){return h.total_link_bandwidth;}},
+            {"network-util", [](history_entry h){return h.total_bw_utilization;}},
+            {"core-util", [](history_entry h){return h.total_core_bw_utilization;}},
         });
 
         draw_plots({
-            {"network-util", [](history_entry h){return h.total_bw_utilization;}},
-            {"core-util", [](history_entry h){return h.total_core_bw_utilization;}},
+            {"min-core-util", [](history_entry h){return h.min_core_link_bw_utilization;}},
+            {"max-core-util", [](history_entry h){return h.max_core_link_bw_utilization;}},
         });
 
 

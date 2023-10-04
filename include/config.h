@@ -29,7 +29,7 @@ public:
     int bn_priority_levels = 1; 
     std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels" or "fairshare
     int rep_count = 2; 
-    int core_selection_mechanism = 0; 
+    std::string core_selection_mechanism = "roundrobin"; 
     bool shuffle_device_map = false; 
 
     // int machine_count = 16;  

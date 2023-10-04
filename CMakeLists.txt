@@ -8,15 +8,13 @@ project(
 set (CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_NUMPY")
-set(CMAKE_BUILD_TYPE DEBUG)
+set(CMAKE_BUILD_TYPE Release)
 
 
 set(Boost_USE_STATIC_LIBS OFF) 
 set(Boost_USE_MULTITHREADED ON)  
 set(Boost_USE_STATIC_RUNTIME OFF) 
 find_package(Boost 1.71.0 COMPONENTS program_options) 
-
-
 
 add_subdirectory(deps/spdlog)
 

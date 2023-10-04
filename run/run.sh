@@ -20,17 +20,17 @@ cmd="$PSIM_EXE --protocol-file-dir=$INPUT_PATH \
                --step-size=10 \
                --link-bandwidth=100 \
                --initial-rate=100 \
-               --min-rate=5 \
-               --ft-core-count=8 \
+               --min-rate=10 \
+               --ft-core-count=4 \
                --ft-agg-per-pod=4 \
                --console-log-level=4 \
                --ft-server-tor-link-capacity-mult=1 \
                --ft-tor-agg-link-capacity-mult=1 \
                --ft-agg-core-link-capacity-mult=1 \
                --priority-allocator=fairshare \
-               --core-selection-mechanism=3 \
-               --rep-count=100 \
+               --core-selection-mechanism=futureload \
                --shuffle-device-map
+               --rep-count=20 \
                $ARGS"
 
 

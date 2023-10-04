@@ -43,7 +43,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("ft-tor-agg-link-capacity-mult", po::value<double>(), "set ft-tor-agg-link-capacity-mult")
         ("ft-agg-core-link-capacity-mult", po::value<double>(), "set ft-agg-core-link-capacity-mult")
         ("rep-count", po::value<int>(), "set rep-count")
-        ("core-selection-mechanism", po::value<int>(), "set core selection mechanism")
+        ("core-selection-mechanism", po::value<std::string>(), "set core selection mechanism")
         ("shuffle-device-map", po::value<int>()->implicit_value(1), "shuffle device map")
     ;
 
@@ -105,7 +105,7 @@ void psim::process_arguments(po::variables_map vm){
         GConf::inst().shuffle_device_map = true;
     }
     if (vm.count("core-selection-mechanism")) {
-        GConf::inst().core_selection_mechanism = vm["core-selection-mechanism"].as<int>();
+        GConf::inst().core_selection_mechanism = vm["core-selection-mechanism"].as<std::string>();
     }
     if (vm.count("console-log-level")) {
         GConf::inst().console_log_level = vm["console-log-level"].as<int>();

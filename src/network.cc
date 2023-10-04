@@ -114,6 +114,17 @@ double Network::total_core_bw_utilization() {
     return 0; 
 }
 
+
+double Network::min_core_link_bw_utilization(){ 
+    return 0;
+} 
+
+double Network::max_core_link_bw_utilization(){
+    return 0;
+}
+
+
+
 //==============================================================================
 
 
@@ -174,6 +185,24 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
         exit(1);
     }
 
+    core_selection cs; 
+    auto mech = GConf::inst().core_selection_mechanism;
+    if (mech == "roundrobin") {
+        cs = core_selection::ROUND_ROBIN;
+    } else if (mech == "random") {
+        cs = core_selection::RANDOM;
+    } else if (mech == "leastloaded") {
+        cs = core_selection::LEAST_LOADED;
+    } else if (mech == "futureload") {
+        cs = core_selection::FUTURE_LOAD;
+    } else {
+        spdlog::critical("core selection mechanism {} not supported.", mech);
+        exit(1);
+    }
+    
+    core_selection_mechanism = cs;
+
+
     core_usage_count = new int[core_count];
     core_usage_sum = new double[core_count];
     for (int i = 0; i < core_count; i++) {
@@ -231,7 +260,7 @@ FatTreeNetwork::~FatTreeNetwork() {
     
 }
 
-void FatTreeNetwork::print_core_link_status(double timer) {
+void FatTreeNetwork::record_core_link_status(double timer) {
 
 
     auto& curr_run_info = GContext::inst().run_info_list.back();
@@ -254,8 +283,8 @@ void FatTreeNetwork::print_core_link_status(double timer) {
             Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
             Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{p, -1, -1, 2, c}];
 
-            status_up[std::make_pair(p, c)] = bn_up->bwalloc->total_registered;
-            status_down[std::make_pair(p, c)] = bn_down->bwalloc->total_registered;
+            status_up[std::make_pair(p, c)] = bn_up->bwalloc->utilized_bandwidth;
+            status_down[std::make_pair(p, c)] = bn_down->bwalloc->utilized_bandwidth;
             
         }
     }
@@ -311,14 +340,14 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
 
     } else if (mechanism == core_selection::FUTURE_LOAD) {
         if (GContext::first_run()) {
-            int core_num = select_core(flow, timer, core_selection::LEAST_LOADED);
+            int core_num = select_core(flow, timer, core_selection::ROUND_ROBIN);
             return core_num; 
         } else { 
 
-            // if (timer > GContext::inst().cut_off_time) {
-            //     int core_num = GContext::inst().last_decision(flow->id);
-            //     return core_num;
-            // }
+            if (timer > GContext::inst().cut_off_time) {
+                int core_num = GContext::inst().last_decision(flow->id);
+                return core_num;
+            }
 
             double flow_transfer_time = GContext::last_run().flow_completion_time_map[flow->id];
             double flow_rate = flow->size / flow_transfer_time;
@@ -400,8 +429,8 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
                 auto& status_up = status.core_link_registered_rate_map_up;
                 auto& status_down = status.core_link_registered_rate_map_down;
 
-                status_up[std::make_pair(src_pod, last_decision)] -= flow_rate;
-                status_down[std::make_pair(dst_pod, last_decision)] -= flow_rate;
+                // status_up[std::make_pair(src_pod, last_decision)] -= flow_rate;
+                // status_down[std::make_pair(dst_pod, last_decision)] -= flow_rate;
 
                 status_up[std::make_pair(src_pod, best_core)] += flow_rate;
                 status_down[std::make_pair(dst_pod, best_core)] += flow_rate;
@@ -461,7 +490,6 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
         // flow->path.push_back(tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, -1, -1, -1}]);
         flow->path.push_back(server_tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_loc.server, 2, -1}]);
     } else {
-        core_selection core_selection_mechanism = (core_selection) GConf::inst().core_selection_mechanism;
         int core_num = select_core(flow, timer, core_selection_mechanism);
 
         GContext::inst().save_decision(flow->id, core_num);
@@ -505,6 +533,37 @@ double FatTreeNetwork::total_core_bw_utilization(){
     return total_utilization;
 }
 
+double FatTreeNetwork::min_core_link_bw_utilization(){
+    double min_utilization = std::numeric_limits<double>::max();
+
+    for (int p = 0; p < pod_count; p++) {
+        for (int c = 0; c < core_count; c++) {
+            Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
+            Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{p, -1, -1, 2, c}];
+
+            double utilization = std::min(bn_up->bwalloc->utilized_bandwidth, bn_down->bwalloc->utilized_bandwidth);
+            min_utilization = std::min(min_utilization, utilization);
+        }
+    }
+
+    return min_utilization;
+}
+
+double FatTreeNetwork::max_core_link_bw_utilization(){
+    double max_utilization = 0;
+
+    for (int p = 0; p < pod_count; p++) {
+        for (int c = 0; c < core_count; c++) {
+            Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
+            Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{p, -1, -1, 2, c}];
+
+            double utilization = std::max(bn_up->bwalloc->utilized_bandwidth, bn_down->bwalloc->utilized_bandwidth);
+            max_utilization = std::max(max_utilization, utilization);
+        }
+    }
+
+    return max_utilization;
+}
 
 //==============================================================================
 //==============================================================================

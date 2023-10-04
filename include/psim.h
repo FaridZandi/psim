@@ -29,7 +29,6 @@ class EmptyTask;
 
 struct history_entry {
     int time;
-
     int flow_count;
     int step_finished_flows; 
     int comp_task_count; 
@@ -38,6 +37,8 @@ struct history_entry {
     double step_comp;
     double total_bw_utilization;
     double total_core_bw_utilization;
+    double min_core_link_bw_utilization;
+    double max_core_link_bw_utilization;
     double total_link_bandwidth;
     double total_accelerator_capacity;
 };
@@ -75,6 +76,7 @@ private:
     int finished_task_count;
 
     std::vector<history_entry> history;
+    void log_history_entry(history_entry& h);
 
     void draw_plots(std::initializer_list<std::pair<std::string, std::function<double(history_entry)>>> plots);
 

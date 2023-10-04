@@ -78,7 +78,8 @@ public:
 
     std::map<int, int> core_selection; 
     std::map<int, double> flow_avg_transfer_rate;
-    int cut_off_time = 10000000; 
+    int cut_off_time = 0; 
+    int cut_off_decrease_step = 0; 
 
     std::vector<run_info> run_info_list;
 

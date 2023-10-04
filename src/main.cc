@@ -26,7 +26,8 @@ int main(int argc, char** argv) {
     
     GContext::initiate_device_shuffle_map();
     
-    for (int rep = 0; rep < GConf::inst().rep_count; rep ++) {
+
+    for (int rep = 1; rep <= GConf::inst().rep_count; rep ++) {
         change_log_path("output/run-" + std::to_string(rep), "runtime.txt", true);
         GContext::start_new_run();
 
@@ -50,14 +51,22 @@ int main(int argc, char** argv) {
         delete psim;
 
         change_log_path("output/run-" + std::to_string(rep), "results.txt", false);
-        spdlog::critical("psim time: {}.", psim_time);
+        spdlog::critical("psim time: {}", psim_time);
+
+        if (rep == 1){
+            GContext::inst().cut_off_time = psim_time;
+            GContext::inst().cut_off_decrease_step = psim_time / GConf::inst().rep_count;
+        } else {
+            GContext::inst().cut_off_time -= GContext::inst().cut_off_decrease_step; 
+        }
+        spdlog::critical("cut off time: {}.", GContext::inst().cut_off_time);
     }
 
-    int run_number = 0; 
-    for (auto psim_time : psim_time_list) {
-        spdlog::critical("run {}: psim time: {}.", run_number, psim_time);
-        run_number ++;
-    }
+    // int run_number = 0; 
+    // for (auto psim_time : psim_time_list) {
+    //     spdlog::critical("run {}: psim time: {}.", run_number, psim_time);
+    //     run_number ++;
+    // }
     return 0;
 }
 

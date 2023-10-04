@@ -23,13 +23,6 @@ class PTask;
 class PComp;
 class EmptyTask;
 
-enum core_selection{
-    RANDOM,
-    ROUND_ROBIN,
-    LEAST_LOADED,
-    FUTURE_LOAD,
-};
-
 class Network {
 public:
     Network();
@@ -53,11 +46,13 @@ public:
     Bottleneck* create_bottleneck(double bandwidth);
 
     //temp
-    virtual void print_core_link_status(double timer) {}; 
+    virtual void record_core_link_status(double timer) {}; 
 
     virtual double total_link_bandwidth(); 
     virtual double total_bw_utilization(); 
     virtual double total_core_bw_utilization();
+    virtual double min_core_link_bw_utilization();
+    virtual double max_core_link_bw_utilization();
 private: 
 
 };
@@ -102,7 +97,12 @@ struct ft_loc{
     }
 };
 
-
+enum core_selection{
+    RANDOM,
+    ROUND_ROBIN,
+    LEAST_LOADED,
+    FUTURE_LOAD,
+};
 
 
 class FatTreeNetwork : public Network {
@@ -135,8 +135,9 @@ private:
     std::map<int, ft_loc> server_loc_map;
     std::map<ft_loc, int> pod_core_agg_map;
 
-    void print_core_link_status(double timer);
+    void record_core_link_status(double timer);
 
+    core_selection core_selection_mechanism;
     int select_core(Flow* flow, 
                     double timer, 
                     core_selection mechanism = core_selection::ROUND_ROBIN);
@@ -146,7 +147,8 @@ private:
     int select_agg(Flow* flow, int pod_number);
 
     double total_core_bw_utilization();
-
+    double min_core_link_bw_utilization();
+    double max_core_link_bw_utilization();
 };
 
 
