@@ -246,6 +246,7 @@ void PSim::log_history_entry(history_entry& h){
     spdlog::info("Max Core Link BW Utilization: {}", h.max_core_link_bw_utilization);
     spdlog::info("Total Link Bandwidth: {}", h.total_link_bandwidth);
     spdlog::info("Total Accelerator Capacity: {}", h.total_accelerator_capacity);
+    spdlog::info("------------------------------------------------------------");
 }
 
 // a function that receives a names and fields, plots them and saves them to a file. 

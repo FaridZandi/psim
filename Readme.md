@@ -30,6 +30,6 @@ make
 ### Run 
 
 ```
-cd build
-run ./psim
+cd run
+./run.sh
 ```

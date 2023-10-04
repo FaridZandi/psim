@@ -429,8 +429,8 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
                 auto& status_up = status.core_link_registered_rate_map_up;
                 auto& status_down = status.core_link_registered_rate_map_down;
 
-                // status_up[std::make_pair(src_pod, last_decision)] -= flow_rate;
-                // status_down[std::make_pair(dst_pod, last_decision)] -= flow_rate;
+                status_up[std::make_pair(src_pod, last_decision)] -= flow_rate;
+                status_down[std::make_pair(dst_pod, last_decision)] -= flow_rate;
 
                 status_up[std::make_pair(src_pod, best_core)] += flow_rate;
                 status_down[std::make_pair(dst_pod, best_core)] += flow_rate;

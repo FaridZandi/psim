@@ -27,7 +27,7 @@ cmd="$PSIM_EXE --protocol-file-dir=$INPUT_PATH \
                --ft-server-tor-link-capacity-mult=1 \
                --ft-tor-agg-link-capacity-mult=1 \
                --ft-agg-core-link-capacity-mult=1 \
-               --priority-allocator=fairshare \
+               --priority-allocator=priorityqueue \
                --core-selection-mechanism=futureload \
                --shuffle-device-map
                --rep-count=20 \
