@@ -3,7 +3,8 @@
 #include <map>
 #include <vector>
 #include <set>
-
+#include <sstream>
+#include <fstream>
 
 namespace psim {
 class Flow; 
@@ -58,15 +59,32 @@ public:
     }
 
     static void initiate_device_shuffle_map(){
-        // shuffle nambers between 0 and 127, store them in the map. 
-        std::vector<int> shuffle_list;
-        for(int i = 0; i < 128; i++){
-            shuffle_list.push_back(i);
+        // read the shuffle map from the file.
+        // there's a permutation of the numbers 0 to 127 in the file, separated by commas.
+
+        std::string path = GConf::inst().shuffle_map_file;
+        std::ifstream file(path);
+        std::string line;
+        std::getline(file, line);
+        std::stringstream ss(line);
+        std::string token;
+        int i = 0;
+        while(std::getline(ss, token, ',')){
+            inst().device_shuffle_map[i] = std::stoi(token);
+            i++;
         }
-        std::random_shuffle(shuffle_list.begin(), shuffle_list.end());
-        for(int i = 0; i < 128; i++){
-            inst().device_shuffle_map[i] = shuffle_list[i];
-        }
+
+        
+
+        // // shuffle nambers between 0 and 127, store them in the map. 
+        // std::vector<int> shuffle_list;
+        // for(int i = 0; i < 128; i++){
+        //     shuffle_list.push_back(i);
+        // }
+        // std::random_shuffle(shuffle_list.begin(), shuffle_list.end());
+        // for(int i = 0; i < 128; i++){
+        //     inst().device_shuffle_map[i] = shuffle_list[i];
+        // }
     }
 
     static int get_device_shuffle_map(int device_id){

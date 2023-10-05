@@ -16,6 +16,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
 
     desc.add_options()
         ("help", "produce help message")
+        ("worker-id", po::value<int>(), "set worker id")
         ("step-size", po::value<double>(), "set step size constant")
         ("rate-increase", po::value<double>(), "set rate increase constant")
         ("initial-rate", po::value<double>(), "set initial rate constant")
@@ -45,6 +46,10 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("rep-count", po::value<int>(), "set rep-count")
         ("core-selection-mechanism", po::value<std::string>(), "set core selection mechanism")
         ("shuffle-device-map", po::value<int>()->implicit_value(1), "shuffle device map")
+        ("shuffle-map-file", po::value<std::string>(), "shuffle map file")
+        ("load-metric", po::value<std::string>(), "load metric")
+        ("core-status-profiling-interval", po::value<int>(), "core status profiling interval")
+        ("log-file-name", po::value<std::string>(), "log file name")
     ;
 
     po::variables_map vm;
@@ -101,8 +106,23 @@ void psim::setup_logger(bool recreate_dir) {
 
 
 void psim::process_arguments(po::variables_map vm){
+    if (vm.count("load-metric")) {
+        GConf::inst().load_metric = vm["load-metric"].as<std::string>();
+    }
+    if (vm.count("core-status-profiling-interval")) {
+        GConf::inst().core_status_profiling_interval = vm["core-status-profiling-interval"].as<int>();
+    }
+    if (vm.count("log-file-name")) {
+        GConf::inst().log_file_name = vm["log-file-name"].as<std::string>();
+    }
+    if (vm.count("worker-id")) {
+        GConf::inst().worker_id = vm["worker-id"].as<int>();
+    }
     if (vm.count("shuffle-device-map")) {
         GConf::inst().shuffle_device_map = true;
+    }   
+    if (vm.count("shuffle-map-file")) {
+        GConf::inst().shuffle_map_file = vm["shuffle-map-file"].as<std::string>();
     }
     if (vm.count("core-selection-mechanism")) {
         GConf::inst().core_selection_mechanism = vm["core-selection-mechanism"].as<std::string>();
@@ -195,6 +215,7 @@ void psim::log_config() {
     spdlog::info("---------------------------------------------");
     spdlog::info("------------  Run Configuration   -----------");
     spdlog::info("---------------------------------------------");
+    spdlog::info("==== worker_id: {}", GConf::inst().worker_id);
     spdlog::info("==== machine_count: {}", GConf::inst().machine_count);
     spdlog::info("==== step_size: {}", GConf::inst().step_size);
     spdlog::info("==== rate_increase: {}", GConf::inst().rate_increase);
@@ -224,6 +245,10 @@ void psim::log_config() {
     spdlog::info("==== rep_count: {}", GConf::inst().rep_count);
     spdlog::info("==== core_selection_mechanism: {}", GConf::inst().core_selection_mechanism);
     spdlog::info("==== shuffle_device_map: {}", GConf::inst().shuffle_device_map);
+    spdlog::info("==== shuffle_map_file: {}", GConf::inst().shuffle_map_file);
+    spdlog::info("==== load_metric: {}", GConf::inst().load_metric);
+    spdlog::info("==== core_status_profiling_interval: {}", GConf::inst().core_status_profiling_interval);
+    spdlog::info("==== log_file_name: {}", GConf::inst().log_file_name);
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

@@ -23,6 +23,13 @@ class PTask;
 class PComp;
 class EmptyTask;
 
+
+enum LoadMetric {
+    REGISTER,
+    UTILIZATION,
+    ALLOCATED,
+};
+
 class Network {
 public:
     Network();
@@ -48,11 +55,16 @@ public:
     //temp
     virtual void record_core_link_status(double timer) {}; 
 
+    LoadMetric load_metric;
+    double get_bottleneck_load(Bottleneck* bn); 
+
     virtual double total_link_bandwidth(); 
     virtual double total_bw_utilization(); 
     virtual double total_core_bw_utilization();
     virtual double min_core_link_bw_utilization();
     virtual double max_core_link_bw_utilization();
+
+
 private: 
 
 };

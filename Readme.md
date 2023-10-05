@@ -31,5 +31,5 @@ make
 
 ```
 cd run
-./run.sh
+python3 run.py
 ```

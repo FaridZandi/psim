@@ -13,6 +13,30 @@
 using namespace psim;
 
 Network::Network() {
+    std::string load_metric_str = GConf::inst().load_metric;
+    if (load_metric_str == "register") {
+        this->load_metric = LoadMetric::REGISTER;
+    } else if (load_metric_str == "utilization") {
+        this->load_metric = LoadMetric::UTILIZATION;
+    } else if (load_metric_str == "allocated") {
+        this->load_metric = LoadMetric::ALLOCATED;
+    } else {
+        spdlog::error("Invalid load metric: {}", load_metric_str);
+        exit(1);
+    }
+}
+
+double Network::get_bottleneck_load(Bottleneck* bn) {
+    if (this->load_metric == LoadMetric::REGISTER) {
+        return bn->bwalloc->total_registered;
+    } else if (this->load_metric == LoadMetric::UTILIZATION) {
+        return bn->bwalloc->utilized_bandwidth;
+    } else if (this->load_metric == LoadMetric::ALLOCATED) {
+        return bn->bwalloc->total_allocated;
+    } else {
+        spdlog::error("Invalid load metric");
+        exit(1);
+    }
 }
 
 Network::~Network() {
@@ -262,7 +286,10 @@ FatTreeNetwork::~FatTreeNetwork() {
 
 void FatTreeNetwork::record_core_link_status(double timer) {
 
-
+    if (core_selection_mechanism != core_selection::FUTURE_LOAD) {
+        return; 
+    }
+    
     auto& curr_run_info = GContext::inst().run_info_list.back();
 
     int timer_int = int(timer);
@@ -275,7 +302,6 @@ void FatTreeNetwork::record_core_link_status(double timer) {
     auto& status_down = status.core_link_registered_rate_map_down;
     auto& current_flow_rate_sum = status.current_flow_rate_sum;
     auto& last_flow_rate_sum = status.last_flow_rate_sum;
-
     curr_run_info.max_time_step = timer_int;
 
     for (int p = 0; p < pod_count; p++) {
@@ -283,9 +309,8 @@ void FatTreeNetwork::record_core_link_status(double timer) {
             Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
             Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{p, -1, -1, 2, c}];
 
-            status_up[std::make_pair(p, c)] = bn_up->bwalloc->utilized_bandwidth;
-            status_down[std::make_pair(p, c)] = bn_down->bwalloc->utilized_bandwidth;
-            
+            status_up[std::make_pair(p, c)] = get_bottleneck_load(bn_up);
+            status_down[std::make_pair(p, c)] = get_bottleneck_load(bn_down);
         }
     }
 }
@@ -315,9 +340,7 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
 
             Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{src_loc.pod, -1, -1, 1, c}];
             Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{dst_loc.pod, -1, -1, 2, c}];
-
-            double load = bn_up->bwalloc->total_registered + bn_down->bwalloc->total_registered;
-            // double load = bn_up->bwalloc->utilized_bandwidth + bn_down->bwalloc->utilized_bandwidth;
+            double load = get_bottleneck_load(bn_up) + get_bottleneck_load(bn_down);
 
             if (load < least_load){
                 least_load = load;
@@ -340,10 +363,9 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
 
     } else if (mechanism == core_selection::FUTURE_LOAD) {
         if (GContext::first_run()) {
-            int core_num = select_core(flow, timer, core_selection::ROUND_ROBIN);
+            int core_num = select_core(flow, timer, core_selection::LEAST_LOADED);
             return core_num; 
         } else { 
-
             if (timer > GContext::inst().cut_off_time) {
                 int core_num = GContext::inst().last_decision(flow->id);
                 return core_num;
@@ -373,18 +395,23 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
                 core_load[c] = 0;
             }
 
+            bool no_profiling_found = true;
+
             for (int prof_time = first_profiling_time; 
                  prof_time <= last_profiling_time; 
                  prof_time += profiling_interval)  {
                 
-                if (GContext::last_run().core_link_status_map.find(prof_time) == GContext::last_run().core_link_status_map.end()) {
+                auto& status_map = GContext::last_run().core_link_status_map;
+                if (status_map.find(prof_time) == status_map.end()) {
                     continue;
                 }
                 if (prof_time > GContext::last_run().max_time_step) {
                     break; 
                 }
 
-                auto& status = GContext::last_run().core_link_status_map[prof_time];
+                no_profiling_found = false;
+
+                auto& status = status_map[prof_time];
                 auto& status_up = status.core_link_registered_rate_map_up;
                 auto& status_down = status.core_link_registered_rate_map_down;
 
@@ -398,6 +425,11 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
                 }
             }
 
+
+            if (no_profiling_found) {
+                int core_num = select_core(flow, timer, core_selection::ROUND_ROBIN);
+                return core_num; 
+            }
 
             int best_core = -1;
             double least_load = std::numeric_limits<double>::max();

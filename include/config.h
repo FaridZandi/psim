@@ -11,6 +11,7 @@ public:
     GConf(GConf const&) = delete;
     void operator=(GConf const&) = delete;
 
+    int worker_id = 0;
     double step_size = 0.01;
     double rate_increase = 1.1; 
     double initial_rate = 10;  
@@ -31,7 +32,8 @@ public:
     int rep_count = 2; 
     std::string core_selection_mechanism = "roundrobin"; 
     bool shuffle_device_map = false; 
-
+    std::string shuffle_map_file = "/home/faridzandi/git/psim/input/shuffle-map.txt";
+    std::string load_metric = "utilization"; // "register", "utilization", "allocated"
     // int machine_count = 16;  
     // int ft_server_per_rack = 4; 
     // int ft_rack_per_pod = 2;
@@ -55,7 +57,7 @@ public:
 
     // not added to input arguments yet. modify the options.cc file to add them.
 
-    int core_status_profiling_interval = 100;
+    int core_status_profiling_interval = 1;
     std::string log_file_name = "log.txt";
 
 private:
