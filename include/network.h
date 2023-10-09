@@ -23,11 +23,18 @@ class PTask;
 class PComp;
 class EmptyTask;
 
-
 enum LoadMetric {
     REGISTER,
     UTILIZATION,
     ALLOCATED,
+};
+
+enum core_selection{
+    RANDOM,
+    ROUND_ROBIN,
+    LEAST_LOADED,
+    FUTURE_LOAD,
+    FUTURE_LOAD_2,
 };
 
 class Network {
@@ -56,7 +63,7 @@ public:
     virtual void record_core_link_status(double timer) {}; 
 
     LoadMetric load_metric;
-    double get_bottleneck_load(Bottleneck* bn); 
+    double get_bottleneck_load(Bottleneck* bn, bool after_cutoff=false); 
 
     virtual double total_link_bandwidth(); 
     virtual double total_bw_utilization(); 
@@ -109,12 +116,7 @@ struct ft_loc{
     }
 };
 
-enum core_selection{
-    RANDOM,
-    ROUND_ROBIN,
-    LEAST_LOADED,
-    FUTURE_LOAD,
-};
+
 
 
 class FatTreeNetwork : public Network {
@@ -204,9 +206,9 @@ public:
     // history
     std::vector<double> total_register_history;
     std::vector<double> total_allocated_history; 
+    static int bottleneck_counter;
 
 private: 
-    static int bottleneck_counter;
     void setup_bwalloc(); 
 };
 

@@ -2,19 +2,42 @@
 #include "config.h"
 #include <algorithm>
 #include "spdlog/spdlog.h"
+#include "context.h"
 
 using namespace psim;
-
 
 void BandwidthAllocator::reset() {
     total_registered = 0;
     total_allocated = 0; 
     utilized_bandwidth = 0;
+
+    total_registered_after_cutoff = 0;
+    total_allocated_after_cutoff = 0;
+    utilized_bandwidth_after_cutoff = 0;
 }
 
-void BandwidthAllocator::register_utilization(double utilization) {
+void BandwidthAllocator::increase_total_registered_rate(int id, double rate) {
+    total_registered += rate;
+
+    if (id > GContext::inst().next_flow_cutoff) {
+        total_registered_after_cutoff += rate;
+    }
+}
+
+void BandwidthAllocator::increase_total_allocated_rate(int id, double allocation) {
+    total_allocated += allocation;
+
+    if (id > GContext::inst().next_flow_cutoff) {
+        total_allocated_after_cutoff += allocation;
+    }
+}
+
+void BandwidthAllocator::register_utilization(int id, double utilization) {
     utilized_bandwidth += utilization;
 
+    if (id > GContext::inst().next_flow_cutoff) {
+        utilized_bandwidth_after_cutoff += utilization;
+    }
 }
 
 FairShareBandwidthAllocator::FairShareBandwidthAllocator(double total_available){
@@ -31,7 +54,7 @@ void FairShareBandwidthAllocator::reset(){
 }
 
 void FairShareBandwidthAllocator::register_rate(int id, double rate, int priority){
-    total_registered += rate;
+    increase_total_registered_rate(id, rate);
 }
 
 void FairShareBandwidthAllocator::compute_allocations(){
@@ -40,11 +63,11 @@ void FairShareBandwidthAllocator::compute_allocations(){
 
 double FairShareBandwidthAllocator::get_allocated_rate(int id, double registered_rate, int priority){
     if (total_registered <= total_available) {
-        total_allocated += registered_rate;
+        increase_total_allocated_rate(id, registered_rate);
         return registered_rate;
     } else {
         double allocated_rate = registered_rate * total_available / total_registered;
-        total_allocated += allocated_rate;
+        increase_total_allocated_rate(id, allocated_rate);
         return allocated_rate;
     }
 }
@@ -90,7 +113,7 @@ void FixedLevelsBandwidthAllocator::register_rate(int id, double rate, int prior
     }
 
     register_map[priority] += rate;
-    total_registered += rate;
+    increase_total_registered_rate(id, rate);
 }
 
 void FixedLevelsBandwidthAllocator::compute_allocations(){
@@ -121,7 +144,7 @@ double FixedLevelsBandwidthAllocator::get_allocated_rate(int id, double register
         allocated_rate = registered_rate * availability_map[priority] / register_map[priority];
     }
 
-    total_allocated += allocated_rate;
+    increase_total_allocated_rate(id, allocated_rate);
 
     return allocated_rate;
 }
@@ -159,7 +182,7 @@ void PriorityQueueBandwidthAllocator::reset(){
 }
 
 void PriorityQueueBandwidthAllocator::register_rate(int id, double rate, int priority){
-    total_registered += rate;
+    increase_total_registered_rate(id, rate);
     register_queue.push(std::make_pair(-1 * priority, std::make_pair(id, rate)));
 }
 
@@ -194,7 +217,7 @@ double PriorityQueueBandwidthAllocator::get_allocated_rate(int id, double regist
         return 0;
     } else {
         double allocated = allocations[id];
-        total_allocated += allocated;
+        increase_total_allocated_rate(id, allocated);
         return allocated;
     }
 }

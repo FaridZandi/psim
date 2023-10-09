@@ -135,7 +135,7 @@ double Flow::make_progress(double current_time, double step_size) {
     }
     
     for (auto bottleneck : this->path) {
-        bottleneck->bwalloc->register_utilization(allocated_rate);
+        bottleneck->bwalloc->register_utilization(id, allocated_rate);
     }
 
     last_rate = current_rate; 

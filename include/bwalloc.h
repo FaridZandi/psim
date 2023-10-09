@@ -14,15 +14,23 @@ public:
     virtual ~BandwidthAllocator() {};
     
     double total_available;
+
     double total_registered;
     double total_allocated; 
     double utilized_bandwidth;
+    
+    double total_registered_after_cutoff;
+    double total_allocated_after_cutoff;
+    double utilized_bandwidth_after_cutoff;
 
     virtual void reset();
     virtual void register_rate(int id, double rate, int priority) = 0;
     virtual void compute_allocations() = 0;
     virtual double get_allocated_rate(int id, double registered_rate = -1, int priority = -1) = 0;
-    virtual void register_utilization(double utilization);
+    virtual void register_utilization(int id, double utilization);
+
+    void increase_total_registered_rate(int id, double rate);
+    void increase_total_allocated_rate(int id, double allocation);
 private: 
 };
 

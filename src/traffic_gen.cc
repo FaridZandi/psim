@@ -14,9 +14,6 @@ TrafficGen::TrafficGen(double load) {
     double all_to_all = (double)machine_count * (double)(machine_count - 1); 
     all_to_all = load * link_bandwidth * all_to_all; 
     double mean_flow_size = get_flow_size_mean();
-
-    
-    
 }
 
 TrafficGen::~TrafficGen() {

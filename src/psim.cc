@@ -187,8 +187,6 @@ double PSim::simulate() {
             compute_tasks.erase(std::remove(compute_tasks.begin(), compute_tasks.end(), task), compute_tasks.end());
             start_next_tasks(task);
         }
-        
-
 
         history_entry h; 
         h.time = timer;
@@ -222,7 +220,6 @@ double PSim::simulate() {
         if (all_finished) {
             break;
         }
-
         
         timer += step_size;
     }

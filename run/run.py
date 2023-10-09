@@ -7,20 +7,24 @@ import matplotlib.pyplot as plt
 import numpy as np
 import sys 
 
+run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 
 # setting up the basic paths
 base_dir = "/home/faridzandi/git/psim" 
 build_path = base_dir + "/build"
-executable = build_path + "/psim"
 run_path = base_dir + "/run"
+base_executable = build_path + "/psim"
+executable = build_path + "/psim-" + run_id
 
 # build the executable, exit if build fails
 os.chdir(build_path)
-os.system("make -j")
-exit_code = os.system("echo $?")
+# run the make -j command, get the exit code
+exit_code = os.system("make -j")
 if exit_code != 0:
-    exit(1)
+    print("make failed, exiting")
+    sys.exit(1)
 os.chdir(run_path)
+os.system("cp {} {}".format(base_executable, executable))
 
 
 # get the parameters from the command line
@@ -46,7 +50,7 @@ options = {
     "rep-count": 10, 
     "link-bandwidth": 100,
     "initial-rate": 100,
-    "min-rate": 10,
+    "min-rate": 100,
     "ft-core-count": 4,
     "ft-agg-per-pod": 4,
     "console-log-level": 3,
@@ -74,3 +78,5 @@ for option in options.items():
 print("running the command:", cmd)            
 
 subprocess.run(cmd, stdout=sys.stdout, stderr=sys.stderr, shell=True)
+
+os.system("rm {}".format(executable))

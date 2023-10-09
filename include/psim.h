@@ -52,6 +52,8 @@ public:
     virtual double simulate();
     void add_protocol(Protocol *protocol);
 
+    std::vector<Flow *> finished_flows;
+
 private: 
     void handle_task_completion(PTask *task);
     void start_next_tasks(PTask *task);
@@ -66,7 +68,6 @@ private:
     std::vector<Flow *> flows; 
     std::vector<PComp *> compute_tasks;
 
-    std::vector<Flow *> finished_flows;
     std::vector<PComp *> finished_compute_tasks;
 
     double timer;

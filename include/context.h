@@ -10,8 +10,12 @@ namespace psim {
 class Flow; 
 
 struct core_link_status{
+    std::map<int, double> link_loads; 
+
+    // old stuff. should be eventually phased out as we move to the new model.
     std::map<std::pair<int, int>, double> core_link_registered_rate_map_up;
     std::map<std::pair<int, int>, double> core_link_registered_rate_map_down;
+
 
     std::set<Flow*> flows;
 
@@ -97,11 +101,16 @@ public:
     std::map<int, int> core_selection; 
     std::map<int, double> flow_avg_transfer_rate;
     int cut_off_time = 0; 
+    int next_cut_off_time = 1e9;
     int cut_off_decrease_step = 0; 
 
     std::vector<run_info> run_info_list;
 
     std::map<int, int> device_shuffle_map; 
+
+    int flow_cutoff = 0; 
+    int next_flow_cutoff = 0;
+    int flow_cutoff_decrease_step = 0;
 
 private:
     GContext() {}

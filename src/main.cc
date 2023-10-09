@@ -27,6 +27,7 @@ int main(int argc, char** argv) {
     GContext::initiate_device_shuffle_map();
     
 
+
     for (int rep = 1; rep <= GConf::inst().rep_count; rep ++) {
         std::string worker_dir = "worker-" + std::to_string(GConf::inst().worker_id) + "/";
         change_log_path(worker_dir + "run-" + std::to_string(rep), "runtime.txt", true);
@@ -49,18 +50,47 @@ int main(int argc, char** argv) {
 
         double psim_time = psim->simulate();
         psim_time_list.push_back(psim_time);
-        delete psim;
 
         change_log_path(worker_dir + "run-" + std::to_string(rep), "results.txt", false);
         spdlog::critical("psim time: {}", psim_time);
 
         if (rep == 1){
-            GContext::inst().cut_off_time = psim_time;
-            GContext::inst().cut_off_decrease_step = psim_time / GConf::inst().rep_count;
+            int time_decrease_step = psim_time / GConf::inst().rep_count;
+
+            GContext::inst().cut_off_decrease_step = time_decrease_step;
+            GContext::inst().cut_off_time = psim_time - time_decrease_step;
+            GContext::inst().next_cut_off_time = psim_time - 2 * time_decrease_step;
+
+            // largest flow number in the protocol 
+            int largest_flow_number = 0; 
+            for (auto flow : psim->finished_flows){
+                if (flow->id > largest_flow_number){
+                    largest_flow_number = flow->id;
+                }
+            }
+            
+            int flow_decrease_step = largest_flow_number / GConf::inst().rep_count;
+            GContext::inst().flow_cutoff_decrease_step = flow_decrease_step;
+            GContext::inst().flow_cutoff = largest_flow_number - flow_decrease_step;
+            GContext::inst().next_flow_cutoff = largest_flow_number - 2 * flow_decrease_step;
         } else {
-            GContext::inst().cut_off_time -= GContext::inst().cut_off_decrease_step; 
+            int time_decrease_step = GContext::inst().cut_off_decrease_step; 
+            GContext::inst().cut_off_time -= time_decrease_step; 
+            GContext::inst().next_cut_off_time -= time_decrease_step;
+
+            int flow_decrease_step = GContext::inst().flow_cutoff_decrease_step;
+            GContext::inst().flow_cutoff -= flow_decrease_step;
+            GContext::inst().next_flow_cutoff -= flow_decrease_step; 
         }
-        spdlog::critical("cut off time: {}.", GContext::inst().cut_off_time);
+
+        // spdlog::critical("cut off time: {}.", GContext::inst().cut_off_time);
+        // spdlog::critical("next cut off time: {}.", GContext::inst().next_cut_off_time);
+
+        spdlog::critical("flow cut off: {}.", GContext::inst().flow_cutoff);
+        spdlog::critical("next flow cut off: {}.", GContext::inst().next_flow_cutoff);
+
+
+        delete psim;
     }
 
     // int run_number = 0; 
