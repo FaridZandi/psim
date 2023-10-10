@@ -291,36 +291,19 @@ void FatTreeNetwork::record_core_link_status(double timer) {
     if (core_selection_mechanism != core_selection::FUTURE_LOAD) {
         return; 
     }
-    
     auto& curr_run_info = GContext::inst().run_info_list.back();
 
     int timer_int = int(timer);
 
-    auto& status = curr_run_info.core_link_status_map[timer_int]; 
+    auto& status = curr_run_info.network_status[timer_int]; 
+    status = core_link_status();
 
-    status = core_link_status(); 
-
-    auto& status_up = status.core_link_registered_rate_map_up;
-    auto& status_down = status.core_link_registered_rate_map_down;
-    auto& current_flow_rate_sum = status.current_flow_rate_sum;
-    auto& last_flow_rate_sum = status.last_flow_rate_sum;
     auto& link_loads = status.link_loads;
-
-    curr_run_info.max_time_step = timer_int;
-
-    for (int p = 0; p < pod_count; p++) {
-        for (int c = 0; c < core_count; c++) {
-            Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{p, -1, -1, 1, c}];
-            Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{p, -1, -1, 2, c}];
-
-            status_up[std::make_pair(p, c)] = get_bottleneck_load(bn_up);
-            status_down[std::make_pair(p, c)] = get_bottleneck_load(bn_down);
-        }
-    }
-
     for (auto bn: bottlenecks) {
         link_loads[bn->id] = get_bottleneck_load(bn);
     }
+
+    curr_run_info.max_time_step = timer_int;
 }
 
 
@@ -437,7 +420,7 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
 
                 no_profiling_found = false;
 
-                auto& status_map = last_run.core_link_status_map;
+                auto& status_map = last_run.network_status;
                 auto& link_loads = status_map[t].link_loads;
 
                 for (int c = 0; c < core_count; c++) {
@@ -492,7 +475,7 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
             for (int t = last_run_prof.first; t <= last_run_prof.second; t += prof_inter)  {
                 if (t > last_run.max_time_step) break;
 
-                auto& status = last_run.core_link_status_map[t];
+                auto& status = last_run.network_status[t];
                 auto& link_loads = status.link_loads;
                 link_loads[last_run_bn_up->id] -= last_flow_rate;
                 link_loads[last_run_bn_down->id] -= last_flow_rate;
@@ -501,7 +484,7 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
             for (int t = this_run_prof.first; t <= this_run_prof.second; t += prof_inter)  {
                 if (t > last_run.max_time_step) break;
 
-                auto& status = last_run.core_link_status_map[t];
+                auto& status = last_run.network_status[t];
                 auto& link_loads = status.link_loads; 
                 link_loads[this_run_bn_up->id] += last_flow_rate;
                 link_loads[this_run_bn_down->id] += last_flow_rate;

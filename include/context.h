@@ -11,22 +11,14 @@ namespace psim {
 class Flow; 
 
 struct core_link_status {
-    std::map<std::pair<int, int>, double> core_link_registered_rate_map_up;
-    std::map<std::pair<int, int>, double> core_link_registered_rate_map_down;
-
     std::map<int, double> link_loads; 
-
-    std::set<Flow*> flows;
-
-    double current_flow_rate_sum = 0;
-    double last_flow_rate_sum = 0; 
 };
 
 struct run_info{
     int run_number = 0; 
     int max_time_step = 0;
 
-    std::map<int, core_link_status> core_link_status_map;
+    std::map<int, core_link_status> network_status;
     std::map<int, int> core_decision; 
     std::map<int, double> flow_fct;
     std::map<int, double> flow_start; 
