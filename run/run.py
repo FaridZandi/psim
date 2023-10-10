@@ -6,21 +6,26 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 import sys 
+import signal
 
+run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 
 # setting up the basic paths
 base_dir = "/home/faridzandi/git/psim" 
 build_path = base_dir + "/build"
-executable = build_path + "/psim"
 run_path = base_dir + "/run"
+base_executable = build_path + "/psim"
+executable = build_path + "/psim-" + run_id
 
 # build the executable, exit if build fails
 os.chdir(build_path)
-os.system("make -j")
-exit_code = os.system("echo $?")
+# run the make -j command, get the exit code
+exit_code = os.system("make -j")
 if exit_code != 0:
-    exit(1)
+    print("make failed, exiting")
+    sys.exit(1)
 os.chdir(run_path)
+os.system("cp {} {}".format(base_executable, executable))
 
 
 # get the parameters from the command line
@@ -56,6 +61,7 @@ options = {
     "ft-agg-core-link-capacity-mult": 1,
     "priority-allocator": "fairshare",
     "core-selection-mechanism": "futureload",
+    "load-metric": "utilization",
     "shuffle-device-map": True,
 }
 
@@ -74,3 +80,5 @@ for option in options.items():
 print("running the command:", cmd)            
 
 subprocess.run(cmd, stdout=sys.stdout, stderr=sys.stderr, shell=True)
+
+os.system("rm {}".format(executable))

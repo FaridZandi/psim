@@ -7,24 +7,36 @@ import matplotlib.pyplot as plt
 import numpy as np
 import queue
 import threading
+import sys
 
 # pd.set_option('display.max_rows', 500)
 # pd.set_option('display.max_columns', 500)
 
 # setting up the basic paths
+
+run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 base_dir = "/home/faridzandi/git/psim" 
 workloads_dir = base_dir + "/input/128search-dpstart-2/"
 build_path = base_dir + "/build"
-executable = build_path + "/psim"
 run_path = base_dir + "/run"
+base_executable = build_path + "/psim"
+executable = build_path + "/psim-" + run_id
+
 protocol_names = list(os.listdir(workloads_dir))[30:39]
 number_worker_threads = 30
 reload_data = True
 exp_results = [] 
-csv_path = "results.csv"
+csv_path = "results-{}.csv".format(run_id)
 
 sweep_config = {	
-    "core-selection-mechanism": ["random", "roundrobin", "leastloaded", "futureload-register", "futureload-utilization", "futureload-allocated"],
+    "core-selection-mechanism": [
+        "random", 
+        "roundrobin", 
+        "leastloaded", 
+        "futureload-register", 
+        "futureload-utilization", 
+        "futureload-allocated"
+    ],
     "priority-allocator": ["fairshare", "priorityqueue"],
     "protocol-file-name": protocol_names,
 }
@@ -132,11 +144,12 @@ if reload_data:
 
     # build the executable, exit if build fails
     os.chdir(build_path)
-    os.system("make -j")
-    exit_code = os.system("echo $?")
+    exit_code = os.system("make -j")
     if exit_code != 0:
-        exit(1)
+        print("make failed, exiting")
+        sys.exit(1)
     os.chdir(run_path)
+    os.system("cp {} {}".format(base_executable, executable))
 
     keys, values = zip(*sweep_config.items())
     permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
@@ -151,7 +164,8 @@ if reload_data:
         
     for t in threads:
         t.join()
-        
+    
+    os.system("rm {}".format(executable))
 
     all_pd_frame = pd.DataFrame(exp_results)
     all_pd_frame.to_csv(csv_path) 

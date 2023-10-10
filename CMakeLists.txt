@@ -6,7 +6,6 @@ project(
   LANGUAGES CXX)
 
 set (CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O1")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DWITHOUT_NUMPY")
 set(CMAKE_BUILD_TYPE Release)
 
@@ -27,6 +26,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 message(STATUS "PYTHON_INCLUDE_DIRS = ${PYTHON_INCLUDE_DIRS}")
 
 set(SOURCES src/psim.cc
+            src/context.cc
             src/bwalloc.cc
             src/network.cc
             src/traffic_gen.cc

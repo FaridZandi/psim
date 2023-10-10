@@ -57,7 +57,7 @@ public:
 
     // not added to input arguments yet. modify the options.cc file to add them.
 
-    int core_status_profiling_interval = 1;
+    int core_status_profiling_interval = 10;
     std::string log_file_name = "log.txt";
 
 private:

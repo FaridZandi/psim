@@ -13,6 +13,8 @@
 using namespace psim;
 
 Network::Network() {
+    Bottleneck::bottleneck_counter = 0;
+
     std::string load_metric_str = GConf::inst().load_metric;
     if (load_metric_str == "register") {
         this->load_metric = LoadMetric::REGISTER;
@@ -302,6 +304,8 @@ void FatTreeNetwork::record_core_link_status(double timer) {
     auto& status_down = status.core_link_registered_rate_map_down;
     auto& current_flow_rate_sum = status.current_flow_rate_sum;
     auto& last_flow_rate_sum = status.last_flow_rate_sum;
+    auto& link_loads = status.link_loads;
+
     curr_run_info.max_time_step = timer_int;
 
     for (int p = 0; p < pod_count; p++) {
@@ -312,6 +316,10 @@ void FatTreeNetwork::record_core_link_status(double timer) {
             status_up[std::make_pair(p, c)] = get_bottleneck_load(bn_up);
             status_down[std::make_pair(p, c)] = get_bottleneck_load(bn_down);
         }
+    }
+
+    for (auto bn: bottlenecks) {
+        link_loads[bn->id] = get_bottleneck_load(bn);
     }
 }
 
@@ -349,46 +357,43 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
         }
         GContext::inst().core_selection[flow->id] = best_core;
         return best_core;
-
-
-
-
+    ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////
     } else if (mechanism == core_selection::RANDOM) {
         int core_num = rand() % core_count;
         return core_num;
-
-
-
-
-
+    ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////
     } else if (mechanism == core_selection::FUTURE_LOAD) {
         if (GContext::first_run()) {
             int core_num = select_core(flow, timer, core_selection::LEAST_LOADED);
             return core_num; 
         } else { 
+            int last_decision = GContext::inst().last_decision(flow->id);
+            auto& last_run = GContext::last_run();
+
             if (timer > GContext::inst().cut_off_time) {
-                int core_num = GContext::inst().last_decision(flow->id);
-                return core_num;
+                return last_decision;
             }
 
-            double flow_transfer_time = GContext::last_run().flow_completion_time_map[flow->id];
-            double flow_rate = flow->size / flow_transfer_time;
-
-            double flow_start_time = timer; 
-            double flow_finish_time = timer + flow_transfer_time;
 
             int profiling_interval = GConf::inst().core_status_profiling_interval; 
-            int first_profiling_time = int(flow_start_time);
-            int last_profiling_time = int(flow_finish_time);
+            double last_flow_transfer_time = last_run.flow_completion_time_map[flow->id];
+            double last_flow_rate = flow->size / last_flow_transfer_time;
 
-            if (first_profiling_time % profiling_interval != 0) {
-                first_profiling_time = (first_profiling_time / profiling_interval + 1) * profiling_interval;
+            double flow_start_time = timer; 
+            double flow_finish_time_estimate = timer + last_flow_transfer_time;
+
+            int prof_start = int(flow_start_time);
+            int prof_end = int(flow_finish_time_estimate);
+
+            if (prof_start % profiling_interval != 0) {
+                prof_start = (prof_start / profiling_interval + 1) * profiling_interval;
             }
 
-            if (last_profiling_time % profiling_interval != 0) {
-                last_profiling_time = (last_profiling_time / profiling_interval) * profiling_interval;
+            if (prof_end % profiling_interval != 0) {
+                prof_end = (prof_end / profiling_interval) * profiling_interval;
             }
-
 
             double core_load[core_count];
             for (int c = 0; c < core_count; c++) {
@@ -397,43 +402,35 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
 
             bool no_profiling_found = true;
 
-            for (int prof_time = first_profiling_time; 
-                 prof_time <= last_profiling_time; 
-                 prof_time += profiling_interval)  {
-                
-                auto& status_map = GContext::last_run().core_link_status_map;
-                if (status_map.find(prof_time) == status_map.end()) {
-                    continue;
-                }
-                if (prof_time > GContext::last_run().max_time_step) {
+            for (int time = prof_start; time <= prof_end; time += profiling_interval)  {
+                if (time > last_run.max_time_step) {
                     break; 
                 }
 
                 no_profiling_found = false;
 
-                auto& status = status_map[prof_time];
-                auto& status_up = status.core_link_registered_rate_map_up;
-                auto& status_down = status.core_link_registered_rate_map_down;
-
+                auto& status_map = last_run.core_link_status_map;
+                auto& link_loads = status_map[time].link_loads;
 
                 for (int c = 0; c < core_count; c++) {
-                    double up_rate = status_up[std::make_pair(src_pod, c)];
-                    double down_rate = status_down[std::make_pair(dst_pod, c)];
+                    auto bn_up = pod_core_bottlenecks[ft_loc{src_pod, -1, -1, 1, c}];
+                    auto bn_down = pod_core_bottlenecks[ft_loc{dst_pod, -1, -1, 2, c}];
+                    double total_rate = link_loads[bn_up->id] + link_loads[bn_down->id];
 
-                    double total_rate = up_rate + down_rate;
+                    if (c == last_decision) {
+                        total_rate -= 2 * last_flow_rate;
+                    }
+
                     core_load[c] += total_rate;
                 }
             }
 
-
             if (no_profiling_found) {
-                int core_num = select_core(flow, timer, core_selection::ROUND_ROBIN);
-                return core_num; 
+                 return select_core(flow, timer, core_selection::ROUND_ROBIN);
             }
 
             int best_core = -1;
             double least_load = std::numeric_limits<double>::max();
-
             for (int c = 0; c < core_count; c++){
                 if (core_load[c] < least_load){
                     least_load = core_load[c];
@@ -441,46 +438,40 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
                 }
             }
 
-            if (best_core == -1) {
-                spdlog::error("best_core == -1");
-                exit(1);
-            }
-            
+            // todo: can I get a better estimate of the flow finishing time now? 
 
-            int last_decision = GContext::inst().last_decision(flow->id);
 
-            for (int prof_time = first_profiling_time; 
-                 prof_time <= last_profiling_time; 
-                 prof_time += profiling_interval)  {
-                    
-                if (prof_time > GContext::last_run().max_time_step) {
+            // update the link loads in the last run, to account for the different decision.
+            for (int time = prof_start; time <= prof_end; time += profiling_interval)  {
+                if (time > last_run.max_time_step) {
                     break; 
                 }
 
-                auto& status = GContext::last_run().core_link_status_map[prof_time];
-                auto& status_up = status.core_link_registered_rate_map_up;
-                auto& status_down = status.core_link_registered_rate_map_down;
+                auto& status = last_run.core_link_status_map[time];
+                auto& link_loads = status.link_loads;
 
-                status_up[std::make_pair(src_pod, last_decision)] -= flow_rate;
-                status_down[std::make_pair(dst_pod, last_decision)] -= flow_rate;
+                auto last_run_bn_up = pod_core_bottlenecks[ft_loc{src_pod, -1, -1, 1, last_decision}];
+                auto last_run_bn_down = pod_core_bottlenecks[ft_loc{dst_pod, -1, -1, 2, last_decision}];
+                auto this_run_bn_up = pod_core_bottlenecks[ft_loc{src_pod, -1, -1, 1, best_core}];
+                auto this_run_bn_down = pod_core_bottlenecks[ft_loc{dst_pod, -1, -1, 2, best_core}];
 
-                status_up[std::make_pair(src_pod, best_core)] += flow_rate;
-                status_down[std::make_pair(dst_pod, best_core)] += flow_rate;
+                link_loads[last_run_bn_up->id] -= last_flow_rate;
+                link_loads[last_run_bn_down->id] -= last_flow_rate;
+                link_loads[this_run_bn_up->id] += last_flow_rate;
+                link_loads[this_run_bn_down->id] += last_flow_rate;
             }
 
             return best_core;
-
         } 
-
+    ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////
     } else if (mechanism == core_selection::ROUND_ROBIN) {
         static int last_core = 0;
         int core_num = last_core;
         last_core = (last_core + 1) % core_count;
         return core_num;
-
-
-
-
+    ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////
     } else {
         spdlog::error("Invalid core selection mechanism");
         exit(1);

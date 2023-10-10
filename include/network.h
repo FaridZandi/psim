@@ -30,6 +30,13 @@ enum LoadMetric {
     ALLOCATED,
 };
 
+enum core_selection{
+    RANDOM,
+    ROUND_ROBIN,
+    LEAST_LOADED,
+    FUTURE_LOAD,
+};
+
 class Network {
 public:
     Network();
@@ -109,12 +116,6 @@ struct ft_loc{
     }
 };
 
-enum core_selection{
-    RANDOM,
-    ROUND_ROBIN,
-    LEAST_LOADED,
-    FUTURE_LOAD,
-};
 
 
 class FatTreeNetwork : public Network {
@@ -184,6 +185,7 @@ class Bottleneck {
 public:
     Bottleneck(double bandwidth);
     virtual ~Bottleneck();
+    static int bottleneck_counter;
 
     bool should_drop(double step_size);
 
@@ -206,7 +208,6 @@ public:
     std::vector<double> total_allocated_history; 
 
 private: 
-    static int bottleneck_counter;
     void setup_bwalloc(); 
 };
 
