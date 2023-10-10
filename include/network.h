@@ -100,20 +100,7 @@ struct ft_loc{
     int dir; 
     int core;
 
-    bool operator<(const ft_loc& rhs) const {
-        if (pod < rhs.pod) return true;
-        if (pod > rhs.pod) return false;
-        if (rack < rhs.rack) return true;
-        if (rack > rhs.rack) return false;
-        if (server < rhs.server) return true;
-        if (server > rhs.server) return false;
-        if (dir < rhs.dir) return true;
-        if (dir > rhs.dir) return false;
-        if (core < rhs.core) return true;
-        if (core > rhs.core) return false; 
-        
-        return false;
-    }
+    bool operator<(const ft_loc& rhs) const;
 };
 
 

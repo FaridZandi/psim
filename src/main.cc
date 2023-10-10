@@ -60,6 +60,7 @@ int main(int argc, char** argv) {
         } else {
             GContext::inst().cut_off_time -= GContext::inst().cut_off_decrease_step; 
         }
+        
         spdlog::critical("cut off time: {}.", GContext::inst().cut_off_time);
     }
 

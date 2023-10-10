@@ -15,7 +15,7 @@ struct core_link_status {
     std::map<std::pair<int, int>, double> core_link_registered_rate_map_down;
 
     std::map<int, double> link_loads; 
-    
+
     std::set<Flow*> flows;
 
     double current_flow_rate_sum = 0;
@@ -23,10 +23,15 @@ struct core_link_status {
 };
 
 struct run_info{
-    std::map<int, core_link_status> core_link_status_map;
-    std::map<int, int> core_selection_decision_map; 
-    std::map<int, double> flow_completion_time_map;
+    int run_number = 0; 
     int max_time_step = 0;
+
+    std::map<int, core_link_status> core_link_status_map;
+    std::map<int, int> core_decision; 
+    std::map<int, double> flow_fct;
+    std::map<int, double> flow_start; 
+    std::map<int, double> flow_end; 
+
 };
 
 
@@ -48,11 +53,11 @@ public:
     void operator=(GContext const&) = delete;
     
     std::map<int, int> core_selection; 
-    std::map<int, double> flow_avg_transfer_rate;
     int cut_off_time = 0; 
     int cut_off_decrease_step = 0; 
     std::vector<run_info> run_info_list;
     std::map<int, int> device_shuffle_map; 
+    int run_counter = 0; 
 
 private:
     GContext();

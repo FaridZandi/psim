@@ -49,10 +49,11 @@ void Flow::finished() {
                                 bottleneck->flows.end());
     }
 
-    double average_rate = this->size / (this->end_time - this->start_time);
+    auto& this_run = GContext::this_run();
+    this_run.flow_start[id] = start_time;
+    this_run.flow_end[id] = end_time;
+    this_run.flow_fct[id] = end_time - start_time;
 
-    GContext::inst().flow_avg_transfer_rate[this->id] = average_rate; 
-    GContext::this_run().flow_completion_time_map[this->id] = this->end_time - this->start_time;
 
 }
 
@@ -95,7 +96,6 @@ void Flow::update_rate(double step_size) {
     } else {
         double multipier = pow(rate_increase, step_size);
         current_rate = current_rate * multipier;
-        
     }
 
     current_rate = std::min(current_rate, min_bottleneck_rate);

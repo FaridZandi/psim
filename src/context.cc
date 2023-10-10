@@ -27,17 +27,21 @@ bool GContext::first_run() {
 }   
 
 void GContext::save_decision(int flow_id, int decision) {
-    this_run().core_selection_decision_map[flow_id] = decision;
+    this_run().core_decision[flow_id] = decision;
 }
 
 const int GContext::last_decision(int flow_id) {
-    return last_run().core_selection_decision_map[flow_id];
+    return last_run().core_decision[flow_id];
 }
 
 void GContext::start_new_run() {
+    inst().run_counter ++;
     inst().run_info_list.push_back(run_info());
+    inst().run_info_list.back().run_number = inst().run_counter;
+
     // keep at most 2 items in the list 
     if (inst().run_info_list.size() > 2) {
+        // remove the first item
         inst().run_info_list.erase(inst().run_info_list.begin());
     }
 
