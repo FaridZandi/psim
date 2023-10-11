@@ -11,7 +11,9 @@ namespace psim {
 class Flow; 
 
 struct core_link_status {
+    int time; 
     std::map<int, double> link_loads; 
+    std::map<int, double> flow_loads;
 };
 
 struct run_info{

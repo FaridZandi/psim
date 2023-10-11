@@ -151,6 +151,41 @@ double Network::max_core_link_bw_utilization(){
 
 
 
+double Network::make_progress_on_flows(double current_time, 
+                                       std::vector<Flow*> & step_finished_flows){
+    
+    double step_size = GConf::inst().step_size;
+    double step_comm = 0; 
+    
+    reset_bottleneck_registers();        
+
+    for (auto& flow : flows) {
+        flow->register_rate_on_path(step_size);
+    }
+
+    compute_bottleneck_allocations();
+
+    for (auto& flow : flows) {
+        step_comm += flow->make_progress(current_time, step_size); 
+        
+        if (flow->status == PTaskStatus::FINISHED) {
+            step_finished_flows.push_back(flow);
+        }
+    }
+
+    if (GConf::inst().record_bottleneck_history){
+        for (auto& bn: bottlenecks){
+            bn->total_register_history.push_back(bn->bwalloc->total_registered);
+            bn->total_allocated_history.push_back(bn->bwalloc->total_allocated);
+        }
+    }
+
+    return step_comm;
+} 
+
+
+
+
 //==============================================================================
 
 
@@ -291,16 +326,26 @@ void FatTreeNetwork::record_core_link_status(double timer) {
     if (core_selection_mechanism != core_selection::FUTURE_LOAD) {
         return; 
     }
+
     auto& curr_run_info = GContext::inst().run_info_list.back();
 
     int timer_int = int(timer);
 
     auto& status = curr_run_info.network_status[timer_int]; 
-    status = core_link_status();
+    status.time = timer_int;
+    
+    // status = core_link_status();
 
     auto& link_loads = status.link_loads;
     for (auto bn: bottlenecks) {
         link_loads[bn->id] = get_bottleneck_load(bn);
+    }
+
+    auto& flow_loads = status.flow_loads;
+    for (auto flow: flows) {
+        flow_loads[flow->id] = flow->last_rate;
+        spdlog::debug("saving load {} for flow {} at time {} in run {}", 
+                      flow->last_rate, flow->id, timer_int, curr_run_info.run_number);
     }
 
     curr_run_info.max_time_step = timer_int;
@@ -397,8 +442,8 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
             spdlog::debug("last decision: {}, last rate: {}, last transfer time: {}", 
                           last_decision, last_flow_rate, last_flow_fct);
             
-            auto last_run_prof = get_prof_limits(timer, timer + last_flow_fct);
-            auto this_run_prof = get_prof_limits(last_flow_start, last_flow_end);
+            auto this_run_prof = get_prof_limits(timer, timer + last_flow_fct);
+            auto last_run_prof = get_prof_limits(last_flow_start, last_flow_end);
             
             spdlog::debug("last run: profiling interval: {}, prof_start: {}, prof_end: {}", 
                           prof_inter, last_run_prof.first, last_run_prof.second);
@@ -422,6 +467,7 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
 
                 auto& status_map = last_run.network_status;
                 auto& link_loads = status_map[t].link_loads;
+                auto& flow_loads = status_map[t].flow_loads;
 
                 for (int c = 0; c < core_count; c++) {
                     auto bn_up = pod_core_bottlenecks[ft_loc{src_pod, -1, -1, 1, c}];
@@ -429,14 +475,20 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
                     double total_rate = link_loads[bn_up->id] + link_loads[bn_down->id];
                     
                     if (c == last_decision) {
-                        if (t >= last_run_prof.first and t <= last_run_prof.second) {
+                        if (t > last_run_prof.first and t <= last_run_prof.second) {
                             // if we are looking at the previous run for the same core 
                             // during the time that the flow was running, then we need to
-                            // subtract the flow rate from the total rate.
-                            total_rate -= 2 * last_flow_rate;
+                            // subtract the flow rate from the total rate, since this core
+                            // current contains thet flow that we're trying to place. 
+
+                            if (flow_loads.find(flow->id) == flow_loads.end()){
+                                spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}", 
+                                              flow->id, t, last_flow_start, last_flow_end, last_run_prof.first, last_run_prof.second);
+                            }
+
+                            total_rate -= 2 * flow_loads[flow->id];
                         }
                     }
-
                     core_load[c] += total_rate;
                 }
             }
@@ -472,18 +524,24 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
             auto this_run_bn_down = pod_core_bottlenecks[ft_loc{dst_pod, -1, -1, 2, best_core}];
 
             // update the link loads in the last run, to account for the different decision.
-            for (int t = last_run_prof.first; t <= last_run_prof.second; t += prof_inter)  {
+            for (int t = last_run_prof.first + prof_inter; t <= last_run_prof.second; t += prof_inter)  {
                 if (t > last_run.max_time_step) break;
 
                 auto& status = last_run.network_status[t];
                 auto& link_loads = status.link_loads;
-                link_loads[last_run_bn_up->id] -= last_flow_rate;
-                link_loads[last_run_bn_down->id] -= last_flow_rate;
+
+                if (status.flow_loads.find(flow->id) == status.flow_loads.end()){
+                    spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}", 
+                        flow->id, t, last_flow_start, last_flow_end, last_run_prof.first, last_run_prof.second);
+                }
+                double flow_load = status.flow_loads[flow->id];
+
+                link_loads[last_run_bn_up->id] -= flow_load;
+                link_loads[last_run_bn_down->id] -= flow_load;
             }
 
             for (int t = this_run_prof.first; t <= this_run_prof.second; t += prof_inter)  {
                 if (t > last_run.max_time_step) break;
-
                 auto& status = last_run.network_status[t];
                 auto& link_loads = status.link_loads; 
                 link_loads[this_run_bn_up->id] += last_flow_rate;

@@ -54,7 +54,10 @@ if "gdb" in params:
 options = {
     "protocol-file-dir": base_dir + "/input/128search-dpstart-2",
     "protocol-file-name": "candle128-simtime.txt",
-    # "protocol-file-name": "vgg128-comm.txt",
+
+    # "protocol-file-dir": base_dir + "/input/base",
+    # "protocol-file-name": "simple.txt",
+
     "step-size": 10,
     "rep-count": 10, 
     "link-bandwidth": 100,
@@ -62,8 +65,8 @@ options = {
     "min-rate": 10,
     "ft-core-count": 4,
     "ft-agg-per-pod": 4,
-    "console-log-level": 3,
-    "file-log-level": 1,
+    "console-log-level": 4,
+    "file-log-level": 4,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
     "ft-agg-core-link-capacity-mult": 1,
@@ -71,6 +74,7 @@ options = {
     "core-selection-mechanism": "futureload",
     "load-metric": "utilization",
     "shuffle-device-map": True,
+    "core-status-profiling-interval": 10,
 }
 
 options.update(params)
@@ -86,7 +90,7 @@ for option in options.items():
         cmd += " --" + option[0] + "=" + str(option[1])
 
 if use_gdb:
-    cmd = "gdb -ex run --args " + cmd
+    cmd = "gdb --args " + cmd
     
 print("running the command:", cmd)            
 

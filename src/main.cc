@@ -55,6 +55,16 @@ int main(int argc, char** argv) {
         spdlog::critical("psim time: {}", psim_time);
 
         if (rep == 1){
+            // auto& ctx = GContext::inst();
+            // auto& this_run = GContext::this_run(); 
+            // for (auto& entry: this_run.network_status) {
+            //     spdlog::critical("time: {}", entry.second.time);
+            //     for (auto& flow_load: entry.second.flow_loads) {
+            //         spdlog::critical("flow: {}, load: {}", flow_load.first, flow_load.second);
+            //     }
+            // }
+            // exit(0); 
+
             GContext::inst().cut_off_time = psim_time;
             GContext::inst().cut_off_decrease_step = psim_time / GConf::inst().rep_count;
         } else {
@@ -63,6 +73,7 @@ int main(int argc, char** argv) {
         
         spdlog::critical("cut off time: {}.", GContext::inst().cut_off_time);
     }
+
 
     // int run_number = 0; 
     // for (auto psim_time : psim_time_list) {

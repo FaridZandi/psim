@@ -71,6 +71,9 @@ public:
     virtual double min_core_link_bw_utilization();
     virtual double max_core_link_bw_utilization();
 
+    std::vector<Flow *> flows; 
+    double make_progress_on_flows(double current_time, std::vector<Flow*> & step_finished_flows); 
+
 
 private: 
 

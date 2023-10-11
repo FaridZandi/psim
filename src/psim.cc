@@ -72,7 +72,7 @@ void PSim::start_task(PTask *task) {
             task->status = PTaskStatus::RUNNING;
             task->start_time = timer;
             Flow* flow = (Flow *)task;
-            this->flows.push_back(flow);
+            this->network->flows.push_back(flow);
 
             flow->src = this->network->get_machine(flow->src_dev_id);
             flow->dst = this->network->get_machine(flow->dst_dev_id);
@@ -106,38 +106,6 @@ void PSim::start_task(PTask *task) {
 }
  
 
-double PSim::make_progress_on_flows(double current_time, 
-                                    std::vector<Flow*> & step_finished_flows){
-
-    double step_comm = 0; 
-    
-    network->reset_bottleneck_registers();        
-
-    for (auto& flow : flows) {
-        flow->register_rate_on_path(step_size);
-    }
-
-    network->compute_bottleneck_allocations();
-
-    for (auto& flow : flows) {
-        step_comm += flow->make_progress(current_time, step_size); 
-        
-        if (flow->status == PTaskStatus::FINISHED) {
-            step_finished_flows.push_back(flow);
-        }
-    }
-
-    if (GConf::inst().record_bottleneck_history){
-        for (auto& bn: network->bottlenecks){
-            bn->total_register_history.push_back(bn->bwalloc->total_registered);
-            bn->total_allocated_history.push_back(bn->bwalloc->total_allocated);
-        }
-    }
-
-    return step_comm;
-} 
-
-
 
 double PSim::simulate() {
     
@@ -162,7 +130,7 @@ double PSim::simulate() {
         std::vector<Flow *> step_finished_flows;
         std::vector<PComp *> step_finished_tasks; 
 
-        double step_comm = make_progress_on_flows(timer, step_finished_flows);        
+        double step_comm = network->make_progress_on_flows(timer, step_finished_flows);        
         double stop_comp = network->make_progress_on_machines(timer, step_size, step_finished_tasks);
         
 
@@ -176,8 +144,11 @@ double PSim::simulate() {
         for (auto& flow : step_finished_flows) {
             finished_flows.push_back(flow);
             handle_task_completion(flow);
-            flow->finished(); 
+            flow->finished();
+
+            auto& flows = network->flows;  
             flows.erase(std::remove(flows.begin(), flows.end(), flow), flows.end());
+            
             start_next_tasks(flow);
         }
 
@@ -192,7 +163,7 @@ double PSim::simulate() {
 
         history_entry h; 
         h.time = timer;
-        h.flow_count = flows.size();
+        h.flow_count = network->flows.size();
         h.step_finished_flows = step_finished_flows.size();
         h.comp_task_count = compute_tasks.size();
         h.step_finished_comp_tasks = step_finished_tasks.size();
@@ -209,7 +180,7 @@ double PSim::simulate() {
 
 
         spdlog::debug("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}", 
-                      int(timer), flows.size(), compute_tasks.size(), 
+                      int(timer), network->flows.size(), compute_tasks.size(), 
                       this->finished_task_count, this->total_task_count);
 
         bool all_finished = true;
@@ -223,7 +194,6 @@ double PSim::simulate() {
             break;
         }
 
-        
         timer += step_size;
     }
     

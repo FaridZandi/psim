@@ -56,18 +56,17 @@ private:
     void handle_task_completion(PTask *task);
     void start_next_tasks(PTask *task);
     void start_task(PTask *task);
-    double make_progress_on_flows(double current_time, std::vector<Flow*> & step_finished_flows); 
     void save_run_results();
 
     Network *network;
     TrafficGen *traffic_gen;
-    
     std::vector<Protocol *> protocols;
-    std::vector<Flow *> flows; 
-    std::vector<PComp *> compute_tasks;
-
     std::vector<Flow *> finished_flows;
     std::vector<PComp *> finished_compute_tasks;
+    
+    // maybe move this to the network later as well. 
+    std::vector<PComp *> compute_tasks;
+
 
     double timer;
     double step_size;
