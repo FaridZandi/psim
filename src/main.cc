@@ -28,7 +28,7 @@ int main(int argc, char** argv) {
     
 
     for (int rep = 1; rep <= GConf::inst().rep_count; rep ++) {
-        std::string worker_dir = "worker-" + std::to_string(GConf::inst().worker_id) + "/";
+        std::string worker_dir = "workers/worker-" + std::to_string(GConf::inst().worker_id) + "/";
         change_log_path(worker_dir + "run-" + std::to_string(rep), "runtime.txt", true);
         GContext::start_new_run();
 
@@ -92,7 +92,7 @@ void init(int argc, char** argv){
     process_arguments(vm);
 
     // output + worker id
-    GConf::inst().output_dir = "worker-" + std::to_string(GConf::inst().worker_id) + "/";
+    GConf::inst().output_dir = "workers/worker-" + std::to_string(GConf::inst().worker_id) + "/";
 
     setup_logger(true);
     log_config(); 

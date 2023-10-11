@@ -32,8 +32,9 @@ public:
     int rep_count = 2; 
     std::string core_selection_mechanism = "roundrobin"; 
     bool shuffle_device_map = false; 
-    std::string shuffle_map_file = "/home/faridzandi/git/psim/input/shuffle-map.txt";
+    std::string shuffle_map_file = "/home/faridzandi/git/psim/input/shuffle/shuffle-map.txt";
     std::string load_metric = "utilization"; // "register", "utilization", "allocated"
+
     // int machine_count = 16;  
     // int ft_server_per_rack = 4; 
     // int ft_rack_per_pod = 2;

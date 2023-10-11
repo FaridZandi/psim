@@ -344,8 +344,6 @@ void FatTreeNetwork::record_core_link_status(double timer) {
     auto& flow_loads = status.flow_loads;
     for (auto flow: flows) {
         flow_loads[flow->id] = flow->last_rate;
-        spdlog::debug("saving load {} for flow {} at time {} in run {}", 
-                      flow->last_rate, flow->id, timer_int, curr_run_info.run_number);
     }
 
     curr_run_info.max_time_step = timer_int;

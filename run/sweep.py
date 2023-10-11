@@ -8,43 +8,65 @@ import numpy as np
 import queue
 import threading
 import sys
+import datetime
+from util import make_shuffle
 
 # pd.set_option('display.max_rows', 500)
 # pd.set_option('display.max_columns', 500)
 
 # setting up the basic paths
-
 run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
-base_dir = "/home/faridzandi/git/psim" 
-workloads_dir = base_dir + "/input/128search-dpstart-2/"
+
+base_dir = "/home/faridzandi/git/psim"
+input_dir = base_dir + "/input/" 
+workloads_dir = input_dir + "128search-dpstart-2/"
 build_path = base_dir + "/build"
 run_path = base_dir + "/run"
 base_executable = build_path + "/psim"
-executable = build_path + "/psim-" + run_id
+run_executable = build_path + "/psim-" + run_id
+shuffle_path  = input_dir + "/shuffle/shuffle-{}.txt".format(run_id)
+results_dir = "results/x-{}/".format(run_id)
+csv_path = results_dir + "results.csv".format(run_id)
+os.system("mkdir -p {}".format(results_dir))
 
-protocol_names = list(os.listdir(workloads_dir))[30:39]
-number_worker_threads = 30
+number_worker_threads = 40
+protocols_count = 10 
 reload_data = True
 exp_results = [] 
-csv_path = "results-{}.csv".format(run_id)
+total_jobs = 0 
 
+# select a random subset of protocols, exclude the random ones
+protocol_names_all = list(os.listdir(workloads_dir))
+protocol_names = [] 
+for protocol in protocol_names_all:
+    if "random" not in protocol: 
+        protocol_names.append(protocol)
+protocol_names = np.random.choice(protocol_names, protocols_count, replace=False)
+protocol_names = list(protocol_names)
+protocol_names.sort()
+
+# configs to sweep over
 sweep_config = {	
     "core-selection-mechanism": [
         "random", 
         "roundrobin", 
         "leastloaded", 
-        "futureload-register", 
-        "futureload-utilization", 
-        "futureload-allocated"
+        "futureload-utilization",
+        "futureload-allocated",
+        # "futureload-register",
     ],
-    "priority-allocator": ["fairshare", "priorityqueue"],
+    "priority-allocator": [
+        "priorityqueue", 
+        "fairshare",
+    ],
     "protocol-file-name": protocol_names,
 }
 
 
+# base options
 base_options = {
     "protocol-file-dir": workloads_dir,
-    "step-size": 2,
+    "step-size": 10,
     "link-bandwidth": 100,
     "initial-rate": 100,
     "min-rate": 10,
@@ -57,13 +79,16 @@ base_options = {
     "ft-agg-core-link-capacity-mult": 1,
     "priority-allocator": "fairshare",
     "shuffle-device-map": True,
-    "rep-count": 50,
+    "core-status-profiling-interval": 10,
+    "load-metric" : "utilization",
+    "shuffle-map-file": shuffle_path,
+    "rep-count": 10,
 }
-    
 
-
-    
 def run_experiment(exp, worker_id):
+    
+    start_time = datetime.datetime.now()
+    
     options = {
         "worker-id": worker_id,
     }
@@ -75,7 +100,7 @@ def run_experiment(exp, worker_id):
         options["core-selection-mechanism"] = "futureload"
         
     # create the command
-    cmd = executable
+    cmd = run_executable
     for option in options.items():
         if option[1] is False:
             continue
@@ -88,13 +113,17 @@ def run_experiment(exp, worker_id):
     output = subprocess.check_output(cmd, shell=True)
     output = output.decode("utf-8")
     
+    end_time = datetime.datetime.now()
+    duration = end_time - start_time
+    
     last_psim_time = 0
     min_psim_time = 1e12
     max_psim_time = 0 
-    
+    all_times = [] 
     for line in output.splitlines():
         if "psim time" in line:
             psim_time = float(line.strip().split(" ")[-1])
+            all_times.append(psim_time)
             if psim_time > max_psim_time:
                 max_psim_time = psim_time
             if psim_time < min_psim_time:
@@ -107,7 +136,10 @@ def run_experiment(exp, worker_id):
         "min_psim_time": min_psim_time,
         "max_psim_time": max_psim_time,
         "last_psim_time": last_psim_time,
+        "all_times": all_times,
+        "exp_duration": duration.microseconds,
     }
+    
     for key, val in sweep_config.items():
         this_exp_results[key] = exp[key]
 
@@ -116,7 +148,7 @@ def run_experiment(exp, worker_id):
     pprint(options)            
     print("min time: {}, max time: {}, last time: {}".format(
         min_psim_time, max_psim_time, last_psim_time))
-    print("jobs completed: {}".format(len(exp_results)))
+    print("jobs completed: {}/{}".format(len(exp_results), total_jobs))
     
 worker_num = 0 
 
@@ -142,6 +174,8 @@ if reload_data:
     exp_q = queue.Queue()
     threads = []
 
+    
+    
     # build the executable, exit if build fails
     os.chdir(build_path)
     exit_code = os.system("make -j")
@@ -149,14 +183,18 @@ if reload_data:
         print("make failed, exiting")
         sys.exit(1)
     os.chdir(run_path)
-    os.system("cp {} {}".format(base_executable, executable))
-
+    os.system("cp {} {}".format(base_executable, run_executable))
+    
+    make_shuffle(128, shuffle_path)
+    
     keys, values = zip(*sweep_config.items())
     permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
     for exp in permutations_dicts:  
         exp_q.put(exp)
 
+    total_jobs = exp_q.qsize()
+    
     for i in range(number_worker_threads):
         t = threading.Thread(target=worker, args=(exp_q,))
         threads.append(t)
@@ -165,7 +203,8 @@ if reload_data:
     for t in threads:
         t.join()
     
-    os.system("rm {}".format(executable))
+    os.system("rm {}".format(run_executable))
+    os.system("mv {} {}".format(shuffle_path, results_dir))
 
     all_pd_frame = pd.DataFrame(exp_results)
     all_pd_frame.to_csv(csv_path) 
@@ -182,9 +221,7 @@ colors = {
     "leastloaded": "yellow",
     "futureload-register": "purple",
     "futureload-allocated": "blue",
-    # a color similar to purple and blue: 
-    "futureload-register": "darkgreen",
-    
+    "futureload-utilization": "darkgreen",
 }
 
 def get_color(mech): 
@@ -199,9 +236,7 @@ core_selection_mechanisms = all_pd_frame["core-selection-mechanism"].unique()
 priority_allocators = all_pd_frame["priority-allocator"].unique()
 
 for allocator in priority_allocators:
-
     pd_frame = all_pd_frame[all_pd_frame["priority-allocator"] == allocator]
-    
     print(pd_frame)
 
     # for each protocol, normalize the times, the max max_time is 1, and everything else is relative to that
@@ -245,13 +280,14 @@ for allocator in priority_allocators:
         
         x_offset = x + (i * bar_width - group_width / 2)
         
+        # increase the density of the hatches
         plt.bar(x_offset, mech_data["rel_max_psim_time"],  
                 width=bar_width, color="white",
-                edgecolor="black", hatch="x", linewidth=2)
+                edgecolor="black", hatch="///", linewidth=2)
         
         plt.bar(x_offset, mech_data["rel_max_psim_time"],  
                 width=bar_width, color=get_color(mech), alpha=0.5,
-                edgecolor="black", hatch="x", linewidth=2)
+                edgecolor="black", hatch="\\\\\\", linewidth=2)
         
         plt.bar(x_offset, mech_data["rel_min_psim_time"], 
                 width=bar_width, label=mech, 
@@ -259,13 +295,12 @@ for allocator in priority_allocators:
         
         plt.plot(x_offset, mech_data["rel_last_psim_time"], 
                 marker="o", color="white", markersize=4, markeredgecolor="black", linestyle="None")
-        
             
-
-    #change the ticks to be the protocol names
+    
     plt.xticks(x, protocols)
-    # rotate the ticks by 45 degrees
     plt.xticks(rotation=90)
-
     plt.legend()
-    plt.savefig(allocator + ".png", bbox_inches="tight", dpi=300)
+    plt.ylabel("Normalized Psim Time")
+    
+    plot_name = results_dir + "{}.png".format(allocator)
+    plt.savefig(plot_name, bbox_inches="tight", dpi=300)

@@ -2,6 +2,7 @@
 #include <fstream>
 #include "context.h"
 #include <cassert>
+#include <iostream> 
 
 using namespace psim;
 
@@ -54,26 +55,18 @@ void GContext::initiate_device_shuffle_map(){
 
     std::string path = GConf::inst().shuffle_map_file;
     std::ifstream file(path);
+    if(!file.good()){
+        std::cout << "shuffle map file not found. exiting." << std::endl;
+        exit(0);
+    }
     std::string line;
     std::getline(file, line);
-    std::stringstream ss(line);
-    std::string token;
+
     int i = 0;
-    while(std::getline(ss, token, ',')){
-        inst().device_shuffle_map[i] = std::stoi(token);
+    while(std::getline(file, line, '\n')){
+        inst().device_shuffle_map[i] = std::stoi(line);
         i++;
     }
-    
-
-    // // shuffle nambers between 0 and 127, store them in the map. 
-    // std::vector<int> shuffle_list;
-    // for(int i = 0; i < 128; i++){
-    //     shuffle_list.push_back(i);
-    // }
-    // std::random_shuffle(shuffle_list.begin(), shuffle_list.end());
-    // for(int i = 0; i < 128; i++){
-    //     inst().device_shuffle_map[i] = shuffle_list[i];
-    // }
 }
 
 int GContext::get_device_shuffle_map(int device_id){
