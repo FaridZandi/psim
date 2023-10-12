@@ -147,7 +147,7 @@ private:
 
     int* last_agg_in_pod;
 
-    int select_agg(Flow* flow, int pod_number);
+    int select_agg(Flow* flow, int pod_number, core_selection mechanism);
 
     double total_core_bw_utilization();
     double min_core_link_bw_utilization();

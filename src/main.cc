@@ -55,23 +55,34 @@ int main(int argc, char** argv) {
         spdlog::critical("psim time: {}", psim_time);
 
         if (rep == 1){
-            // auto& ctx = GContext::inst();
-            // auto& this_run = GContext::this_run(); 
-            // for (auto& entry: this_run.network_status) {
-            //     spdlog::critical("time: {}", entry.second.time);
-            //     for (auto& flow_load: entry.second.flow_loads) {
-            //         spdlog::critical("flow: {}, load: {}", flow_load.first, flow_load.second);
-            //     }
-            // }
-            // exit(0); 
-
             GContext::inst().cut_off_time = psim_time;
             GContext::inst().cut_off_decrease_step = psim_time / GConf::inst().rep_count;
         } else {
             GContext::inst().cut_off_time -= GContext::inst().cut_off_decrease_step; 
-        }
-        
-        spdlog::critical("cut off time: {}.", GContext::inst().cut_off_time);
+        }        
+
+
+
+        // if (rep > 2){
+        //     change_log_path(worker_dir + "run-" + std::to_string(rep), "errors.txt", false);
+        //     auto& this_run = GContext::this_run();
+        //     auto& last_run = GContext::last_run(); 
+        //     for (auto& entry: this_run.flow_fct) {
+        //         int flow_id = entry.first;
+        //         double this_fct = entry.second;
+        //         double last_fct = last_run.flow_fct[flow_id];
+        //         double this_load = this_run.least_load[flow_id];
+        //         double last_load = last_run.least_load[flow_id];
+        //         double error = this_fct / last_fct;
+        //         double error2 = (this_fct * (this_load / last_load)) / last_fct;
+        //         spdlog::critical("lastfct: {} lastload: {} thisfct: {} thisload: {} error: {} error2: {}", 
+        //                          last_fct,
+        //                          last_load,
+        //                          this_fct,
+        //                          this_load,
+        //                          error, error2);
+        //     }
+        // }
     }
 
 

@@ -1,1 +1,6 @@
+__pycache__/
 /build
+/playground/* 
+/run
+/input
+/.vscode

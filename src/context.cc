@@ -23,7 +23,7 @@ run_info& GContext::last_run() {
     return inst().run_info_list[inst().run_info_list.size() - 2];
 }
 
-bool GContext::first_run() {
+bool GContext::is_first_run() {
     return inst().run_info_list.size() == 1;
 }   
 
@@ -57,6 +57,7 @@ void GContext::initiate_device_shuffle_map(){
     std::ifstream file(path);
     if(!file.good()){
         std::cout << "shuffle map file not found. exiting." << std::endl;
+        std::cout << "path: " << path << std::endl;
         exit(0);
     }
     std::string line;

@@ -62,19 +62,20 @@ options = {
     "rep-count": 10, 
     "link-bandwidth": 100,
     "initial-rate": 100,
-    "min-rate": 10,
+    "min-rate": 50,
     "ft-core-count": 4,
     "ft-agg-per-pod": 4,
     "console-log-level": 4,
     "file-log-level": 4,
     "ft-server-tor-link-capacity-mult": 1,
-    "ft-tor-agg-link-capacity-mult": 1,
-    "ft-agg-core-link-capacity-mult": 1,
-    "priority-allocator": "fairshare",
+    "ft-tor-agg-link-capacity-mult": 2,
+    "ft-agg-core-link-capacity-mult": 2,
+    "priority-allocator": "fairshare", #"priorityqueue", #
     "core-selection-mechanism": "futureload",
     "load-metric": "utilization",
     "shuffle-device-map": True,
     "core-status-profiling-interval": 10,
+    "shuffle-map-file": base_dir + "/input/shuffle/shuffle-map.txt",
 }
 
 options.update(params)

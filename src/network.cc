@@ -350,10 +350,20 @@ void FatTreeNetwork::record_core_link_status(double timer) {
 }
 
 
-int FatTreeNetwork::select_agg(Flow* flow, int pod_number) {
-    int agg_num = last_agg_in_pod[pod_number];
-    last_agg_in_pod[pod_number] = (last_agg_in_pod[pod_number] + 1) % agg_per_pod;
-    return agg_num;
+int FatTreeNetwork::select_agg(Flow* flow, int pod_number, core_selection mechanism) {
+
+    if(mechanism == core_selection::FUTURE_LOAD){
+        if (GContext::is_first_run()) {
+            return select_agg(flow, pod_number, core_selection::ROUND_ROBIN);
+        } 
+        int last_decision = GContext::inst().last_decision(flow->id);
+        return last_decision;
+    } else {
+        int agg_num = last_agg_in_pod[pod_number];
+        last_agg_in_pod[pod_number] = (last_agg_in_pod[pod_number] + 1) % agg_per_pod;
+        return agg_num;
+    }
+
 }
 
 std::pair<int, int> get_prof_limits(double start_time, double end_time){
@@ -409,13 +419,15 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
     ///////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////
     } else if (mechanism == core_selection::FUTURE_LOAD) {
-        if (GContext::first_run()) {
+        if (GContext::is_first_run()) {
             int core_num = select_core(flow, timer, core_selection::ROUND_ROBIN);
             return core_num; 
         } else { 
 
-            int last_decision = GContext::inst().last_decision(flow->id);
+            int last_decision = GContext::last_decision(flow->id);
             auto& last_run = GContext::last_run();
+
+            // return last_decision;
 
             // if (timer > GContext::inst().cut_off_time) {
             //     return last_decision;
@@ -430,25 +442,8 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
             double last_flow_rate = flow->size / last_flow_fct;
             double flow_finish_estimate = timer + last_flow_fct;
 
-            if (last_flow_fct == 0) {
-                spdlog::error("last flow fct is 0");
-            }
-
-            spdlog::debug("flow {}: last start: {}, last finish: {}", 
-                          flow->id, last_flow_start, last_flow_end);
-
-            spdlog::debug("last decision: {}, last rate: {}, last transfer time: {}", 
-                          last_decision, last_flow_rate, last_flow_fct);
-            
             auto this_run_prof = get_prof_limits(timer, timer + last_flow_fct);
             auto last_run_prof = get_prof_limits(last_flow_start, last_flow_end);
-            
-            spdlog::debug("last run: profiling interval: {}, prof_start: {}, prof_end: {}", 
-                          prof_inter, last_run_prof.first, last_run_prof.second);
-            
-            spdlog::debug("this run: profiling interval: {}, prof_start: {}, prof_end: {}",
-                            prof_inter, this_run_prof.first, this_run_prof.second);
-
 
             double core_load[core_count];
             for (int c = 0; c < core_count; c++) {
@@ -509,6 +504,7 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
                     best_core = c;
                 }
             }
+            GContext::this_run().least_load[flow->id] = least_load / last_flow_fct;
 
             spdlog::debug("last decision: {}, this decision: {}", last_decision, best_core);
             spdlog::debug("-----------------------------------------------------------------");
@@ -586,9 +582,8 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
     }
     else if (same_pod) {
 
-
-
-        int agg_num = select_agg(flow, src_loc.pod);
+        int agg_num = select_agg(flow, src_loc.pod, core_selection_mechanism);
+        GContext::inst().save_decision(flow->id, agg_num);
 
         flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
         // flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
@@ -599,7 +594,6 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
         flow->path.push_back(server_tor_bottlenecks[ft_loc{dst_loc.pod, dst_loc.rack, dst_loc.server, 2, -1}]);
     } else {
         int core_num = select_core(flow, timer, core_selection_mechanism);
-
         GContext::inst().save_decision(flow->id, core_num);
 
 

@@ -29,8 +29,8 @@ results_dir = "results/x-{}/".format(run_id)
 csv_path = results_dir + "results.csv".format(run_id)
 os.system("mkdir -p {}".format(results_dir))
 
-number_worker_threads = 40
-protocols_count = 10 
+number_worker_threads = 20
+protocols_count = 36 
 reload_data = True
 exp_results = [] 
 total_jobs = 0 
@@ -48,11 +48,11 @@ protocol_names.sort()
 # configs to sweep over
 sweep_config = {	
     "core-selection-mechanism": [
+        "futureload-utilization",
+        # "futureload-allocated",
         "random", 
         "roundrobin", 
         "leastloaded", 
-        "futureload-utilization",
-        "futureload-allocated",
         # "futureload-register",
     ],
     "priority-allocator": [
@@ -82,7 +82,7 @@ base_options = {
     "core-status-profiling-interval": 10,
     "load-metric" : "utilization",
     "shuffle-map-file": shuffle_path,
-    "rep-count": 10,
+    "rep-count": 2,
 }
 
 def run_experiment(exp, worker_id):

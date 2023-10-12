@@ -25,6 +25,7 @@ struct run_info{
     std::map<int, double> flow_fct;
     std::map<int, double> flow_start; 
     std::map<int, double> flow_end; 
+    std::map<int, double> least_load; 
 
 };
 
@@ -35,7 +36,7 @@ public:
     static GContext& inst();
     static run_info& this_run();
     static run_info& last_run() ;
-    static bool first_run() ;
+    static bool is_first_run() ;
     static void save_decision(int flow_id, int decision);
     static const int last_decision(int flow_id);
     static void start_new_run();
