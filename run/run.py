@@ -8,6 +8,7 @@ import numpy as np
 import sys 
 import signal
 import matplotlib
+import resource
 
 run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 
@@ -62,14 +63,14 @@ options = {
     "rep-count": 10, 
     "link-bandwidth": 100,
     "initial-rate": 100,
-    "min-rate": 50,
+    "min-rate": 1,
     "ft-core-count": 4,
     "ft-agg-per-pod": 4,
     "console-log-level": 4,
     "file-log-level": 4,
     "ft-server-tor-link-capacity-mult": 1,
-    "ft-tor-agg-link-capacity-mult": 2,
-    "ft-agg-core-link-capacity-mult": 2,
+    "ft-tor-agg-link-capacity-mult": 1,
+    "ft-agg-core-link-capacity-mult": 1,
     "priority-allocator": "fairshare", #"priorityqueue", #
     "core-selection-mechanism": "futureload",
     "load-metric": "utilization",
@@ -101,6 +102,10 @@ print("running the command:", cmd)
 # maintain the color coding of the output
 
 psim_times = []
+
+memory_limit_kb = 1.1 * 1e9
+memory_limit_kb = int(memory_limit_kb)
+resource.setrlimit(resource.RLIMIT_AS, (memory_limit_kb, memory_limit_kb))
 
 p = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, shell=True, preexec_fn=os.setsid)
 for line in iter(p.stdout.readline, b''):

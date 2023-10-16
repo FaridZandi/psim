@@ -54,6 +54,8 @@ void Flow::finished() {
     this_run.flow_end[id] = end_time;
     this_run.flow_fct[id] = end_time - start_time;
 
+    
+
 
 }
 
