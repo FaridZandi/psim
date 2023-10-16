@@ -5,7 +5,7 @@
 #include <vector>
 #include <set>
 
-#include "config.h"
+#include "gconfig.h"
 
 namespace psim {
 class Flow; 

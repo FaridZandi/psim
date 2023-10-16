@@ -7,7 +7,7 @@
 #include <queue>
 #include <deque>
 #include "protocol.h"
-#include "config.h"
+#include "gconfig.h"
 #include "bwalloc.h"
 
 namespace psim {

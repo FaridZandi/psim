@@ -1,5 +1,5 @@
 #include "traffic_gen.h"
-#include "config.h"
+#include "gconfig.h"
 
 using namespace psim; 
 

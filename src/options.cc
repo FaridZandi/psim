@@ -1,5 +1,5 @@
 #include "options.h"
-#include "config.h"
+#include "gconfig.h"
 #include <iostream> 
 #include <sys/stat.h>
 

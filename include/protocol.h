@@ -5,7 +5,7 @@
 #include <map>
 #include <ostream>
 #include "network.h"
-#include "config.h"
+#include "gconfig.h"
 
 
 namespace psim {

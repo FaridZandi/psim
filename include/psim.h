@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include <iomanip>
 #include <fstream>
-#include "config.h"
+#include "gconfig.h"
 #include "traffic_gen.h"
 #include <functional>
 

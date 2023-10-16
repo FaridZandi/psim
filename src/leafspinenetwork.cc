@@ -6,8 +6,8 @@
 #include <set> 
 
 #include "network.h"
-#include "config.h"
-#include "context.h"
+#include "gconfig.h"
+#include "gcontext.h"
 #include "spdlog/spdlog.h"
 
 using namespace psim; 

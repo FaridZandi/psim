@@ -4,7 +4,7 @@
 #include "protocol.h"
 #include "matplotlibcpp.h"
 #include "spdlog/spdlog.h"
-#include "context.h"
+#include "gcontext.h"
 
 using namespace psim;
 

@@ -9,7 +9,7 @@
 #include <boost/program_options.hpp>
 #include <boost/algorithm/string.hpp>
 #include "spdlog/spdlog.h"
-#include "context.h"
+#include "gcontext.h"
 
 namespace po = boost::program_options;
 using namespace psim;

@@ -1,5 +1,5 @@
 #include "bwalloc.h"
-#include "config.h"
+#include "gconfig.h"
 #include <algorithm>
 #include "spdlog/spdlog.h"
 

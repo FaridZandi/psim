@@ -8,7 +8,7 @@
 #include "spdlog/spdlog.h"
 
 #include "network.h"
-#include "context.h"
+#include "gcontext.h"
 
 using namespace psim;
 

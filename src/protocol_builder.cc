@@ -8,7 +8,7 @@
 #include <cmath>
 #include <fstream>
 #include <sstream>
-#include "context.h"
+#include "gcontext.h"
 
 using namespace psim;
 
