@@ -23,6 +23,8 @@ PSim::PSim() {
         this->network = new FatTreeNetwork();
     } else if (GConf::inst().network_type == "bigswitch"){
         this->network = new BigSwitchNetwork();
+    } else if (GConf::inst().network_type == "leafspine"){
+        this->network = new LeafSpineNetwork();
     } else {
         spdlog::error("Unknown network type: {}", GConf::inst().network_type);
         exit(1);

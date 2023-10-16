@@ -106,7 +106,7 @@ struct ft_loc{
     bool operator<(const ft_loc& rhs) const;
 };
 
-
+std::pair<int, int> get_prof_limits(double start_time, double end_time);
 
 class FatTreeNetwork : public Network {
 public:
@@ -128,9 +128,6 @@ private:
 
     int core_link_per_agg;
 
-    int * core_usage_count;
-    double * core_usage_sum;
-
     std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
     std::map<ft_loc, Bottleneck *> tor_agg_bottlenecks;
     std::map<ft_loc, Bottleneck *> pod_core_bottlenecks;
@@ -148,6 +145,42 @@ private:
     int* last_agg_in_pod;
 
     int select_agg(Flow* flow, int pod_number, core_selection mechanism);
+
+    double total_core_bw_utilization();
+    double min_core_link_bw_utilization();
+    double max_core_link_bw_utilization();
+};
+
+
+
+class LeafSpineNetwork : public Network {
+public:
+    LeafSpineNetwork();
+    virtual ~LeafSpineNetwork();
+
+    void set_path(Flow* flow, double timer);
+private: 
+    int server_count;
+    int server_per_rack;
+    int tor_count;  
+    int core_count;
+
+    double server_tor_link_capacity; 
+    double tor_core_link_capacity;
+
+
+    std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
+    std::map<ft_loc, Bottleneck *> tor_core_bottlenecks;
+    
+    std::map<int, ft_loc> server_loc_map;
+
+    void record_core_link_status(double timer);
+
+    core_selection core_selection_mechanism;
+
+    int select_core(Flow* flow, 
+                    double timer, 
+                    core_selection mechanism = core_selection::ROUND_ROBIN);
 
     double total_core_bw_utilization();
     double min_core_link_bw_utilization();

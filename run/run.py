@@ -60,23 +60,25 @@ options = {
     # "protocol-file-name": "simple.txt",
 
     "step-size": 10,
+    "core-status-profiling-interval": 10,
     "rep-count": 10, 
     "link-bandwidth": 100,
     "initial-rate": 100,
-    "min-rate": 1,
-    "ft-core-count": 4,
+    "min-rate": 10,
+    "ft-core-count": 8,
     "ft-agg-per-pod": 4,
     "console-log-level": 4,
     "file-log-level": 4,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
-    "ft-agg-core-link-capacity-mult": 1,
+    "ft-agg-core-link-capacity-mult": 0.5,
     "priority-allocator": "fairshare", #"priorityqueue", #
     "core-selection-mechanism": "futureload",
     "load-metric": "utilization",
     "shuffle-device-map": True,
-    "core-status-profiling-interval": 10,
     "shuffle-map-file": base_dir + "/input/shuffle/shuffle-map.txt",
+    "network-type": "leafspine",
+    "ft-server-per-rack": 32,
 }
 
 options.update(params)
@@ -103,7 +105,7 @@ print("running the command:", cmd)
 
 psim_times = []
 
-memory_limit_kb = 1.1 * 1e9
+memory_limit_kb = 10 * 1e9
 memory_limit_kb = int(memory_limit_kb)
 resource.setrlimit(resource.RLIMIT_AS, (memory_limit_kb, memory_limit_kb))
 
