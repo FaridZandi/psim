@@ -13,7 +13,9 @@ import resource
 run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 
 # setting up the basic paths
-base_dir = "/home/faridzandi/git/psim" 
+# read the env for the base dir 
+base_dir = os.environ.get("PSIM_BASE_DIR")
+print("base_dir:", base_dir)
 build_path = base_dir + "/build"
 run_path = base_dir + "/run"
 base_executable = build_path + "/psim"

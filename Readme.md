@@ -30,6 +30,6 @@ make
 ### Run 
 
 ```
-cd run
+cd ../run
 python3 run.py
 ```
