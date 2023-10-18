@@ -34,6 +34,8 @@ enum core_selection{
     RANDOM,
     ROUND_ROBIN,
     LEAST_LOADED,
+    POWER_OF_2,
+    ROBIN_HOOD,
     FUTURE_LOAD,
 };
 
@@ -49,10 +51,10 @@ public:
     std::map<int, Bottleneck *> bottleneck_map;
 
     Machine* get_machine(int name);
-    
+
     void reset_bottleneck_registers();
     void compute_bottleneck_allocations();
-    double make_progress_on_machines(double current_time, double step_size, 
+    double make_progress_on_machines(double current_time, double step_size,
                                      std::vector<PComp*> & step_finished_tasks);
 
     virtual void set_path(Flow* flow, double timer) = 0;
@@ -60,22 +62,22 @@ public:
     Bottleneck* create_bottleneck(double bandwidth);
 
     //temp
-    virtual void record_core_link_status(double timer) {}; 
+    virtual void record_core_link_status(double timer) {};
 
     LoadMetric load_metric;
-    double get_bottleneck_load(Bottleneck* bn); 
+    double get_bottleneck_load(Bottleneck* bn);
 
-    virtual double total_link_bandwidth(); 
-    virtual double total_bw_utilization(); 
+    virtual double total_link_bandwidth();
+    virtual double total_bw_utilization();
     virtual double total_core_bw_utilization();
     virtual double min_core_link_bw_utilization();
     virtual double max_core_link_bw_utilization();
 
-    std::vector<Flow *> flows; 
-    double make_progress_on_flows(double current_time, std::vector<Flow*> & step_finished_flows); 
+    std::vector<Flow *> flows;
+    double make_progress_on_flows(double current_time, std::vector<Flow*> & step_finished_flows);
 
 
-private: 
+private:
 
 };
 
@@ -87,7 +89,7 @@ public:
 
     void set_path(Flow* flow, double timer);
 
-private: 
+private:
     std::map<int, Bottleneck *> server_bottlenecks_downstream;
     std::map<int, Bottleneck *> server_bottlenecks_upstream;
 
@@ -100,7 +102,7 @@ struct ft_loc{
     int pod;
     int rack;
     int server;
-    int dir; 
+    int dir;
     int core;
 
     bool operator<(const ft_loc& rhs) const;
@@ -114,32 +116,41 @@ public:
     virtual ~FatTreeNetwork();
 
     void set_path(Flow* flow, double timer);
-private: 
+private:
     int server_count;
-    int server_per_rack; 
+    int server_per_rack;
     int rack_per_pod;
     int agg_per_pod;
     int pod_count;
 
     int core_count;
-    double server_tor_link_capacity; 
-    double tor_agg_link_capacity; 
+    double server_tor_link_capacity;
+    double tor_agg_link_capacity;
     double agg_core_link_capacity;
 
     int core_link_per_agg;
 
+    // An array of number of iterations a given core has been hard working.
+    // Used for the robin-hood load balancing algorithm that selects cores that
+    // are not hard working or the core that most recently became hard working
+    // if all cores are hard working.
+    std::vector<int> iterations_hard_working;
+    // Multiplier for the robin hood algorithm (sqrt of the core count but we
+    // store it so that we don't have to compute it each time).
+    double rh_multiplier;
+
     std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
     std::map<ft_loc, Bottleneck *> tor_agg_bottlenecks;
     std::map<ft_loc, Bottleneck *> pod_core_bottlenecks;
-    
+
     std::map<int, ft_loc> server_loc_map;
     std::map<ft_loc, int> pod_core_agg_map;
 
     void record_core_link_status(double timer);
 
     core_selection core_selection_mechanism;
-    int select_core(Flow* flow, 
-                    double timer, 
+    int select_core(Flow* flow,
+                    double timer,
                     core_selection mechanism = core_selection::ROUND_ROBIN);
 
     int* last_agg_in_pod;
@@ -159,27 +170,35 @@ public:
     virtual ~LeafSpineNetwork();
 
     void set_path(Flow* flow, double timer);
-private: 
+private:
     int server_count;
     int server_per_rack;
-    int tor_count;  
+    int tor_count;
     int core_count;
 
-    double server_tor_link_capacity; 
+    double server_tor_link_capacity;
     double tor_core_link_capacity;
 
+    // An array of number of iterations a given core has been hard working.
+    // Used for the robin-hood load balancing algorithm that selects cores that
+    // are not hard working or the core that most recently became hard working
+    // if all cores are hard working.
+    std::vector<int> iterations_hard_working;
+    // Multiplier for the robin hood algorithm (sqrt of the core count but we
+    // store it so that we don't have to compute it each time).
+    double rh_multiplier;
 
     std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
     std::map<ft_loc, Bottleneck *> tor_core_bottlenecks;
-    
+
     std::map<int, ft_loc> server_loc_map;
 
     void record_core_link_status(double timer);
 
     core_selection core_selection_mechanism;
 
-    int select_core(Flow* flow, 
-                    double timer, 
+    int select_core(Flow* flow,
+                    double timer,
                     core_selection mechanism = core_selection::ROUND_ROBIN);
 
     double total_core_bw_utilization();
@@ -194,7 +213,7 @@ public:
     Machine(int name);
     virtual ~Machine();
     int name;
-    
+
     double make_progress(double current_time, double step_size, std::vector<PComp*> & step_finished_tasks);
     std::queue<PComp*, std::deque<PComp*> > task_queue;
 
@@ -212,26 +231,26 @@ public:
 
     bool should_drop(double step_size);
 
-    // priority allocation wrapper functions 
-    BandwidthAllocator* bwalloc; 
+    // priority allocation wrapper functions
+    BandwidthAllocator* bwalloc;
     void register_rate(int id, double rate, int priority = 0);
-    void reset_register(); 
-    void allocate_bandwidths(); 
+    void reset_register();
+    void allocate_bandwidths();
     double get_allocated_rate(int id, double registered_rate, int priority = 0);
 
     // basic info
     int id;
     double bandwidth;
-    int current_flow_count; 
-    double current_flow_size_sum; 
+    int current_flow_count;
+    double current_flow_size_sum;
     std::vector<Flow*> flows;
 
     // history
     std::vector<double> total_register_history;
-    std::vector<double> total_allocated_history; 
+    std::vector<double> total_allocated_history;
 
-private: 
-    void setup_bwalloc(); 
+private:
+    void setup_bwalloc();
 };
 
 } // namespace psim

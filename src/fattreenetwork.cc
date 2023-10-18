@@ -1,29 +1,30 @@
 
 #include <iostream>
 #include <cassert>
+#include <cmath>
 #include <algorithm>
 #include <limits>
-#include <set> 
+#include <set>
 
 #include "network.h"
 #include "gconfig.h"
 #include "gcontext.h"
 #include "spdlog/spdlog.h"
 
-using namespace psim; 
+using namespace psim;
 
 FatTreeNetwork::FatTreeNetwork() : Network() {
     int link_bandwidth = GConf::inst().link_bandwidth;
 
     server_count = GConf::inst().machine_count;
-    server_per_rack = GConf::inst().ft_server_per_rack; 
+    server_per_rack = GConf::inst().ft_server_per_rack;
     rack_per_pod = GConf::inst().ft_rack_per_pod;
     agg_per_pod = GConf::inst().ft_agg_per_pod;
     pod_count = GConf::inst().ft_pod_count;
     core_count = GConf::inst().ft_core_count;
 
-    server_tor_link_capacity = GConf::inst().ft_server_tor_link_capacity_mult * link_bandwidth; 
-    tor_agg_link_capacity = GConf::inst().ft_tor_agg_link_capacity_mult * link_bandwidth; 
+    server_tor_link_capacity = GConf::inst().ft_server_tor_link_capacity_mult * link_bandwidth;
+    tor_agg_link_capacity = GConf::inst().ft_tor_agg_link_capacity_mult * link_bandwidth;
     agg_core_link_capacity = GConf::inst().ft_agg_core_link_capacity_mult * link_bandwidth;
 
     if (server_count != server_per_rack * rack_per_pod * pod_count) {
@@ -36,7 +37,7 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
         exit(1);
     }
 
-    core_selection cs; 
+    core_selection cs;
     auto mech = GConf::inst().core_selection_mechanism;
     if (mech == "roundrobin") {
         cs = core_selection::ROUND_ROBIN;
@@ -44,17 +45,24 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
         cs = core_selection::RANDOM;
     } else if (mech == "leastloaded") {
         cs = core_selection::LEAST_LOADED;
+    } else if (mech == "powerof2") {
+        cs = core_selection::POWER_OF_2;
+    } else if (mech == "robinhood") {
+        cs = core_selection::ROBIN_HOOD;
     } else if (mech == "futureload") {
         cs = core_selection::FUTURE_LOAD;
     } else {
         spdlog::critical("core selection mechanism {} not supported.", mech);
         exit(1);
     }
-    
+
     core_selection_mechanism = cs;
 
 
     core_link_per_agg = core_count / agg_per_pod;
+
+    iterations_hard_working = std::vector<int>(core_count, 0);
+    rh_multiplier = std::sqrt(core_count);
 
     for (int i = 0; i < pod_count; i++) {
         for (int j = 0; j < rack_per_pod; j++) {
@@ -101,22 +109,22 @@ FatTreeNetwork::FatTreeNetwork() : Network() {
 }
 
 FatTreeNetwork::~FatTreeNetwork() {
-    
+
 }
 
 void FatTreeNetwork::record_core_link_status(double timer) {
 
     if (core_selection_mechanism != core_selection::FUTURE_LOAD) {
-        return; 
+        return;
     }
 
     auto& curr_run_info = GContext::inst().run_info_list.back();
 
     int timer_int = int(timer);
 
-    auto& status = curr_run_info.network_status[timer_int]; 
+    auto& status = curr_run_info.network_status[timer_int];
     status.time = timer_int;
-    
+
     // status = core_link_status();
 
     auto& link_loads = status.link_loads;
@@ -138,7 +146,7 @@ int FatTreeNetwork::select_agg(Flow* flow, int pod_number, core_selection mechan
     if(mechanism == core_selection::FUTURE_LOAD){
         if (GContext::is_first_run()) {
             return select_agg(flow, pod_number, core_selection::ROUND_ROBIN);
-        } 
+        }
         int last_decision = GContext::inst().last_decision(flow->id);
         return last_decision;
     } else {
@@ -181,6 +189,86 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
         return best_core;
     ///////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////
+    } else if (mechanism == core_selection::POWER_OF_2) {
+        // Initially no core is loaded so they're all best. We randomly denote
+        // core 0 as the best.
+        static int prev_best_core = 0;
+        double least_load = std::numeric_limits<double>::max();
+
+        // We sample 2 random cores and the previously least loaded core and
+        // pick the least loaded among these. This is what DRILL does but at
+        // the packet level.
+        int cores_to_sample[3];
+        cores_to_sample[0] = rand() % core_count;
+        int r;
+        do {
+            r = rand() % core_count;
+        } while (r == cores_to_sample[0]);
+        cores_to_sample[1] = r;
+        cores_to_sample[2] = prev_best_core;
+
+        for (int c : cores_to_sample) {
+            Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{src_loc.pod, -1, -1, 1, c}];
+            Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{dst_loc.pod, -1, -1, 2, c}];
+            double load = get_bottleneck_load(bn_up) + get_bottleneck_load(bn_down);
+
+            if (load < least_load){
+                least_load = load;
+                prev_best_core = c;
+            }
+        }
+
+        return prev_best_core;
+    ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////
+    } else if (mechanism == core_selection::ROBIN_HOOD) {
+        // Lower bound on the optimal. Initially this is 0.
+        static double rh_lb = 0.0;
+        double total_load = 0.0;
+        std::vector<double> core_loads(core_count, 0.0);
+
+        for (int c = 0; c < core_count; c++) {
+            Bottleneck* bn_up = pod_core_bottlenecks[ft_loc{src_loc.pod, -1, -1, 1, c}];
+            Bottleneck* bn_down = pod_core_bottlenecks[ft_loc{dst_loc.pod, -1, -1, 2, c}];
+            core_loads[c] = get_bottleneck_load(bn_up) + get_bottleneck_load(bn_down);
+            total_load += core_loads[c];
+        }
+
+        rh_lb = std::max(rh_lb, total_load / core_count);
+        double rh_cutoff = rh_multiplier * rh_lb;
+        std::vector<int> non_hard_working_cores;
+
+        // The core that most recently became hard working (used in the case
+        // that all cores are hardworking).
+        // Here by latest we mean the least number of consecutive iterations
+        // for which it has been hard working.
+        int latest_hard_working_core = -1;
+        int latest_hard_working_iterations = std::numeric_limits<int>::max();
+
+        for (int c = 0; c < core_count; c++) {
+            if (core_loads[c] < rh_cutoff) {
+                // It is now 0 iterations since it was last non hard working.
+                core_loads[c] = 0;
+                non_hard_working_cores.push_back(c);
+            } else {
+                iterations_hard_working[c]++;
+                if (iterations_hard_working[c] < latest_hard_working_iterations) {
+                    latest_hard_working_core = c;
+                    latest_hard_working_iterations = iterations_hard_working[c];
+                }
+            }
+        }
+
+        if (non_hard_working_cores.size() > 0) {
+            // We have some non hard working cores so we pick one at random.
+            int idx = rand() % non_hard_working_cores.size();
+            return non_hard_working_cores[idx];
+        }
+        // Otherwise, all cores are hardworking and we return the one that most
+        // recently became hard working.
+        return latest_hard_working_core;
+    ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////
     } else if (mechanism == core_selection::RANDOM) {
         int core_num = rand() % core_count;
         return core_num;
@@ -189,8 +277,8 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
     } else if (mechanism == core_selection::FUTURE_LOAD) {
         if (GContext::is_first_run()) {
             int core_num = select_core(flow, timer, core_selection::ROUND_ROBIN);
-            return core_num; 
-        } else { 
+            return core_num;
+        } else {
 
             int last_decision = GContext::last_decision(flow->id);
             auto& last_run = GContext::last_run();
@@ -222,7 +310,7 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
 
             for (int t = this_run_prof.first; t <= this_run_prof.second; t += prof_inter)  {
 
-                if (t > last_run.max_time_step) break; 
+                if (t > last_run.max_time_step) break;
 
                 no_profiling_found = false;
 
@@ -234,16 +322,16 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
                     auto bn_up = pod_core_bottlenecks[ft_loc{src_pod, -1, -1, 1, c}];
                     auto bn_down = pod_core_bottlenecks[ft_loc{dst_pod, -1, -1, 2, c}];
                     double total_rate = link_loads[bn_up->id] + link_loads[bn_down->id];
-                    
+
                     if (c == last_decision) {
                         if (t > last_run_prof.first and t <= last_run_prof.second) {
-                            // if we are looking at the previous run for the same core 
+                            // if we are looking at the previous run for the same core
                             // during the time that the flow was running, then we need to
                             // subtract the flow rate from the total rate, since this core
-                            // current contains thet flow that we're trying to place. 
+                            // current contains thet flow that we're trying to place.
 
                             if (flow_loads.find(flow->id) == flow_loads.end()){
-                                spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}", 
+                                spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}",
                                               flow->id, t, last_flow_start, last_flow_end, last_run_prof.first, last_run_prof.second);
                             }
 
@@ -277,7 +365,7 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
             spdlog::debug("last decision: {}, this decision: {}", last_decision, best_core);
             spdlog::debug("-----------------------------------------------------------------");
 
-            // todo: can I get a better estimate of the flow finishing time now? 
+            // todo: can I get a better estimate of the flow finishing time now?
 
 
             auto last_run_bn_up = pod_core_bottlenecks[ft_loc{src_pod, -1, -1, 1, last_decision}];
@@ -293,7 +381,7 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
                 auto& link_loads = status.link_loads;
 
                 if (status.flow_loads.find(flow->id) == status.flow_loads.end()){
-                    spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}", 
+                    spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}",
                         flow->id, t, last_flow_start, last_flow_end, last_run_prof.first, last_run_prof.second);
                 }
                 double flow_load = status.flow_loads[flow->id];
@@ -305,13 +393,13 @@ int FatTreeNetwork::select_core(Flow* flow, double timer, core_selection mechani
             for (int t = this_run_prof.first; t <= this_run_prof.second; t += prof_inter)  {
                 if (t > last_run.max_time_step) break;
                 auto& status = last_run.network_status[t];
-                auto& link_loads = status.link_loads; 
+                auto& link_loads = status.link_loads;
                 link_loads[this_run_bn_up->id] += last_flow_rate;
                 link_loads[this_run_bn_down->id] += last_flow_rate;
             }
 
             return best_core;
-        } 
+        }
     ///////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////
     } else if (mechanism == core_selection::ROUND_ROBIN) {
@@ -342,7 +430,7 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
     // flow->path.push_back(x)
 
     if (same_machine) {
-        return; 
+        return;
     } else if (same_rack) {
         flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
         // flow->path.push_back(tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, -1, -1, -1}]);
@@ -385,7 +473,7 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
 
 
 double FatTreeNetwork::total_core_bw_utilization(){
-    double total_utilization = 0; 
+    double total_utilization = 0;
 
     for (int p = 0; p < pod_count; p++) {
         for (int c = 0; c < core_count; c++) {
