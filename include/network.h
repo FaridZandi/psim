@@ -111,84 +111,68 @@ struct ft_loc{
 
 std::pair<int, int> get_prof_limits(double start_time, double end_time);
 
-class FatTreeNetwork : public Network {
-public:
-    FatTreeNetwork();
-    virtual ~FatTreeNetwork();
 
-    void set_path(Flow* flow, double timer);
-private:
-    int server_count;
-    int server_per_rack;
-    int rack_per_pod;
-    int agg_per_pod;
-    int pod_count;
+class CoreConnectedNetwork : public Network {
+public:
+    CoreConnectedNetwork();
+    virtual ~CoreConnectedNetwork();
 
     int core_count;
-    double server_tor_link_capacity;
-    double tor_agg_link_capacity;
-    double agg_core_link_capacity;
-
-    int core_link_per_agg;
-
-    std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
-    std::map<ft_loc, Bottleneck *> tor_agg_bottlenecks;
-    std::map<ft_loc, Bottleneck *> pod_core_bottlenecks;
-
+    int server_count; 
+    int core_link_capacity; 
+    
     std::map<int, ft_loc> server_loc_map;
-    std::map<ft_loc, int> pod_core_agg_map;
+    std::map<ft_loc, Bottleneck *> core_bottlenecks;
 
-    void record_link_status(double timer);
 
     core_selection core_selection_mechanism;
 
-    int* last_agg_in_pod;
-
-    int select_agg(Flow* flow, int pod_number, core_selection mechanism);
+    void record_link_status(double timer);
 
     double total_core_bw_utilization();
     double min_core_link_bw_utilization();
     double max_core_link_bw_utilization();
 };
 
+class FatTreeNetwork : public CoreConnectedNetwork {
+public:
+    FatTreeNetwork();
+    virtual ~FatTreeNetwork();
+
+    void set_path(Flow* flow, double timer);
+private:
+    int server_per_rack;
+    int rack_per_pod;
+    int agg_per_pod;
+    int pod_count;
+    int core_link_per_agg;
+
+    double server_tor_link_capacity;
+    double tor_agg_link_capacity;
+
+    std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
+    std::map<ft_loc, Bottleneck *> tor_agg_bottlenecks;
+    std::map<ft_loc, int> pod_core_agg_map;
+
+    int* last_agg_in_pod;
+    int select_agg(Flow* flow, int pod_number, core_selection mechanism);
+};
 
 
-class LeafSpineNetwork : public Network {
+
+class LeafSpineNetwork : public CoreConnectedNetwork {
 public:
     LeafSpineNetwork();
     virtual ~LeafSpineNetwork();
 
     void set_path(Flow* flow, double timer);
+
 private:
-    int server_count;
     int server_per_rack;
     int tor_count;
-    int core_count;
-
     double server_tor_link_capacity;
-    double tor_core_link_capacity;
-
-    // An array of number of iterations a given core has been hard working.
-    // Used for the robin-hood load balancing algorithm that selects cores that
-    // are not hard working or the core that most recently became hard working
-    // if all cores are hard working.
-    std::vector<int> iterations_hard_working;
-    // Multiplier for the robin hood algorithm (sqrt of the core count but we
-    // store it so that we don't have to compute it each time).
-    double rh_multiplier;
 
     std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
-    std::map<ft_loc, Bottleneck *> tor_core_bottlenecks;
-
-    std::map<int, ft_loc> server_loc_map;
-
-    void record_link_status(double timer);
-
-    core_selection core_selection_mechanism;
-
-    double total_core_bw_utilization();
-    double min_core_link_bw_utilization();
-    double max_core_link_bw_utilization();
 };
 
 

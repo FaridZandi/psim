@@ -31,8 +31,7 @@ set(SOURCES src/psim.cc
             src/context.cc
             src/bwalloc.cc
             src/network.cc
-            src/fattreenetwork.cc
-            src/leafspinenetwork.cc
+            src/core_network.cc
             src/traffic_gen.cc
             src/protocol_builder.cc
             src/flow.cc
