@@ -27,6 +27,7 @@ include_directories(${PYTHON_INCLUDE_DIRS})
 message(STATUS "PYTHON_INCLUDE_DIRS = ${PYTHON_INCLUDE_DIRS}")
 
 set(SOURCES src/psim.cc
+            src/loadbalancer.cc
             src/context.cc
             src/bwalloc.cc
             src/network.cc

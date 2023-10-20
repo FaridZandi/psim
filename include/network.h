@@ -9,7 +9,7 @@
 #include "protocol.h"
 #include "gconfig.h"
 #include "bwalloc.h"
-
+#include "loadbalancer.h"
 namespace psim {
 
 class Protocol;
@@ -22,15 +22,15 @@ class Flow;
 class PTask;
 class PComp;
 class EmptyTask;
+class LoadBalancer;
 
-
-enum LoadMetric {
+enum class LoadMetric {
     REGISTER,
     UTILIZATION,
     ALLOCATED,
 };
 
-enum core_selection{
+enum class core_selection{
     RANDOM,
     ROUND_ROBIN,
     LEAST_LOADED,
@@ -62,7 +62,7 @@ public:
     Bottleneck* create_bottleneck(double bandwidth);
 
     //temp
-    virtual void record_core_link_status(double timer) {};
+    virtual void record_link_status(double timer) {};
 
     LoadMetric load_metric;
     double get_bottleneck_load(Bottleneck* bn);
@@ -76,6 +76,7 @@ public:
     std::vector<Flow *> flows;
     double make_progress_on_flows(double current_time, std::vector<Flow*> & step_finished_flows);
 
+    LoadBalancer* core_load_balancer;
 
 private:
 
@@ -130,15 +131,6 @@ private:
 
     int core_link_per_agg;
 
-    // An array of number of iterations a given core has been hard working.
-    // Used for the robin-hood load balancing algorithm that selects cores that
-    // are not hard working or the core that most recently became hard working
-    // if all cores are hard working.
-    std::vector<int> iterations_hard_working;
-    // Multiplier for the robin hood algorithm (sqrt of the core count but we
-    // store it so that we don't have to compute it each time).
-    double rh_multiplier;
-
     std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
     std::map<ft_loc, Bottleneck *> tor_agg_bottlenecks;
     std::map<ft_loc, Bottleneck *> pod_core_bottlenecks;
@@ -146,12 +138,9 @@ private:
     std::map<int, ft_loc> server_loc_map;
     std::map<ft_loc, int> pod_core_agg_map;
 
-    void record_core_link_status(double timer);
+    void record_link_status(double timer);
 
     core_selection core_selection_mechanism;
-    int select_core(Flow* flow,
-                    double timer,
-                    core_selection mechanism = core_selection::ROUND_ROBIN);
 
     int* last_agg_in_pod;
 
@@ -193,13 +182,9 @@ private:
 
     std::map<int, ft_loc> server_loc_map;
 
-    void record_core_link_status(double timer);
+    void record_link_status(double timer);
 
     core_selection core_selection_mechanism;
-
-    int select_core(Flow* flow,
-                    double timer,
-                    core_selection mechanism = core_selection::ROUND_ROBIN);
 
     double total_core_bw_utilization();
     double min_core_link_bw_utilization();

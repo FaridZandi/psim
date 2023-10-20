@@ -360,6 +360,7 @@ bool ft_loc::operator<(const ft_loc& rhs) const {
 }
 
 
+// TODO: move this the lb file later 
 std::pair<int, int> psim::get_prof_limits(double start_time, double end_time) {
     int prof_inter = GConf::inst().core_status_profiling_interval; 
 

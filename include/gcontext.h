@@ -47,7 +47,6 @@ public:
     GContext(GContext const&) = delete;
     void operator=(GContext const&) = delete;
     
-    std::map<int, int> core_selection; 
     int cut_off_time = 0; 
     int cut_off_decrease_step = 0; 
     std::vector<run_info> run_info_list;

@@ -144,7 +144,7 @@ double PSim::simulate() {
 
         if (int(timer) % timer_interval == 0 and int(timer) != last_summary_timer) {
             last_summary_timer = int(timer);
-            network->record_core_link_status(timer);
+            network->record_link_status(timer);
         }
 
         // Remove the finished flows and start up the tasks that follow.

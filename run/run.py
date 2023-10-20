@@ -72,15 +72,15 @@ options = {
     "console-log-level": 4,
     "file-log-level": 4,
     "ft-server-tor-link-capacity-mult": 1,
-    "ft-tor-agg-link-capacity-mult": 1,
+    "ft-tor-agg-link-capacity-mult": 100,
     "ft-agg-core-link-capacity-mult": 0.5,
-    "priority-allocator": "fairshare", #"priorityqueue", #
+    "priority-allocator": "fairshare", #"priorityqueue", 
     "core-selection-mechanism": "futureload",
     "load-metric": "utilization",
     "shuffle-device-map": True,
     "shuffle-map-file": base_dir + "/input/shuffle/shuffle-map.txt",
-    "network-type": "leafspine",
-    "ft-server-per-rack": 32,
+    "network-type": "fattree",
+    "ft-server-per-rack": 8,
 }
 
 options.update(params)
