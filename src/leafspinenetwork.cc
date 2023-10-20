@@ -3,27 +3,30 @@
 #include <cassert>
 #include <algorithm>
 #include <limits>
-#include <set> 
+#include <set>
 
 #include "network.h"
 #include "gconfig.h"
 #include "gcontext.h"
 #include "spdlog/spdlog.h"
 
-using namespace psim; 
+using namespace psim;
 
 LeafSpineNetwork::LeafSpineNetwork() : Network() {
     int link_bandwidth = GConf::inst().link_bandwidth;
 
     server_count = GConf::inst().machine_count;
-    server_per_rack = GConf::inst().ft_server_per_rack; 
+    server_per_rack = GConf::inst().ft_server_per_rack;
     tor_count = server_count / server_per_rack;
     core_count = GConf::inst().ft_core_count;
 
-    server_tor_link_capacity = GConf::inst().ft_server_tor_link_capacity_mult * link_bandwidth; 
+    server_tor_link_capacity = GConf::inst().ft_server_tor_link_capacity_mult * link_bandwidth;
     tor_core_link_capacity = GConf::inst().ft_agg_core_link_capacity_mult * link_bandwidth;
 
-    core_selection cs; 
+    iterations_hard_working = std::vector<int>(core_count, 0);
+    rh_multiplier = std::sqrt(core_count);
+
+    core_selection cs;
     auto mech = GConf::inst().core_selection_mechanism;
     if (mech == "roundrobin") {
         cs = core_selection::ROUND_ROBIN;
@@ -31,13 +34,17 @@ LeafSpineNetwork::LeafSpineNetwork() : Network() {
         cs = core_selection::RANDOM;
     } else if (mech == "leastloaded") {
         cs = core_selection::LEAST_LOADED;
+    } else if (mech == "powerof2") {
+        cs = core_selection::POWER_OF_2;
+    } else if (mech == "robinhood") {
+        cs = core_selection::ROBIN_HOOD;
     } else if (mech == "futureload") {
         cs = core_selection::FUTURE_LOAD;
     } else {
         spdlog::critical("core selection mechanism {} not supported.", mech);
         exit(1);
     }
-    
+
     core_selection_mechanism = cs;
 
     for (int i = 0; i < tor_count; i++) {
@@ -64,19 +71,19 @@ LeafSpineNetwork::LeafSpineNetwork() : Network() {
 }
 
 LeafSpineNetwork::~LeafSpineNetwork() {
-    
+
 }
 
 void LeafSpineNetwork::record_core_link_status(double timer) {
 
     if (core_selection_mechanism != core_selection::FUTURE_LOAD) {
-        return; 
+        return;
     }
 
     int timer_int = int(timer);
 
     auto& curr_run_info = GContext::inst().run_info_list.back();
-    auto& status = curr_run_info.network_status[timer_int]; 
+    auto& status = curr_run_info.network_status[timer_int];
     status.time = timer_int;
 
     auto& link_loads = status.link_loads;
@@ -107,8 +114,8 @@ int LeafSpineNetwork::select_core(Flow* flow, double timer, core_selection mecha
     ft_loc src_loc = server_loc_map[src];
     ft_loc dst_loc = server_loc_map[dst];
 
-    int src_rack = src_loc.rack; 
-    int dst_rack = dst_loc.rack; 
+    int src_rack = src_loc.rack;
+    int dst_rack = dst_loc.rack;
 
     if (mechanism == core_selection::LEAST_LOADED) {
         int best_core = -1;
@@ -118,7 +125,7 @@ int LeafSpineNetwork::select_core(Flow* flow, double timer, core_selection mecha
 
             auto bn_up = tor_core_bottlenecks[ft_loc{-1, src_rack, -1, 1, c}];
             auto bn_down = tor_core_bottlenecks[ft_loc{-1, dst_rack, -1, 2, c}];
-            
+
             double load = get_bottleneck_load(bn_up) + get_bottleneck_load(bn_down);
 
             if (load < least_load){
@@ -131,6 +138,87 @@ int LeafSpineNetwork::select_core(Flow* flow, double timer, core_selection mecha
         return best_core;
     ///////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////
+    } else if (mechanism == core_selection::POWER_OF_2) {
+        // Initially no core is loaded so they're all best. We randomly denote
+        // core 0 as the best.
+        static int prev_best_core = 0;
+        double least_load = std::numeric_limits<double>::max();
+
+        // We sample 2 random cores and the previously least loaded core and
+        // pick the least loaded among these. This is what DRILL does but at
+        // the packet level.
+        int cores_to_sample[3];
+        cores_to_sample[0] = rand() % core_count;
+        int r;
+        do {
+            r = rand() % core_count;
+        } while (r == cores_to_sample[0]);
+        cores_to_sample[1] = r;
+        cores_to_sample[2] = prev_best_core;
+
+        for (int c : cores_to_sample) {
+            auto bn_up = tor_core_bottlenecks[ft_loc{-1, src_rack, -1, 1, c}];
+            auto bn_down = tor_core_bottlenecks[ft_loc{-1, dst_rack, -1, 2, c}];
+
+            double load = get_bottleneck_load(bn_up) + get_bottleneck_load(bn_down);
+
+            if (load < least_load){
+                least_load = load;
+                prev_best_core = c;
+            }
+        }
+
+        return prev_best_core;
+    ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////
+    } else if (mechanism = core_selection::ROBIN_HOOD) {
+        // Lower bound on the optimal. Initially this is 0.
+        static double rh_lb = 0.0;
+        double total_load = 0.0;
+        std::vector<double> core_loads(core_count, 0.0);
+
+        for (int c = 0; c < core_count; c++) {
+            auto bn_up = tor_core_bottlenecks[ft_loc{-1, src_rack, -1, 1, c}];
+            auto bn_down = tor_core_bottlenecks[ft_loc{-1, dst_rack, -1, 2, c}];
+            core_loads[c] = get_bottleneck_load(bn_up) + get_bottleneck_load(bn_down);
+            total_load+= core_loads[c];
+        }
+
+        rh_lb = std::max(rh_lb, total_load / core_count);
+        double rh_cutoff = rh_multiplier * rh_lb;
+        std::vector<int> non_hard_working_cores;
+
+        // The core that most recently became hard working (used in the case
+        // that all cores are hard working).
+        // Here by latest we mean the least number of consecutive iterations
+        // for which it has been hard working.
+        int latest_hard_working_core = -1;
+        int latest_hard_working_iterations = std::numeric_limits<int>::max();
+
+        for (int c = 0; c < core_count; c++) {
+            if (core_loads[c] < rh_cutoff) {
+                // It is now 0 iterations since it was last non hard working.
+                core_loads[c] = 0;
+                non_hard_working_cores.push_back(c);
+            } else {
+                iterations_hard_working[c]++;
+                if (iterations_hard_working[c] < latest_hard_working_iterations) {
+                    latest_hard_working_core = c;
+                    latest_hard_working_iterations = iterations_hard_working[c];
+                }
+            }
+        }
+
+        if (non_hard_working_cores.size() > 0) {
+            // We have some non hard working cores so we pick one at random.
+            int idx = rand() % non_hard_working_cores.size();
+            return non_hard_working_cores[idx];
+        }
+        // Otherwise, all cores are hardworking and we return the one that most
+        // recently became hard working.
+        return latest_hard_working_core;
+    ///////////////////////////////////////////////////////////////////
+    ///////////////////////////////////////////////////////////////////
     } else if (mechanism == core_selection::RANDOM) {
         int core_num = rand() % core_count;
         return core_num;
@@ -139,8 +227,8 @@ int LeafSpineNetwork::select_core(Flow* flow, double timer, core_selection mecha
     } else if (mechanism == core_selection::FUTURE_LOAD) {
         if (GContext::is_first_run()) {
             int core_num = select_core(flow, timer, core_selection::ROUND_ROBIN);
-            return core_num; 
-        } else { 
+            return core_num;
+        } else {
 
             int last_decision = GContext::last_decision(flow->id);
             auto& last_run = GContext::last_run();
@@ -172,7 +260,7 @@ int LeafSpineNetwork::select_core(Flow* flow, double timer, core_selection mecha
 
             for (int t = this_run_prof.first; t <= this_run_prof.second; t += prof_inter)  {
 
-                if (t > last_run.max_time_step) break; 
+                if (t > last_run.max_time_step) break;
 
                 no_profiling_found = false;
 
@@ -185,16 +273,16 @@ int LeafSpineNetwork::select_core(Flow* flow, double timer, core_selection mecha
                     auto bn_down = tor_core_bottlenecks[ft_loc{-1, dst_rack, -1, 2, c}];
 
                     double total_rate = link_loads[bn_up->id] + link_loads[bn_down->id];
-                    
+
                     if (c == last_decision) {
                         if (t > last_run_prof.first and t <= last_run_prof.second) {
-                            // if we are looking at the previous run for the same core 
+                            // if we are looking at the previous run for the same core
                             // during the time that the flow was running, then we need to
                             // subtract the flow rate from the total rate, since this core
-                            // current contains thet flow that we're trying to place. 
+                            // current contains thet flow that we're trying to place.
 
                             if (flow_loads.find(flow->id) == flow_loads.end()){
-                                spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}", 
+                                spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}",
                                               flow->id, t, last_flow_start, last_flow_end, last_run_prof.first, last_run_prof.second);
                             }
 
@@ -228,7 +316,7 @@ int LeafSpineNetwork::select_core(Flow* flow, double timer, core_selection mecha
             spdlog::debug("last decision: {}, this decision: {}", last_decision, best_core);
             spdlog::debug("-----------------------------------------------------------------");
 
-            // todo: can I get a better estimate of the flow finishing time now? 
+            // todo: can I get a better estimate of the flow finishing time now?
 
             auto last_run_bn_up = tor_core_bottlenecks[ft_loc{-1, src_rack, -1, 1, last_decision}];
             auto last_run_bn_down = tor_core_bottlenecks[ft_loc{-1, dst_rack, -1, 2, last_decision}];
@@ -243,7 +331,7 @@ int LeafSpineNetwork::select_core(Flow* flow, double timer, core_selection mecha
                 auto& link_loads = status.link_loads;
 
                 if (status.flow_loads.find(flow->id) == status.flow_loads.end()){
-                    spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}", 
+                    spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}",
                         flow->id, t, last_flow_start, last_flow_end, last_run_prof.first, last_run_prof.second);
                 }
                 double flow_load = status.flow_loads[flow->id];
@@ -255,13 +343,13 @@ int LeafSpineNetwork::select_core(Flow* flow, double timer, core_selection mecha
             for (int t = this_run_prof.first; t <= this_run_prof.second; t += prof_inter)  {
                 if (t > last_run.max_time_step) break;
                 auto& status = last_run.network_status[t];
-                auto& link_loads = status.link_loads; 
+                auto& link_loads = status.link_loads;
                 link_loads[this_run_bn_up->id] += last_flow_rate;
                 link_loads[this_run_bn_down->id] += last_flow_rate;
             }
 
             return best_core;
-        } 
+        }
     ///////////////////////////////////////////////////////////////////
     ///////////////////////////////////////////////////////////////////
     } else if (mechanism == core_selection::ROUND_ROBIN) {
@@ -300,7 +388,7 @@ void LeafSpineNetwork::set_path(Flow* flow, double timer) {
     // flow->path.push_back(x)
 
     if (same_machine) {
-        return; 
+        return;
     } else if (same_rack) {
         flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, src_loc.rack, src_loc.server, 1, -1}]);
         flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, dst_loc.rack, dst_loc.server, 2, -1}]);
@@ -313,12 +401,12 @@ void LeafSpineNetwork::set_path(Flow* flow, double timer) {
         flow->path.push_back(tor_core_bottlenecks[ft_loc{-1, src_loc.rack, -1, 1, core_num}]);
         flow->path.push_back(tor_core_bottlenecks[ft_loc{-1, dst_loc.rack, -1, 2, core_num}]);
         flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, dst_loc.rack, dst_loc.server, 2, -1}]);
-    } 
+    }
 }
 
 
 double LeafSpineNetwork::total_core_bw_utilization(){
-    double total_utilization = 0; 
+    double total_utilization = 0;
 
     for (int t = 0; t < tor_count; t++) {
         for (int c = 0; c < core_count; c++) {
@@ -344,7 +432,7 @@ double LeafSpineNetwork::min_core_link_bw_utilization(){
 
             double utilization = std::min(bn_up->bwalloc->utilized_bandwidth, bn_down->bwalloc->utilized_bandwidth);
             min_utilization = std::min(min_utilization, utilization);
-    
+
         }
     }
 

@@ -10,10 +10,10 @@ using namespace psim;
 
 namespace plt = matplotlibcpp;
 
-static int simulation_counter = 0; 
+static int simulation_counter = 0;
 
 PSim::PSim() {
-    this->timer = 0;  
+    this->timer = 0;
     this->total_task_count = 0;
     this->finished_task_count = 0;
     this->step_size = GConf::inst().step_size;
@@ -29,7 +29,7 @@ PSim::PSim() {
         spdlog::error("Unknown network type: {}", GConf::inst().network_type);
         exit(1);
     }
-} 
+}
 
 void PSim::add_protocol(Protocol *protocol){
     this->protocols.push_back(protocol);
@@ -48,18 +48,18 @@ void PSim::handle_task_completion(PTask *task) {
     task->protocol->finished_task_count += 1;
 
     if (task->protocol->type == ProtocolType::MAIN_PROTOCOL) {
-        this->finished_task_count += 1; 
+        this->finished_task_count += 1;
     }
 }
 
 void PSim::start_next_tasks(PTask *task){
-    
+
     for (auto next_task : task->next_tasks) {
         next_task->dep_left -= 1;
 
         if (next_task->dep_left == 0) {
             start_task(next_task);
-        } 
+        }
     }
 }
 
@@ -79,19 +79,19 @@ void PSim::start_task(PTask *task) {
             flow->src = this->network->get_machine(flow->src_dev_id);
             flow->dst = this->network->get_machine(flow->dst_dev_id);
             this->network->set_path(flow, timer);
-            flow->initiate(); 
+            flow->initiate();
 
             break;
         } case PTaskType::COMPUTE: {
             task->status = PTaskStatus::RUNNING;
-            task->start_time = timer; 
+            task->start_time = timer;
 
             PComp* compute_task = (PComp *)task;
-            
+
             compute_task->machine = this->network->get_machine(compute_task->dev_id);
             this->compute_tasks.push_back(compute_task);
             compute_task->machine->task_queue.push(compute_task);
-            
+
             break;
         } case PTaskType::EMPTY: {
             task->status = PTaskStatus::FINISHED;
@@ -106,15 +106,16 @@ void PSim::start_task(PTask *task) {
     }
 
 }
- 
+
 
 
 double PSim::simulate() {
-    
+
     simulation_counter += 1;
 
-    int last_summary_timer = -1; 
-    
+    // last time we've logged a summary.
+    int last_summary_timer = -1;
+
     for (auto protocol : this->protocols) {
         for (auto task : protocol->initiators) {
             this->start_task(task);
@@ -130,40 +131,46 @@ double PSim::simulate() {
         // }
 
         std::vector<Flow *> step_finished_flows;
-        std::vector<PComp *> step_finished_tasks; 
+        std::vector<PComp *> step_finished_tasks;
 
-        double step_comm = network->make_progress_on_flows(timer, step_finished_flows);        
+        // See if any flows have finished and add them to the step_finished_flows vector.
+        double step_comm = network->make_progress_on_flows(timer, step_finished_flows);
+        // See if any tasks on each of the machines have finished and add them to the
+        // step_finished_tasks vector.
         double stop_comp = network->make_progress_on_machines(timer, step_size, step_finished_tasks);
-        
 
-        int timer_interval = GConf::inst().core_status_profiling_interval; 
+
+        int timer_interval = GConf::inst().core_status_profiling_interval;
 
         if (int(timer) % timer_interval == 0 and int(timer) != last_summary_timer) {
             last_summary_timer = int(timer);
             network->record_core_link_status(timer);
         }
 
+        // Remove the finished flows and start up the tasks that follow.
         for (auto& flow : step_finished_flows) {
             finished_flows.push_back(flow);
             handle_task_completion(flow);
             flow->finished();
 
-            auto& flows = network->flows;  
+            auto& flows = network->flows;
             flows.erase(std::remove(flows.begin(), flows.end(), flow), flows.end());
-            
+
             start_next_tasks(flow);
         }
 
+        // Remove the finished computation tasks and start up the tasks that
+        // follow.
         for (auto& task : step_finished_tasks) {
             this->finished_compute_tasks.push_back(task);
             handle_task_completion(task);
             compute_tasks.erase(std::remove(compute_tasks.begin(), compute_tasks.end(), task), compute_tasks.end());
             start_next_tasks(task);
         }
-        
 
 
-        history_entry h; 
+
+        history_entry h;
         h.time = timer;
         h.flow_count = network->flows.size();
         h.step_finished_flows = step_finished_flows.size();
@@ -171,7 +178,7 @@ double PSim::simulate() {
         h.step_finished_comp_tasks = step_finished_tasks.size();
         h.step_comm = step_comm;
         h.step_comp = stop_comp;
-        h.total_bw_utilization = network->total_bw_utilization(); 
+        h.total_bw_utilization = network->total_bw_utilization();
         h.total_core_bw_utilization = network->total_core_bw_utilization();
         h.min_core_link_bw_utilization = network->min_core_link_bw_utilization();
         h.max_core_link_bw_utilization = network->max_core_link_bw_utilization();
@@ -181,8 +188,8 @@ double PSim::simulate() {
         log_history_entry(h);
 
 
-        spdlog::debug("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}", 
-                      int(timer), network->flows.size(), compute_tasks.size(), 
+        spdlog::debug("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}",
+                      int(timer), network->flows.size(), compute_tasks.size(),
                       this->finished_task_count, this->total_task_count);
 
         bool all_finished = true;
@@ -198,14 +205,14 @@ double PSim::simulate() {
 
         timer += step_size;
     }
-    
+
     save_run_results();
 
     return timer;
 }
 
 void PSim::log_history_entry(history_entry& h){
-    spdlog::info("Time: {}", h.time); 
+    spdlog::info("Time: {}", h.time);
     spdlog::info("Flows: {}", h.flow_count);
     spdlog::info("Step Finished Flows: {}", h.step_finished_flows);
     spdlog::info("Comp Tasks: {}", h.comp_task_count);
@@ -221,12 +228,12 @@ void PSim::log_history_entry(history_entry& h){
     spdlog::info("------------------------------------------------------------");
 }
 
-// a function that receives a names and fields, plots them and saves them to a file. 
-// any number of such inputs can be given to the function. 
+// a function that receives a names and fields, plots them and saves them to a file.
+// any number of such inputs can be given to the function.
 void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function<double(history_entry)>>> plots){
     plt::figure_size(1200, 780);
 
-    std::string plot_name; 
+    std::string plot_name;
 
     for (auto& plot: plots){
         auto field = plot.second;
@@ -237,19 +244,19 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
             data.push_back(field(h));
         }
         plt::plot(data, {{"label", name}});
-        
+
         plot_name += name + "|";
     }
 
-    plt::legend();    
+    plt::legend();
 
     // drop the last underscore
     plot_name.pop_back();
     plot_name = GConf::inst().output_dir + "/" + plot_name + ".png";
     plt::savefig(plot_name, {{"bbox_inches", "tight"}});
     plt::clf();
-    plt::close(); 
-    
+    plt::close();
+
 }
 
 void PSim::save_run_results(){
@@ -282,7 +289,7 @@ void PSim::save_run_results(){
                 std::string plot_name = "out/machines/machine_" + std::to_string(machine->name) + ".png";
                 plt::savefig(plot_name, {{"bbox_inches", "tight"}});
                 plt::clf();
-                plt::close(); 
+                plt::close();
             }
         }
 
@@ -297,14 +304,14 @@ void PSim::save_run_results(){
                 std::string plot_name = "out/bottlenecks/bottleneck_" + std::to_string(bn->id) + ".png";
                 plt::savefig(plot_name, {{"bbox_inches", "tight"}});
                 plt::clf();
-                plt::close(); 
+                plt::close();
             }
         }
     }
 
     int total_task_count = 0;
     int total_finished_task_count = 0;
-    
+
     for (auto protocol : this->protocols) {
         total_task_count += protocol->total_task_count;
         total_finished_task_count += protocol->finished_task_count;
@@ -317,4 +324,3 @@ void PSim::save_run_results(){
     //     spdlog::info("task {}: start_time: {}, end_time: {}", task->id, task->start_time, task->end_time);
     // }
 }
-
