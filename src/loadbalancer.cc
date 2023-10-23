@@ -239,7 +239,18 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
         double last_flow_start = last_run.flow_start[flow->id];
         double last_flow_end = last_run.flow_end[flow->id];
 
-        double last_flow_rate = flow->size / last_flow_fct;
+        double last_flow_rate = 0;
+
+        if (GConf::inst().load_metric == "flowcount") {
+            last_flow_rate = 1.0;
+        } else if (GConf::inst().load_metric == "utilization") {
+            last_flow_rate = flow->size / last_flow_fct;
+        } else if (GConf::inst().load_metric == "flowsize") {
+            last_flow_rate = flow->size;
+        } else {
+            exit(1);
+        }
+        
         double flow_finish_estimate = timer + last_flow_fct;
 
         auto this_run_prof = get_prof_limits(timer, timer + last_flow_fct);

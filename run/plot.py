@@ -6,9 +6,74 @@ import sys
 
 csv_path = sys.argv[1]
 results_dir = csv_path[:csv_path.rfind("/")] + "/"
+pd_frame = pd.read_csv(csv_path)
 
-all_pd_frame = pd.read_csv(csv_path)
-all_pd_frame = all_pd_frame.sort_values(by=["protocol-file-name", "lb-scheme"])
+bar_width = 0.2
+
+
+# the params that might vary in the experiments     
+sweep_params = ["lb-scheme", "load-metric", "priority-allocator"]
+
+# find which of the params are constant in the csv. remove them from the list
+for param in sweep_params:
+    if len(pd_frame[param].unique()) == 1:
+        sweep_params.remove(param)
+
+        
+# combine the params into a single column 
+pd_frame["params"] = ""
+for param in sweep_params:
+    pd_frame["params"] += pd_frame[param] + ","
+pd_frame["params"] = pd_frame["params"].str.strip(",")
+pd_frame = pd_frame.sort_values(by=["protocol-file-name", "params"])
+
+
+# find the protocols and params
+pd_frame.reindex()
+protocols = pd_frame["protocol-file-name"].unique()
+params = pd_frame["params"].unique()
+print("protocols:", protocols)
+print("params:", params)
+
+
+
+############################################################################################
+############################################################################################
+# some magical stuff to find the proper offset for each bar
+max_group_width = 0 
+
+group_sizes = []
+for param in sweep_params: 
+    unique_params = len(pd_frame[param].unique())
+    group_sizes.append(unique_params)
+group_sizes.reverse() 
+all_params_count = np.prod(group_sizes)
+param_offset = {}
+
+for i in range (all_params_count):
+    
+    this_param = i 
+    param_combination = []
+    
+    for j in range(len(group_sizes)):
+        param_combination.append(this_param % group_sizes[j])
+        this_param = this_param // group_sizes[j]
+        
+
+    total_offset = 0 
+    sub_group_width = bar_width 
+    # param_combination.reverse()
+    
+    for k, param_comb in enumerate(param_combination):
+        total_offset += (sub_group_width * param_comb)
+        sub_group_width *= (group_sizes[k] + 1)
+    param_offset[i] = total_offset    
+    print(i, param_combination, params[i], total_offset)
+    
+    max_group_width = max(max_group_width, total_offset)
+        
+############################################################################################
+############################################################################################
 
 colors = {
     "random": "red",
@@ -27,79 +92,64 @@ def get_color(mech):
     else:
         return None
 
-all_pd_frame.reindex()
-protocols = all_pd_frame["protocol-file-name"].unique()
-lb_schemes = all_pd_frame["lb-scheme"].unique()
-priority_allocators = all_pd_frame["priority-allocator"].unique()
+# for each protocol, normalize the times, the max max_time is 1, and everything else is relative to that
+pd_frame["rel_max_psim_time"] = 0
+pd_frame["rel_min_psim_time"] = 0
+pd_frame["rel_last_psim_time"] = 0
 
-for allocator in priority_allocators:
-    pd_frame = all_pd_frame[all_pd_frame["priority-allocator"] == allocator]
-    print(pd_frame)
+for protocol in protocols:
+    protocol_data = pd_frame[pd_frame["protocol-file-name"] == protocol]
+    max_max_time = protocol_data["max_psim_time"].max()
 
-    # for each protocol, normalize the times, the max max_time is 1, and everything else is relative to that
-    pd_frame["rel_max_psim_time"] = 0
-    pd_frame["rel_min_psim_time"] = 0
-    pd_frame["rel_last_psim_time"] = 0
+    for index, row in protocol_data.iterrows():
+        pd_frame.loc[index, "rel_max_psim_time"] = row["max_psim_time"] / max_max_time
+        pd_frame.loc[index, "rel_min_psim_time"] = row["min_psim_time"] / max_max_time
+        pd_frame.loc[index, "rel_last_psim_time"] = row["last_psim_time"] / max_max_time
 
-    for protocol in protocols:
-        protocol_data = pd_frame[pd_frame["protocol-file-name"] == protocol]
-        max_max_time = protocol_data["max_psim_time"].max()
-
-        for index, row in protocol_data.iterrows():
-            pd_frame.loc[index, "rel_max_psim_time"] = row["max_psim_time"] / max_max_time
-            pd_frame.loc[index, "rel_min_psim_time"] = row["min_psim_time"] / max_max_time
-            pd_frame.loc[index, "rel_last_psim_time"] = row["last_psim_time"] / max_max_time
-
-            if row["rel_last_psim_time"] > 1:
-                print("error: rel_last_psim_time > 1")
-                print(row)
-
-    print(pd_frame)
+        if row["rel_last_psim_time"] > 1:
+            print("error: rel_last_psim_time > 1")
+            print(row)
 
 
-    print("protocols:", protocols)
-    print("core selection mechanisms:", lb_schemes)
+group_width = max_group_width # bar_width * len(params)
+group_spacing = max_group_width / 5
 
-    bar_width = 0.2
-    group_width = bar_width * len(lb_schemes)
-    group_spacing = 1
+# len(protocols) items, with (group_width + group_spacing) space between each two items
+x = np.arange(len(protocols)) * (group_width + group_spacing)
 
-    # len(protocols) items, with (group_width + group_spacing) space between each two items
-    x = np.arange(len(protocols)) * (group_width + group_spacing)
+plt.figure(figsize=(len(protocols) * len(params) / 2, 10))
 
-    plt.figure(figsize=(len(protocols) * 2, 10))
+for i, param in enumerate(params):
 
-    for i, mech in enumerate(lb_schemes):
+    param_data = pd_frame[pd_frame["params"] == param]
+    x_offset = x + (param_offset[i] - group_width / 2) 
+    
+    if "futureload" in param:
+        plt.bar(x_offset, param_data["rel_last_psim_time"],
+            width=bar_width, label=param,
+            color=get_color(param), edgecolor="black", linewidth=2)
 
-        mech_data = pd_frame[pd_frame["lb-scheme"] == mech]
-        x_offset = x + (i * bar_width - group_width / 2)
-
-        if mech.startswith("futureload"):
-            plt.bar(x_offset, mech_data["rel_last_psim_time"],
-                width=bar_width, label=mech,
-                color=get_color(mech), edgecolor="black", linewidth=2)
-
-        else:
-            plt.bar(x_offset, mech_data["rel_max_psim_time"],
-                width=bar_width, color="white",
-                edgecolor="black", hatch="///", linewidth=2)
-
-            plt.bar(x_offset, mech_data["rel_max_psim_time"],
-                    width=bar_width, color=get_color(mech), alpha=0.5,
-                    edgecolor="black", hatch="\\\\\\", linewidth=2)
-
-            plt.bar(x_offset, mech_data["rel_min_psim_time"],
-                    width=bar_width, label=mech,
-                    color=get_color(mech), edgecolor="black", linewidth=2)
-
-            plt.plot(x_offset, mech_data["rel_last_psim_time"],
-                    marker="o", color="white", markersize=4, markeredgecolor="black", linestyle="None")
+    else:
+        plt.bar(x_offset, param_data["rel_max_psim_time"],
+            width=bar_width, color="white",
+            edgecolor="black", hatch="///", linewidth=2)
 
 
-    plt.xticks(x, protocols)
-    plt.xticks(rotation=90)
-    plt.legend()
-    plt.ylabel("Normalized Psim Time")
+        plt.bar(x_offset, param_data["rel_min_psim_time"],
+                width=bar_width, label=param,
+                color=get_color(param), edgecolor="black", linewidth=2)
 
-    plot_name = results_dir + "{}.pdf".format(allocator)
-    plt.savefig(plot_name, bbox_inches="tight", dpi=300)
+
+plt.xticks(x, protocols)
+plt.xticks(rotation=45)
+plt.xlabel("Protocol")
+# legend outside the plot
+plt.ylabel("Normalized Psim Time")
+
+plt.legend(bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
+
+
+plot_name_pdf = results_dir + "results.pdf"
+plot_name_png = results_dir + "results.png"
+plt.savefig(plot_name_pdf, bbox_inches="tight", dpi=300)
+plt.savefig(plot_name_png, bbox_inches="tight", dpi=300)

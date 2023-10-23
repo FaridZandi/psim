@@ -29,6 +29,8 @@ enum class LoadMetric {
     REGISTER,
     UTILIZATION,
     ALLOCATED,
+    FLOWSIZE,
+    FLOWCOUNT,
 };
 
 enum class LBScheme{

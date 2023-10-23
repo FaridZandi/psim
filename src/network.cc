@@ -269,7 +269,11 @@ Bottleneck::Bottleneck(double bandwidth) {
     } else if (load_metric_str == "utilization") {
         this->load_metric = LoadMetric::UTILIZATION;
     } else if (load_metric_str == "allocated") {
-        this->load_metric = LoadMetric::ALLOCATED;
+        this->load_metric = LoadMetric::ALLOCATED;    
+    } else if (load_metric_str == "flowsize") {
+        this->load_metric = LoadMetric::FLOWSIZE;
+    } else if (load_metric_str == "flowcount") {
+        this->load_metric = LoadMetric::FLOWCOUNT;
     } else {
         spdlog::error("Invalid load metric: {}", load_metric_str);
         exit(1);
@@ -296,6 +300,12 @@ double Bottleneck::get_load(LoadMetric load_metric_arg) {
     case LoadMetric::ALLOCATED: 
         return bwalloc->total_allocated;
     
+    case LoadMetric::FLOWSIZE: 
+        return current_flow_size_sum;
+
+    case LoadMetric::FLOWCOUNT: 
+        return current_flow_count;
+        
     default:
         spdlog::error("Invalid load metric");
         exit(1);

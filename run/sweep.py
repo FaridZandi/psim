@@ -21,7 +21,7 @@ run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 
 base_dir = os.environ.get("PSIM_BASE_DIR")
 input_dir = base_dir + "/input/"
-workloads_dir = input_dir + "128search-dpstart-2/"
+workloads_dir = input_dir + "128search-dpstart-2-limited/"
 build_path = base_dir + "/build"
 run_path = base_dir + "/run"
 base_executable = build_path + "/psim"
@@ -32,9 +32,9 @@ csv_path = results_dir + "results.csv".format(run_id)
 os.system("mkdir -p {}".format(results_dir))
 
 
-simulation_timestep = 100
+simulation_timestep = 10
 number_worker_threads = 20
-protocols_count = 4
+protocols_count = 2
 reload_data = True
 total_jobs = 0
 memory_limit_kb = 10 * 1e9
@@ -53,18 +53,21 @@ protocol_names.sort()
 # configs to sweep over
 sweep_config = {
     "lb-scheme": [
-        "futureload-utilization",
-        # "futureload-allocated",
+        "futureload",
         "random",
         "roundrobin",
         "powerof2",
         "robinhood",
         "leastloaded",
-        # "futureload-register",
     ],
     "priority-allocator": [
         # "priorityqueue",
         "fairshare",
+    ],
+    "load-metric": [
+        "flowsize",
+        "flowcount",
+        "utilization",
     ],
     "protocol-file-name": protocol_names,
 }
@@ -76,7 +79,7 @@ base_options = {
     
     "step-size": simulation_timestep,
     "core-status-profiling-interval": simulation_timestep,
-    "rep-count": 5,
+    "rep-count": 3,
     "file-log-level": 4,
     "console-log-level": 4,
     
@@ -98,7 +101,7 @@ base_options = {
     "ft-agg-core-link-capacity-mult": 0.5,
     
     # load balancing options
-    "load-metric" : "utilization",
+    "load-metric" : "flowsize",
     "shuffle-device-map": True,
     "shuffle-map-file": shuffle_path,
 }
@@ -128,10 +131,6 @@ def run_experiment(exp, worker_id):
     }
     options.update(base_options)
     options.update(exp)
-    if options["lb-scheme"].startswith("futureload"):
-        load_metric = options["lb-scheme"].split("-")[1]
-        options["load-metric"] = load_metric
-        options["lb-scheme"] = "futureload"
 
     # create the command
     cmd = run_executable
@@ -232,9 +231,6 @@ if reload_data:
 
     # build the shuffle map
     make_shuffle(128, shuffle_path)
-
-    # set the memory limit
-
 
     keys, values = zip(*sweep_config.items())
     permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
