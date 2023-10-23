@@ -25,12 +25,13 @@ class EmptyTask;
 class LoadBalancer;
 
 enum class LoadMetric {
+    DEFAULT,
     REGISTER,
     UTILIZATION,
     ALLOCATED,
 };
 
-enum class core_selection{
+enum class LBScheme{
     RANDOM,
     ROUND_ROBIN,
     LEAST_LOADED,
@@ -63,9 +64,6 @@ public:
 
     //temp
     virtual void record_link_status(double timer) {};
-
-    LoadMetric load_metric;
-    double get_bottleneck_load(Bottleneck* bn);
 
     virtual double total_link_bandwidth();
     virtual double total_bw_utilization();
@@ -125,7 +123,7 @@ public:
     std::map<ft_loc, Bottleneck *> core_bottlenecks;
 
 
-    core_selection core_selection_mechanism;
+    LBScheme lb_scheme;
 
     void record_link_status(double timer);
 
@@ -155,7 +153,7 @@ private:
     std::map<ft_loc, int> pod_core_agg_map;
 
     int* last_agg_in_pod;
-    int select_agg(Flow* flow, int pod_number, core_selection mechanism);
+    int select_agg(Flow* flow, int pod_number, LBScheme mechanism);
 };
 
 
@@ -207,12 +205,15 @@ public:
     void allocate_bandwidths();
     double get_allocated_rate(int id, double registered_rate, int priority = 0);
 
+    double get_load(LoadMetric load_metric_arg = LoadMetric::DEFAULT);
+ 
     // basic info
     int id;
     double bandwidth;
     int current_flow_count;
     double current_flow_size_sum;
     std::vector<Flow*> flows;
+    LoadMetric load_metric; 
 
     // history
     std::vector<double> total_register_history;

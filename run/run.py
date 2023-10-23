@@ -58,29 +58,32 @@ options = {
     "protocol-file-dir": base_dir + "/input/128search-dpstart-2",
     "protocol-file-name": "candle128-simtime.txt",
 
-    # "protocol-file-dir": base_dir + "/input/base",
-    # "protocol-file-name": "simple.txt",
-
     "step-size": 10,
     "core-status-profiling-interval": 10,
     "rep-count": 10, 
-    "link-bandwidth": 100,
-    "initial-rate": 100,
-    "min-rate": 10,
-    "ft-core-count": 8,
-    "ft-agg-per-pod": 4,
     "console-log-level": 4,
     "file-log-level": 4,
-    "ft-server-tor-link-capacity-mult": 1,
-    "ft-tor-agg-link-capacity-mult": 100,
-    "ft-agg-core-link-capacity-mult": 0.5,
+    
+    "initial-rate": 100,
+    "min-rate": 10,
     "priority-allocator": "fairshare", #"priorityqueue", 
-    "core-selection-mechanism": "futureload",
+
+    "network-type": "fattree",    
+    "link-bandwidth": 100,
+    "ft-server-per-rack": 8,
+    "ft-rack-per-pod": 4,
+    "ft-agg-per-pod": 4,
+    "ft-core-count": 8,
+    "ft-pod-count": 4,
+    "ft-server-tor-link-capacity-mult": 1,
+    "ft-tor-agg-link-capacity-mult": 1,
+    "ft-agg-core-link-capacity-mult": 0.5,
+    
+    
+    "lb-scheme": "futureload",
     "load-metric": "utilization",
     "shuffle-device-map": True,
     "shuffle-map-file": base_dir + "/input/shuffle/shuffle-map.txt",
-    "network-type": "fattree",
-    "ft-server-per-rack": 8,
 }
 
 options.update(params)

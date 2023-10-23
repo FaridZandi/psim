@@ -34,7 +34,7 @@ os.system("mkdir -p {}".format(results_dir))
 
 simulation_timestep = 100
 number_worker_threads = 20
-protocols_count = 36
+protocols_count = 4
 reload_data = True
 total_jobs = 0
 memory_limit_kb = 10 * 1e9
@@ -52,7 +52,7 @@ protocol_names.sort()
 
 # configs to sweep over
 sweep_config = {
-    "core-selection-mechanism": [
+    "lb-scheme": [
         "futureload-utilization",
         # "futureload-allocated",
         "random",
@@ -73,26 +73,34 @@ sweep_config = {
 # base options
 base_options = {
     "protocol-file-dir": workloads_dir,
+    
     "step-size": simulation_timestep,
     "core-status-profiling-interval": simulation_timestep,
-    "link-bandwidth": 100,
+    "rep-count": 5,
+    "file-log-level": 4,
+    "console-log-level": 4,
+    
+    # flow rate control options
     "initial-rate": 100,
     "min-rate": 10,
+    "priority-allocator": "fairshare",
+    
+    # topology options
+    "network-type": "leafspine",
+    "link-bandwidth": 100,
+    "ft-server-per-rack": 8,
+    "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
-    "console-log-level": 4,
-    "file-log-level": 4,
+    "ft-core-count": 8,
+    "ft-pod-count": 4,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
-    "priority-allocator": "fairshare",
-    "shuffle-device-map": True,
-    "load-metric" : "utilization",
-    "shuffle-map-file": shuffle_path,
-    "rep-count": 5,
-
-    "network-type": "leafspine",
-    "ft-server-per-rack": 32,
     "ft-agg-core-link-capacity-mult": 0.5,
-    "ft-core-count": 8,
+    
+    # load balancing options
+    "load-metric" : "utilization",
+    "shuffle-device-map": True,
+    "shuffle-map-file": shuffle_path,
 }
 
 # print the sweep config in a file in the results dir
@@ -120,10 +128,10 @@ def run_experiment(exp, worker_id):
     }
     options.update(base_options)
     options.update(exp)
-    if options["core-selection-mechanism"].startswith("futureload"):
-        load_metric = options["core-selection-mechanism"].split("-")[1]
+    if options["lb-scheme"].startswith("futureload"):
+        load_metric = options["lb-scheme"].split("-")[1]
         options["load-metric"] = load_metric
-        options["core-selection-mechanism"] = "futureload"
+        options["lb-scheme"] = "futureload"
 
     # create the command
     cmd = run_executable
@@ -135,7 +143,6 @@ def run_experiment(exp, worker_id):
         else:
             cmd += " --" + option[0] + "=" + str(option[1])
 
-    # print("running the command:", cmd)
     try:
         output = subprocess.check_output(cmd, shell=True)
         output = output.decode("utf-8")
@@ -172,6 +179,7 @@ def run_experiment(exp, worker_id):
         "last_psim_time": last_psim_time,
         "all_times": all_times,
         "exp_duration": duration.microseconds,
+        "run_id": run_id,
     }
 
     for key, val in sweep_config.items():

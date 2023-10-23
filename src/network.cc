@@ -14,31 +14,6 @@ using namespace psim;
 
 Network::Network() {
     Bottleneck::bottleneck_counter = 0;
-
-    std::string load_metric_str = GConf::inst().load_metric;
-    if (load_metric_str == "register") {
-        this->load_metric = LoadMetric::REGISTER;
-    } else if (load_metric_str == "utilization") {
-        this->load_metric = LoadMetric::UTILIZATION;
-    } else if (load_metric_str == "allocated") {
-        this->load_metric = LoadMetric::ALLOCATED;
-    } else {
-        spdlog::error("Invalid load metric: {}", load_metric_str);
-        exit(1);
-    }
-}
-
-double Network::get_bottleneck_load(Bottleneck* bn) {
-    if (this->load_metric == LoadMetric::REGISTER) {
-        return bn->bwalloc->total_registered;
-    } else if (this->load_metric == LoadMetric::UTILIZATION) {
-        return bn->bwalloc->utilized_bandwidth;
-    } else if (this->load_metric == LoadMetric::ALLOCATED) {
-        return bn->bwalloc->total_allocated;
-    } else {
-        spdlog::error("Invalid load metric");
-        exit(1);
-    }
 }
 
 Network::~Network() {
@@ -283,7 +258,49 @@ Bottleneck::Bottleneck(double bandwidth) {
     this->current_flow_count = 0;
     this->current_flow_size_sum = 0;
 
+
     setup_bwalloc(); 
+
+
+    std::string load_metric_str = GConf::inst().load_metric;
+
+    if (load_metric_str == "register") {
+        this->load_metric = LoadMetric::REGISTER;
+    } else if (load_metric_str == "utilization") {
+        this->load_metric = LoadMetric::UTILIZATION;
+    } else if (load_metric_str == "allocated") {
+        this->load_metric = LoadMetric::ALLOCATED;
+    } else {
+        spdlog::error("Invalid load metric: {}", load_metric_str);
+        exit(1);
+    }
+}
+
+
+double Bottleneck::get_load(LoadMetric load_metric_arg) {
+
+    LoadMetric load_metric = this->load_metric;
+
+    if (load_metric_arg != LoadMetric::DEFAULT){
+        load_metric = load_metric_arg;
+    }
+    
+    
+    switch (load_metric) {
+    case LoadMetric::REGISTER:
+        return bwalloc->total_registered;
+
+    case LoadMetric::UTILIZATION:
+        return bwalloc->utilized_bandwidth;
+    
+    case LoadMetric::ALLOCATED: 
+        return bwalloc->total_allocated;
+    
+    default:
+        spdlog::error("Invalid load metric");
+        exit(1);
+    }
+
 }
 
 
@@ -323,6 +340,7 @@ double Bottleneck::get_allocated_rate(int id, double registered_rate, int priori
     return bwalloc->get_allocated_rate(id, registered_rate, priority);
 }
 
+
 bool Bottleneck::should_drop(double step_size){
     double excess = bwalloc->total_registered - bandwidth;
 
@@ -342,6 +360,7 @@ bool Bottleneck::should_drop(double step_size){
 
     return false;
 }
+
 
 
 bool ft_loc::operator<(const ft_loc& rhs) const {

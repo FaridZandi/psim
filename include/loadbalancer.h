@@ -9,8 +9,7 @@ namespace psim {
 
 class Bottleneck;
 class Flow; 
-enum class LoadMetric;
-enum class core_selection;
+enum class LBScheme;
 
 // Network Loadbalancer. 
 // The structure is like this: There a bunch of items at the lower level, and 
@@ -29,16 +28,15 @@ public:
     void register_link(int lower_item, int upper_item, int dir, Bottleneck* link); 
     virtual int get_upper_item(int src, int dst, Flow* flow, int timer) = 0;
 
-    static LoadBalancer* create_load_balancer(std::string type, int item_count, core_selection& cs);
+    static LoadBalancer* create_load_balancer(std::string type, int item_count, LBScheme& cs);
 
 protected: 
     int item_count; 
-    std::map<std::pair<int, int>, Bottleneck*> link_up;
-    std::map<std::pair<int, int>, Bottleneck*> link_down;
+    std::map<std::pair<int, int>, Bottleneck*> link_up_map;
+    std::map<std::pair<int, int>, Bottleneck*> link_down_map;
 
-    LoadMetric load_metric;
-    double get_bottleneck_load(Bottleneck* bn);
-
+    Bottleneck* uplink(int lower_item, int upper_item);
+    Bottleneck* downlink(int lower_item, int upper_item);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

@@ -16,12 +16,16 @@ using namespace psim;
 
 CoreConnectedNetwork::CoreConnectedNetwork() : Network() {}
 
-CoreConnectedNetwork::~CoreConnectedNetwork() {}
+CoreConnectedNetwork::~CoreConnectedNetwork() {
+    if (core_load_balancer){
+        delete core_load_balancer;
+    }
+}
 
 void CoreConnectedNetwork::record_link_status(double timer) {
     int timer_int = int(timer);
 
-    if (core_selection_mechanism != core_selection::FUTURE_LOAD) {
+    if (lb_scheme != LBScheme::FUTURE_LOAD) {
         return;
     }
 
@@ -31,7 +35,7 @@ void CoreConnectedNetwork::record_link_status(double timer) {
     this_run.max_time_step = timer_int;
 
     for (auto bn: bottlenecks) {
-        status.link_loads[bn->id] = get_bottleneck_load(bn);
+        status.link_loads[bn->id] = bn->get_load(); 
     }
 
     for (auto flow: flows) {
@@ -146,9 +150,9 @@ FatTreeNetwork::FatTreeNetwork() : CoreConnectedNetwork() {
         last_agg_in_pod[i] = 0;
     }
 
-    core_load_balancer = LoadBalancer::create_load_balancer(GConf::inst().core_selection_mechanism, 
+    core_load_balancer = LoadBalancer::create_load_balancer(GConf::inst().lb_scheme, 
                                                             core_count, 
-                                                            core_selection_mechanism);
+                                                            lb_scheme);
 
     for (int p = 0; p < pod_count; p++) {
         for (int c = 0; c < core_count; c++) {
@@ -164,11 +168,11 @@ FatTreeNetwork::FatTreeNetwork() : CoreConnectedNetwork() {
 FatTreeNetwork::~FatTreeNetwork() {}
 
 
-int FatTreeNetwork::select_agg(Flow* flow, int pod_number, core_selection mechanism) {
+int FatTreeNetwork::select_agg(Flow* flow, int pod_number, LBScheme mechanism) {
 
-    if(mechanism == core_selection::FUTURE_LOAD){
+    if(mechanism == LBScheme::FUTURE_LOAD){
         if (GContext::is_first_run()) {
-            return select_agg(flow, pod_number, core_selection::ROUND_ROBIN);
+            return select_agg(flow, pod_number, LBScheme::ROUND_ROBIN);
         }
         int last_decision = GContext::inst().last_decision(flow->id);
         return last_decision;
@@ -202,7 +206,7 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
     }
     else if (same_pod) {
 
-        int agg_num = select_agg(flow, src_loc.pod, core_selection_mechanism);
+        int agg_num = select_agg(flow, src_loc.pod, lb_scheme);
         GContext::inst().save_decision(flow->id, agg_num);
 
         flow->path.push_back(server_tor_bottlenecks[ft_loc{src_loc.pod, src_loc.rack, src_loc.server, 1, -1}]);
@@ -268,9 +272,9 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
         }
     }
 
-    core_load_balancer = LoadBalancer::create_load_balancer(GConf::inst().core_selection_mechanism, 
+    core_load_balancer = LoadBalancer::create_load_balancer(GConf::inst().lb_scheme, 
                                                             core_count, 
-                                                            core_selection_mechanism);
+                                                            lb_scheme);
 
     for (int t = 0; t < tor_count; t++) {
         for (int c = 0; c < core_count; c++) {

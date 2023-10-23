@@ -30,7 +30,7 @@ public:
     int bn_priority_levels = 1;
     std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels" or "fairshare
     int rep_count = 2;
-    std::string core_selection_mechanism = "roundrobin"; // "roundrobin", "random", "leastloaded", "powerof2", "futureload" 
+    std::string lb_scheme = "roundrobin"; // "roundrobin", "random", "leastloaded", "powerof2", "futureload" 
     bool shuffle_device_map = false;
     std::string shuffle_map_file = "";
     std::string load_metric = "utilization"; // "register", "utilization", "allocated"

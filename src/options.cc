@@ -44,7 +44,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("ft-tor-agg-link-capacity-mult", po::value<double>(), "set ft-tor-agg-link-capacity-mult")
         ("ft-agg-core-link-capacity-mult", po::value<double>(), "set ft-agg-core-link-capacity-mult")
         ("rep-count", po::value<int>(), "set rep-count")
-        ("core-selection-mechanism", po::value<std::string>(), "set core selection mechanism")
+        ("lb-scheme", po::value<std::string>(), "set core selection mechanism")
         ("shuffle-device-map", po::value<int>()->implicit_value(1), "shuffle device map")
         ("shuffle-map-file", po::value<std::string>(), "shuffle map file")
         ("load-metric", po::value<std::string>(), "load metric")
@@ -124,8 +124,8 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("shuffle-map-file")) {
         GConf::inst().shuffle_map_file = vm["shuffle-map-file"].as<std::string>();
     }
-    if (vm.count("core-selection-mechanism")) {
-        GConf::inst().core_selection_mechanism = vm["core-selection-mechanism"].as<std::string>();
+    if (vm.count("lb-scheme")) {
+        GConf::inst().lb_scheme = vm["lb-scheme"].as<std::string>();
     }
     if (vm.count("console-log-level")) {
         GConf::inst().console_log_level = vm["console-log-level"].as<int>();
@@ -243,7 +243,7 @@ void psim::log_config() {
     spdlog::info("==== ft_tor_agg_link_capacity_mult: {}", GConf::inst().ft_tor_agg_link_capacity_mult);
     spdlog::info("==== ft_agg_core_link_capacity_mult: {}", GConf::inst().ft_agg_core_link_capacity_mult);
     spdlog::info("==== rep_count: {}", GConf::inst().rep_count);
-    spdlog::info("==== core_selection_mechanism: {}", GConf::inst().core_selection_mechanism);
+    spdlog::info("==== lb_scheme: {}", GConf::inst().lb_scheme);
     spdlog::info("==== shuffle_device_map: {}", GConf::inst().shuffle_device_map);
     spdlog::info("==== shuffle_map_file: {}", GConf::inst().shuffle_map_file);
     spdlog::info("==== load_metric: {}", GConf::inst().load_metric);

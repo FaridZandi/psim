@@ -8,7 +8,7 @@ csv_path = sys.argv[1]
 results_dir = csv_path[:csv_path.rfind("/")] + "/"
 
 all_pd_frame = pd.read_csv(csv_path)
-all_pd_frame = all_pd_frame.sort_values(by=["protocol-file-name", "core-selection-mechanism"])
+all_pd_frame = all_pd_frame.sort_values(by=["protocol-file-name", "lb-scheme"])
 
 colors = {
     "random": "red",
@@ -29,7 +29,7 @@ def get_color(mech):
 
 all_pd_frame.reindex()
 protocols = all_pd_frame["protocol-file-name"].unique()
-core_selection_mechanisms = all_pd_frame["core-selection-mechanism"].unique()
+lb_schemes = all_pd_frame["lb-scheme"].unique()
 priority_allocators = all_pd_frame["priority-allocator"].unique()
 
 for allocator in priority_allocators:
@@ -58,10 +58,10 @@ for allocator in priority_allocators:
 
 
     print("protocols:", protocols)
-    print("core selection mechanisms:", core_selection_mechanisms)
+    print("core selection mechanisms:", lb_schemes)
 
     bar_width = 0.2
-    group_width = bar_width * len(core_selection_mechanisms)
+    group_width = bar_width * len(lb_schemes)
     group_spacing = 1
 
     # len(protocols) items, with (group_width + group_spacing) space between each two items
@@ -69,9 +69,9 @@ for allocator in priority_allocators:
 
     plt.figure(figsize=(len(protocols) * 2, 10))
 
-    for i, mech in enumerate(core_selection_mechanisms):
+    for i, mech in enumerate(lb_schemes):
 
-        mech_data = pd_frame[pd_frame["core-selection-mechanism"] == mech]
+        mech_data = pd_frame[pd_frame["lb-scheme"] == mech]
         x_offset = x + (i * bar_width - group_width / 2)
 
         if mech.startswith("futureload"):

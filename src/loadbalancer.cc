@@ -7,67 +7,47 @@ using namespace std;
 
 LoadBalancer::LoadBalancer(int item_count) {
     this->item_count = item_count; 
-
-    std::string load_metric_str = GConf::inst().load_metric;
-
-    if (load_metric_str == "register") {
-        this->load_metric = LoadMetric::REGISTER;
-    } else if (load_metric_str == "utilization") {
-        this->load_metric = LoadMetric::UTILIZATION;
-    } else if (load_metric_str == "allocated") {
-        this->load_metric = LoadMetric::ALLOCATED;
-    } else {
-        spdlog::error("Invalid load metric: {}", load_metric_str);
-        exit(1);
-    }
 }
 
 void LoadBalancer::register_link(int lower_item, int upper_item, int dir, Bottleneck* link) {
     if (dir == 1) {
-        link_up[std::make_pair(lower_item, upper_item)] = link; 
+        link_up_map[std::make_pair(lower_item, upper_item)] = link; 
     } else {
-        link_down[std::make_pair(lower_item, upper_item)] = link; 
+        link_down_map[std::make_pair(lower_item, upper_item)] = link; 
     }
 }
 
-double LoadBalancer::get_bottleneck_load(Bottleneck* bn) {
-    LoadMetric load_metric = this->load_metric;
-    
-    if (this->load_metric == LoadMetric::REGISTER) {
-        return bn->bwalloc->total_registered;
-    } else if (this->load_metric == LoadMetric::UTILIZATION) {
-        return bn->bwalloc->utilized_bandwidth;
-    } else if (this->load_metric == LoadMetric::ALLOCATED) {
-        return bn->bwalloc->total_allocated;
-    } else {
-        spdlog::error("Invalid load metric");
-        exit(1);
-    }
+Bottleneck* LoadBalancer::uplink(int lower_item, int upper_item){
+    return link_up_map[std::make_pair(lower_item, upper_item)];
 }
 
-LoadBalancer* LoadBalancer::create_load_balancer(std::string type, int item_count, core_selection& cs){
+Bottleneck* LoadBalancer::downlink(int lower_item, int upper_item){
+    return link_down_map[std::make_pair(lower_item, upper_item)];
+}
+
+LoadBalancer* LoadBalancer::create_load_balancer(std::string type, int item_count, LBScheme& cs){
     if (type == "random") {
-        cs = core_selection::RANDOM;
+        cs = LBScheme::RANDOM;
         return new RandomLoadBalancer(item_count);
 
     } else if (type == "roundrobin") {
-        cs = core_selection::ROUND_ROBIN;
+        cs = LBScheme::ROUND_ROBIN;
         return new RoundRobinLoadBalancer(item_count);
 
     } else if (type == "powerof2") {
-        cs = core_selection::POWER_OF_2;
+        cs = LBScheme::POWER_OF_2;
         return new PowerOf2LoadBalancer(item_count);
 
     } else if (type == "leastloaded") {
-        cs = core_selection::LEAST_LOADED;
+        cs = LBScheme::LEAST_LOADED;
         return new LeastLoadedLoadBalancer(item_count);
 
     } else if (type == "robinhood") {
-        cs = core_selection::ROBIN_HOOD; 
+        cs = LBScheme::ROBIN_HOOD; 
         return new RobinHoodLoadBalancer(item_count);
  
     } else if (type == "futureload") {
-        cs = core_selection::FUTURE_LOAD;
+        cs = LBScheme::FUTURE_LOAD;
         return new FutureLoadLoadBalancer(item_count);
  
     } else {
@@ -75,8 +55,6 @@ LoadBalancer* LoadBalancer::create_load_balancer(std::string type, int item_coun
         exit(1);
     }
 }
-
-
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
@@ -132,10 +110,9 @@ int PowerOf2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer
     cores_to_sample[2] = prev_best_core;
 
     for (int c : cores_to_sample) {
-        auto up = link_up[make_pair(src, c)];
-        auto down = link_down[make_pair(dst, c)];
-
-        double load = get_bottleneck_load(up) + get_bottleneck_load(down);
+        double up_load = uplink(src, c)->get_load();
+        double down_load = downlink(dst, c)->get_load();
+        double load = up_load + down_load;
 
         if (load < least_load){
             least_load = load;
@@ -159,18 +136,15 @@ int LeastLoadedLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
     double least_load = std::numeric_limits<double>::max();
 
     for (int c = 0; c < item_count; c++){
-
-        auto up = link_up[make_pair(src, c)];
-        auto down = link_down[make_pair(dst, c)];
-        double load = get_bottleneck_load(up) + get_bottleneck_load(down);
+        double up_load = uplink(src, c)->get_load();
+        double down_load = downlink(dst, c)->get_load();
+        double load = up_load + down_load; 
 
         if (load < least_load){
             least_load = load;
             best_core = c;
         }
     }
-
-    spdlog::critical("Least loaded core: {} with the load: {}", best_core, least_load);
     
     return best_core;
 }
@@ -181,9 +155,7 @@ int LeastLoadedLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
 
 RobinHoodLoadBalancer::RobinHoodLoadBalancer(int item_count) : LoadBalancer(item_count) {
     iterations_hard_working = std::vector<int>(item_count, 0);
-
     rh_multiplier = std::sqrt(item_count);
-
     rh_lb = 0.0;
 }
 
@@ -193,9 +165,10 @@ int RobinHoodLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int time
     std::vector<double> core_loads(item_count, 0.0);
 
     for (int c = 0; c < item_count; c++) {
-        auto up = link_up[make_pair(src, c)];
-        auto down = link_down[make_pair(dst, c)];
-        core_loads[c] = get_bottleneck_load(up) + get_bottleneck_load(down);
+        double up_load = uplink(src, c)->get_load();
+        double down_load = downlink(dst, c)->get_load();
+        core_loads[c] = up_load + down_load;
+
         total_load += core_loads[c];
     }
 
@@ -286,11 +259,9 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
             auto& flow_loads = status_map[t].flow_loads;
 
             for (int c = 0; c < item_count; c++) {
-
-                auto up = link_up[make_pair(src, c)];
-                auto down = link_down[make_pair(dst, c)];
-
-                double total_rate = link_loads[up->id] + link_loads[down->id];
+                double up_load = link_loads[uplink(src, c)->id];
+                double down_load = link_loads[downlink(dst, c)->id];
+                double total_rate = up_load + down_load;
 
                 if (c == last_decision) {
                     if (t > last_run_prof.first and t <= last_run_prof.second) {
@@ -300,8 +271,7 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
                         // current contains thet flow that we're trying to place.
 
                         if (flow_loads.find(flow->id) == flow_loads.end()){
-                            spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}",
-                                            flow->id, t, last_flow_start, last_flow_end, last_run_prof.first, last_run_prof.second);
+                            spdlog::error("flow load not found flow: {}.", flow->id);
                         }
 
                         total_rate -= 2 * flow_loads[flow->id];
@@ -335,13 +305,12 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
         spdlog::debug("-----------------------------------------------------------------");
 
         // todo: can I get a better estimate of the flow finishing time now?
-
         
-        auto last_run_bn_up = link_up[make_pair(src, last_decision)];
-        auto last_run_bn_down = link_down[make_pair(dst, last_decision)];
+        auto last_run_bn_up = uplink(src, last_decision);
+        auto last_run_bn_down = downlink(dst, last_decision);
         
-        auto this_run_bn_up = link_up[make_pair(src, best_core)];
-        auto this_run_bn_down = link_down[make_pair(dst, best_core)];
+        auto this_run_bn_up = uplink(src, best_core);
+        auto this_run_bn_down = downlink(dst, best_core);
 
         // update the link loads in the last run, to account for the different decision.
         for (int t = last_run_prof.first + prof_inter; t <= last_run_prof.second; t += prof_inter)  {
@@ -350,10 +319,10 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
             auto& status = last_run.network_status[t];
             auto& link_loads = status.link_loads;
 
-            if (status.flow_loads.find(flow->id) == status.flow_loads.end()){
-                spdlog::error("flow load not found flow: {}, t: {}, last_start: {}, last_finish: {}, prof_start: {}, prof_end: {}",
-                    flow->id, t, last_flow_start, last_flow_end, last_run_prof.first, last_run_prof.second);
+            if (status.flow_loads.find(flow->id) == status.flow_loads.end()) {
+                spdlog::error("flow load not found flow: {}.", flow->id);
             }
+
             double flow_load = status.flow_loads[flow->id];
 
             link_loads[last_run_bn_up->id] -= flow_load;
@@ -364,6 +333,7 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
             if (t > last_run.max_time_step) break;
             auto& status = last_run.network_status[t];
             auto& link_loads = status.link_loads;
+
             link_loads[this_run_bn_up->id] += last_flow_rate;
             link_loads[this_run_bn_down->id] += last_flow_rate;
         }
