@@ -24,14 +24,6 @@ class PComp;
 class EmptyTask;
 class LoadBalancer;
 
-enum class LBScheme{
-    RANDOM,
-    ROUND_ROBIN,
-    LEAST_LOADED,
-    POWER_OF_2,
-    ROBIN_HOOD,
-    FUTURE_LOAD,
-};
 
 class Network {
 public:

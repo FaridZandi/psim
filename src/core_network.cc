@@ -39,15 +39,7 @@ void CoreConnectedNetwork::record_link_status(double timer) {
     }
 
     for (auto flow: flows) {
-        if (GConf::inst().load_metric == "flowsize") {
-            status.flow_loads[flow->id] = flow->size;
-        } else if (GConf::inst().load_metric == "flowcount") {
-            status.flow_loads[flow->id] = 1;
-        } else if (GConf::inst().load_metric == "utilization") {
-            status.flow_loads[flow->id] = flow->last_rate;
-        } else {
-            exit(0);
-        }
+        status.flow_loads[flow->id] = flow->get_load(); 
     }
 }
 

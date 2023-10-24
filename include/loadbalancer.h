@@ -3,13 +3,12 @@
 
 #include <map>
 #include "network.h"
+#include "gconfig.h"
 
 namespace psim {
 
-
 class Bottleneck;
 class Flow;
-enum class LBScheme;
 
 // Network Loadbalancer.
 // The structure is like this: There a bunch of items at the lower level, and

@@ -107,7 +107,22 @@ void psim::setup_logger(bool recreate_dir) {
 
 void psim::process_arguments(po::variables_map vm){
     if (vm.count("load-metric")) {
-        GConf::inst().load_metric = vm["load-metric"].as<std::string>();
+        std::string load_metric_str = vm["load-metric"].as<std::string>();
+        
+        if (load_metric_str == "flowsize") {
+            GConf::inst().load_metric = LoadMetric::FLOWSIZE;
+        } else if (load_metric_str == "flowcount") {
+            GConf::inst().load_metric = LoadMetric::FLOWCOUNT;
+        } else if (load_metric_str == "utilization") {
+            GConf::inst().load_metric = LoadMetric::UTILIZATION;
+        } else if (load_metric_str == "allocated") {
+            GConf::inst().load_metric = LoadMetric::ALLOCATED;
+        } else if (load_metric_str == "registered") {
+            GConf::inst().load_metric = LoadMetric::REGISTERED;
+        } else {
+            spdlog::error("Invalid load metric: {}", load_metric_str);
+            exit(1);
+        }
     }
     if (vm.count("core-status-profiling-interval")) {
         GConf::inst().core_status_profiling_interval = vm["core-status-profiling-interval"].as<int>();
@@ -246,7 +261,7 @@ void psim::log_config() {
     spdlog::info("==== lb_scheme: {}", GConf::inst().lb_scheme);
     spdlog::info("==== shuffle_device_map: {}", GConf::inst().shuffle_device_map);
     spdlog::info("==== shuffle_map_file: {}", GConf::inst().shuffle_map_file);
-    spdlog::info("==== load_metric: {}", GConf::inst().load_metric);
+    spdlog::info("==== load_metric: {}", static_cast<std::underlying_type<LoadMetric>::type>(GConf::inst().load_metric));
     spdlog::info("==== core_status_profiling_interval: {}", GConf::inst().core_status_profiling_interval);
     spdlog::info("==== log_file_name: {}", GConf::inst().log_file_name);
     spdlog::info("---------------------------------------------");

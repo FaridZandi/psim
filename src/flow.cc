@@ -15,23 +15,7 @@ using namespace psim;
 
 Flow::Flow() : PTask() {
     reset();
-
-    std::string load_metric_str = GConf::inst().load_metric;
-
-    if (load_metric_str == "register") {
-        this->load_metric = LoadMetric::REGISTER;
-    } else if (load_metric_str == "utilization") {
-        this->load_metric = LoadMetric::UTILIZATION;
-    } else if (load_metric_str == "allocated") {
-        this->load_metric = LoadMetric::ALLOCATED;
-    } else if (load_metric_str == "flowsize") {
-        this->load_metric = LoadMetric::FLOWSIZE;
-    } else if (load_metric_str == "flowcount") {
-        this->load_metric = LoadMetric::FLOWCOUNT;
-    } else {
-        spdlog::error("Invalid load metric: {}", load_metric_str);
-        exit(1);
-    }
+    this->load_metric = GConf::inst().load_metric;
 }
 
 Flow::~Flow() {
@@ -70,10 +54,6 @@ void Flow::finished() {
     this_run.flow_start[id] = start_time;
     this_run.flow_end[id] = end_time;
     this_run.flow_fct[id] = end_time - start_time;
-
-
-
-
 }
 
 void Flow::compute_priority(){
@@ -129,10 +109,10 @@ double Flow::get_load(LoadMetric load_metric_arg) {
     }
 
     switch (load_metric) {
-      case LoadMetric::REGISTER:
+      case LoadMetric::REGISTERED:
           return this->registered_rate;
       case LoadMetric::UTILIZATION:
-          return this->current_rate;
+          return this->last_rate;
       case LoadMetric::ALLOCATED:
           return this->registered_rate;
       case LoadMetric::FLOWSIZE:

@@ -258,40 +258,21 @@ Bottleneck::Bottleneck(double bandwidth) {
     this->current_flow_count = 0;
     this->current_flow_size_sum = 0;
 
-
     setup_bwalloc(); 
 
-
-    std::string load_metric_str = GConf::inst().load_metric;
-
-    if (load_metric_str == "register") {
-        this->load_metric = LoadMetric::REGISTER;
-    } else if (load_metric_str == "utilization") {
-        this->load_metric = LoadMetric::UTILIZATION;
-    } else if (load_metric_str == "allocated") {
-        this->load_metric = LoadMetric::ALLOCATED;    
-    } else if (load_metric_str == "flowsize") {
-        this->load_metric = LoadMetric::FLOWSIZE;
-    } else if (load_metric_str == "flowcount") {
-        this->load_metric = LoadMetric::FLOWCOUNT;
-    } else {
-        spdlog::error("Invalid load metric: {}", load_metric_str);
-        exit(1);
-    }
+    this->load_metric = GConf::inst().load_metric;
 }
 
 
 double Bottleneck::get_load(LoadMetric load_metric_arg) {
-
     LoadMetric load_metric = this->load_metric;
-
+    
     if (load_metric_arg != LoadMetric::DEFAULT){
         load_metric = load_metric_arg;
     }
-    
-    
+
     switch (load_metric) {
-    case LoadMetric::REGISTER:
+    case LoadMetric::REGISTERED:
         return bwalloc->total_registered;
 
     case LoadMetric::UTILIZATION:
@@ -310,7 +291,6 @@ double Bottleneck::get_load(LoadMetric load_metric_arg) {
         spdlog::error("Invalid load metric");
         exit(1);
     }
-
 }
 
 

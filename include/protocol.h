@@ -34,6 +34,13 @@ enum PTaskStatus {
     FINISHED,
 };
 
+enum ProtocolType {
+    MAIN_PROTOCOL,
+    BACKGROUND_PROTOCOL,
+};
+
+
+
 // Abstract representation of task (a node in the execution graph).
 class PTask {
 public:
@@ -153,10 +160,7 @@ private:
 
 };
 
-enum ProtocolType {
-    MAIN_PROTOCOL,
-    BACKGROUND_PROTOCOL,
-};
+
 
 
 class Protocol {

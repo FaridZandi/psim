@@ -3,12 +3,34 @@
 
 enum class LoadMetric {
     DEFAULT,
-    REGISTER,
+    REGISTERED,
     UTILIZATION,
     ALLOCATED,
     FLOWSIZE,
     FLOWCOUNT,
 };
+
+enum class LBScheme{
+    RANDOM,
+    ROUND_ROBIN,
+    LEAST_LOADED,
+    POWER_OF_2,
+    ROBIN_HOOD,
+    FUTURE_LOAD,
+};
+
+
+enum class PriorityAllocator {
+    PRIORITY_QUEUE,
+    FIXED_LEVELS,
+    FAIR_SHARE,
+};
+
+enum class NetworkType {
+    FAT_TREE,
+    BIG_SWITCH,
+};
+
 
 class GConf {
 public:
@@ -42,7 +64,8 @@ public:
     std::string lb_scheme = "roundrobin"; // "roundrobin", "random", "leastloaded", "powerof2", "futureload"
     bool shuffle_device_map = false;
     std::string shuffle_map_file = "";
-    std::string load_metric = "utilization"; // "register", "utilization", "allocated"
+    // std::string load_metric = "utilization"; // "register", "utilization", "allocated"
+    LoadMetric load_metric = LoadMetric::UTILIZATION;
 
     // int machine_count = 16;
     // int ft_server_per_rack = 4;
