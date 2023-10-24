@@ -1,37 +1,37 @@
 #ifndef LOADBALANCER_H
 #define LOADBALANCER_H
 
-#include <map> 
+#include <map>
 #include "network.h"
 
 namespace psim {
 
 
 class Bottleneck;
-class Flow; 
+class Flow;
 enum class LBScheme;
 
-// Network Loadbalancer. 
-// The structure is like this: There a bunch of items at the lower level, and 
-// the there are a bunch of items in the upper level. The lower level items 
-// are connected to the upper level in a all-to-all fashion. The load balancer 
-// is invoket with two items from lower level as input. The load balancer then 
-// decides which upper level item should be used to connect the two lower level 
-// items. the connections are bidirectional, so there will be actually two 
+// Network Loadbalancer.
+// The structure is like this: There a bunch of items at the lower level, and
+// the there are a bunch of items in the upper level. The lower level items
+// are connected to the upper level in a all-to-all fashion. The load balancer
+// is invoket with two items from lower level as input. The load balancer then
+// decides which upper level item should be used to connect the two lower level
+// items. the connections are bidirectional, so there will be actually two
 // connections between every lower level and upper level item.
 
 class LoadBalancer {
 public:
-    LoadBalancer(int item_count); 
+    LoadBalancer(int item_count);
     virtual ~LoadBalancer() {}
 
-    void register_link(int lower_item, int upper_item, int dir, Bottleneck* link); 
+    void register_link(int lower_item, int upper_item, int dir, Bottleneck* link);
     virtual int get_upper_item(int src, int dst, Flow* flow, int timer) = 0;
 
     static LoadBalancer* create_load_balancer(std::string type, int item_count, LBScheme& cs);
 
-protected: 
-    int item_count; 
+protected:
+    int item_count;
     std::map<std::pair<int, int>, Bottleneck*> link_up_map;
     std::map<std::pair<int, int>, Bottleneck*> link_down_map;
 
@@ -44,10 +44,10 @@ protected:
 /////////////////////////////////////////////////////////////////////////////////////
 
 class RandomLoadBalancer : public LoadBalancer {
-public: 
-    RandomLoadBalancer(int item_count); 
+public:
+    RandomLoadBalancer(int item_count);
     virtual ~RandomLoadBalancer() {}
-    int get_upper_item(int src, int dst, Flow* flow, int timer) override; 
+    int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -55,8 +55,8 @@ public:
 /////////////////////////////////////////////////////////////////////////////////////
 
 class RoundRobinLoadBalancer : public LoadBalancer {
-public: 
-    RoundRobinLoadBalancer(int item_count); 
+public:
+    RoundRobinLoadBalancer(int item_count);
     virtual ~RoundRobinLoadBalancer() {}
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 
@@ -69,20 +69,23 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////
 
 class PowerOf2LoadBalancer : public LoadBalancer {
-public: 
-    PowerOf2LoadBalancer(int item_count); 
+public:
+    PowerOf2LoadBalancer(int item_count);
     virtual ~PowerOf2LoadBalancer() {}
 
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
-}; 
+
+private:
+    int prev_best_item;
+};
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
 class LeastLoadedLoadBalancer : public LoadBalancer {
-public: 
-    LeastLoadedLoadBalancer(int item_count); 
+public:
+    LeastLoadedLoadBalancer(int item_count);
     virtual ~LeastLoadedLoadBalancer() {}
 
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
@@ -95,14 +98,14 @@ public:
 
 
 class RobinHoodLoadBalancer : public LoadBalancer {
-public: 
-    RobinHoodLoadBalancer(int item_count); 
+public:
+    RobinHoodLoadBalancer(int item_count);
     virtual ~RobinHoodLoadBalancer() {}
 
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 
 
-private: 
+private:
     // An array of number of iterations a given core has been hard working.
     // Used for the robin-hood load balancing algorithm that selects cores that
     // are not hard working or the core that most recently became hard working
@@ -111,10 +114,10 @@ private:
 
     // Multiplier for the robin hood algorithm (sqrt of the core count but we
     // store it so that we don't have to compute it each time).
-    double rh_multiplier;
+    const double multiplier;
 
-    // Lower bound on the optimal. Initially this is 0.
-    double rh_lb = 0.0;
+    // Lower bound on the optimal.
+    double lb;
 };
 
 
@@ -123,8 +126,8 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////
 
 class FutureLoadLoadBalancer : public LoadBalancer {
-public: 
-    FutureLoadLoadBalancer(int item_count); 
+public:
+    FutureLoadLoadBalancer(int item_count);
     virtual ~FutureLoadLoadBalancer() {}
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 

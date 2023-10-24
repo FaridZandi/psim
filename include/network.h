@@ -24,15 +24,6 @@ class PComp;
 class EmptyTask;
 class LoadBalancer;
 
-enum class LoadMetric {
-    DEFAULT,
-    REGISTER,
-    UTILIZATION,
-    ALLOCATED,
-    FLOWSIZE,
-    FLOWCOUNT,
-};
-
 enum class LBScheme{
     RANDOM,
     ROUND_ROBIN,
@@ -118,9 +109,9 @@ public:
     virtual ~CoreConnectedNetwork();
 
     int core_count;
-    int server_count; 
-    int core_link_capacity; 
-    
+    int server_count;
+    int core_link_capacity;
+
     std::map<int, ft_loc> server_loc_map;
     std::map<ft_loc, Bottleneck *> core_bottlenecks;
 
@@ -208,14 +199,14 @@ public:
     double get_allocated_rate(int id, double registered_rate, int priority = 0);
 
     double get_load(LoadMetric load_metric_arg = LoadMetric::DEFAULT);
- 
+
     // basic info
     int id;
     double bandwidth;
     int current_flow_count;
     double current_flow_size_sum;
     std::vector<Flow*> flows;
-    LoadMetric load_metric; 
+    LoadMetric load_metric;
 
     // history
     std::vector<double> total_register_history;

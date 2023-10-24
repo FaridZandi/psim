@@ -22,7 +22,6 @@ class PTask;
 class PComp;
 class EmptyTask;
 
-
 enum PTaskType {
     FLOW,
     COMPUTE,
@@ -118,6 +117,8 @@ public:
     double make_progress(double current_time, double step_size);
     void update_rate(double step_size);
 
+    double get_load(LoadMetric load_metric_arg = LoadMetric::DEFAULT);
+
     PTaskType get_type() {return PTaskType::FLOW;}
 
     void print_task_info(std::ostream& os);
@@ -126,7 +127,7 @@ public:
 
     PTask* make_shallow_copy();
 private:
-
+    LoadMetric load_metric;
 };
 
 // Computation task.

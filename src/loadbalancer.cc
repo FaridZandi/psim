@@ -3,17 +3,17 @@
 #include "gcontext.h"
 
 using namespace psim;
-using namespace std; 
+using namespace std;
 
 LoadBalancer::LoadBalancer(int item_count) {
-    this->item_count = item_count; 
+    this->item_count = item_count;
 }
 
 void LoadBalancer::register_link(int lower_item, int upper_item, int dir, Bottleneck* link) {
     if (dir == 1) {
-        link_up_map[std::make_pair(lower_item, upper_item)] = link; 
+        link_up_map[std::make_pair(lower_item, upper_item)] = link;
     } else {
-        link_down_map[std::make_pair(lower_item, upper_item)] = link; 
+        link_down_map[std::make_pair(lower_item, upper_item)] = link;
     }
 }
 
@@ -43,13 +43,13 @@ LoadBalancer* LoadBalancer::create_load_balancer(std::string type, int item_coun
         return new LeastLoadedLoadBalancer(item_count);
 
     } else if (type == "robinhood") {
-        cs = LBScheme::ROBIN_HOOD; 
+        cs = LBScheme::ROBIN_HOOD;
         return new RobinHoodLoadBalancer(item_count);
- 
+
     } else if (type == "futureload") {
         cs = LBScheme::FUTURE_LOAD;
         return new FutureLoadLoadBalancer(item_count);
- 
+
     } else {
         spdlog::error("Invalid load balancer type: {}", type);
         exit(1);
@@ -65,7 +65,7 @@ RandomLoadBalancer::RandomLoadBalancer(int item_count) : LoadBalancer(item_count
 
 int RandomLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
     int upper_item = rand() % item_count;
-    return upper_item; 
+    return upper_item;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -74,13 +74,13 @@ int RandomLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) 
 
 
 RoundRobinLoadBalancer::RoundRobinLoadBalancer(int item_count) : LoadBalancer(item_count) {
-    current_upper_item = 0; 
+    current_upper_item = 0;
 }
 
 int RoundRobinLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
-    int upper_item = current_upper_item; 
-    current_upper_item = (current_upper_item + 1) % item_count; 
-    return upper_item; 
+    int upper_item = current_upper_item;
+    current_upper_item = (current_upper_item + 1) % item_count;
+    return upper_item;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -88,39 +88,41 @@ int RoundRobinLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
 /////////////////////////////////////////////////////////////////////////////////////
 
 
-PowerOf2LoadBalancer::PowerOf2LoadBalancer(int item_count) : LoadBalancer(item_count) {}
+PowerOf2LoadBalancer::PowerOf2LoadBalancer(int item_count) : LoadBalancer(item_count) {
+    // Initially no item is loaded so they're all the best. We randomly denote
+    // item 0 as the best.
+    prev_best_item = 0;
+
+}
 
 int PowerOf2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
-    // Initially no core is loaded so they're all best. We randomly denote
-    // core 0 as the best.
-    static int prev_best_core = 0;
     double least_load = std::numeric_limits<double>::max();
 
-    // We sample 2 random cores and the previously least loaded core and
+    // We sample 2 random items and the previously least loaded item and
     // pick the least loaded among these. This is what DRILL does but at
     // the packet level.
-    int cores_to_sample[3];
-    cores_to_sample[0] = rand() % item_count;
+    int items_to_sample[3];
+    items_to_sample[0] = rand() % item_count;
     int r;
     do {
         r = rand() % item_count;
-    } while (r == cores_to_sample[0]);
-    
-    cores_to_sample[1] = r;
-    cores_to_sample[2] = prev_best_core;
+    } while (r == items_to_sample[0]);
 
-    for (int c : cores_to_sample) {
+    items_to_sample[1] = r;
+    items_to_sample[2] = prev_best_item;
+
+    for (int c : items_to_sample) {
         double up_load = uplink(src, c)->get_load();
         double down_load = downlink(dst, c)->get_load();
         double load = up_load + down_load;
 
         if (load < least_load){
             least_load = load;
-            prev_best_core = c;
+            prev_best_item = c;
         }
     }
 
-    return prev_best_core;
+    return prev_best_item;
 }
 
 
@@ -138,14 +140,14 @@ int LeastLoadedLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
     for (int c = 0; c < item_count; c++){
         double up_load = uplink(src, c)->get_load();
         double down_load = downlink(dst, c)->get_load();
-        double load = up_load + down_load; 
+        double load = up_load + down_load;
 
         if (load < least_load){
             least_load = load;
             best_core = c;
         }
     }
-    
+
     return best_core;
 }
 
@@ -153,59 +155,60 @@ int LeastLoadedLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-RobinHoodLoadBalancer::RobinHoodLoadBalancer(int item_count) : LoadBalancer(item_count) {
+RobinHoodLoadBalancer::RobinHoodLoadBalancer(int item_count)
+    : LoadBalancer(item_count), multiplier(std::sqrt(item_count)) {
     iterations_hard_working = std::vector<int>(item_count, 0);
-    rh_multiplier = std::sqrt(item_count);
-    rh_lb = 0.0;
+    // Initially the lower bound on the optimal is 0.
+    lb = 0.0;
 }
 
 
-int RobinHoodLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) { 
-    double total_load = 0.0;
-    std::vector<double> core_loads(item_count, 0.0);
+int RobinHoodLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+    double total_load = flow->get_load();
+    std::vector<double> item_loads(item_count, 0.0);
 
     for (int c = 0; c < item_count; c++) {
         double up_load = uplink(src, c)->get_load();
         double down_load = downlink(dst, c)->get_load();
-        core_loads[c] = up_load + down_load;
+        item_loads[c] = up_load + down_load;
 
-        total_load += core_loads[c];
+        total_load += item_loads[c];
     }
 
-    rh_lb = std::max(rh_lb, total_load / item_count);
-    double rh_cutoff = rh_multiplier * rh_lb;
-    std::vector<int> non_hard_working_cores;
+    lb = std::max(lb, std::max(flow->get_load(), total_load / item_count));
+    double cutoff = multiplier * lb;
+    std::vector<int> non_hard_working_items;
 
-    // The core that most recently became hard working (used in the case
-    // that all cores are hard working).
+    // The item that most recently became hard working (used in the case
+    // that all items are hard working).
     // Here by latest we mean the least number of consecutive iterations
     // for which it has been hard working.
-    int latest_hard_working_core = -1;
+    int latest_hard_working_item = -1;
     int latest_hard_working_iterations = std::numeric_limits<int>::max();
 
     for (int c = 0; c < item_count; c++) {
-        if (core_loads[c] < rh_cutoff) {
+        if (item_loads[c] < cutoff) {
             // It is now 0 iterations since it was last non hard working.
-            core_loads[c] = 0;
-            non_hard_working_cores.push_back(c);
+            item_loads[c] = 0;
+            non_hard_working_items.push_back(c);
         } else {
             iterations_hard_working[c]++;
             if (iterations_hard_working[c] < latest_hard_working_iterations) {
-                latest_hard_working_core = c;
+                latest_hard_working_item = c;
                 latest_hard_working_iterations = iterations_hard_working[c];
             }
         }
     }
 
-    if (non_hard_working_cores.size() > 0) {
-        // We have some non hard working cores so we pick one at random.
-        int idx = rand() % non_hard_working_cores.size();
-        return non_hard_working_cores[idx];
+    if (non_hard_working_items.size() > 0) {
+        // We have some non hard working items so we pick one at random.
+        int idx = rand() % non_hard_working_items.size();
+        return non_hard_working_items[idx];
     }
-    
-    // Otherwise, all cores are hardworking and we return the one that most
+
+    // Otherwise, all items are hardworking and we return the one that most
     // recently became hard working.
-    return latest_hard_working_core;
+    return latest_hard_working_item;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -218,11 +221,11 @@ FutureLoadLoadBalancer::FutureLoadLoadBalancer(int item_count) : LoadBalancer(it
 
 int FutureLoadLoadBalancer::my_round_robin() {
     int upper_item = current_upper_item;
-    current_upper_item = (current_upper_item + 1) % item_count;        
+    current_upper_item = (current_upper_item + 1) % item_count;
     return upper_item;
 }
 
-int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) { 
+int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
     if (GContext::is_first_run()) {
         return my_round_robin();
     } else {
@@ -250,7 +253,7 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
         } else {
             exit(1);
         }
-        
+
         double flow_finish_estimate = timer + last_flow_fct;
 
         auto this_run_prof = get_prof_limits(timer, timer + last_flow_fct);
@@ -316,10 +319,10 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
         spdlog::debug("-----------------------------------------------------------------");
 
         // todo: can I get a better estimate of the flow finishing time now?
-        
+
         auto last_run_bn_up = uplink(src, last_decision);
         auto last_run_bn_down = downlink(dst, last_decision);
-        
+
         auto this_run_bn_up = uplink(src, best_core);
         auto this_run_bn_down = downlink(dst, best_core);
 
