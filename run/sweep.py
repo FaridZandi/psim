@@ -17,11 +17,11 @@ import resource
 # pd.set_option('display.max_columns', 500)
 
 # setting up the basic paths
-run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
+run_id = os.popen("date +%s | sha256sum | base64 | head -c 4").read()
 
 base_dir = os.environ.get("PSIM_BASE_DIR")
 input_dir = base_dir + "/input/"
-workloads_dir = input_dir + "128search-dpstart-2-limited/"
+workloads_dir = input_dir + "128search-dpstart-2/"
 build_path = base_dir + "/build"
 run_path = base_dir + "/run"
 base_executable = build_path + "/psim"
@@ -34,9 +34,7 @@ os.system("mkdir -p {}".format(results_dir))
 
 simulation_timestep = 10
 number_worker_threads = 20
-protocols_count = 2
-reload_data = True
-total_jobs = 0
+protocols_count = 999 # all protocols
 memory_limit_kb = 10 * 1e9
 
 # select a random subset of protocols, exclude the random ones
@@ -64,14 +62,22 @@ sweep_config = {
         # "priorityqueue",
         "fairshare",
     ],
-    "load-metric": [
-        "flowsize",
-        "flowcount",
-        "utilization",
-    ],
+    # "load-metric": [
+    #     "flowsize",
+    #     "flowcount",
+    #     "utilization",
+    # ],
     "protocol-file-name": protocol_names,
 }
 
+load_metric_map = {
+    "futureload": "utilization",
+    "leastloaded": "flowsize",
+    "powerof2": "flowsize",
+    "random": "flowcount",
+    "robinhood": "flowcount",   
+    "roundrobin": "flowsize",
+}
 
 # base options
 base_options = {
@@ -118,8 +124,11 @@ with open(results_dir + "sweep-config.txt", "w") as f:
     pprint("globals", stream=f)
     pprint(globals(), stream=f)
 
-
+total_jobs = 0
 exp_results = []
+threads = []
+exp_q = queue.Queue()
+
 memory_limit_kb = int(memory_limit_kb)
 resource.setrlimit(resource.RLIMIT_AS, (memory_limit_kb, memory_limit_kb))
 
@@ -131,7 +140,8 @@ def run_experiment(exp, worker_id):
     }
     options.update(base_options)
     options.update(exp)
-
+    options["load-metric"] = load_metric_map[options["lb-scheme"]]
+    
     # create the command
     cmd = run_executable
     for option in options.items():
@@ -210,49 +220,39 @@ def worker(exp):
         run_experiment(exp, worker_id)
 
 
-pd_frame = None
-if not os.path.exists(csv_path):
-    reload_data = True
-
-if reload_data:
-    exp_q = queue.Queue()
-    threads = []
 
 
+# build the executable, exit if build fails
+os.chdir(build_path)
+exit_code = os.system("make -j")
+if exit_code != 0:
+    print("make failed, exiting")
+    sys.exit(1)
+os.chdir(run_path)
+os.system("cp {} {}".format(base_executable, run_executable))
 
-    # build the executable, exit if build fails
-    os.chdir(build_path)
-    exit_code = os.system("make -j")
-    if exit_code != 0:
-        print("make failed, exiting")
-        sys.exit(1)
-    os.chdir(run_path)
-    os.system("cp {} {}".format(base_executable, run_executable))
+# build the shuffle map
+make_shuffle(128, shuffle_path)
 
-    # build the shuffle map
-    make_shuffle(128, shuffle_path)
+keys, values = zip(*sweep_config.items())
+permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
-    keys, values = zip(*sweep_config.items())
-    permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
+for exp in permutations_dicts:
+    exp_q.put(exp)
 
-    for exp in permutations_dicts:
-        exp_q.put(exp)
+total_jobs = exp_q.qsize()
 
-    total_jobs = exp_q.qsize()
+for i in range(number_worker_threads):
+    t = threading.Thread(target=worker, args=(exp_q,))
+    threads.append(t)
+    t.start()
 
-    for i in range(number_worker_threads):
-        t = threading.Thread(target=worker, args=(exp_q,))
-        threads.append(t)
-        t.start()
+for t in threads:
+    t.join()
 
-    for t in threads:
-        t.join()
+os.system("rm {}".format(run_executable))
+os.system("mv {} {}".format(shuffle_path, results_dir))
 
-    os.system("rm {}".format(run_executable))
-    os.system("mv {} {}".format(shuffle_path, results_dir))
-
-    all_pd_frame = pd.DataFrame(exp_results)
-    all_pd_frame.to_csv(csv_path)
-    os.system("python plot.py {}".format(csv_path))
-else:
-    os.system("python plot.py {}".format(csv_path))
+all_pd_frame = pd.DataFrame(exp_results)
+all_pd_frame.to_csv(csv_path)
+os.system("python plot.py {}".format(csv_path))

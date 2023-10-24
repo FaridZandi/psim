@@ -4,15 +4,34 @@ import pandas as pd
 import numpy as np
 import sys
 
+
+
+############################################################################################
+############################################################################################
+
+bar_width = 0.2
+# the params that might vary in the experiments     
+sweep_params = ["lb-scheme"]
+
+colors = {
+    "random": "red",
+    "roundrobin": "orange",
+    "leastloaded": "yellow",
+    "powerof2": "gray",
+    "robinhood": "pink",
+    "futureload-register": "purple",
+    "futureload-allocated": "blue",
+    "futureload-utilization": "darkgreen",
+}
+
+
+############################################################################################
+############################################################################################
+
+# read the data from the csv
 csv_path = sys.argv[1]
 results_dir = csv_path[:csv_path.rfind("/")] + "/"
 pd_frame = pd.read_csv(csv_path)
-
-bar_width = 0.2
-
-
-# the params that might vary in the experiments     
-sweep_params = ["lb-scheme", "load-metric", "priority-allocator"]
 
 # find which of the params are constant in the csv. remove them from the list
 for param in sweep_params:
@@ -20,7 +39,7 @@ for param in sweep_params:
         sweep_params.remove(param)
 
         
-# combine the params into a single column 
+# combine these params into a single column 
 pd_frame["params"] = ""
 for param in sweep_params:
     pd_frame["params"] += pd_frame[param] + ","
@@ -38,8 +57,9 @@ print("params:", params)
 
 
 ############################################################################################
+# some magical stuff to find the proper offset for each bar.
+# It seems to be working, but I'm not I know why. 
 ############################################################################################
-# some magical stuff to find the proper offset for each bar
 max_group_width = 0 
 
 group_sizes = []
@@ -58,7 +78,6 @@ for i in range (all_params_count):
     for j in range(len(group_sizes)):
         param_combination.append(this_param % group_sizes[j])
         this_param = this_param // group_sizes[j]
-        
 
     total_offset = 0 
     sub_group_width = bar_width 
@@ -74,17 +93,6 @@ for i in range (all_params_count):
         
 ############################################################################################
 ############################################################################################
-
-colors = {
-    "random": "red",
-    "roundrobin": "orange",
-    "leastloaded": "yellow",
-    "powerof2": "gray",
-    "robinhood": "pink",
-    "futureload-register": "purple",
-    "futureload-allocated": "blue",
-    "futureload-utilization": "darkgreen",
-}
 
 def get_color(mech):
     if mech in colors:
@@ -111,11 +119,14 @@ for protocol in protocols:
             print(row)
 
 
-group_width = max_group_width # bar_width * len(params)
-group_spacing = max_group_width / 5
+group_width = float(max_group_width + bar_width)  # bar_width * len(params)
+group_spacing = float(max_group_width) / 2
 
 # len(protocols) items, with (group_width + group_spacing) space between each two items
 x = np.arange(len(protocols)) * (group_width + group_spacing)
+
+print(max_group_width, group_width, group_spacing)
+print(x) 
 
 plt.figure(figsize=(len(protocols) * len(params) / 2, 10))
 
