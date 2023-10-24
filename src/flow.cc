@@ -15,10 +15,27 @@ using namespace psim;
 
 Flow::Flow() : PTask() {
     reset();
+
+    std::string load_metric_str = GConf::inst().load_metric;
+
+    if (load_metric_str == "register") {
+        this->load_metric = LoadMetric::REGISTER;
+    } else if (load_metric_str == "utilization") {
+        this->load_metric = LoadMetric::UTILIZATION;
+    } else if (load_metric_str == "allocated") {
+        this->load_metric = LoadMetric::ALLOCATED;
+    } else if (load_metric_str == "flowsize") {
+        this->load_metric = LoadMetric::FLOWSIZE;
+    } else if (load_metric_str == "flowcount") {
+        this->load_metric = LoadMetric::FLOWCOUNT;
+    } else {
+        spdlog::error("Invalid load metric: {}", load_metric_str);
+        exit(1);
+    }
 }
 
 Flow::~Flow() {
-    
+
 }
 
 void Flow::initiate(){
@@ -28,11 +45,11 @@ void Flow::initiate(){
         min_bottleneck_rate = std::min(min_bottleneck_rate, bottleneck->bandwidth);
     }
 
-    compute_priority(); 
+    compute_priority();
 
     for (Bottleneck* bottleneck : this->path) {
         bottleneck->current_flow_count += 1;
-        bottleneck->current_flow_size_sum += this->size; 
+        bottleneck->current_flow_size_sum += this->size;
         bottleneck->flows.push_back(this);
     }
 }
@@ -40,12 +57,12 @@ void Flow::initiate(){
 void Flow::finished() {
     for (Bottleneck* bottleneck : this->path) {
         bottleneck->current_flow_count -= 1;
-        bottleneck->current_flow_size_sum -= this->size; 
+        bottleneck->current_flow_size_sum -= this->size;
 
         // remove this flow from the bottleneck's flow list
-        bottleneck->flows.erase(std::remove(bottleneck->flows.begin(), 
-                                            bottleneck->flows.end(), 
-                                            this), 
+        bottleneck->flows.erase(std::remove(bottleneck->flows.begin(),
+                                            bottleneck->flows.end(),
+                                            this),
                                 bottleneck->flows.end());
     }
 
@@ -54,7 +71,7 @@ void Flow::finished() {
     this_run.flow_end[id] = end_time;
     this_run.flow_fct[id] = end_time - start_time;
 
-    
+
 
 
 }
@@ -62,11 +79,11 @@ void Flow::finished() {
 void Flow::compute_priority(){
 
     if (id == -1){
-        selected_priority = 1e6; 
+        selected_priority = 1e6;
     } else {
-        selected_priority = rank * protocol->tasks.size() + id; 
-        // selected_priority = id; 
-        // selected_priority = rank; 
+        selected_priority = rank * protocol->tasks.size() + id;
+        // selected_priority = id;
+        // selected_priority = rank;
         // selected_priority = (int) start_time;
     }
 }
@@ -104,13 +121,37 @@ void Flow::update_rate(double step_size) {
     current_rate = std::max(current_rate, min_rate);
 }
 
+double Flow::get_load(LoadMetric load_metric_arg) {
+    LoadMetric load_metric = this->load_metric;
+
+    if (load_metric_arg != LoadMetric::DEFAULT) {
+        load_metric = load_metric_arg;
+    }
+
+    switch (load_metric) {
+      case LoadMetric::REGISTER:
+          return this->registered_rate;
+      case LoadMetric::UTILIZATION:
+          return this->current_rate;
+      case LoadMetric::ALLOCATED:
+          return this->registered_rate;
+      case LoadMetric::FLOWSIZE:
+          return this->size;
+      case LoadMetric::FLOWCOUNT:
+          return 1.0;
+      default:
+          spdlog::error("Invalid load metric");
+          exit(1);
+    }
+}
+
 double Flow::make_progress(double current_time, double step_size) {
     double allocated_rate = std::numeric_limits<double>::max();
-    
+
     for (auto bottleneck : this->path) {
-        double bn_rate = bottleneck->get_allocated_rate(id, registered_rate, 
+        double bn_rate = bottleneck->get_allocated_rate(id, registered_rate,
                                                         selected_priority);
-                                                        
+
         allocated_rate = std::min(allocated_rate, bn_rate);
     }
 
@@ -119,51 +160,51 @@ double Flow::make_progress(double current_time, double step_size) {
     double step_progress = allocated_rate * step_size;
 
 
-    // TODO: fix this. The time that the flow was actually 
-    // initiated by the protocol runner can also be important. 
-    // In fact, both of these concepts are important. 
-    // So let's keep both numbers for the flow: 
+    // TODO: fix this. The time that the flow was actually
+    // initiated by the protocol runner can also be important.
+    // In fact, both of these concepts are important.
+    // So let's keep both numbers for the flow:
     // 1. Time that the flow inititiated by the protocol runner
-    // 2. Time that the flow was allowed to make any progress by the network. 
+    // 2. Time that the flow was allowed to make any progress by the network.
     // if (progress == 0 and step_progress > 0) {
     //     start_time = current_time;
     // }
 
     progress += step_progress;
-    
+
     if (progress >= size) {
-        progress = size; 
+        progress = size;
         status = PTaskStatus::FINISHED;
     }
-    
+
     for (auto bottleneck : this->path) {
         bottleneck->bwalloc->register_utilization(allocated_rate);
     }
 
-    last_rate = current_rate; 
+    last_rate = current_rate;
     update_rate(step_size);
 
     return step_progress;
 }
 
 
-void 
+void
 Flow::print_task_info(std::ostream& os){
     os << "Comm ";
 
     // fill the space with zeros
-    os << "[" << std::setw(5) << std::setfill('0') 
+    os << "[" << std::setw(5) << std::setfill('0')
                 << this->id << "]";
 
     os << " next ";
 
     for (auto next_task : this->next_task_ids) {
-        os << "[" << std::setw(5) << std::setfill('0') 
+        os << "[" << std::setw(5) << std::setfill('0')
                     << next_task << "] ";
     }
 
     os << " size " << this->size;
-    os << " from " << this->src_dev_id; 
+    os << " from " << this->src_dev_id;
     os << " to " << this->dst_dev_id;
 
     os << std::endl;
@@ -172,21 +213,21 @@ Flow::print_task_info(std::ostream& os){
 void Flow::reset(){
     size = 0;
     progress = 0;
-    current_rate = GConf::inst().initial_rate; 
+    current_rate = GConf::inst().initial_rate;
     min_bottleneck_rate = 0;
-    last_rate = 0; 
-    initial_rate = current_rate; 
+    last_rate = 0;
+    initial_rate = current_rate;
     rate_increase = GConf::inst().rate_increase;
     min_rate = GConf::inst().min_rate;
-    registered_rate = 0; 
-    src_dev_id = -1; 
+    registered_rate = 0;
+    src_dev_id = -1;
     dst_dev_id = -1;
     path.clear();
     src = nullptr;
     dst = nullptr;
     bn_priority_levels = GConf::inst().bn_priority_levels;
-    selected_priority = -1; 
-} 
+    selected_priority = -1;
+}
 
 PTask* Flow::make_shallow_copy(){
     Flow *new_task = new Flow();
@@ -194,4 +235,4 @@ PTask* Flow::make_shallow_copy(){
     new_task->src_dev_id = this->src_dev_id;
     new_task->dst_dev_id = this->dst_dev_id;
     return new_task;
-} 
+}
