@@ -26,6 +26,11 @@ int main(int argc, char** argv) {
     
     GContext::initiate_device_shuffle_map();
     
+    // Protocol* p = build_random_protocol(2000, 128);
+    // std::ofstream ofs("a.out");
+    // p->export_graph(ofs);
+    // ofs.close();
+    // exit(0); 
 
     for (int rep = 1; rep <= GConf::inst().rep_count; rep ++) {
         std::string worker_dir = "workers/worker-" + std::to_string(GConf::inst().worker_id) + "/";

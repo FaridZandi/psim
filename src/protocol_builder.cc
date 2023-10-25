@@ -145,8 +145,8 @@ psim::build_random_protocol(int num_comp, int machine_count){
     for (int i = 0; i < num_comp; i++) {
         PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE, task_counter);
         task_map[i] = pc;
-        pc->size = 100;
-        pc->dev_id = rand() % 16;
+        pc->size = rand() % 50;
+        pc->dev_id = rand() % machine_count;
         task_counter += 1;
     }
 
@@ -180,7 +180,7 @@ psim::build_random_protocol(int num_comp, int machine_count){
 
                 flow->src_dev_id = task_map[prev]->dev_id;
                 flow->dst_dev_id = task_map[i]->dev_id;
-                flow->size = 100;
+                flow->size = rand() % 10000;
 
                 task_map[prev]->add_next_task_id(flow->id);
                 flow->add_next_task_id(task_map[i]->id);
