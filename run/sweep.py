@@ -34,6 +34,7 @@ os.system("mkdir -p {}".format(results_dir))
 
 simulation_timestep = 10
 number_worker_threads = 20
+rep_count = 3 
 protocols_count = 999 # all protocols
 memory_limit_kb = 10 * 1e9
 
@@ -58,10 +59,10 @@ sweep_config = {
         "robinhood",
         "leastloaded",
     ],
-    "priority-allocator": [
-        # "priorityqueue",
-        "fairshare",
-    ],
+    # "priority-allocator": [
+    #     "priorityqueue",
+    #     "fairshare",
+    # ],
     # "load-metric": [
     #     "flowsize",
     #     "flowcount",
@@ -85,7 +86,7 @@ base_options = {
     
     "step-size": simulation_timestep,
     "core-status-profiling-interval": simulation_timestep,
-    "rep-count": 3,
+    "rep-count": rep_count,
     "file-log-level": 4,
     "console-log-level": 4,
     

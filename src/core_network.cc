@@ -150,9 +150,8 @@ FatTreeNetwork::FatTreeNetwork() : CoreConnectedNetwork() {
         last_agg_in_pod[i] = 0;
     }
 
-    core_load_balancer = LoadBalancer::create_load_balancer(GConf::inst().lb_scheme, 
-                                                            core_count, 
-                                                            lb_scheme);
+    lb_scheme = GConf::inst().lb_scheme;
+    core_load_balancer = LoadBalancer::create_load_balancer(core_count, lb_scheme); 
 
     for (int p = 0; p < pod_count; p++) {
         for (int c = 0; c < core_count; c++) {
@@ -272,9 +271,8 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
         }
     }
 
-    core_load_balancer = LoadBalancer::create_load_balancer(GConf::inst().lb_scheme, 
-                                                            core_count, 
-                                                            lb_scheme);
+    lb_scheme = GConf::inst().lb_scheme;
+    core_load_balancer = LoadBalancer::create_load_balancer(core_count, lb_scheme); 
 
     for (int t = 0; t < tor_count; t++) {
         for (int c = 0; c < core_count; c++) {

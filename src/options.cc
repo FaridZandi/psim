@@ -140,7 +140,24 @@ void psim::process_arguments(po::variables_map vm){
         GConf::inst().shuffle_map_file = vm["shuffle-map-file"].as<std::string>();
     }
     if (vm.count("lb-scheme")) {
-        GConf::inst().lb_scheme = vm["lb-scheme"].as<std::string>();
+        std::string lb_scheme_str = vm["lb-scheme"].as<std::string>();
+
+        if (lb_scheme_str == "random") {
+            GConf::inst().lb_scheme = LBScheme::RANDOM;
+        } else if (lb_scheme_str == "roundrobin") {
+            GConf::inst().lb_scheme = LBScheme::ROUND_ROBIN;
+        } else if (lb_scheme_str == "leastloaded") {   
+            GConf::inst().lb_scheme = LBScheme::LEAST_LOADED;
+        } else if (lb_scheme_str == "powerof2") {
+            GConf::inst().lb_scheme = LBScheme::POWER_OF_2;
+        } else if (lb_scheme_str == "futureload") {
+            GConf::inst().lb_scheme = LBScheme::FUTURE_LOAD;
+        } else if (lb_scheme_str == "robinhood") {
+            GConf::inst().lb_scheme = LBScheme::ROBIN_HOOD;
+        } else {
+            spdlog::error("Invalid lb scheme: {}", lb_scheme_str);
+            exit(1);
+        }
     }
     if (vm.count("console-log-level")) {
         GConf::inst().console_log_level = vm["console-log-level"].as<int>();
@@ -155,13 +172,36 @@ void psim::process_arguments(po::variables_map vm){
         GConf::inst().min_rate = vm["min-rate"].as<int>();
     }
     if (vm.count("priority-allocator")){
-        GConf::inst().priority_allocator = vm["priority-allocator"].as<std::string>();
+        std::string priority_allocator_str = vm["priority-allocator"].as<std::string>();
+
+        if (priority_allocator_str == "priorityqueue") {
+            GConf::inst().priority_allocator = PriorityAllocator::PRIORITY_QUEUE;
+        } else if (priority_allocator_str == "fixedlevels") {
+            GConf::inst().priority_allocator = PriorityAllocator::FIXED_LEVELS;
+        } else if (priority_allocator_str == "fairshare") {
+            GConf::inst().priority_allocator = PriorityAllocator::FAIR_SHARE;
+        } else {
+            spdlog::error("Invalid priority allocator: {}", priority_allocator_str);
+            exit(1);
+        }
     }
     if (vm.count("bn-priority-levels")){
         GConf::inst().bn_priority_levels = vm["bn-priority-levels"].as<int>();
     }
     if (vm.count("network-type")){
-        GConf::inst().network_type = vm["network-type"].as<std::string>();
+        
+        std::string network_type_str = vm["network-type"].as<std::string>();
+
+        if (network_type_str == "fattree") {
+            GConf::inst().network_type = NetworkType::FAT_TREE;
+        } else if (network_type_str == "bigswitch") {
+            GConf::inst().network_type = NetworkType::BIG_SWITCH;
+        } else if (network_type_str == "leafspine") {
+            GConf::inst().network_type = NetworkType::LEAF_SPINE;
+        } else {
+            spdlog::error("Invalid network type: {}", network_type_str);
+            exit(1);
+        }
     }
     if (vm.count("ft-server-per-rack")) {
         GConf::inst().ft_server_per_rack = vm["ft-server-per-rack"].as<int>();
@@ -246,9 +286,9 @@ void psim::log_config() {
     spdlog::info("==== output_dir: {}", GConf::inst().output_dir);
     spdlog::info("==== console_log_level: {}", GConf::inst().console_log_level);
     spdlog::info("==== file_log_level: {}", GConf::inst().file_log_level);
-    spdlog::info("==== network_type: {}", GConf::inst().network_type);
+    spdlog::info("==== network_type: {}", int(GConf::inst().network_type));
     spdlog::info("==== bn_priority_levels: {}", GConf::inst().bn_priority_levels);
-    spdlog::info("==== priority_allocator: {}", GConf::inst().priority_allocator);
+    spdlog::info("==== priority_allocator: {}", int(GConf::inst().priority_allocator));
     spdlog::info("==== ft_server_per_rack: {}", GConf::inst().ft_server_per_rack);
     spdlog::info("==== ft_rack_per_pod: {}", GConf::inst().ft_rack_per_pod);
     spdlog::info("==== ft_agg_per_pod: {}", GConf::inst().ft_agg_per_pod);
@@ -258,10 +298,10 @@ void psim::log_config() {
     spdlog::info("==== ft_tor_agg_link_capacity_mult: {}", GConf::inst().ft_tor_agg_link_capacity_mult);
     spdlog::info("==== ft_agg_core_link_capacity_mult: {}", GConf::inst().ft_agg_core_link_capacity_mult);
     spdlog::info("==== rep_count: {}", GConf::inst().rep_count);
-    spdlog::info("==== lb_scheme: {}", GConf::inst().lb_scheme);
+    spdlog::info("==== lb_scheme: {}", int(GConf::inst().lb_scheme));
     spdlog::info("==== shuffle_device_map: {}", GConf::inst().shuffle_device_map);
     spdlog::info("==== shuffle_map_file: {}", GConf::inst().shuffle_map_file);
-    spdlog::info("==== load_metric: {}", static_cast<std::underlying_type<LoadMetric>::type>(GConf::inst().load_metric));
+    spdlog::info("==== load_metric: {}", int(GConf::inst().load_metric));
     spdlog::info("==== core_status_profiling_interval: {}", GConf::inst().core_status_profiling_interval);
     spdlog::info("==== log_file_name: {}", GConf::inst().log_file_name);
     spdlog::info("---------------------------------------------");

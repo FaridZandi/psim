@@ -29,6 +29,7 @@ enum class PriorityAllocator {
 enum class NetworkType {
     FAT_TREE,
     BIG_SWITCH,
+    LEAF_SPINE,
 };
 
 
@@ -57,14 +58,14 @@ public:
     std::string output_dir = "output/";
     int console_log_level = 2;
     int file_log_level = 2;
-    std::string network_type = "fattree"; // "fattree" or "bigswitch"
     int bn_priority_levels = 1;
-    std::string priority_allocator = "priorityqueue"; // "priorityqueue" or "fixedlevels" or "fairshare
     int rep_count = 2;
-    std::string lb_scheme = "roundrobin"; // "roundrobin", "random", "leastloaded", "powerof2", "futureload"
     bool shuffle_device_map = false;
     std::string shuffle_map_file = "";
-    // std::string load_metric = "utilization"; // "register", "utilization", "allocated"
+
+    PriorityAllocator priority_allocator = PriorityAllocator::FAIR_SHARE; 
+    NetworkType network_type = NetworkType::FAT_TREE; 
+    LBScheme lb_scheme = LBScheme::ROUND_ROBIN;
     LoadMetric load_metric = LoadMetric::UTILIZATION;
 
     // int machine_count = 16;

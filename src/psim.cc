@@ -19,15 +19,22 @@ PSim::PSim() {
     this->step_size = GConf::inst().step_size;
     this->traffic_gen = new TrafficGen(0.5);
 
-    if (GConf::inst().network_type == "fattree"){
-        this->network = new FatTreeNetwork();
-    } else if (GConf::inst().network_type == "bigswitch"){
-        this->network = new BigSwitchNetwork();
-    } else if (GConf::inst().network_type == "leafspine"){
-        this->network = new LeafSpineNetwork();
-    } else {
-        spdlog::error("Unknown network type: {}", GConf::inst().network_type);
-        exit(1);
+    switch(GConf::inst().network_type){
+        case NetworkType::FAT_TREE:
+            this->network = new FatTreeNetwork();
+            break;
+
+        case NetworkType::BIG_SWITCH:
+            this->network = new BigSwitchNetwork();
+            break;
+
+        case NetworkType::LEAF_SPINE:
+            this->network = new LeafSpineNetwork();
+            break;
+
+        default:
+            spdlog::error("Unknown network type: {}", int(GConf::inst().network_type));
+            exit(1);
     }
 }
 

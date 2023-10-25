@@ -300,17 +300,22 @@ Bottleneck::~Bottleneck() {
 
 
 void Bottleneck::setup_bwalloc() {
-    std::string priority_allocator = GConf::inst().priority_allocator;
-    
-    if (priority_allocator == "priorityqueue"){
-        bwalloc = new PriorityQueueBandwidthAllocator(bandwidth);
-    } else if (priority_allocator == "fixedlevels"){
-        bwalloc = new FixedLevelsBandwidthAllocator(bandwidth);
-    } else if (priority_allocator == "fairshare"){
-        bwalloc = new FairShareBandwidthAllocator(bandwidth);
-    } else {
-        spdlog::error("Invalid priority allocator");
-        exit(1);
+    switch (GConf::inst().priority_allocator) {
+        case PriorityAllocator::PRIORITY_QUEUE:
+            bwalloc = new PriorityQueueBandwidthAllocator(bandwidth);
+            break;
+
+        case PriorityAllocator::FIXED_LEVELS:
+            bwalloc = new FixedLevelsBandwidthAllocator(bandwidth);
+            break;
+
+        case PriorityAllocator::FAIR_SHARE:
+            bwalloc = new FairShareBandwidthAllocator(bandwidth);
+            break;
+
+        default:
+            spdlog::error("Invalid priority allocator: {}", int(GConf::inst().priority_allocator));
+            exit(1);
     }
 }
 

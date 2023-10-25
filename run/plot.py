@@ -11,7 +11,7 @@ import sys
 
 bar_width = 0.2
 # the params that might vary in the experiments     
-sweep_params = ["lb-scheme"]
+all_sweep_params = ["lb-scheme", "priority-allocator", "load-metric"]
 
 colors = {
     "random": "red",
@@ -33,10 +33,12 @@ csv_path = sys.argv[1]
 results_dir = csv_path[:csv_path.rfind("/")] + "/"
 pd_frame = pd.read_csv(csv_path)
 
+sweep_params = [] 
 # find which of the params are constant in the csv. remove them from the list
-for param in sweep_params:
-    if len(pd_frame[param].unique()) == 1:
-        sweep_params.remove(param)
+for param in all_sweep_params:
+    if param in pd_frame:
+        if len(pd_frame[param].unique()) > 1:
+            sweep_params.append(param)
 
         
 # combine these params into a single column 

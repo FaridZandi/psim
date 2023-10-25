@@ -25,34 +25,23 @@ Bottleneck* LoadBalancer::downlink(int lower_item, int upper_item){
     return link_down_map[std::make_pair(lower_item, upper_item)];
 }
 
-LoadBalancer* LoadBalancer::create_load_balancer(std::string type, int item_count, LBScheme& cs){
-    if (type == "random") {
-        cs = LBScheme::RANDOM;
-        return new RandomLoadBalancer(item_count);
-
-    } else if (type == "roundrobin") {
-        cs = LBScheme::ROUND_ROBIN;
-        return new RoundRobinLoadBalancer(item_count);
-
-    } else if (type == "powerof2") {
-        cs = LBScheme::POWER_OF_2;
-        return new PowerOf2LoadBalancer(item_count);
-
-    } else if (type == "leastloaded") {
-        cs = LBScheme::LEAST_LOADED;
-        return new LeastLoadedLoadBalancer(item_count);
-
-    } else if (type == "robinhood") {
-        cs = LBScheme::ROBIN_HOOD;
-        return new RobinHoodLoadBalancer(item_count);
-
-    } else if (type == "futureload") {
-        cs = LBScheme::FUTURE_LOAD;
-        return new FutureLoadLoadBalancer(item_count);
-
-    } else {
-        spdlog::error("Invalid load balancer type: {}", type);
-        exit(1);
+LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_scheme) {
+    switch (lb_scheme) {
+        case LBScheme::RANDOM:
+            return new RandomLoadBalancer(item_count);
+        case LBScheme::ROUND_ROBIN:
+            return new RoundRobinLoadBalancer(item_count);
+        case LBScheme::LEAST_LOADED:
+            return new LeastLoadedLoadBalancer(item_count);
+        case LBScheme::POWER_OF_2:
+            return new PowerOf2LoadBalancer(item_count);
+        case LBScheme::ROBIN_HOOD:
+            return new RobinHoodLoadBalancer(item_count);
+        case LBScheme::FUTURE_LOAD:
+            return new FutureLoadLoadBalancer(item_count);
+        default:
+            spdlog::error("Invalid load balancer type: {}", int(lb_scheme));
+            exit(1);
     }
 }
 

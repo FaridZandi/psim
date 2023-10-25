@@ -27,7 +27,7 @@ public:
     void register_link(int lower_item, int upper_item, int dir, Bottleneck* link);
     virtual int get_upper_item(int src, int dst, Flow* flow, int timer) = 0;
 
-    static LoadBalancer* create_load_balancer(std::string type, int item_count, LBScheme& cs);
+    static LoadBalancer* create_load_balancer(int item_count, LBScheme lb_scheme);
 
 protected:
     int item_count;
