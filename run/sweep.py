@@ -21,7 +21,9 @@ run_id = os.popen("date +%s | sha256sum | base64 | head -c 4").read()
 
 base_dir = os.environ.get("PSIM_BASE_DIR")
 input_dir = base_dir + "/input/"
-workloads_dir = input_dir + "128search-dpstart-2/"
+workloads_dir = input_dir + "128search-dpstart-2-limited/"
+# workloads_dir = input_dir + "random/"
+
 build_path = base_dir + "/build"
 run_path = base_dir + "/run"
 base_executable = build_path + "/psim"
@@ -32,7 +34,7 @@ csv_path = results_dir + "results.csv".format(run_id)
 os.system("mkdir -p {}".format(results_dir))
 
 
-simulation_timestep = 10
+simulation_timestep = 1
 number_worker_threads = 20
 rep_count = 3
 protocols_count = 999 # all protocols
@@ -70,6 +72,9 @@ sweep_config = {
     #     "flowcount",
     #     "utilization",
     # ],
+    "min-rate": [
+        10, 25, 50, 75
+    ],
     "protocol-file-name": protocol_names,
 }
 
@@ -105,12 +110,12 @@ base_options = {
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
-    "ft-core-count": 8,
+    "ft-core-count": 4,
     "ft-pod-count": 4,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
-    "ft-agg-core-link-capacity-mult": 0.5,
-
+    "ft-agg-core-link-capacity-mult": 1,
+    
     # load balancing options
     "load-metric" : "flowsize",
     "shuffle-device-map": True,
