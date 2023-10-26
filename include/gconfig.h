@@ -14,7 +14,7 @@ enum class LBScheme{
     RANDOM,
     ROUND_ROBIN,
     LEAST_LOADED,
-    POWER_OF_2,
+    POWER_OF_K,
     ROBIN_HOOD,
     FUTURE_LOAD,
 };
@@ -63,9 +63,10 @@ public:
     bool shuffle_device_map = false;
     std::string shuffle_map_file = "";
 
-    PriorityAllocator priority_allocator = PriorityAllocator::FAIR_SHARE; 
-    NetworkType network_type = NetworkType::FAT_TREE; 
+    PriorityAllocator priority_allocator = PriorityAllocator::FAIR_SHARE;
+    NetworkType network_type = NetworkType::FAT_TREE;
     LBScheme lb_scheme = LBScheme::ROUND_ROBIN;
+    int lb_samples = 2;
     LoadMetric load_metric = LoadMetric::UTILIZATION;
 
     // int machine_count = 16;

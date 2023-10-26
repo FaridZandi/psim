@@ -2,6 +2,9 @@
 #include "spdlog/spdlog.h"
 #include "gcontext.h"
 
+#include <algorithm>
+#include <vector>
+
 using namespace psim;
 using namespace std;
 
@@ -33,8 +36,9 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
             return new RoundRobinLoadBalancer(item_count);
         case LBScheme::LEAST_LOADED:
             return new LeastLoadedLoadBalancer(item_count);
-        case LBScheme::POWER_OF_2:
-            return new PowerOf2LoadBalancer(item_count);
+        case LBScheme::POWER_OF_K:
+            return new PowerOfKLoadBalancer(
+                item_count, GConf::inst().lb_samples);
         case LBScheme::ROBIN_HOOD:
             return new RobinHoodLoadBalancer(item_count);
         case LBScheme::FUTURE_LOAD:
@@ -77,37 +81,48 @@ int RoundRobinLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
 /////////////////////////////////////////////////////////////////////////////////////
 
 
-PowerOf2LoadBalancer::PowerOf2LoadBalancer(int item_count) : LoadBalancer(item_count) {
+PowerOfKLoadBalancer::PowerOfKLoadBalancer(int item_count, int samples)
+    : LoadBalancer(item_count), num_samples(std::min(samples, item_count)) {
     // Initially no item is loaded so they're all the best. We randomly denote
     // item 0 as the best.
     prev_best_item = 0;
-
 }
 
-int PowerOf2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+bool PowerOfKLoadBalancer::is_sampled(std::vector<int>& sampled_vals,
+                                      int val, size_t curr_idx) {
+    for (size_t idx = 0; idx < curr_idx; idx++) {
+        if (val == sampled_vals[idx]) {
+            return true;
+        }
+    }
+    return false;
+}
+
+int PowerOfKLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
     double least_load = std::numeric_limits<double>::max();
 
-    // We sample 2 random items and the previously least loaded item and
-    // pick the least loaded among these. This is what DRILL does but at
+    // We sample num_samples random items and the previously least loaded item
+    // and pick the least loaded among these. This is what DRILL does but at
     // the packet level.
-    int items_to_sample[3];
-    items_to_sample[0] = rand() % item_count;
-    int r;
-    do {
-        r = rand() % item_count;
-    } while (r == items_to_sample[0]);
+    std::vector<int> items_to_sample(item_count);
+    for (size_t idx = 0; idx < item_count; idx++) {
+        items_to_sample[idx] = idx;
+    }
+    std::random_shuffle(items_to_sample.begin(), items_to_sample.end());
+    int num_to_check = num_samples;
+    if (num_samples < item_count) {
+        items_to_sample[num_samples] = prev_best_item;
+        num_to_check++;
+    }
 
-    items_to_sample[1] = r;
-    items_to_sample[2] = prev_best_item;
-
-    for (int c : items_to_sample) {
-        double up_load = uplink(src, c)->get_load();
-        double down_load = downlink(dst, c)->get_load();
+    for (size_t idx = 0; idx < num_to_check; idx++) {
+        double up_load = uplink(src, items_to_sample[idx])->get_load();
+        double down_load = downlink(dst, items_to_sample[idx])->get_load();
         double load = up_load + down_load;
 
         if (load < least_load){
             least_load = load;
-            prev_best_item = c;
+            prev_best_item = items_to_sample[idx];
         }
     }
 

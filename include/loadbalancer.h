@@ -67,15 +67,18 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-class PowerOf2LoadBalancer : public LoadBalancer {
+class PowerOfKLoadBalancer : public LoadBalancer {
 public:
-    PowerOf2LoadBalancer(int item_count);
-    virtual ~PowerOf2LoadBalancer() {}
+    PowerOfKLoadBalancer(int item_count, int samples = 2);
+    virtual ~PowerOfKLoadBalancer() {}
 
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 
 private:
+    const int num_samples;
     int prev_best_item;
+
+    bool is_sampled(std::vector<int>& sampled_vals, int val, size_t curr_idx);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////

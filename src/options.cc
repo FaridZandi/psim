@@ -1,6 +1,7 @@
 #include "options.h"
 #include "gconfig.h"
-#include <iostream> 
+#include <iostream>
+#include <string>
 #include <sys/stat.h>
 
 #include <boost/program_options.hpp>
@@ -77,7 +78,7 @@ void psim::setup_logger(bool recreate_dir) {
 
     struct stat buffer;
     bool dir_exists = (stat (GConf::inst().output_dir.c_str(), &buffer) == 0);
-    
+
     if (recreate_dir or not dir_exists) {
         std::string rm_command = "rm -rf " + GConf::inst().output_dir;
         int ret = system(rm_command.c_str());
@@ -96,7 +97,7 @@ void psim::setup_logger(bool recreate_dir) {
     file_sink->set_pattern("[%H:%M:%S.%e] [%^%l%$] %v");
     file_sink->set_level(spdlog::level::level_enum(GConf::inst().file_log_level));
 
-    auto multi_sink = spdlog::sinks_init_list({console_sink, file_sink}); 
+    auto multi_sink = spdlog::sinks_init_list({console_sink, file_sink});
     auto logger = std::make_shared<spdlog::logger>("logger", multi_sink);
     spdlog::set_default_logger(logger);
     int log_level = std::min(GConf::inst().console_log_level, GConf::inst().file_log_level);
@@ -108,7 +109,7 @@ void psim::setup_logger(bool recreate_dir) {
 void psim::process_arguments(po::variables_map vm){
     if (vm.count("load-metric")) {
         std::string load_metric_str = vm["load-metric"].as<std::string>();
-        
+
         if (load_metric_str == "flowsize") {
             GConf::inst().load_metric = LoadMetric::FLOWSIZE;
         } else if (load_metric_str == "flowcount") {
@@ -135,7 +136,7 @@ void psim::process_arguments(po::variables_map vm){
     }
     if (vm.count("shuffle-device-map")) {
         GConf::inst().shuffle_device_map = true;
-    }   
+    }
     if (vm.count("shuffle-map-file")) {
         GConf::inst().shuffle_map_file = vm["shuffle-map-file"].as<std::string>();
     }
@@ -146,10 +147,11 @@ void psim::process_arguments(po::variables_map vm){
             GConf::inst().lb_scheme = LBScheme::RANDOM;
         } else if (lb_scheme_str == "roundrobin") {
             GConf::inst().lb_scheme = LBScheme::ROUND_ROBIN;
-        } else if (lb_scheme_str == "leastloaded") {   
+        } else if (lb_scheme_str == "leastloaded") {
             GConf::inst().lb_scheme = LBScheme::LEAST_LOADED;
-        } else if (lb_scheme_str == "powerof2") {
-            GConf::inst().lb_scheme = LBScheme::POWER_OF_2;
+        } else if (lb_scheme_str.substr(0, 7) == "powerof") {
+            GConf::inst().lb_scheme = LBScheme::POWER_OF_K;
+            GConf::inst().lb_samples = std::stoi(lb_scheme_str.substr(7));
         } else if (lb_scheme_str == "futureload") {
             GConf::inst().lb_scheme = LBScheme::FUTURE_LOAD;
         } else if (lb_scheme_str == "robinhood") {
@@ -189,7 +191,7 @@ void psim::process_arguments(po::variables_map vm){
         GConf::inst().bn_priority_levels = vm["bn-priority-levels"].as<int>();
     }
     if (vm.count("network-type")){
-        
+
         std::string network_type_str = vm["network-type"].as<std::string>();
 
         if (network_type_str == "fattree") {

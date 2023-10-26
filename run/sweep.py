@@ -34,7 +34,7 @@ os.system("mkdir -p {}".format(results_dir))
 
 simulation_timestep = 10
 number_worker_threads = 20
-rep_count = 3 
+rep_count = 3
 protocols_count = 999 # all protocols
 memory_limit_kb = 10 * 1e9
 
@@ -56,6 +56,8 @@ sweep_config = {
         "random",
         "roundrobin",
         "powerof2",
+        "powerof3",
+        "powerof4",
         "robinhood",
         "leastloaded",
     ],
@@ -75,26 +77,28 @@ load_metric_map = {
     "futureload": "utilization",
     "leastloaded": "flowsize",
     "powerof2": "flowsize",
+    "powerof3": "flowsize",
+    "powerof4": "flowsize",
     "random": "flowcount",
-    "robinhood": "flowcount",   
+    "robinhood": "flowsize",
     "roundrobin": "flowsize",
 }
 
 # base options
 base_options = {
     "protocol-file-dir": workloads_dir,
-    
+
     "step-size": simulation_timestep,
     "core-status-profiling-interval": simulation_timestep,
     "rep-count": rep_count,
     "file-log-level": 4,
     "console-log-level": 4,
-    
+
     # flow rate control options
     "initial-rate": 100,
     "min-rate": 10,
     "priority-allocator": "fairshare",
-    
+
     # topology options
     "network-type": "leafspine",
     "link-bandwidth": 100,
@@ -106,7 +110,7 @@ base_options = {
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
     "ft-agg-core-link-capacity-mult": 0.5,
-    
+
     # load balancing options
     "load-metric" : "flowsize",
     "shuffle-device-map": True,
@@ -142,7 +146,7 @@ def run_experiment(exp, worker_id):
     options.update(base_options)
     options.update(exp)
     options["load-metric"] = load_metric_map[options["lb-scheme"]]
-    
+
     # create the command
     cmd = run_executable
     for option in options.items():
