@@ -20,6 +20,10 @@ void LoadBalancer::register_link(int lower_item, int upper_item, int dir, Bottle
     }
 }
 
+void LoadBalancer::update_state(Flow* arriving_flow) {
+    return;
+}
+
 Bottleneck* LoadBalancer::uplink(int lower_item, int upper_item){
     return link_up_map[std::make_pair(lower_item, upper_item)];
 }
@@ -88,16 +92,6 @@ PowerOfKLoadBalancer::PowerOfKLoadBalancer(int item_count, int samples)
     prev_best_item = 0;
 }
 
-bool PowerOfKLoadBalancer::is_sampled(std::vector<int>& sampled_vals,
-                                      int val, size_t curr_idx) {
-    for (size_t idx = 0; idx < curr_idx; idx++) {
-        if (val == sampled_vals[idx]) {
-            return true;
-        }
-    }
-    return false;
-}
-
 int PowerOfKLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
     double least_load = std::numeric_limits<double>::max();
 
@@ -160,27 +154,54 @@ int LeastLoadedLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
 /////////////////////////////////////////////////////////////////////////////////////
 
 RobinHoodLoadBalancer::RobinHoodLoadBalancer(int item_count)
-    : LoadBalancer(item_count), multiplier(std::sqrt(item_count)) {
-    iterations_hard_working = std::vector<int>(item_count, 0);
+    : LoadBalancer(item_count), multiplier(0.0) {
+    iterations_hard_working;
     // Initially the lower bound on the optimal is 0.
     lb = 0.0;
 }
 
+void RobinHoodLoadBalancer::register_link(int lower_item, int upper_item, int dir, Bottleneck* link) {
+    LoadBalancer::register_link(lower_item, upper_item, dir, link);
+    iterations_hard_working[link] = 0;
+}
 
-int RobinHoodLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
-    double total_load = flow->get_load();
-    std::vector<double> item_loads(item_count, 0.0);
+void RobinHoodLoadBalancer::update_state(Flow* arriving_flow) {
+    double flow_load = (arriving_flow == nullptr) ? 0 : arriving_flow->get_load();
 
-    for (int c = 0; c < item_count; c++) {
-        double up_load = uplink(src, c)->get_load();
-        double down_load = downlink(dst, c)->get_load();
-        item_loads[c] = up_load + down_load;
-
-        total_load += item_loads[c];
+    // Calculate total load on all links.
+    load = flow_load;
+    for (auto itr = link_up_map.begin(); itr != link_up_map.end(); itr++) {
+        load += itr->second->get_load();
+    }
+    for (auto itr = link_down_map.begin(); itr != link_down_map.end(); itr++) {
+        load += itr->second->get_load();
     }
 
-    lb = std::max(lb, std::max(flow->get_load(), total_load / item_count));
-    double cutoff = multiplier * lb;
+    // Update the lower bound. Note that iterations_hard_working has all links.
+    lb = std::max(lb,
+                  std::max(flow_load, load / iterations_hard_working.size()));
+    double cutoff = get_multiplier() * lb;
+
+    // Update the number of consecutive iterations each link has been
+    // hard-working.
+    for (auto itr = iterations_hard_working.begin();
+         itr != iterations_hard_working.end();
+         itr++) {
+        if (itr->first->get_load() < cutoff) {
+            // It is now not hard-working, so it has been hard-working for 0
+            // consecutive iterations.
+            itr->second = 0;
+        } else {
+            // It is hard-working, so we increment the number of consecutive
+            // iterations for which it has been hard-working.
+            itr->second++;
+        }
+    }
+}
+
+int RobinHoodLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+    update_state(flow);
+
     std::vector<int> non_hard_working_items;
 
     // The item that most recently became hard working (used in the case
@@ -190,16 +211,17 @@ int RobinHoodLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int time
     int latest_hard_working_item = -1;
     int latest_hard_working_iterations = std::numeric_limits<int>::max();
 
+    int item_hard_working_iterations;
     for (int c = 0; c < item_count; c++) {
-        if (item_loads[c] < cutoff) {
-            // It is now 0 iterations since it was last non hard working.
-            item_loads[c] = 0;
+        item_hard_working_iterations = std::max(
+            iterations_hard_working[uplink(src, c)],
+            iterations_hard_working[downlink(src, c)]);
+        if (item_hard_working_iterations == 0) {
             non_hard_working_items.push_back(c);
         } else {
-            iterations_hard_working[c]++;
-            if (iterations_hard_working[c] < latest_hard_working_iterations) {
+            if (item_hard_working_iterations < latest_hard_working_iterations) {
                 latest_hard_working_item = c;
-                latest_hard_working_iterations = iterations_hard_working[c];
+                latest_hard_working_iterations = item_hard_working_iterations;
             }
         }
     }
@@ -213,6 +235,13 @@ int RobinHoodLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int time
     // Otherwise, all items are hardworking and we return the one that most
     // recently became hard working.
     return latest_hard_working_item;
+}
+
+double RobinHoodLoadBalancer::get_multiplier() {
+    if (multiplier <= 0) {
+        multiplier = std::sqrt((link_up_map.size() + link_down_map.size()));
+    }
+    return multiplier;
 }
 
 /////////////////////////////////////////////////////////////////////////////////////

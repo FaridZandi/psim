@@ -3,7 +3,7 @@
 #include <cassert>
 #include <algorithm>
 #include <limits>
-#include <set> 
+#include <set>
 
 #include "spdlog/spdlog.h"
 
@@ -27,7 +27,7 @@ Network::~Network() {
 }
 
 
-double Network::make_progress_on_machines(double current_time, double step_size, 
+double Network::make_progress_on_machines(double current_time, double step_size,
                                           std::vector<PComp*> & step_finished_tasks){
     double step_comp = 0;
 
@@ -41,22 +41,22 @@ double Network::make_progress_on_machines(double current_time, double step_size,
         }
     }
 
-    return step_comp; 
+    return step_comp;
 }
 
-void 
+void
 Network::reset_bottleneck_registers(){
     for (auto bottleneck : this->bottlenecks) {
         bottleneck->reset_register();
     }
-} 
+}
 
-void 
+void
 Network::compute_bottleneck_allocations(){
     for (auto bottleneck : this->bottlenecks) {
         bottleneck->allocate_bandwidths();
     }
-} 
+}
 
 
 
@@ -112,13 +112,13 @@ double Network::total_bw_utilization () {
 }
 
 double Network::total_core_bw_utilization() {
-    return 0; 
+    return 0;
 }
 
 
-double Network::min_core_link_bw_utilization(){ 
+double Network::min_core_link_bw_utilization(){
     return 0;
-} 
+}
 
 double Network::max_core_link_bw_utilization(){
     return 0;
@@ -126,13 +126,13 @@ double Network::max_core_link_bw_utilization(){
 
 
 
-double Network::make_progress_on_flows(double current_time, 
+double Network::make_progress_on_flows(double current_time,
                                        std::vector<Flow*> & step_finished_flows){
-    
+
     double step_size = GConf::inst().step_size;
-    double step_comm = 0; 
-    
-    reset_bottleneck_registers();        
+    double step_comm = 0;
+
+    reset_bottleneck_registers();
 
     for (auto& flow : flows) {
         flow->register_rate_on_path(step_size);
@@ -141,8 +141,8 @@ double Network::make_progress_on_flows(double current_time,
     compute_bottleneck_allocations();
 
     for (auto& flow : flows) {
-        step_comm += flow->make_progress(current_time, step_size); 
-        
+        step_comm += flow->make_progress(current_time, step_size);
+
         if (flow->status == PTaskStatus::FINISHED) {
             step_finished_flows.push_back(flow);
         }
@@ -155,8 +155,10 @@ double Network::make_progress_on_flows(double current_time,
         }
     }
 
+    core_load_balancer->update_state();
+
     return step_comm;
-} 
+}
 
 
 
@@ -182,7 +184,7 @@ BigSwitchNetwork::BigSwitchNetwork(): Network() {
 }
 
 BigSwitchNetwork::~BigSwitchNetwork() {
-    
+
 }
 
 void BigSwitchNetwork::set_path(Flow* flow, double timer) {
@@ -200,28 +202,28 @@ psim::Machine::Machine(int name) {
 }
 
 psim::Machine::~Machine() {
-    
+
 }
 
-double psim::Machine::make_progress(double current_time, double step_size, 
+double psim::Machine::make_progress(double current_time, double step_size,
                                     std::vector<PComp*> & step_finished_tasks) {
     if (this->task_queue.empty()) {
-        return 0; 
+        return 0;
     }
 
     double epsilon = step_size / 1000; // floating point errors ...
     double step_comp = 0;
     double avail_comp = step_size;
 
-    int handled_tasks = 0; 
+    int handled_tasks = 0;
 
     while (not this->task_queue.empty()){
         PComp* compute_task = this->task_queue.front();
         handled_tasks += 1;
-        
+
         if (compute_task->progress == 0){
-            compute_task->start_time = current_time; 
-        }   
+            compute_task->start_time = current_time;
+        }
 
         double task_remaining = compute_task->size - compute_task->progress;
         double progress_to_make = std::min(avail_comp, task_remaining);
@@ -243,7 +245,7 @@ double psim::Machine::make_progress(double current_time, double step_size,
         }
     }
 
-    return step_comp; 
+    return step_comp;
 }
 
 
@@ -258,7 +260,7 @@ Bottleneck::Bottleneck(double bandwidth) {
     this->current_flow_count = 0;
     this->current_flow_size_sum = 0;
 
-    setup_bwalloc(); 
+    setup_bwalloc();
 
     this->load_metric = GConf::inst().load_metric;
 }
@@ -266,7 +268,7 @@ Bottleneck::Bottleneck(double bandwidth) {
 
 double Bottleneck::get_load(LoadMetric load_metric_arg) {
     LoadMetric load_metric = this->load_metric;
-    
+
     if (load_metric_arg != LoadMetric::DEFAULT){
         load_metric = load_metric_arg;
     }
@@ -277,16 +279,16 @@ double Bottleneck::get_load(LoadMetric load_metric_arg) {
 
     case LoadMetric::UTILIZATION:
         return bwalloc->utilized_bandwidth;
-    
-    case LoadMetric::ALLOCATED: 
+
+    case LoadMetric::ALLOCATED:
         return bwalloc->total_allocated;
-    
-    case LoadMetric::FLOWSIZE: 
+
+    case LoadMetric::FLOWSIZE:
         return current_flow_size_sum;
 
-    case LoadMetric::FLOWCOUNT: 
+    case LoadMetric::FLOWCOUNT:
         return current_flow_count;
-        
+
     default:
         spdlog::error("Invalid load metric");
         exit(1);
@@ -328,7 +330,7 @@ void Bottleneck::register_rate(int id, double rate, int priority){
 }
 
 void Bottleneck::allocate_bandwidths(){
-    bwalloc->compute_allocations(); 
+    bwalloc->compute_allocations();
 }
 
 double Bottleneck::get_allocated_rate(int id, double registered_rate, int priority){
@@ -340,7 +342,7 @@ bool Bottleneck::should_drop(double step_size){
     double excess = bwalloc->total_registered - bandwidth;
 
     if (excess > 0) {
-        // probablity of dropping a packet is proportional to the excess rate 
+        // probablity of dropping a packet is proportional to the excess rate
         double drop_prob = excess / bandwidth;
         // drop_prob = 1 - pow(1 - drop_prob, step_size);
         drop_prob *= step_size;
@@ -351,7 +353,7 @@ bool Bottleneck::should_drop(double step_size){
             // std::cout << "dropping rate! who would have thought! \n" << std::endl;
             return true;
         }
-    } 
+    }
 
     return false;
 }
@@ -368,15 +370,15 @@ bool ft_loc::operator<(const ft_loc& rhs) const {
     if (dir < rhs.dir) return true;
     if (dir > rhs.dir) return false;
     if (core < rhs.core) return true;
-    if (core > rhs.core) return false; 
-    
+    if (core > rhs.core) return false;
+
     return false;
 }
 
 
-// TODO: move this the lb file later 
+// TODO: move this the lb file later
 std::pair<int, int> psim::get_prof_limits(double start_time, double end_time) {
-    int prof_inter = GConf::inst().core_status_profiling_interval; 
+    int prof_inter = GConf::inst().core_status_profiling_interval;
 
     int prof_start = int(start_time);
     int prof_end = int(end_time);

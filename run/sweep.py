@@ -22,7 +22,11 @@ run_id = str(get_incremented_number())
 
 base_dir = os.environ.get("PSIM_BASE_DIR")
 input_dir = base_dir + "/input/"
-workloads_dir = input_dir + "128search-dpstart-2/"
+workloads_dir = input_dir
+if (len(sys.argv) == 1 or sys.argv[1].lower() == "full"):
+    workloads_dir += "128search-dpstart-2/"
+elif (sys.argv[1].lower() == "limited"):
+    workloads_dir += "128search-dpstart-2-limited/"
 # workloads_dir = input_dir + "random/"
 
 build_path = base_dir + "/build"
@@ -114,7 +118,7 @@ base_options = {
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
     "ft-agg-core-link-capacity-mult": 1,
-    
+
     # load balancing options
     "load-metric" : "flowsize",
     "shuffle-device-map": True,
