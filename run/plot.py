@@ -42,7 +42,12 @@ pd_frame = pd.read_csv(csv_path)
 # convert param columns to string
 for param in all_sweep_params:
     if param in pd_frame:
-        pd_frame[param] = pd_frame[param].astype(str)
+        is_number = pd_frame[param].dtype.kind in 'bifc'
+        if is_number:
+            max_value = pd_frame[param].max()
+            digits = len(str(max_value))
+            # convert to string, pad with zeros to make sure the sorting is correct
+            pd_frame[param] = pd_frame[param].astype(str).str.zfill(digits)
 
 sweep_params = [] 
 # find which of the params are constant in the csv. remove them from the list
@@ -177,7 +182,7 @@ x = np.arange(len(protocols)) * (group_width + group_spacing)
 print(max_group_width, group_width, group_spacing)
 print(x)
 
-plt.figure(figsize=(len(protocols) * len(params) / 2, 10))
+plt.figure(figsize=(len(protocols) * len(params) / 4, 5))
 
 for i, param in enumerate(params):
 

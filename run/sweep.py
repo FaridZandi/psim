@@ -9,7 +9,7 @@ import queue
 import threading
 import sys
 import datetime
-from util import make_shuffle
+from util import make_shuffle, get_incremented_number
 import resource
 
 
@@ -17,11 +17,12 @@ import resource
 # pd.set_option('display.max_columns', 500)
 
 # setting up the basic paths
-run_id = os.popen("date +%s | sha256sum | base64 | head -c 4").read()
+# run_id = os.popen("date +%s | sha256sum | base64 | head -c 4").read()
+run_id = str(get_incremented_number())
 
 base_dir = os.environ.get("PSIM_BASE_DIR")
 input_dir = base_dir + "/input/"
-workloads_dir = input_dir + "128search-dpstart-2-limited/"
+workloads_dir = input_dir + "128search-dpstart-2/"
 # workloads_dir = input_dir + "random/"
 
 build_path = base_dir + "/build"
@@ -29,15 +30,15 @@ run_path = base_dir + "/run"
 base_executable = build_path + "/psim"
 run_executable = build_path + "/psim-" + run_id
 shuffle_path  = input_dir + "/shuffle/shuffle-{}.txt".format(run_id)
-results_dir = "results/x-{}/".format(run_id)
+results_dir = "results/{}-run/".format(run_id)
 csv_path = results_dir + "results.csv".format(run_id)
 os.system("mkdir -p {}".format(results_dir))
 
 
-simulation_timestep = 1
+simulation_timestep = 10
 number_worker_threads = 20
 rep_count = 3
-protocols_count = 999 # all protocols
+protocols_count = 5 # all protocols
 memory_limit_kb = 10 * 1e9
 
 # select a random subset of protocols, exclude the random ones
@@ -72,9 +73,7 @@ sweep_config = {
     #     "flowcount",
     #     "utilization",
     # ],
-    "min-rate": [
-        10, 25, 50, 75
-    ],
+    "ft-core-count": [4, 16, 64, 256],
     "protocol-file-name": protocol_names,
 }
 
