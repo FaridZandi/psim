@@ -9,7 +9,6 @@ from pprint import pprint
 ############################################################################################
 ############################################################################################
 
-bar_width = 0.2
 # the params that might vary in the experiments     
 all_sweep_params = ["min-rate", 
                     "ft-core-count", 
@@ -113,7 +112,7 @@ for i in range (all_params_count):
         this_param = this_param // group_sizes[j]
 
     total_offset = 0
-    sub_group_width = bar_width
+    sub_group_width = 1
     # param_combination.reverse()
     
     grouping_label = ""
@@ -130,7 +129,10 @@ for i in range (all_params_count):
             
     for k, param_comb in enumerate(param_combination):
         total_offset += (sub_group_width * param_comb)
-        sub_group_width *= (group_sizes[k] + 1)
+        if k == 0: 
+            sub_group_width *= (group_sizes[k] + 3)
+        else: 
+            sub_group_width *= (group_sizes[k] + 1) 
             
     param_offset[i] = total_offset    
     print(i, param_combination, params[i], total_offset)
@@ -172,17 +174,18 @@ for protocol in protocols:
             print(row)
 
 inner_grouping_size = group_sizes[0]
-sub_group_width = bar_width * inner_grouping_size
-group_width = float(max_group_width + bar_width)  # bar_width * len(params)
+sub_group_width = inner_grouping_size
+group_width = float(max_group_width + 1) 
 group_spacing = float(max_group_width) / 2
+total_width = group_width * len(protocols) + group_spacing * (len(protocols) - 1)
 
 # len(protocols) items, with (group_width + group_spacing) space between each two items
 x = np.arange(len(protocols)) * (group_width + group_spacing)
 
-print(max_group_width, group_width, group_spacing)
-print(x)
+# print(max_group_width, group_width, group_spacing)
+print ("max_group_width:", max_group_width, ",group_width:", group_width, ",group_spacing:", group_spacing, ", total_width:", total_width)
+plt.figure(figsize=(total_width / 10, 10))
 
-plt.figure(figsize=(len(protocols) * len(params) / 4, 5))
 
 for i, param in enumerate(params):
 
@@ -191,18 +194,18 @@ for i, param in enumerate(params):
 
     if "futureload" in param:
         plt.bar(x_offset, param_data["rel_last_psim_time"],
-            width=bar_width, label=param,
-            color=get_color(param), edgecolor="black", linewidth=2)
+                width=1, label=param,
+                color=get_color(param), edgecolor="black")
 
     else:
         plt.bar(x_offset, param_data["rel_max_psim_time"],
-            width=bar_width, color="white",
-            edgecolor="black", hatch="///", linewidth=2)
+                width=1, color="white",
+                edgecolor="black", hatch="///")
 
 
         plt.bar(x_offset, param_data["rel_min_psim_time"],
-                width=bar_width, label=param,
-                color=get_color(param), edgecolor="black", linewidth=2)
+                width=1, label=param,
+                color=get_color(param), edgecolor="black")
 
 
 # xticks on the top of the plot 
