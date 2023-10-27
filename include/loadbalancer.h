@@ -25,6 +25,7 @@ public:
     virtual ~LoadBalancer() {}
 
     void register_link(int lower_item, int upper_item, int dir, Bottleneck* link);
+    void update_state(Flow* arriving_flow = nullptr);
     virtual int get_upper_item(int src, int dst, Flow* flow, int timer) = 0;
 
     static LoadBalancer* create_load_balancer(int item_count, LBScheme lb_scheme);
@@ -77,8 +78,6 @@ public:
 private:
     const int num_samples;
     int prev_best_item;
-
-    bool is_sampled(std::vector<int>& sampled_vals, int val, size_t curr_idx);
 };
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -98,28 +97,41 @@ public:
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-
+// The RobinHood Algorithm works as follows: it maintains a lower bound on the
+// optimal balance, `lb`, and deems links having loads at least `sqrt(N) * lb`
+// as hard-working, where `N` is the number of links. Otherwise, the link is
+// non hard-working. It tries to give traffic to the non hard working if there
+// is any or the link that most recently became hard-working otherwise.
+//
+// As we are balancing on paths and the load balancer connects two lower items
+// to an upper item we say a path is non hard-working if both the uplink and
+// downlink are non hard-working, otherwise, the path is hard-working.
 class RobinHoodLoadBalancer : public LoadBalancer {
 public:
     RobinHoodLoadBalancer(int item_count);
     virtual ~RobinHoodLoadBalancer() {}
-
+    void register_link(int lower_item, int upper_item, int dir, Bottleneck* link);
+    void update_state(Flow* arriving_flow = nullptr);
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 
 
 private:
-    // An array of number of iterations a given core has been hard working.
-    // Used for the robin-hood load balancing algorithm that selects cores that
-    // are not hard working or the core that most recently became hard working
-    // if all cores are hard working.
-    std::vector<int> iterations_hard_working;
+    // An array of number of consecutive iterations a given link has been
+    // hard-working.
+    std::map<Bottleneck*, int> iterations_hard_working;
 
-    // Multiplier for the robin hood algorithm (sqrt of the core count but we
+    // A coarse-grained estimate of the current load in the network that is
+    // only updated each time `update_state()` is called.
+    double load;
+
+    // Multiplier for the robin hood algorithm (sqrt of the link count but we
     // store it so that we don't have to compute it each time).
-    const double multiplier;
+    double multiplier;
 
     // Lower bound on the optimal.
     double lb;
+
+    double get_multiplier();
 };
 
 
