@@ -178,8 +178,7 @@ void RobinHoodLoadBalancer::update_state(Flow* arriving_flow) {
     }
 
     // Update the lower bound. Note that iterations_hard_working has all links.
-    lb = std::max(lb,
-                  std::max(flow_load, load / iterations_hard_working.size()));
+    lb = std::max(flow_load, load / iterations_hard_working.size());
     double cutoff = get_multiplier() * lb;
 
     // Update the number of consecutive iterations each link has been
