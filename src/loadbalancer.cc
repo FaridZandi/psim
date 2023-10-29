@@ -3,12 +3,14 @@
 #include "gcontext.h"
 
 #include <algorithm>
+#include <cassert>
 #include <vector>
 
 using namespace psim;
 using namespace std;
 
 LoadBalancer::LoadBalancer(int item_count) {
+    assert(item_count > 0);
     this->item_count = item_count;
 }
 
@@ -47,6 +49,8 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
             return new RobinHoodLoadBalancer(item_count);
         case LBScheme::FUTURE_LOAD:
             return new FutureLoadLoadBalancer(item_count);
+        case LBScheme::SITA:
+            return new SitaLoadBalancer(item_count);
         default:
             spdlog::error("Invalid load balancer type: {}", int(lb_scheme));
             exit(1);
@@ -247,6 +251,23 @@ double RobinHoodLoadBalancer::get_multiplier() {
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
+SitaLoadBalancer::SitaLoadBalancer(int item_count) : LoadBalancer(item_count) {
+    size_thresholds = std::vector<double>(item_count, -1.0);
+    size_thresholds[item_count - 1] = std::numeric_limits<double>::max();
+}
+
+int SitaLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+    if (flow->size <= size_thresholds[0]) {
+        return 0;
+    }
+    for (size_t idx = 1; idx < item_count - 1; idx++) {
+        if (flow->size <= size_thresholds[idx]) {
+            return idx;
+        }
+    }
+    return item_count - 1;
+}
+
 FutureLoadLoadBalancer::FutureLoadLoadBalancer(int item_count) : LoadBalancer(item_count) {
     current_upper_item = 0;
 }
@@ -391,3 +412,7 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
         return best_core;
     }
 }
+
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////

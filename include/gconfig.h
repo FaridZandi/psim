@@ -17,6 +17,7 @@ enum class LBScheme{
     POWER_OF_K,
     ROBIN_HOOD,
     FUTURE_LOAD,
+    SITA,
 };
 
 
