@@ -2,6 +2,8 @@
 #define LOADBALANCER_H
 
 #include <map>
+#include <vector>
+#include "protocol.h"
 #include "network.h"
 #include "gconfig.h"
 
@@ -9,6 +11,7 @@ namespace psim {
 
 class Bottleneck;
 class Flow;
+class Protocol;
 
 // Network Loadbalancer.
 // The structure is like this: There a bunch of items at the lower level, and
@@ -25,6 +28,7 @@ public:
     virtual ~LoadBalancer() {}
 
     void register_link(int lower_item, int upper_item, int dir, Bottleneck* link);
+    void integrate_protocol_knowledge(std::vector<Protocol*>& protocols);
     void update_state(Flow* arriving_flow = nullptr);
     virtual int get_upper_item(int src, int dst, Flow* flow, int timer) = 0;
 
@@ -155,10 +159,11 @@ private:
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-class SitaLoadBalancer : public LoadBalancer {
+class SitaELoadBalancer : public LoadBalancer {
 public:
-    SitaLoadBalancer(int item_count);
-    virtual ~SitaLoadBalancer() {}
+    SitaELoadBalancer(int item_count);
+    virtual ~SitaELoadBalancer() {}
+    void integrate_protocol_knowledge(std::vector<Protocol*>& protocols);
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 
 private:

@@ -65,6 +65,7 @@ sweep_config = {
         "powerof3",
         "powerof4",
         "robinhood",
+        "sita-e",
         "leastloaded",
     ],
     # "priority-allocator": [
@@ -89,8 +90,9 @@ load_metric_map = {
     "powerof3": "flowsize",
     "powerof4": "flowsize",
     "random": "flowcount",
-    "robinhood": "flowsize",
+    "robinhood": "utilization",
     "roundrobin": "flowsize",
+    "sita-e": "flowsize",
 }
 
 # base options

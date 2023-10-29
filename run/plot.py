@@ -28,6 +28,7 @@ colors = {
     "powerof4": "black",
     "robinhood": "pink",
     "futureload": "blue",
+    "sita-e": "green",
 }
 
 

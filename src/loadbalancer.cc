@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <iostream>
 #include <vector>
 
 using namespace psim;
@@ -20,6 +21,10 @@ void LoadBalancer::register_link(int lower_item, int upper_item, int dir, Bottle
     } else {
         link_down_map[std::make_pair(lower_item, upper_item)] = link;
     }
+}
+
+void LoadBalancer::integrate_protocol_knowledge(std::vector<Protocol*>& protocols) {
+    return;
 }
 
 void LoadBalancer::update_state(Flow* arriving_flow) {
@@ -49,8 +54,8 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
             return new RobinHoodLoadBalancer(item_count);
         case LBScheme::FUTURE_LOAD:
             return new FutureLoadLoadBalancer(item_count);
-        case LBScheme::SITA:
-            return new SitaLoadBalancer(item_count);
+        case LBScheme::SITA_E:
+            return new SitaELoadBalancer(item_count);
         default:
             spdlog::error("Invalid load balancer type: {}", int(lb_scheme));
             exit(1);
@@ -251,23 +256,6 @@ double RobinHoodLoadBalancer::get_multiplier() {
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
-SitaLoadBalancer::SitaLoadBalancer(int item_count) : LoadBalancer(item_count) {
-    size_thresholds = std::vector<double>(item_count, -1.0);
-    size_thresholds[item_count - 1] = std::numeric_limits<double>::max();
-}
-
-int SitaLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
-    if (flow->size <= size_thresholds[0]) {
-        return 0;
-    }
-    for (size_t idx = 1; idx < item_count - 1; idx++) {
-        if (flow->size <= size_thresholds[idx]) {
-            return idx;
-        }
-    }
-    return item_count - 1;
-}
-
 FutureLoadLoadBalancer::FutureLoadLoadBalancer(int item_count) : LoadBalancer(item_count) {
     current_upper_item = 0;
 }
@@ -416,3 +404,101 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
+
+
+SitaELoadBalancer::SitaELoadBalancer(int item_count) : LoadBalancer(item_count) {
+    size_thresholds = std::vector<double>(item_count, -1.0);
+    size_thresholds[item_count - 1] = std::numeric_limits<double>::max();
+}
+
+void SitaELoadBalancer::integrate_protocol_knowledge(std::vector<Protocol*>& protocols) {
+    if (protocols.size() > 0) {
+        std::vector<double> flow_sizes = protocols[0]->get_flow_sizes();
+        for (size_t idx = 1; idx < protocols.size(); idx++) {
+            std::vector<double> protocol_flow_sizes = protocols[idx]->get_flow_sizes();
+            for (auto flow_size : protocol_flow_sizes) {
+                flow_sizes.push_back(flow_size);
+            }
+        }
+
+        // The goal of SITA-E is to assign equal load to each item. So we
+        // compute the cumulative flow sizes after sorting the flows in
+        // ascending order. So for example if the flow sizes are
+        // [10, 11, 11, 12, 13, 13, 13, 14, 15, 100] then the cumulative sizes
+        // are [10, 21, 32, 44, 57, 70, 83, 97, 112, 212].
+        std::sort(flow_sizes.begin(), flow_sizes.end());
+        long double cumulative_size = 0;
+        std::vector<long double> cumulative_flow_sizes;
+        for (size_t idx = 0; idx < flow_sizes.size(); idx++) {
+            cumulative_size += flow_sizes[idx];
+            cumulative_flow_sizes[idx] = cumulative_size;
+        }
+
+        // We now determine the cutoff points for the various items. For example
+        // if we have flow sizes [10, 11, 11, 12, 13, 13, 13, 14, 15, 100] and
+        // cumulative sizes [10, 21, 32, 44, 57, 70, 83, 97, 112, 212] then the
+        // total traffic has size 212 so we want about 212/5 = 42.4 to go to
+        // each item (we bias downwards as datacenter traffic is usually heavy
+        // tailed so there are a few large flows that take up many bytes and
+        // we don't want to have 2 items for a range that only contains one
+        // flow).
+        // So the first threshold is for cumulative size < 1 * 42.4 and so flows
+        // at or below size 11 go to the first item. Flows where the cumulative
+        // size is at least 1 * 42.4 and < 2 * 42.4 go to the second item. This
+        // cutoff is 13 and so on gives thresholds [11, 13, 15, 15, inf]. Note
+        // that we don't update the last threshold, this just stays as the
+        // maximum double.
+        long double step_size = cumulative_size / item_count;
+        long double curr_cutoff = step_size;
+        int curr_item = 0;
+        size_t curr_idx = 0;
+        while (curr_cutoff < cumulative_size &&
+               curr_idx < flow_sizes.size() - 1 &&
+               curr_item < item_count - 1) {
+            if (flow_sizes[curr_idx + 1] <= curr_cutoff) {
+                curr_idx++;
+            } else {
+                size_thresholds[curr_item] = flow_sizes[curr_idx];
+                std::cout << "Setting threshold for " << curr_item;
+                std::cout << " to " << flow_sizes[curr_idx] << std::endl;
+                curr_item++;
+                curr_cutoff += step_size;
+            }
+        }
+    }
+}
+
+int SitaELoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+    // TODO: optimize this to use binary search.
+    for (int idx = 0; idx < item_count - 1; idx++) {
+        if (flow->size <= size_thresholds[idx]) {
+            int min_item = idx;
+            idx++;
+            // Note that we could have multiple items with the same size
+            // threshold, for example if the size thresholds are
+            // [11, 13, 15, 15, inf] then a flow of size 14 can go to item 2 or
+            // 3 so we want to pick which of these two at random.
+            while (idx < item_count &&
+                   size_thresholds[idx-1] <= flow->size &&
+                   size_thresholds[idx] >= flow->size) {
+                idx++;
+            }
+            int best_item = -1;
+            double least_load = std::numeric_limits<double>::max();
+
+            for (int c = min_item; c < idx; c++) {
+                double up_load = uplink(src, c)->get_load();
+                double down_load = downlink(dst, c)->get_load();
+                double load = up_load + down_load;
+
+                if (load < least_load) {
+                    least_load = load;
+                    best_item = c;
+                }
+            }
+
+            return best_item;
+        }
+    }
+    return item_count - 1;
+}

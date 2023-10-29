@@ -127,7 +127,7 @@ std::vector<double> Protocol::get_flow_sizes() {
     std::vector<double> flow_sizes;
     for (auto task : tasks) {
         if (task->get_type() == PTaskType::FLOW) {
-            flow_sizes.push_back(task->size);
+            flow_sizes.push_back(((Flow*)task)->size);
         }
     }
     return flow_sizes;

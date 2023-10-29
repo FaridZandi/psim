@@ -21,16 +21,16 @@ void init(int argc, char** argv);
 
 // main function
 int main(int argc, char** argv) {
-    init(argc, argv); 
-    std::vector<double> psim_time_list;     
-    
+    init(argc, argv);
+    std::vector<double> psim_time_list;
+
     GContext::initiate_device_shuffle_map();
-    
+
     // Protocol* p = build_random_protocol(2000, 128);
     // std::ofstream ofs("a.out");
     // p->export_graph(ofs);
     // ofs.close();
-    // exit(0); 
+    // exit(0);
 
     for (int rep = 1; rep <= GConf::inst().rep_count; rep ++) {
         std::string worker_dir = "workers/worker-" + std::to_string(GConf::inst().worker_id) + "/";
@@ -48,9 +48,11 @@ int main(int argc, char** argv) {
             proto->build_dependency_graph();
             if (GConf::inst().export_dot){
                 proto->export_dot(protocol_file_name);
-            }  
+            }
             psim->add_protocol(proto);
         }
+
+        psim->inform_network_of_protocols();
 
         double psim_time = psim->simulate();
         psim_time_list.push_back(psim_time);
@@ -63,15 +65,15 @@ int main(int argc, char** argv) {
             GContext::inst().cut_off_time = psim_time;
             GContext::inst().cut_off_decrease_step = psim_time / GConf::inst().rep_count;
         } else {
-            GContext::inst().cut_off_time -= GContext::inst().cut_off_decrease_step; 
-        }        
+            GContext::inst().cut_off_time -= GContext::inst().cut_off_decrease_step;
+        }
 
 
 
         // if (rep > 2){
         //     change_log_path(worker_dir + "run-" + std::to_string(rep), "errors.txt", false);
         //     auto& this_run = GContext::this_run();
-        //     auto& last_run = GContext::last_run(); 
+        //     auto& last_run = GContext::last_run();
         //     for (auto& entry: this_run.flow_fct) {
         //         int flow_id = entry.first;
         //         double this_fct = entry.second;
@@ -80,7 +82,7 @@ int main(int argc, char** argv) {
         //         double last_load = last_run.least_load[flow_id];
         //         double error = this_fct / last_fct;
         //         double error2 = (this_fct * (this_load / last_load)) / last_fct;
-        //         spdlog::critical("lastfct: {} lastload: {} thisfct: {} thisload: {} error: {} error2: {}", 
+        //         spdlog::critical("lastfct: {} lastload: {} thisfct: {} thisload: {} error: {} error2: {}",
         //                          last_fct,
         //                          last_load,
         //                          this_fct,
@@ -91,7 +93,7 @@ int main(int argc, char** argv) {
     }
 
 
-    // int run_number = 0; 
+    // int run_number = 0;
     // for (auto psim_time : psim_time_list) {
     //     spdlog::critical("run {}: psim time: {}.", run_number, psim_time);
     //     run_number ++;
@@ -111,5 +113,5 @@ void init(int argc, char** argv){
     GConf::inst().output_dir = "workers/worker-" + std::to_string(GConf::inst().worker_id) + "/";
 
     setup_logger(true);
-    log_config(); 
+    log_config();
 }
