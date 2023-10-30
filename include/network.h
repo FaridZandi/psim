@@ -92,7 +92,6 @@ struct ft_loc{
     bool operator<(const ft_loc& rhs) const;
 };
 
-std::pair<int, int> get_prof_limits(double start_time, double end_time);
 
 
 class CoreConnectedNetwork : public Network {

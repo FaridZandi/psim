@@ -25,8 +25,6 @@ struct run_info{
     std::map<int, double> flow_fct;
     std::map<int, double> flow_start; 
     std::map<int, double> flow_end; 
-    std::map<int, double> least_load; 
-
 };
 
 

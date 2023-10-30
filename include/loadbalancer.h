@@ -39,6 +39,9 @@ protected:
     Bottleneck* downlink(int lower_item, int upper_item);
 };
 
+std::pair<int, int> get_prof_limits(double start_time, double end_time);
+
+
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
@@ -146,6 +149,19 @@ public:
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 
 private:
+    double get_flow_load_estimate(Flow* flow);
+
+    void remove_flow_from_last_run_data(Flow* flow, int src, int dst,
+                                        std::pair<int, int> last_run_prof);
+
+    std::vector<double> get_core_loads_estimate(Flow* flow, int src, int dst, 
+                                                std::pair<int, int> this_run_prof);
+
+    void add_flow_load_to_last_run_data(Flow* flow, int src, int dst, 
+                                        std::pair<int, int> this_run_prof, 
+                                        double flow_load_estimate, 
+                                        int best_core);
+                                    
     int my_round_robin();
     int current_upper_item;
 };

@@ -68,16 +68,16 @@ options = {
     "min-rate": 10,
     "priority-allocator": "fairshare", #"priorityqueue", 
 
-    "network-type": "fattree",    
+    "network-type": "leafspine",    
     "link-bandwidth": 100,
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
-    "ft-core-count": 8,
+    "ft-core-count": 2,
     "ft-pod-count": 4,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
-    "ft-agg-core-link-capacity-mult": 0.5,
+    "ft-agg-core-link-capacity-mult": 2,
     
     
     "lb-scheme": "futureload",

@@ -374,22 +374,3 @@ bool ft_loc::operator<(const ft_loc& rhs) const {
 
     return false;
 }
-
-
-// TODO: move this the lb file later
-std::pair<int, int> psim::get_prof_limits(double start_time, double end_time) {
-    int prof_inter = GConf::inst().core_status_profiling_interval;
-
-    int prof_start = int(start_time);
-    int prof_end = int(end_time);
-
-    if (prof_start % prof_inter != 0) {
-        prof_start = (prof_start / prof_inter + 1) * prof_inter;
-    }
-
-    if (prof_end % prof_inter != 0) {
-        prof_end = (prof_end / prof_inter) * prof_inter;
-    }
-
-    return std::make_pair(prof_start, prof_end);
-}

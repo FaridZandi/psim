@@ -184,7 +184,7 @@ x = np.arange(len(protocols)) * (group_width + group_spacing)
 
 # print(max_group_width, group_width, group_spacing)
 print ("max_group_width:", max_group_width, ",group_width:", group_width, ",group_spacing:", group_spacing, ", total_width:", total_width)
-plt.figure(figsize=(total_width / 10, 10))
+plt.figure(figsize=(total_width / 10, 5))
 
 
 for i, param in enumerate(params):
@@ -211,6 +211,7 @@ for i, param in enumerate(params):
 # xticks on the top of the plot 
 plt.xticks(x, protocols)
 plt.tick_params(axis='x', which='both', bottom=False, top=True, labelbottom=False, labeltop=True)
+plt.xticks(rotation=45)
 
 # the labels
 plt.xlabel("Protocol")

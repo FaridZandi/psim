@@ -24,8 +24,10 @@ base_dir = os.environ.get("PSIM_BASE_DIR")
 input_dir = base_dir + "/input/"
 workloads_dir = input_dir
 if (len(sys.argv) == 1 or sys.argv[1].lower() == "full"):
+    print("full")
     workloads_dir += "128search-dpstart-2/"
 elif (sys.argv[1].lower() == "limited"):
+    print("limited")
     workloads_dir += "128search-dpstart-2-limited/"
 # workloads_dir = input_dir + "random/"
 
@@ -42,7 +44,7 @@ os.system("mkdir -p {}".format(results_dir))
 simulation_timestep = 10
 number_worker_threads = 20
 rep_count = 3
-protocols_count = 5 # all protocols
+protocols_count = 999 # all protocols
 memory_limit_kb = 10 * 1e9
 
 # select a random subset of protocols, exclude the random ones
@@ -77,7 +79,8 @@ sweep_config = {
     #     "flowcount",
     #     "utilization",
     # ],
-    "ft-core-count": [4, 16, 64, 256],
+    # "ft-core-count": [2, 4, 8],
+    # "ft-agg-core-link-capacity-mult": [2, 4, 8],
     "protocol-file-name": protocol_names,
 }
 
