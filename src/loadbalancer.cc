@@ -23,7 +23,7 @@ void LoadBalancer::register_link(int lower_item, int upper_item, int dir, Bottle
     }
 }
 
-void LoadBalancer::integrate_protocol_knowledge(std::vector<Protocol*>& protocols) {
+void LoadBalancer::add_flow_sizes(std::map<int, std::vector<double>>& src_flow_sizes) {
     return;
 }
 
@@ -407,30 +407,33 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
 
 
 SitaELoadBalancer::SitaELoadBalancer(int item_count) : LoadBalancer(item_count) {
-    size_thresholds = std::vector<double>(item_count, -1.0);
-    size_thresholds[item_count - 1] = std::numeric_limits<double>::max();
+    current_upper_item = 0;
 }
 
-void SitaELoadBalancer::integrate_protocol_knowledge(std::vector<Protocol*>& protocols) {
-    if (protocols.size() > 0) {
-        std::vector<double> flow_sizes = protocols[0]->get_flow_sizes();
-        for (size_t idx = 1; idx < protocols.size(); idx++) {
-            std::vector<double> protocol_flow_sizes = protocols[idx]->get_flow_sizes();
-            for (auto flow_size : protocol_flow_sizes) {
-                flow_sizes.push_back(flow_size);
-            }
-        }
+void SitaELoadBalancer::add_flow_sizes(std::map<int, std::vector<double>>& src_flow_sizes) {
+    if (src_flow_sizes.size() == 0) {
+        return;
+    }
+    auto itr = src_flow_sizes.begin();
+    for (; itr != src_flow_sizes.end(); itr++) {
+        // We keep a vector of thresholds for which upper item to send a flow
+        // to given the flows src. The thresholds are such that if for a given
+        // index i we have that the flow size is greater than the threshold
+        // for upper item i - 1 but at most the threshold for upper item i then
+        // the flow is sent to upper item i.
+        src_size_thresholds[itr->first] = std::vector<double>(item_count, -1.0);
+        src_size_thresholds[itr->first][item_count - 1] = std::numeric_limits<double>::max();
 
         // The goal of SITA-E is to assign equal load to each item. So we
         // compute the cumulative flow sizes after sorting the flows in
         // ascending order. So for example if the flow sizes are
         // [10, 11, 11, 12, 13, 13, 13, 14, 15, 100] then the cumulative sizes
         // are [10, 21, 32, 44, 57, 70, 83, 97, 112, 212].
-        std::sort(flow_sizes.begin(), flow_sizes.end());
+        std::sort(itr->second.begin(), itr->second.end());
         long double cumulative_size = 0;
-        std::vector<long double> cumulative_flow_sizes;
-        for (size_t idx = 0; idx < flow_sizes.size(); idx++) {
-            cumulative_size += flow_sizes[idx];
+        std::vector<long double> cumulative_flow_sizes(itr->second.size(), 0);
+        for (size_t idx = 0; idx < itr->second.size(); idx++) {
+            cumulative_size += itr->second[idx];
             cumulative_flow_sizes[idx] = cumulative_size;
         }
 
@@ -453,14 +456,15 @@ void SitaELoadBalancer::integrate_protocol_knowledge(std::vector<Protocol*>& pro
         int curr_item = 0;
         size_t curr_idx = 0;
         while (curr_cutoff < cumulative_size &&
-               curr_idx < flow_sizes.size() - 1 &&
+               curr_idx < itr->second.size() - 1 &&
                curr_item < item_count - 1) {
-            if (flow_sizes[curr_idx + 1] <= curr_cutoff) {
+            if (cumulative_flow_sizes[curr_idx + 1] <= curr_cutoff) {
                 curr_idx++;
             } else {
-                size_thresholds[curr_item] = flow_sizes[curr_idx];
-                std::cout << "Setting threshold for " << curr_item;
-                std::cout << " to " << flow_sizes[curr_idx] << std::endl;
+                src_size_thresholds[itr->first][curr_item] = itr->second[curr_idx];
+                std::cout << "Setting threshold for " << curr_item << " at ";
+                std::cout << itr->first << " to " << itr->second[curr_idx];
+                std::cout << std::endl;
                 curr_item++;
                 curr_cutoff += step_size;
             }
@@ -469,9 +473,15 @@ void SitaELoadBalancer::integrate_protocol_knowledge(std::vector<Protocol*>& pro
 }
 
 int SitaELoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+    if (src_size_thresholds.find(src) == src_size_thresholds.end()) {
+        // If we don't know the flow distribution, just do round robin.
+        int upper_item = current_upper_item;
+        current_upper_item = (current_upper_item + 1) % item_count;
+        return upper_item;
+    }
     // TODO: optimize this to use binary search.
     for (int idx = 0; idx < item_count - 1; idx++) {
-        if (flow->size <= size_thresholds[idx]) {
+        if (flow->size <= src_size_thresholds[src][idx]) {
             int min_item = idx;
             idx++;
             // Note that we could have multiple items with the same size
@@ -479,8 +489,8 @@ int SitaELoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
             // [11, 13, 15, 15, inf] then a flow of size 14 can go to item 2 or
             // 3 so we want to pick which of these two at random.
             while (idx < item_count &&
-                   size_thresholds[idx-1] <= flow->size &&
-                   size_thresholds[idx] >= flow->size) {
+                   src_size_thresholds[src][idx-1] <= flow->size &&
+                   src_size_thresholds[src][idx] >= flow->size) {
                 idx++;
             }
             int best_item = -1;

@@ -35,11 +35,11 @@ void CoreConnectedNetwork::record_link_status(double timer) {
     this_run.max_time_step = timer_int;
 
     for (auto bn: bottlenecks) {
-        status.link_loads[bn->id] = bn->get_load(); 
+        status.link_loads[bn->id] = bn->get_load();
     }
 
     for (auto flow: flows) {
-        status.flow_loads[flow->id] = flow->get_load(); 
+        status.flow_loads[flow->id] = flow->get_load();
     }
 }
 
@@ -151,7 +151,7 @@ FatTreeNetwork::FatTreeNetwork() : CoreConnectedNetwork() {
     }
 
     lb_scheme = GConf::inst().lb_scheme;
-    core_load_balancer = LoadBalancer::create_load_balancer(core_count, lb_scheme); 
+    core_load_balancer = LoadBalancer::create_load_balancer(core_count, lb_scheme);
 
     for (int p = 0; p < pod_count; p++) {
         for (int c = 0; c < core_count; c++) {
@@ -230,6 +230,11 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
 
 
 
+int FatTreeNetwork::get_source_for_flow(Flow* flow) {
+    return server_loc_map[flow->src_dev_id].pod;
+}
+
+
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
@@ -241,7 +246,7 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
     int link_bandwidth = GConf::inst().link_bandwidth;
 
     server_count = GConf::inst().machine_count;
-    // to make it compatible with fat tree, we assume the racks are same as pods 
+    // to make it compatible with fat tree, we assume the racks are same as pods
     server_per_rack = GConf::inst().ft_server_per_rack * GConf::inst().ft_rack_per_pod;
     tor_count = server_count / server_per_rack;
     core_count = GConf::inst().ft_core_count;
@@ -272,7 +277,7 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
     }
 
     lb_scheme = GConf::inst().lb_scheme;
-    core_load_balancer = LoadBalancer::create_load_balancer(core_count, lb_scheme); 
+    core_load_balancer = LoadBalancer::create_load_balancer(core_count, lb_scheme);
 
     for (int t = 0; t < tor_count; t++) {
         for (int c = 0; c < core_count; c++) {
@@ -301,7 +306,7 @@ void LeafSpineNetwork::set_path(Flow* flow, double timer) {
     } else if (same_rack) {
         flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, src_loc.rack, src_loc.server, 1, -1}]);
         flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, dst_loc.rack, dst_loc.server, 2, -1}]);
-    
+
     } else {
         int core_num = core_load_balancer->get_upper_item(src_loc.rack, dst_loc.rack, flow, timer);
         GContext::inst().save_decision(flow->id, core_num);
@@ -311,4 +316,9 @@ void LeafSpineNetwork::set_path(Flow* flow, double timer) {
         flow->path.push_back(core_bottlenecks[ft_loc{-1, dst_loc.rack, -1, 2, core_num}]);
         flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, dst_loc.rack, dst_loc.server, 2, -1}]);
     }
+}
+
+
+int LeafSpineNetwork::get_source_for_flow(Flow* flow) {
+    return server_loc_map[flow->src_dev_id].rack;
 }

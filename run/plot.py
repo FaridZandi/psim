@@ -182,7 +182,7 @@ plt.figure(figsize=(len(protocols) * len(params) // 4, 10))
 for i, param in enumerate(params):
 
     param_data = pd_frame[pd_frame["params"] == param]
-    x_offset = x + param_offset[i]
+    x_offset = x + (param_offset[i] - group_width / 2)
 
     if "futureload" in param:
         plt.bar(x_offset, param_data["rel_last_psim_time"],

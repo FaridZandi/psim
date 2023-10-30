@@ -28,7 +28,7 @@ public:
     virtual ~LoadBalancer() {}
 
     void register_link(int lower_item, int upper_item, int dir, Bottleneck* link);
-    void integrate_protocol_knowledge(std::vector<Protocol*>& protocols);
+    void add_flow_sizes(std::map<int, std::vector<double>>& src_flow_sizes);
     void update_state(Flow* arriving_flow = nullptr);
     virtual int get_upper_item(int src, int dst, Flow* flow, int timer) = 0;
 
@@ -163,11 +163,12 @@ class SitaELoadBalancer : public LoadBalancer {
 public:
     SitaELoadBalancer(int item_count);
     virtual ~SitaELoadBalancer() {}
-    void integrate_protocol_knowledge(std::vector<Protocol*>& protocols);
+    void add_flow_sizes(std::map<int, std::vector<double>>& src_flow_sizes);
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 
 private:
-    std::vector<double> size_thresholds;
+    int current_upper_item;
+    std::map<int, std::vector<double>> src_size_thresholds;
 };
 
 } // namespace psim

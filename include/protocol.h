@@ -171,7 +171,7 @@ public:
     PTask* create_task(PTaskType type, int id = -1);
     void add_to_tasks(PTask *task, int id = -1);
     void build_dependency_graph();
-    std::vector<double> get_flow_sizes();
+    std::vector<Flow*> get_flows();
 
     void export_graph(std::ofstream& protocol_log);
     void export_dot(std::string filename);

@@ -44,7 +44,7 @@ void PSim::add_protocol(Protocol *protocol){
 }
 
 void PSim::inform_network_of_protocols() {
-    network->core_load_balancer->integrate_protocol_knowledge(protocols);
+    network->integrate_protocol_knowledge(protocols);
 }
 
 PSim::~PSim() {
