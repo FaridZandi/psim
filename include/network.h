@@ -44,6 +44,8 @@ public:
                                      std::vector<PComp*> & step_finished_tasks);
 
     virtual void set_path(Flow* flow, double timer) = 0;
+    virtual int get_source_for_flow(Flow* flow) = 0;
+    void integrate_protocol_knowledge(std::vector<Protocol*>& protocols);
 
     Bottleneck* create_bottleneck(double bandwidth);
 
@@ -72,7 +74,7 @@ public:
     virtual ~BigSwitchNetwork();
 
     void set_path(Flow* flow, double timer);
-
+    int get_source_for_flow(Flow* flow);
 private:
     std::map<int, Bottleneck *> server_bottlenecks_downstream;
     std::map<int, Bottleneck *> server_bottlenecks_upstream;
@@ -122,6 +124,7 @@ public:
     virtual ~FatTreeNetwork();
 
     void set_path(Flow* flow, double timer);
+    int get_source_for_flow(Flow* flow);
 private:
     int server_per_rack;
     int rack_per_pod;
@@ -148,7 +151,7 @@ public:
     virtual ~LeafSpineNetwork();
 
     void set_path(Flow* flow, double timer);
-
+    int get_source_for_flow(Flow* flow);
 private:
     int server_per_rack;
     int tor_count;

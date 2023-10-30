@@ -43,6 +43,10 @@ void PSim::add_protocol(Protocol *protocol){
     this->total_task_count += protocol->total_task_count;
 }
 
+void PSim::inform_network_of_protocols() {
+    network->integrate_protocol_knowledge(protocols);
+}
+
 PSim::~PSim() {
     delete this->network;
     for (auto protocol : this->protocols) {

@@ -26,6 +26,23 @@ Network::~Network() {
     }
 }
 
+void Network::integrate_protocol_knowledge(std::vector<Protocol*>& protocols) {
+    std::map<int, std::vector<double>> src_flow_sizes;
+    std::vector<Flow*> protocol_flows;
+    int src;
+    for (size_t p_idx = 0; p_idx < protocols.size(); p_idx++) {
+        protocol_flows = protocols[p_idx]->get_flows();
+        for (size_t f_idx = 0; f_idx < protocol_flows.size(); f_idx++) {
+            src = get_source_for_flow(protocol_flows[f_idx]);
+            if (src_flow_sizes.find(src) == src_flow_sizes.end()) {
+                src_flow_sizes[src] = std::vector<double>();
+            }
+            src_flow_sizes[src].push_back(protocol_flows[f_idx]->size);
+        }
+    }
+    core_load_balancer->add_flow_sizes(src_flow_sizes);
+}
+
 
 double Network::make_progress_on_machines(double current_time, double step_size,
                                           std::vector<PComp*> & step_finished_tasks){
@@ -190,6 +207,10 @@ BigSwitchNetwork::~BigSwitchNetwork() {
 void BigSwitchNetwork::set_path(Flow* flow, double timer) {
     flow->path.push_back(server_bottlenecks_upstream[flow->src_dev_id]);
     flow->path.push_back(server_bottlenecks_downstream[flow->dst_dev_id]);
+}
+
+int BigSwitchNetwork::get_source_for_flow(Flow* flow) {
+    return flow->src_dev_id;
 }
 
 

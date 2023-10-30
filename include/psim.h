@@ -30,8 +30,8 @@ class EmptyTask;
 struct history_entry {
     int time;
     int flow_count;
-    int step_finished_flows; 
-    int comp_task_count; 
+    int step_finished_flows;
+    int comp_task_count;
     int step_finished_comp_tasks;
     double step_comm;
     double step_comp;
@@ -46,13 +46,14 @@ struct history_entry {
 
 class PSim {
 public:
-    
+
     PSim();
     virtual ~PSim();
     virtual double simulate();
     void add_protocol(Protocol *protocol);
+    void inform_network_of_protocols();
 
-private: 
+private:
     void handle_task_completion(PTask *task);
     void start_next_tasks(PTask *task);
     void start_task(PTask *task);
@@ -63,15 +64,15 @@ private:
     std::vector<Protocol *> protocols;
     std::vector<Flow *> finished_flows;
     std::vector<PComp *> finished_compute_tasks;
-    
-    // maybe move this to the network later as well. 
+
+    // maybe move this to the network later as well.
     std::vector<PComp *> compute_tasks;
 
 
     double timer;
     double step_size;
 
-    int total_task_count; 
+    int total_task_count;
     int finished_task_count;
 
     std::vector<history_entry> history;
@@ -79,7 +80,7 @@ private:
 
     void draw_plots(std::initializer_list<std::pair<std::string, std::function<double(history_entry)>>> plots);
 
-}; 
+};
 
 } // namespace psim
 #endif // PSIM_H

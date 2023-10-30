@@ -156,6 +156,8 @@ void psim::process_arguments(po::variables_map vm){
             GConf::inst().lb_scheme = LBScheme::FUTURE_LOAD;
         } else if (lb_scheme_str == "robinhood") {
             GConf::inst().lb_scheme = LBScheme::ROBIN_HOOD;
+        } else if (lb_scheme_str == "sita-e") {
+            GConf::inst().lb_scheme = LBScheme::SITA_E;
         } else {
             spdlog::error("Invalid lb scheme: {}", lb_scheme_str);
             exit(1);

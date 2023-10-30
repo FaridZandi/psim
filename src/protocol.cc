@@ -123,6 +123,16 @@ void Protocol::build_dependency_graph() {
     spdlog::debug("total tasks in protocol {}, ranked tasks: {}, max rank: {}", this->tasks.size(), ranked_tasks, max_rank);
 }
 
+std::vector<Flow*> Protocol::get_flows() {
+    std::vector<Flow*> flows;
+    for (auto task : tasks) {
+        if (task->get_type() == PTaskType::FLOW) {
+            flows.push_back((Flow*)task);
+        }
+    }
+    return flows;
+}
+
 void Protocol::export_graph(std::ofstream& protocol_log){
     for (auto& task : this->tasks) {
         task->print_task_info(protocol_log);
