@@ -24,10 +24,14 @@ base_dir = os.environ.get("PSIM_BASE_DIR")
 input_dir = base_dir + "/input/"
 workloads_dir = input_dir
 if (len(sys.argv) == 1 or sys.argv[1].lower() == "full"):
-    print("full")
     workloads_dir += "128search-dpstart-2/"
+elif (sys.argv[1].lower() == "trans"):
+    workloads_dir += "128search-dpstart-2-trans/"
+elif (sys.argv[1].lower() == "ncf"):
+    workloads_dir += "128search-dpstart-2-ncf/"
+elif (sys.argv[1].lower() == "random"):
+    workloads_dir += "128search-dpstart-2-random/"
 elif (sys.argv[1].lower() == "limited"):
-    print("limited")
     workloads_dir += "128search-dpstart-2-limited/"
 # workloads_dir = input_dir + "random/"
 
@@ -41,18 +45,14 @@ csv_path = results_dir + "results.csv".format(run_id)
 os.system("mkdir -p {}".format(results_dir))
 
 
-simulation_timestep = 10
+simulation_timestep = 1
 number_worker_threads = 20
 rep_count = 3
 protocols_count = 999 # all protocols
 memory_limit_kb = 10 * 1e9
 
 # select a random subset of protocols, exclude the random ones
-protocol_names_all = list(os.listdir(workloads_dir))
-protocol_names = []
-for protocol in protocol_names_all:
-    if "random" not in protocol:
-        protocol_names.append(protocol)
+protocol_names = list(os.listdir(workloads_dir))
 protocols_count = min(protocols_count, len(protocol_names))
 protocol_names = np.random.choice(protocol_names, protocols_count, replace=False)
 protocol_names = list(protocol_names)
@@ -102,7 +102,7 @@ base_options = {
     "protocol-file-dir": workloads_dir,
 
     "step-size": simulation_timestep,
-    "core-status-profiling-interval": simulation_timestep,
+    "core-status-profiling-interval": int(max(simulation_timestep, 1)),
     "rep-count": rep_count,
     "file-log-level": 4,
     "console-log-level": 4,
@@ -110,10 +110,10 @@ base_options = {
     # flow rate control options
     "initial-rate": 100,
     "min-rate": 10,
-    "priority-allocator": "fairshare",
+    "priority-allocator": "fairshare", #"priorityqueue", 
 
     # topology options
-    "network-type": "leafspine",
+    "network-type": "leafspine",    
     "link-bandwidth": 100,
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
@@ -123,6 +123,7 @@ base_options = {
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
     "ft-agg-core-link-capacity-mult": 1,
+    
 
     # load balancing options
     "load-metric" : "flowsize",
@@ -146,6 +147,7 @@ total_jobs = 0
 exp_results = []
 threads = []
 exp_q = queue.Queue()
+print_lock = threading.Lock()    
 
 memory_limit_kb = int(memory_limit_kb)
 resource.setrlimit(resource.RLIMIT_AS, (memory_limit_kb, memory_limit_kb))
@@ -214,13 +216,15 @@ def run_experiment(exp, worker_id):
 
     exp_results.append(this_exp_results)
 
-    pprint(this_exp_results)
-    print("min time: {}, max time: {}, last time: {}".format(
-        min_psim_time, max_psim_time, last_psim_time))
-    print("jobs completed: {}/{}".format(len(exp_results), total_jobs))
-    print("duration: {}".format(duration))
-    print("worker id: {}".format(worker_id))
-    print("--------------------------------------------")
+    global print_lock
+    with print_lock:
+        pprint(this_exp_results)
+        print("min time: {}, max time: {}, last time: {}".format(
+            min_psim_time, max_psim_time, last_psim_time))
+        print("jobs completed: {}/{}".format(len(exp_results), total_jobs))
+        print("duration: {}".format(duration))
+        print("worker id: {}".format(worker_id))
+        print("--------------------------------------------")
 
 worker_num = 0
 

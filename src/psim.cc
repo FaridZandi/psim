@@ -2,8 +2,10 @@
 #include "psim.h"
 #include "network.h"
 #include "protocol.h"
+#include "protocol_builder.h"
 #include "matplotlibcpp.h"
 #include "spdlog/spdlog.h"
+#include <boost/algorithm/string.hpp>
 #include "gcontext.h"
 
 using namespace psim;
@@ -45,6 +47,24 @@ void PSim::add_protocol(Protocol *protocol){
 
 void PSim::inform_network_of_protocols() {
     network->integrate_protocol_knowledge(protocols);
+}
+
+void PSim::add_protocols_from_input(){
+    std::vector<std::string> protocol_file_names;
+
+    boost::split(protocol_file_names, GConf::inst().protocol_file_name, boost::is_any_of(","));
+
+    for (auto protocol_file_name : protocol_file_names) {
+        std::string path = GConf::inst().protocol_file_dir + "/" + protocol_file_name;
+        Protocol* proto = load_protocol_from_file(path);
+        proto->build_dependency_graph();
+        
+        if (GConf::inst().export_dot){
+            proto->export_dot(protocol_file_name);
+        }
+
+        this->add_protocol(proto);
+    }
 }
 
 PSim::~PSim() {

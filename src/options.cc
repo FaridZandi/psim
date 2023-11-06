@@ -65,7 +65,10 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
     return vm;
 }
 
-void psim::change_log_path(std::string output_dir, std::string log_file_name, bool recreate_dir){
+void psim::change_log_path(std::string output_dir, 
+                           std::string log_file_name, 
+                           bool recreate_dir) {
+                            
     GConf::inst().output_dir = output_dir;
     GConf::inst().log_file_name = log_file_name;
 
@@ -154,6 +157,8 @@ void psim::process_arguments(po::variables_map vm){
             GConf::inst().lb_samples = std::stoi(lb_scheme_str.substr(7));
         } else if (lb_scheme_str == "futureload") {
             GConf::inst().lb_scheme = LBScheme::FUTURE_LOAD;
+        } else if (lb_scheme_str == "futureload2") {
+            GConf::inst().lb_scheme = LBScheme::FUTURE_LOAD_2;
         } else if (lb_scheme_str == "robinhood") {
             GConf::inst().lb_scheme = LBScheme::ROBIN_HOOD;
         } else if (lb_scheme_str == "sita-e") {

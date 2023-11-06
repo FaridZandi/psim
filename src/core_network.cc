@@ -36,6 +36,12 @@ void CoreConnectedNetwork::record_link_status(double timer) {
 
     for (auto bn: bottlenecks) {
         status.link_loads[bn->id] = bn->get_load();
+
+        if(GConf::inst().record_link_flow_loads){
+            for (auto flow: bn->flows) {
+                status.link_flow_loads[bn->id].push_back(flow->get_load());
+            }
+        }
     }
 
     for (auto flow: flows) {
@@ -72,6 +78,16 @@ double CoreConnectedNetwork::max_core_link_bw_utilization(){
 
     return max_utilization;
 }
+
+
+std::vector<int> CoreConnectedNetwork::get_core_bottleneck_ids(){
+    std::vector<int> ids;
+    for (auto& bn: core_bottlenecks) {
+        ids.push_back(bn.second->id);
+    }
+    return ids;
+}
+
 
 
 

@@ -53,13 +53,16 @@ public:
     void add_protocol(Protocol *protocol);
     void inform_network_of_protocols();
 
+    void add_protocols_from_input();
+    
+    Network *network;
+
 private:
     void handle_task_completion(PTask *task);
     void start_next_tasks(PTask *task);
     void start_task(PTask *task);
     void save_run_results();
 
-    Network *network;
     TrafficGen *traffic_gen;
     std::vector<Protocol *> protocols;
     std::vector<Flow *> finished_flows;

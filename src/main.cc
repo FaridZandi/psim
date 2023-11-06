@@ -7,7 +7,6 @@
 #include "options.h"
 #include "protocol_builder.h"
 #include <boost/program_options.hpp>
-#include <boost/algorithm/string.hpp>
 #include "spdlog/spdlog.h"
 #include "gcontext.h"
 
@@ -18,6 +17,7 @@ using namespace psim;
 // function declarations
 void init(int argc, char** argv);
 
+void log_core_status_history(int rep, PSim* psim); 
 
 // main function
 int main(int argc, char** argv) {
@@ -39,26 +39,14 @@ int main(int argc, char** argv) {
 
         PSim* psim = new PSim();
 
-        std::vector<std::string> protocol_file_names;
-        boost::split(protocol_file_names, GConf::inst().protocol_file_name, boost::is_any_of(","));
 
-        for (auto protocol_file_name : protocol_file_names) {
-            std::string path = GConf::inst().protocol_file_dir + "/" + protocol_file_name;
-            Protocol* proto = load_protocol_from_file(path);
-            proto->build_dependency_graph();
-            if (GConf::inst().export_dot){
-                proto->export_dot(protocol_file_name);
-            }
-            psim->add_protocol(proto);
-        }
-
+        psim->add_protocols_from_input();
         psim->inform_network_of_protocols();
 
         double psim_time = psim->simulate();
         psim_time_list.push_back(psim_time);
-        delete psim;
 
-        change_log_path(worker_dir + "run-" + std::to_string(rep), "results.txt", false);
+        change_log_path(worker_dir + "run-" + std::to_string(rep), "results.txt");
         spdlog::critical("psim time: {}", psim_time);
 
         if (rep == 1){
@@ -68,36 +56,11 @@ int main(int argc, char** argv) {
             GContext::inst().cut_off_time -= GContext::inst().cut_off_decrease_step;
         }
 
+        // log_core_status_history(rep, psim);
 
-
-        // if (rep > 2){
-        //     change_log_path(worker_dir + "run-" + std::to_string(rep), "errors.txt", false);
-        //     auto& this_run = GContext::this_run();
-        //     auto& last_run = GContext::last_run();
-        //     for (auto& entry: this_run.flow_fct) {
-        //         int flow_id = entry.first;
-        //         double this_fct = entry.second;
-        //         double last_fct = last_run.flow_fct[flow_id];
-        //         double this_load = this_run.least_load[flow_id];
-        //         double last_load = last_run.least_load[flow_id];
-        //         double error = this_fct / last_fct;
-        //         double error2 = (this_fct * (this_load / last_load)) / last_fct;
-        //         spdlog::critical("lastfct: {} lastload: {} thisfct: {} thisload: {} error: {} error2: {}",
-        //                          last_fct,
-        //                          last_load,
-        //                          this_fct,
-        //                          this_load,
-        //                          error, error2);
-        //     }
-        // }
+        delete psim;
     }
 
-
-    // int run_number = 0;
-    // for (auto psim_time : psim_time_list) {
-    //     spdlog::critical("run {}: psim time: {}.", run_number, psim_time);
-    //     run_number ++;
-    // }
     return 0;
 }
 
@@ -114,4 +77,42 @@ void init(int argc, char** argv){
 
     setup_logger(true);
     log_config();
+}
+
+
+void log_core_status_history(int rep, PSim* psim){
+
+    std::string worker_dir = "workers/worker-" + std::to_string(GConf::inst().worker_id) + "/";
+
+
+    if (GConf::inst().record_link_flow_loads and 
+        GConf::inst().lb_scheme == LBScheme::FUTURE_LOAD) {
+
+        std::ofstream ofs(worker_dir + "run-" + std::to_string(rep) + "/link_flow_loads.txt");
+        for (auto& entry: GContext::this_run().network_status) {
+            int time = entry.first;
+            auto& status = entry.second;
+            
+            ofs << "time: " << time << " " << status.time << std::endl;
+            std::vector<int> ids;
+
+            ids = psim->network->get_core_bottleneck_ids();
+
+            ofs << "core_bottlenecks: ";
+            for (auto id: ids) {
+                if (status.link_flow_loads[id].size() == 0) {
+                    continue; 
+                }
+                ofs << "core: " << id << " with load " << status.link_loads[id] << ": ";
+                for (auto& entry: status.link_flow_loads[id]) {
+                    ofs << entry << " ";
+                }
+                ofs << std::endl;
+            }
+            ofs << std::endl;
+            ofs << "-------------------------------------------------"; 
+            ofs << std::endl;
+        }    
+        ofs.close();
+    }
 }

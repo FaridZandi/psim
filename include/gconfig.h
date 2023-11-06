@@ -17,6 +17,7 @@ enum class LBScheme{
     POWER_OF_K,
     ROBIN_HOOD,
     FUTURE_LOAD,
+    FUTURE_LOAD_2,
     SITA_E,
 };
 
@@ -70,6 +71,9 @@ public:
     int lb_samples = 2;
     LoadMetric load_metric = LoadMetric::UTILIZATION;
 
+    int core_status_profiling_interval = 10;
+    std::string log_file_name = "log.txt";
+
     // int machine_count = 16;
     // int ft_server_per_rack = 4;
     // int ft_rack_per_pod = 2;
@@ -91,10 +95,8 @@ public:
     double ft_agg_core_link_capacity_mult = 8;
 
 
-    // not added to input arguments yet. modify the options.cc file to add them.
+    bool record_link_flow_loads = true;
 
-    int core_status_profiling_interval = 10;
-    std::string log_file_name = "log.txt";
 
 private:
     GConf() {}

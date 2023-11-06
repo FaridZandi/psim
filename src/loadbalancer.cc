@@ -54,6 +54,8 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
             return new RobinHoodLoadBalancer(item_count);
         case LBScheme::FUTURE_LOAD:
             return new FutureLoadLoadBalancer(item_count);
+        case LBScheme::FUTURE_LOAD_2:
+            return new FutureLoad2LoadBalancer(item_count);
         case LBScheme::SITA_E:
             return new SitaELoadBalancer(item_count);
         default:
@@ -362,6 +364,15 @@ FutureLoadLoadBalancer::get_core_loads_estimate(Flow* flow, int src, int dst,
     double prof_interval = GConf::inst().core_status_profiling_interval;
     auto& last_run = GContext::last_run();
 
+    int number_of_intervals = (this_run_prof.second - this_run_prof.first) / prof_interval + 1;
+    if (number_of_intervals == 0) {
+        return core_loads;
+    }
+    
+    double weight = 1; 
+    double weight_decrease_step = 1 / number_of_intervals;
+    double weight_decay_factor = 1 - weight_decrease_step;
+
     for (int t = this_run_prof.first; t <= this_run_prof.second; t += prof_interval)  {
         if (t > last_run.max_time_step) {
             break;
@@ -372,8 +383,12 @@ FutureLoadLoadBalancer::get_core_loads_estimate(Flow* flow, int src, int dst,
         for (int c = 0; c < item_count; c++) {
             double up_load = link_loads[uplink(src, c)->id];
             double down_load = link_loads[downlink(dst, c)->id];
-            core_loads[c] += (up_load + down_load);
+            double total_load = (up_load + down_load);
+            core_loads[c] += weight * total_load;
         }
+
+        // weight -= weight_decrease_step;
+        weight *= weight_decay_factor;
     }
 
     std::string load_string = "";
@@ -408,6 +423,10 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
         int last_decision = GContext::last_decision(flow->id);
         auto& last_run = GContext::last_run();
 
+        // if (timer > GContext::inst().cut_off_time){
+        //     return last_decision;
+        // }
+
         // get the info on the flow from the last run 
         double last_flow_fct = last_run.flow_fct[flow->id];
         double last_flow_start = last_run.flow_start[flow->id];
@@ -440,6 +459,84 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
         
         return best_core;
     }
+}
+
+
+
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
+
+
+FutureLoad2LoadBalancer::FutureLoad2LoadBalancer(int item_count) : LoadBalancer(item_count) {
+
+    if (not GContext::is_first_run()) {
+        auto& last_run = GContext::last_run();
+
+        for (auto& kv : last_run.average_rate) {
+            average_rates.push_back(kv.second);
+        }
+        std::sort(average_rates.begin(), average_rates.end());
+
+        // print all the percentials between 10 and 90 
+        string output = "";
+        for (int i = 25; i <= 75; i += 25) {
+            int index = average_rates.size() * i / 100;
+            output += std::to_string(i) + "\%ile: " + std::to_string(average_rates[index]) + ", ";
+        }
+        spdlog::critical("percentiles: {}", output);
+    }
+}
+
+int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+    
+    // in the first run, we just do random 
+    if (GContext::is_first_run()) {
+        // random
+        return rand() % item_count;
+    }
+
+    // we are past the first run. 
+    // We want to find the decisions that we were poorly made in the previous run.
+    // Then we can make better decisions.  
+
+    auto& last_run = GContext::last_run();
+    int last_decision = GContext::last_decision(flow->id);
+
+    double last_run_rate = last_run.average_rate[flow->id];   
+    bool do_repath = false; 
+    
+    // find the index of the last run rate in the sorted list of average rates
+    auto itr = std::lower_bound(average_rates.begin(), average_rates.end(), last_run_rate);
+    int index = itr - average_rates.begin();
+    double index_percentile = index / double(average_rates.size()) * 100; 
+    
+    // double repath_chance = 1 - (index / double(average_rates.size()));
+    // repath_chance = repath_chance * repath_chance * repath_chance;
+    // if ((rand() / double(RAND_MAX)) < repath_chance) {
+    //     do_repath = true;
+    // }
+
+    if (index_percentile < 30) {
+        do_repath = true;
+    }
+    
+
+    // spdlog::critical("last run rate: {}, index: {}, chance: {}, repath? {}", last_run_rate, index, repath_chance, do_repath);
+
+    if (not do_repath) {
+        return last_decision; 
+    } else {
+        int new_random = last_decision; 
+        
+        while(new_random == last_decision) {
+            new_random = rand() % item_count;
+        }
+
+        return new_random;
+    }
+
 }
 
 /////////////////////////////////////////////////////////////////////////////////////

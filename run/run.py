@@ -9,6 +9,7 @@ import sys
 import signal
 import matplotlib
 import resource
+from util import make_shuffle
 
 run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 
@@ -20,6 +21,8 @@ build_path = base_dir + "/build"
 run_path = base_dir + "/run"
 base_executable = build_path + "/psim"
 executable = build_path + "/psim-" + run_id
+input_dir = base_dir + "/input/"
+shuffle_path  = input_dir + "/shuffle/shuffle-{}.txt".format(run_id)
 use_gdb = False
 
 # build the executable, exit if build fails
@@ -31,6 +34,8 @@ if exit_code != 0:
     sys.exit(1)
 os.chdir(run_path)
 os.system("cp {} {}".format(base_executable, executable))
+
+make_shuffle(128, shuffle_path)
 
 
 # get the parameters from the command line
@@ -57,10 +62,11 @@ if "gdb" in params:
 options = {
     "protocol-file-dir": base_dir + "/input/128search-dpstart-2",
     "protocol-file-name": "candle128-simtime.txt",
+    # "protocol-file-name": "transformer128-simtime+compute.txt",
 
     "step-size": 10,
     "core-status-profiling-interval": 10,
-    "rep-count": 10, 
+    "rep-count": 100, 
     "console-log-level": 4,
     "file-log-level": 4,
     
@@ -73,17 +79,17 @@ options = {
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
-    "ft-core-count": 2,
+    "ft-core-count": 4,
     "ft-pod-count": 4,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
-    "ft-agg-core-link-capacity-mult": 2,
+    "ft-agg-core-link-capacity-mult": 1,
     
     
-    "lb-scheme": "futureload",
+    "lb-scheme": "futureload2",
     "load-metric": "utilization",
     "shuffle-device-map": True,
-    "shuffle-map-file": base_dir + "/input/shuffle/shuffle-map.txt",
+    "shuffle-map-file": shuffle_path,
 }
 
 options.update(params)

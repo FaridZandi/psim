@@ -54,6 +54,7 @@ void Flow::finished() {
     this_run.flow_start[id] = start_time;
     this_run.flow_end[id] = end_time;
     this_run.flow_fct[id] = end_time - start_time;
+    this_run.average_rate[id] = size / (end_time - start_time);
 }
 
 void Flow::compute_priority(){
@@ -61,10 +62,10 @@ void Flow::compute_priority(){
     if (id == -1){
         selected_priority = 1e6;
     } else {
-        selected_priority = rank * protocol->tasks.size() + id;
+        // selected_priority = rank * protocol->tasks.size() + id;
         // selected_priority = id;
         // selected_priority = rank;
-        // selected_priority = (int) start_time;
+        selected_priority = (int) start_time;
     }
 }
 

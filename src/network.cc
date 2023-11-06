@@ -178,6 +178,11 @@ double Network::make_progress_on_flows(double current_time,
 }
 
 
+std::vector<int> Network::get_core_bottleneck_ids(){
+   return std::vector<int>(); 
+}
+
+
 
 
 //==============================================================================

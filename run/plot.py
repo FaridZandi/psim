@@ -212,7 +212,7 @@ for i, param in enumerate(params):
 # xticks on the top of the plot
 plt.xticks(x, protocols)
 plt.tick_params(axis='x', which='both', bottom=False, top=True, labelbottom=False, labeltop=True)
-plt.xticks(rotation=45)
+plt.xticks(rotation=90)
 
 # the labels
 plt.xlabel("Protocol")

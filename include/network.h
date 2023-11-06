@@ -63,6 +63,8 @@ public:
 
     LoadBalancer* core_load_balancer;
 
+    virtual std::vector<int> get_core_bottleneck_ids();
+
 private:
 
 };
@@ -116,6 +118,9 @@ public:
     double total_core_bw_utilization();
     double min_core_link_bw_utilization();
     double max_core_link_bw_utilization();
+
+
+    std::vector<int> get_core_bottleneck_ids();
 };
 
 class FatTreeNetwork : public CoreConnectedNetwork {

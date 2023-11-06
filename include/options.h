@@ -13,7 +13,9 @@ namespace psim {
 
     void log_config();
 
-    void change_log_path(std::string output_dir, std::string log_file_name, bool recreate_dir);
+    void change_log_path(std::string output_dir, 
+                         std::string log_file_name, 
+                         bool recreate_dir = false);
 } // namespace psim
 
 #endif
