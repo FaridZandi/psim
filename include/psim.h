@@ -51,9 +51,12 @@ public:
     virtual ~PSim();
     virtual double simulate();
     void add_protocol(Protocol *protocol);
+    
     void inform_network_of_protocols();
 
     void add_protocols_from_input();
+
+    void log_results(); 
     
     Network *network;
 
@@ -62,7 +65,7 @@ private:
     void start_next_tasks(PTask *task);
     void start_task(PTask *task);
     void save_run_results();
-
+    
     TrafficGen *traffic_gen;
     std::vector<Protocol *> protocols;
     std::vector<Flow *> finished_flows;

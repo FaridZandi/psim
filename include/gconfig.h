@@ -95,7 +95,7 @@ public:
     double ft_agg_core_link_capacity_mult = 8;
 
 
-    bool record_link_flow_loads = true;
+    bool record_link_flow_loads = false;
 
 
 private:

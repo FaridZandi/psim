@@ -44,10 +44,12 @@ int main(int argc, char** argv) {
         psim->inform_network_of_protocols();
 
         double psim_time = psim->simulate();
+        GContext::this_run().psim_time = psim_time;
         psim_time_list.push_back(psim_time);
 
         change_log_path(worker_dir + "run-" + std::to_string(rep), "results.txt");
-        spdlog::critical("psim time: {}", psim_time);
+        psim->log_results(); 
+
 
         if (rep == 1){
             GContext::inst().cut_off_time = psim_time;

@@ -55,6 +55,7 @@ void Flow::finished() {
     this_run.flow_end[id] = end_time;
     this_run.flow_fct[id] = end_time - start_time;
     this_run.average_rate[id] = size / (end_time - start_time);
+    // spdlog::critical("Flow {} with size {} transmitted from {} to {}", id, size, start_time, end_time);
 }
 
 void Flow::compute_priority(){
@@ -65,7 +66,10 @@ void Flow::compute_priority(){
         // selected_priority = rank * protocol->tasks.size() + id;
         // selected_priority = id;
         // selected_priority = rank;
-        selected_priority = (int) start_time;
+
+        
+        // whoever manages to the be started first gets the highest priority
+        selected_priority = (int) start_time; 
     }
 }
 

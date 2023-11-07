@@ -1,7 +1,7 @@
 #include "loadbalancer.h"
 #include "spdlog/spdlog.h"
 #include "gcontext.h"
-
+#include "gconfig.h"
 #include <algorithm>
 #include <cassert>
 #include <iostream>
@@ -55,7 +55,13 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
         case LBScheme::FUTURE_LOAD:
             return new FutureLoadLoadBalancer(item_count);
         case LBScheme::FUTURE_LOAD_2:
-            return new FutureLoad2LoadBalancer(item_count);
+            // start with the least loaded load balancer for the first run, 
+            // and then switch to future load balancer for the second run.
+            if (GContext::this_run().run_number == 1) {
+                return new LeastLoadedLoadBalancer(item_count);
+            } else {
+                return new FutureLoad2LoadBalancer(item_count);
+            }
         case LBScheme::SITA_E:
             return new SitaELoadBalancer(item_count);
         default:
@@ -471,22 +477,18 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
 
 FutureLoad2LoadBalancer::FutureLoad2LoadBalancer(int item_count) : LoadBalancer(item_count) {
 
+    // get all the average rates from the last run, and sort them
+    // so that we can find the percentiles.
+
     if (not GContext::is_first_run()) {
         auto& last_run = GContext::last_run();
-
         for (auto& kv : last_run.average_rate) {
             average_rates.push_back(kv.second);
         }
         std::sort(average_rates.begin(), average_rates.end());
-
-        // print all the percentials between 10 and 90 
-        string output = "";
-        for (int i = 25; i <= 75; i += 25) {
-            int index = average_rates.size() * i / 100;
-            output += std::to_string(i) + "\%ile: " + std::to_string(average_rates[index]) + ", ";
-        }
-        spdlog::critical("percentiles: {}", output);
     }
+
+    repath_chances = 50; 
 }
 
 int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
@@ -497,6 +499,8 @@ int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
         return rand() % item_count;
     }
 
+    
+
     // we are past the first run. 
     // We want to find the decisions that we were poorly made in the previous run.
     // Then we can make better decisions.  
@@ -504,36 +508,48 @@ int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
     auto& last_run = GContext::last_run();
     int last_decision = GContext::last_decision(flow->id);
 
-    double last_run_rate = last_run.average_rate[flow->id];   
+
+    if (repath_chances == 0) {
+        return last_decision;     
+    }
+
+    double last_run_rate = last_run.average_rate[flow->id];  
+    double flow_fct = last_run.flow_fct[flow->id]; 
+
     bool do_repath = false; 
     
     // find the index of the last run rate in the sorted list of average rates
     auto itr = std::lower_bound(average_rates.begin(), average_rates.end(), last_run_rate);
     int index = itr - average_rates.begin();
     double index_percentile = index / double(average_rates.size()) * 100; 
-    
-    // double repath_chance = 1 - (index / double(average_rates.size()));
-    // repath_chance = repath_chance * repath_chance * repath_chance;
-    // if ((rand() / double(RAND_MAX)) < repath_chance) {
-    //     do_repath = true;
-    // }
+    double chance = rand() % 100;
 
-    if (index_percentile < 30) {
+    if (index_percentile < 30 and 
+        last_run.is_on_critical_path[flow->id] and 
+        flow_fct > GConf::inst().step_size and 
+        flow->size > 10 and
+        chance < 10) {
+
         do_repath = true;
     }
-    
-
-    // spdlog::critical("last run rate: {}, index: {}, chance: {}, repath? {}", last_run_rate, index, repath_chance, do_repath);
 
     if (not do_repath) {
         return last_decision; 
     } else {
+        spdlog::critical("doing a repathing for flow {}, {} chances left", flow->id, repath_chances);
         int new_random = last_decision; 
         
         while(new_random == last_decision) {
             new_random = rand() % item_count;
         }
 
+        // spdlog::critical("flow: {}, last_decision: {}, new_random: {}, last_run_rate: {}, index_percentile: {}", 
+        //                  flow->id, last_decision, new_random, last_run_rate, index_percentile);
+
+        // spdlog::critical("flow: {}, start: {}, end: {}, average_rate: {}", 
+        //                  flow->id, last_run.flow_start[flow->id], last_run.flow_end[flow->id], last_run_rate);
+
+        repath_chances -= 1; 
         return new_random;
     }
 

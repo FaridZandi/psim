@@ -86,7 +86,7 @@ options = {
     "ft-agg-core-link-capacity-mult": 1,
     
     
-    "lb-scheme": "futureload2",
+    "lb-scheme": "futureload",
     "load-metric": "utilization",
     "shuffle-device-map": True,
     "shuffle-map-file": shuffle_path,

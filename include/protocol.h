@@ -66,7 +66,7 @@ public:
 
     PTaskStatus status;
     bool is_initiator;
-
+    
     virtual PTaskType get_type() = 0;
     virtual void print_task_info(std::ostream& os) = 0;
     virtual void reset();

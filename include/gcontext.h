@@ -21,6 +21,7 @@ struct core_link_status {
 struct run_info{
     int run_number = 0; 
     int max_time_step = 0;
+    double psim_time = 0; 
 
     std::map<int, core_link_status> network_status;
     std::map<int, int> core_decision; 
@@ -28,6 +29,7 @@ struct run_info{
     std::map<int, double> flow_start; 
     std::map<int, double> flow_end; 
     std::map<int, double> average_rate; 
+    std::map<int, bool> is_on_critical_path; 
 };
 
 

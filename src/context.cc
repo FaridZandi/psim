@@ -3,6 +3,7 @@
 #include "gcontext.h"
 #include <cassert>
 #include <iostream> 
+#include "spdlog/spdlog.h"
 
 using namespace psim;
 
@@ -39,13 +40,27 @@ void GContext::start_new_run() {
     inst().run_counter ++;
     inst().run_info_list.push_back(run_info());
     inst().run_info_list.back().run_number = inst().run_counter;
+    
+    // we can either always choose the better of the last two runs to keep (a 
+    // greedy approach), or we can just keep the last one. 
+    bool keep_the_better_one = true; 
 
     // keep at most 2 items in the list 
     if (inst().run_info_list.size() > 2) {
-        // remove the first item
-        inst().run_info_list.erase(inst().run_info_list.begin());
+        if (keep_the_better_one){
+            // if 0 is better than 1, remove 1. otherwise remove 0.
+            if (inst().run_info_list[0].psim_time < inst().run_info_list[1].psim_time) {
+                inst().run_info_list.erase(inst().run_info_list.begin() + 1);
+            } else {
+                inst().run_info_list.erase(inst().run_info_list.begin());
+            }
+        } else {
+            // remove the first one
+            inst().run_info_list.erase(inst().run_info_list.begin());
+        }
     }
 
+    // making sure we have at most 2 items in the list
     assert(inst().run_info_list.size() <= 2);
 }
 

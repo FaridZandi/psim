@@ -5,6 +5,7 @@
 #include "protocol_builder.h"
 #include "matplotlibcpp.h"
 #include "spdlog/spdlog.h"
+#include "spdlog/fmt/ranges.h"
 #include <boost/algorithm/string.hpp>
 #include "gcontext.h"
 
@@ -89,8 +90,20 @@ void PSim::start_next_tasks(PTask *task){
         next_task->dep_left -= 1;
 
         if (next_task->dep_left == 0) {
+            // this is the final dependency of the task.
+            // which means this task is on the critical path.
+            GContext::this_run().is_on_critical_path[task->id] = true;
+
             start_task(next_task);
+        } else {
+            GContext::this_run().is_on_critical_path[task->id] = false;
         }
+    }
+
+    if (task->next_tasks.size() == 0) {
+        // this is one of the final tasks in the protocol.
+        // which means this task is on the critical path.
+        GContext::this_run().is_on_critical_path[task->id] = true;
     }
 }
 
@@ -289,6 +302,50 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
     plt::close();
 
 }
+
+
+void PSim::log_results() {
+    spdlog::critical("psim time: {}", timer);
+
+    double average_fct = 0;
+    double average_flow_size = 0;
+    double average_flow_bw = 0;
+    double average_flow_path_length = 0;
+
+    for (auto flow : finished_flows) {
+        average_fct += flow->end_time - flow->start_time;
+        average_flow_size += flow->size;
+        average_flow_bw += (flow->size) / (flow->end_time - flow->start_time);
+        average_flow_path_length += flow->path.size();
+    }
+
+    average_fct /= finished_flows.size();
+    average_flow_size /= finished_flows.size();
+    average_flow_bw /= finished_flows.size();
+    average_flow_path_length /= finished_flows.size();
+
+    spdlog::critical("average_fct: {}", average_fct);
+    spdlog::critical("average_flow_size: {}", average_flow_size);
+    spdlog::critical("average_flow_bw: {:03.2f}", average_flow_bw);
+    spdlog::critical("average_flow_path_length: {}", average_flow_path_length);
+
+    std::vector<double> average_rates;
+    auto& this_run = GContext::this_run();
+    for (auto& kv : this_run.average_rate) {
+        if (this_run.is_on_critical_path[kv.first]) {
+            average_rates.push_back(kv.second);
+        }
+    }
+    std::sort(average_rates.begin(), average_rates.end());
+    std::vector<double> percentiles; 
+    for (int i = 0; i < 100; i+=10) {
+        int index = int(average_rates.size() * i / 100); 
+        percentiles.push_back(average_rates[index]);
+    }
+    spdlog::critical("critical path average rates: {}", percentiles);
+
+}
+
 
 void PSim::save_run_results(){
     if (GConf::inst().plot_graphs) {

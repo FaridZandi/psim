@@ -185,6 +185,7 @@ private:
 
     std::vector<double> average_rates;
 
+    int repath_chances; 
 };
 
 
