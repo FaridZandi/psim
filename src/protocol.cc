@@ -78,6 +78,7 @@ void Protocol::build_dependency_graph() {
         for (auto next_task_id : task->next_task_ids) {
             PTask *next_task = this->task_map[next_task_id];
             task->add_to_next(next_task);
+            task->is_finisher = false;
             next_task->is_initiator = false;
         }
         task->next_task_ids.clear();
@@ -86,8 +87,12 @@ void Protocol::build_dependency_graph() {
     // Identifies the set of initiator tasks (in-degree 0).
     for (auto task : this->tasks) {
         if (task->is_initiator) {
+            // todo: why did I set it back to false? it's harmless, but why? 
             task->is_initiator = false;
             this->initiators.push_back(task);
+        }
+        if (task->is_finisher) {
+            this->finishers.push_back(task);
         }
     }
 
@@ -261,7 +266,9 @@ PTask::~PTask() {
 }
 
 void PTask::reset(){
-    is_initiator = true;
+    is_initiator = true; // default is true, unless it has a predecessor
+    is_finisher = true;  // default is true, unless it has a successor
+    is_on_critical_path = false; 
     status = PTaskStatus::BLOCKED;
     dep_left = 0;
     start_time = 0;
@@ -272,7 +279,6 @@ void PTask::reset(){
     protocol = nullptr;
     rank = -1;
     rank_bfs_queued = false;
-    about_to_finish = false;
 }
 
 void PTask::add_next_task_id(int id) {
@@ -280,7 +286,8 @@ void PTask::add_next_task_id(int id) {
 }
 
 void PTask::add_to_next(PTask *task) {
-    this->next_tasks.push_back(task);
+    this->next_tasks.push_back(task);    
+    task->prev_tasks.push_back(this);
     task->dep_left += 1;
 }
 

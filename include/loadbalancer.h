@@ -34,10 +34,11 @@ public:
 
     static LoadBalancer* create_load_balancer(int item_count, LBScheme lb_scheme);
 
-protected:
     int item_count;
     std::map<std::pair<int, int>, Bottleneck*> link_up_map;
     std::map<std::pair<int, int>, Bottleneck*> link_down_map;
+
+protected:
 
     Bottleneck* uplink(int lower_item, int upper_item);
     Bottleneck* downlink(int lower_item, int upper_item);
@@ -54,6 +55,17 @@ class RandomLoadBalancer : public LoadBalancer {
 public:
     RandomLoadBalancer(int item_count);
     virtual ~RandomLoadBalancer() {}
+    int get_upper_item(int src, int dst, Flow* flow, int timer) override;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
+class AlwaysZeroLoadBalancer : public LoadBalancer {
+public:
+    AlwaysZeroLoadBalancer(int item_count);
+    virtual ~AlwaysZeroLoadBalancer() {}
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 };
 

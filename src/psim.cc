@@ -90,20 +90,8 @@ void PSim::start_next_tasks(PTask *task){
         next_task->dep_left -= 1;
 
         if (next_task->dep_left == 0) {
-            // this is the final dependency of the task.
-            // which means this task is on the critical path.
-            GContext::this_run().is_on_critical_path[task->id] = true;
-
             start_task(next_task);
-        } else {
-            GContext::this_run().is_on_critical_path[task->id] = false;
         }
-    }
-
-    if (task->next_tasks.size() == 0) {
-        // this is one of the final tasks in the protocol.
-        // which means this task is on the critical path.
-        GContext::this_run().is_on_critical_path[task->id] = true;
     }
 }
 
@@ -250,9 +238,65 @@ double PSim::simulate() {
         timer += step_size;
     }
 
+    mark_critical_path(); 
+
     save_run_results();
 
     return timer;
+}
+
+void PSim::mark_critical_path(){
+    for (Protocol* protocol: protocols){
+        // find the task or the tasks that finished last. 
+        double max_finish_time = 0; 
+        for (PTask* task: protocol->finishers){
+            max_finish_time = std::max(max_finish_time, task->end_time);
+        }
+
+        for (PTask* task: protocol->finishers){
+            if (task->end_time == max_finish_time) {
+                traverse_critical_path(task); 
+            }
+        }
+
+
+        auto& this_run_cp = GContext::this_run().is_on_critical_path; 
+
+        for (PTask* task: protocol->tasks){
+            if (task->is_on_critical_path){
+                this_run_cp[task->id] = true; 
+            } else {
+                this_run_cp[task->id] = false; 
+            } 
+        }
+
+        // currently not supporting multiple protocols, since the ids 
+        // of the tasks will collide. sorry for the stupid design.
+        break;
+    }
+
+
+
+
+}
+
+void PSim::traverse_critical_path(PTask* task) {
+    if (task->is_on_critical_path) {
+        return;
+    }
+
+    task->is_on_critical_path = true;
+
+    double max_finish_time = 0; 
+    for (PTask* next_task: task->prev_tasks){
+        max_finish_time = std::max(max_finish_time, next_task->end_time);
+    }
+
+    for (PTask* prev_task: task->prev_tasks){
+        if (prev_task->end_time == max_finish_time) {
+            traverse_critical_path(prev_task); 
+        }
+    }
 }
 
 void PSim::log_history_entry(history_entry& h){
@@ -332,9 +376,7 @@ void PSim::log_results() {
     std::vector<double> average_rates;
     auto& this_run = GContext::this_run();
     for (auto& kv : this_run.average_rate) {
-        if (this_run.is_on_critical_path[kv.first]) {
-            average_rates.push_back(kv.second);
-        }
+        average_rates.push_back(kv.second);
     }
     std::sort(average_rates.begin(), average_rates.end());
     std::vector<double> percentiles; 
@@ -342,7 +384,33 @@ void PSim::log_results() {
         int index = int(average_rates.size() * i / 100); 
         percentiles.push_back(average_rates[index]);
     }
-    spdlog::critical("critical path average rates: {}", percentiles);
+    spdlog::critical("average rates \%ile: {}", percentiles);
+
+    // show the number of tasks on the critical path 
+    // and the number of tasks that are not on the critical path.
+
+    int critical_path_count = 0;
+    int non_critical_path_count = 0;
+    for(Protocol* protocol: protocols){
+        for (PTask* task: protocol->tasks){
+            if (task->is_on_critical_path){
+                critical_path_count += 1;
+            } else {
+                non_critical_path_count += 1;
+            }
+        }
+        break; 
+    }
+
+    spdlog::critical("critical path count: {}", critical_path_count);
+    spdlog::critical("non critical path count: {}", non_critical_path_count);
+
+
+
+
+
+    spdlog::critical("-------------------------------------------------------");
+
 
 }
 

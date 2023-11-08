@@ -23,7 +23,7 @@ Flow::~Flow() {
 }
 
 void Flow::initiate(){
-    min_bottleneck_rate = std::numeric_limits<double>::max();
+    min_bottleneck_rate = std::numeric_limits<double>::max(); 
 
     for (Bottleneck* bottleneck : this->path) {
         min_bottleneck_rate = std::min(min_bottleneck_rate, bottleneck->bandwidth);

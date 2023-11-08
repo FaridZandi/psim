@@ -58,7 +58,7 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
             // start with the least loaded load balancer for the first run, 
             // and then switch to future load balancer for the second run.
             if (GContext::this_run().run_number == 1) {
-                return new LeastLoadedLoadBalancer(item_count);
+                return new RandomLoadBalancer(item_count);
             } else {
                 return new FutureLoad2LoadBalancer(item_count);
             }
@@ -98,6 +98,15 @@ RandomLoadBalancer::RandomLoadBalancer(int item_count) : LoadBalancer(item_count
 int RandomLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
     int upper_item = rand() % item_count;
     return upper_item;
+}/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
+
+AlwaysZeroLoadBalancer::AlwaysZeroLoadBalancer(int item_count) : LoadBalancer(item_count) {}
+
+int AlwaysZeroLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+    return 0; 
 }
 
 /////////////////////////////////////////////////////////////////////////////////////
@@ -488,7 +497,7 @@ FutureLoad2LoadBalancer::FutureLoad2LoadBalancer(int item_count) : LoadBalancer(
         std::sort(average_rates.begin(), average_rates.end());
     }
 
-    repath_chances = 50; 
+    repath_chances = 1000; 
 }
 
 int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
@@ -524,10 +533,19 @@ int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
     double index_percentile = index / double(average_rates.size()) * 100; 
     double chance = rand() % 100;
 
-    if (index_percentile < 30 and 
+    if (index_percentile < 50 and 
         last_run.is_on_critical_path[flow->id] and 
-        flow_fct > GConf::inst().step_size and 
-        flow->size > 10 and
+        // flow_fct > GConf::inst().step_size and 
+        // flow->size > 0.5 and
+        chance < 100) {
+
+        do_repath = true;
+    }
+
+    if (index_percentile < 10 and 
+        not last_run.is_on_critical_path[flow->id] and 
+        // flow_fct > GConf::inst().step_size and 
+        flow->size > 0.5 and
         chance < 10) {
 
         do_repath = true;
@@ -536,12 +554,13 @@ int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
     if (not do_repath) {
         return last_decision; 
     } else {
-        spdlog::critical("doing a repathing for flow {}, {} chances left", flow->id, repath_chances);
         int new_random = last_decision; 
         
         while(new_random == last_decision) {
             new_random = rand() % item_count;
         }
+
+        spdlog::critical("doing a repathing for flow {} from {} to {}, {} chances left", flow->id, last_decision, new_random, repath_chances);
 
         // spdlog::critical("flow: {}, last_decision: {}, new_random: {}, last_run_rate: {}, index_percentile: {}", 
         //                  flow->id, last_decision, new_random, last_run_rate, index_percentile);

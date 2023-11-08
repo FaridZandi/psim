@@ -136,3 +136,4 @@ plt.savefig("psim-times.png")
 
 
 os.system("rm {}".format(executable))
+os.system("rm {}".format(shuffle_path))

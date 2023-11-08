@@ -54,18 +54,27 @@ public:
     Protocol *protocol;
 
     std::vector<PTask *> next_tasks;
+    std::vector<PTask *> prev_tasks;
+
+    // In the input files, some tasks might point to other tasks 
+    // that are not seen yet. We store the ids of those tasks here.
+    // later in the "build_dependency_graph" function, we will
+    // replace these ids with pointers to the actual tasks, which will 
+    // be available by then and will be stored in the "next_tasks" vector.
     std::vector<int> next_task_ids;
+
     int dep_left;
     int id;
     int rank;
     bool rank_bfs_queued;
 
-    bool about_to_finish; // to deal with double precision errors
     double start_time;
     double end_time;
 
     PTaskStatus status;
     bool is_initiator;
+    bool is_finisher; 
+    bool is_on_critical_path; 
     
     virtual PTaskType get_type() = 0;
     virtual void print_task_info(std::ostream& os) = 0;
@@ -181,6 +190,7 @@ public:
     std::vector<PTask *> tasks;
     std::map<int, PTask *> task_map;
     std::vector<PTask *> initiators;
+    std::vector<PTask *> finishers;
     int max_rank;
     int max_allocated_id;
 

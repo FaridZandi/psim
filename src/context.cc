@@ -43,7 +43,7 @@ void GContext::start_new_run() {
     
     // we can either always choose the better of the last two runs to keep (a 
     // greedy approach), or we can just keep the last one. 
-    bool keep_the_better_one = true; 
+    bool keep_the_better_one = false; 
 
     // keep at most 2 items in the list 
     if (inst().run_info_list.size() > 2) {

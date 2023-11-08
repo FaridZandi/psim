@@ -65,6 +65,8 @@ private:
     void start_next_tasks(PTask *task);
     void start_task(PTask *task);
     void save_run_results();
+    void mark_critical_path(); 
+    void traverse_critical_path(PTask* task); 
     
     TrafficGen *traffic_gen;
     std::vector<Protocol *> protocols;

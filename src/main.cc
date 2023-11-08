@@ -9,6 +9,7 @@
 #include <boost/program_options.hpp>
 #include "spdlog/spdlog.h"
 #include "gcontext.h"
+#include <iomanip>
 
 namespace po = boost::program_options;
 using namespace psim;
@@ -58,7 +59,7 @@ int main(int argc, char** argv) {
             GContext::inst().cut_off_time -= GContext::inst().cut_off_decrease_step;
         }
 
-        // log_core_status_history(rep, psim);
+        log_core_status_history(rep, psim);
 
         delete psim;
     }
@@ -88,7 +89,8 @@ void log_core_status_history(int rep, PSim* psim){
 
 
     if (GConf::inst().record_link_flow_loads and 
-        GConf::inst().lb_scheme == LBScheme::FUTURE_LOAD) {
+        GConf::inst().lb_scheme == LBScheme::FUTURE_LOAD or 
+        GConf::inst().lb_scheme == LBScheme::FUTURE_LOAD_2) {
 
         std::ofstream ofs(worker_dir + "run-" + std::to_string(rep) + "/link_flow_loads.txt");
         for (auto& entry: GContext::this_run().network_status) {
@@ -98,19 +100,54 @@ void log_core_status_history(int rep, PSim* psim){
             ofs << "time: " << time << " " << status.time << std::endl;
             std::vector<int> ids;
 
-            ids = psim->network->get_core_bottleneck_ids();
+            auto link_up_map = psim->network->core_load_balancer->link_up_map;
+            auto link_down_map = psim->network->core_load_balancer->link_down_map; 
+            // std::map<std::pair<int, int>, Bottleneck*> link_up_map;
+            int lower_level_items = 0; 
+            int upper_level_items = 0; 
 
-            ofs << "core_bottlenecks: ";
-            for (auto id: ids) {
-                if (status.link_flow_loads[id].size() == 0) {
-                    continue; 
-                }
-                ofs << "core: " << id << " with load " << status.link_loads[id] << ": ";
-                for (auto& entry: status.link_flow_loads[id]) {
-                    ofs << entry << " ";
-                }
-                ofs << std::endl;
+            for(auto& entry: link_up_map) {
+                auto& link = entry.first;
+                auto& bottleneck = entry.second;
+                lower_level_items = std::max(lower_level_items, link.first + 1);
+                upper_level_items = std::max(upper_level_items, link.second + 1);
             }
+
+            for (int i = 0; i < lower_level_items; i++) {
+                for (int j = 0; j < upper_level_items; j++) {
+                    auto up_link_id = link_up_map[std::make_pair(i, j)]->id;
+                    ofs << "up   link " << i << " to " << j; 
+                    ofs << " with load " << status.link_loads[up_link_id] << ": ";
+                    for (auto& entry: status.link_flow_loads[up_link_id]) {
+                        ofs << std::setprecision(3) << entry << " ";
+                    }
+                    ofs << std::endl;
+                }
+            }
+
+
+            for (int i = 0; i < lower_level_items; i++) {
+                for (int j = 0; j < upper_level_items; j++) {
+                    int down_link_id = link_down_map[std::make_pair(i, j)]->id;
+                    ofs << "down link " << i << " to " << j; 
+                    ofs << " with load " << status.link_loads[down_link_id] << ": ";
+                    for (auto& entry: status.link_flow_loads[down_link_id]) {
+                        ofs << std::setprecision(3) << entry << " ";
+                    }
+                    ofs << std::endl;
+                }
+            }
+
+            // for (auto id: ids) {
+            //     if (status.link_flow_loads[id].size() == 0) {
+            //         continue; 
+            //     }
+            //     ofs << "core: " << id << " with load " << status.link_loads[id] << ": ";
+            //     for (auto& entry: status.link_flow_loads[id]) {
+            //         ofs << entry << " ";
+            //     }
+            //     ofs << std::endl;
+            // }
             ofs << std::endl;
             ofs << "-------------------------------------------------"; 
             ofs << std::endl;
