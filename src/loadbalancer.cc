@@ -287,10 +287,10 @@ int FutureLoadLoadBalancer::my_round_robin() {
 double FutureLoadLoadBalancer::get_flow_load_estimate(Flow* flow){
     switch (GConf::inst().load_metric) {
         case LoadMetric::FLOWCOUNT:
-            return 1; 
+            return 1;
 
         case LoadMetric::UTILIZATION:
-        case LoadMetric::ALLOCATED: 
+        case LoadMetric::ALLOCATED:
         case LoadMetric::REGISTERED: {
             auto& last_run = GContext::last_run();
             double last_flow_fct = last_run.flow_fct[flow->id];
@@ -298,7 +298,7 @@ double FutureLoadLoadBalancer::get_flow_load_estimate(Flow* flow){
         }
         case LoadMetric::FLOWSIZE:
             return flow->size;
-        
+
         default:
             spdlog::error("Invalid load metric type: {}", int(GConf::inst().load_metric));
             exit(1);
@@ -308,26 +308,31 @@ double FutureLoadLoadBalancer::get_flow_load_estimate(Flow* flow){
 void FutureLoadLoadBalancer::remove_flow_from_last_run_data(Flow* flow, int src, int dst,
                                                             std::pair<int, int> last_run_prof) {
 
-    double prof_interval = GConf::inst().core_status_profiling_interval;  
+    double prof_interval = GConf::inst().core_status_profiling_interval;
 
     auto& last_run = GContext::last_run();
     int last_decision = GContext::last_decision(flow->id);
 
+    // last_run_prof is the start and end point of the time interval for the
+    // previous run so this loops from the start to the end of the last run time
+    // interval taking prof_interval size steps.
     for (int t = last_run_prof.first + prof_interval; t <= last_run_prof.second; t += prof_interval)  {
         if (t > last_run.max_time_step) {
             spdlog::error("t: {} > last_run.max_time_step: {}", t, last_run.max_time_step);
             break;
         }
-        
+
         auto& status = last_run.network_status[t];
         auto& flow_loads = status.flow_loads;
 
         if (flow_loads.find(flow->id) == flow_loads.end()) {
-            spdlog::error("flow load not found flow: {}, t: {}, last_run.max_time_step: {}, last_decision: {}", 
+            spdlog::error("flow load not found flow: {}, t: {}, last_run.max_time_step: {}, last_decision: {}",
                           flow->id, t, last_run.max_time_step, last_decision);
-            exit(1); 
+            exit(1);
         }
 
+        // Removing this flow from the links it traversed in the run. The
+        // result will show the loads in the network minus this flow.
         double flow_load = flow_loads[flow->id];
         auto& link_loads = status.link_loads;
         link_loads[uplink(src, last_decision)->id] -= flow_load;
@@ -335,16 +340,18 @@ void FutureLoadLoadBalancer::remove_flow_from_last_run_data(Flow* flow, int src,
     }
 }
 
-void FutureLoadLoadBalancer::add_flow_load_to_last_run_data(Flow* flow, int src, int dst, 
-                                                            std::pair<int, int> this_run_prof, 
-                                                            double flow_load_estimate, 
+void FutureLoadLoadBalancer::add_flow_load_to_last_run_data(Flow* flow, int src, int dst,
+                                                            std::pair<int, int> this_run_prof,
+                                                            double flow_load_estimate,
                                                             int best_core) {
 
-    double prof_interval = GConf::inst().core_status_profiling_interval;  
+    double prof_interval = GConf::inst().core_status_profiling_interval;
     auto& last_run = GContext::last_run();
 
+    // We loop from the start to the end of the last run and add the estimate of
+    // the flow load to the links it traversed in this previous iteration.
     for (int t = this_run_prof.first; t <= this_run_prof.second; t += prof_interval)  {
-        if (t > last_run.max_time_step) break; 
+        if (t > last_run.max_time_step) break;
         auto& link_loads = last_run.network_status[t].link_loads;
         link_loads[uplink(src, best_core)->id] += flow_load_estimate;
         link_loads[downlink(dst, best_core)->id] += flow_load_estimate;
@@ -352,10 +359,11 @@ void FutureLoadLoadBalancer::add_flow_load_to_last_run_data(Flow* flow, int src,
 }
 
 
+// Estimate of loads to each core for the (src, dst) pair from the last run.
 std::vector<double>
-FutureLoadLoadBalancer::get_core_loads_estimate(Flow* flow, int src, int dst, 
+FutureLoadLoadBalancer::get_core_loads_estimate(Flow* flow, int src, int dst,
                                                 std::pair<int, int> this_run_prof) {
-    
+
     std::vector<double> core_loads(item_count, 0.0);
 
 
@@ -380,7 +388,7 @@ FutureLoadLoadBalancer::get_core_loads_estimate(Flow* flow, int src, int dst,
     for (int c = 0; c < item_count; c++) {
         load_string += std::to_string(core_loads[c]) + ", ";
     }
-    
+
     spdlog::debug("flow: {}, core load: {}", flow->id, load_string);
 
     return core_loads;
@@ -408,36 +416,40 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
         int last_decision = GContext::last_decision(flow->id);
         auto& last_run = GContext::last_run();
 
-        // get the info on the flow from the last run 
+        // get the info on the flow from the last run
         double last_flow_fct = last_run.flow_fct[flow->id];
         double last_flow_start = last_run.flow_start[flow->id];
         double last_flow_end = last_run.flow_end[flow->id];
 
-        // the most crude estimate of the flow_completion_time, 
+        // the most crude estimate of the flow_completion_time,
         // is that it will take the same time as the last run
-        // which is clearly not true, but it's a start. 
-        // this should definitely be improved in the future. 
+        // which is clearly not true, but it's a start.
+        // this should definitely be improved in the future.
         double flow_finish_estimate = timer + last_flow_fct;
 
-        // get the profiling bounds for the last run and this run('s estimate)
+        // get the profiling bounds for the last run and this run's estimate.
         auto this_run_prof = get_prof_limits(timer, timer + last_flow_fct);
         auto last_run_prof = get_prof_limits(last_flow_start, last_flow_end);
 
         // remove the flow from the last run data. We would like to see the network
         // load without this flow. Otherwise we would be double counting the load
         // of this flow.
-        remove_flow_from_last_run_data(flow, src, dst, last_run_prof); 
+        remove_flow_from_last_run_data(flow, src, dst, last_run_prof);
 
-        // get the core loads estimate for this run
+        // get the core loads estimate for this run.
+        // We've already removed the flow from the estimates of the last run so
+        // this call gives estimates of load to each core between src and dst
+        // from the last run (minus the flow).
         auto core_loads = get_core_loads_estimate(flow, src, dst, this_run_prof);
+        // pick the least loaded from the load estimates.
         int best_core = find_least_loaded_core(core_loads);
 
         // now that we have made our decision, we add the flow load to the last run data
-        // such that we can use it for the next flow. However, this is not the actual 
+        // such that we can use it for the next flow. However, this is not the actual
         // flow load, but the estimate.
         double flow_rate_estimate = get_flow_load_estimate(flow);
         add_flow_load_to_last_run_data(flow, src, dst, this_run_prof, flow_rate_estimate, best_core);
-        
+
         return best_core;
     }
 }
