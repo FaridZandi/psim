@@ -94,7 +94,7 @@ load_metric_map = {
     "random": "flowcount",
     "robinhood": "utilization",
     "roundrobin": "flowsize",
-    "sita-e": "flowsize",
+    "sita-e": "utilization",
 }
 
 # base options

@@ -113,7 +113,7 @@ double Flow::get_load(LoadMetric load_metric_arg) {
       case LoadMetric::UTILIZATION:
       case LoadMetric::ALLOCATED: {
           if (GContext::is_first_run()) {
-              return this->registered_rate
+              return this->registered_rate;
           }
           auto& last_run = GContext::last_run();
           double last_flow_fct = last_run.flow_fct[this->id];

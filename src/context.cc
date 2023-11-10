@@ -2,7 +2,7 @@
 #include <fstream>
 #include "gcontext.h"
 #include <cassert>
-#include <iostream> 
+#include <iostream>
 
 using namespace psim;
 
@@ -25,7 +25,7 @@ run_info& GContext::last_run() {
 
 bool GContext::is_first_run() {
     return inst().run_info_list.size() == 1;
-}   
+}
 
 void GContext::save_decision(int flow_id, int decision) {
     this_run().core_decision[flow_id] = decision;
@@ -40,7 +40,7 @@ void GContext::start_new_run() {
     inst().run_info_list.push_back(run_info());
     inst().run_info_list.back().run_number = inst().run_counter;
 
-    // keep at most 2 items in the list 
+    // keep at most 2 items in the list
     if (inst().run_info_list.size() > 2) {
         // remove the first item
         inst().run_info_list.erase(inst().run_info_list.begin());
@@ -72,4 +72,8 @@ void GContext::initiate_device_shuffle_map(){
 
 int GContext::get_device_shuffle_map(int device_id){
     return inst().device_shuffle_map[device_id];
+}
+
+int GContext::run_number() {
+    return inst().run_info_list.back().run_number;
 }

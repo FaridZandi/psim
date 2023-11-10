@@ -28,7 +28,7 @@ public:
     virtual ~LoadBalancer() {}
 
     void register_link(int lower_item, int upper_item, int dir, Bottleneck* link);
-    void add_flow_sizes(std::map<int, std::vector<double>>& src_flow_sizes);
+    void add_flow_info(std::map<int, std::vector<Flow*>>& src_flow_map);
     void update_state(Flow* arriving_flow = nullptr);
     virtual int get_upper_item(int src, int dst, Flow* flow, int timer) = 0;
 
@@ -158,14 +158,14 @@ private:
     void remove_flow_from_last_run_data(Flow* flow, int src, int dst,
                                         std::pair<int, int> last_run_prof);
 
-    std::vector<double> get_core_loads_estimate(Flow* flow, int src, int dst, 
+    std::vector<double> get_core_loads_estimate(Flow* flow, int src, int dst,
                                                 std::pair<int, int> this_run_prof);
 
-    void add_flow_load_to_last_run_data(Flow* flow, int src, int dst, 
-                                        std::pair<int, int> this_run_prof, 
-                                        double flow_load_estimate, 
+    void add_flow_load_to_last_run_data(Flow* flow, int src, int dst,
+                                        std::pair<int, int> this_run_prof,
+                                        double flow_load_estimate,
                                         int best_core);
-                                    
+
     int my_round_robin();
     int current_upper_item;
 };
@@ -179,12 +179,21 @@ class SitaELoadBalancer : public LoadBalancer {
 public:
     SitaELoadBalancer(int item_count);
     virtual ~SitaELoadBalancer() {}
-    void add_flow_sizes(std::map<int, std::vector<double>>& src_flow_sizes);
+    void add_flow_info(std::map<int, std::vector<Flow*>>& src_flow_map);
+    void update_state(Flow* arriving_flow = nullptr);
     int get_upper_item(int src, int dst, Flow* flow, int timer) override;
 
 private:
     int current_upper_item;
+    // For each src, maintains a set of thresholds denoting which port each
+    // flow should traverse depending on its size.
     std::map<int, std::vector<double>> src_size_thresholds;
+    // A map of srcs to a list of flows originating from the given src.
+    std::map<int, std::vector<Flow*>> flows_from_src_map;
+    // Used to track the current iteration.
+    int curr_run_number;
+
+    void update_src_thresholds();
 };
 
 } // namespace psim
