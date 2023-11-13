@@ -21,6 +21,8 @@ void LoadBalancer::register_link(int lower_item, int upper_item, int dir, Bottle
     } else {
         link_down_map[std::make_pair(lower_item, upper_item)] = link;
     }
+
+    lower_item_count = std::max(lower_item_count, lower_item + 1);
 }
 
 void LoadBalancer::add_flow_sizes(std::map<int, std::vector<double>>& src_flow_sizes) {
@@ -55,7 +57,7 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
         case LBScheme::FUTURE_LOAD:
             return new FutureLoadLoadBalancer(item_count);
         case LBScheme::FUTURE_LOAD_2:
-            // start with the least loaded load balancer for the first run, 
+            // start with a baseline for the first run, 
             // and then switch to future load balancer for the second run.
             if (GContext::this_run().run_number == 1) {
                 return new RandomLoadBalancer(item_count);
@@ -508,8 +510,6 @@ int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
         return rand() % item_count;
     }
 
-    
-
     // we are past the first run. 
     // We want to find the decisions that we were poorly made in the previous run.
     // Then we can make better decisions.  
@@ -517,6 +517,7 @@ int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
     auto& last_run = GContext::last_run();
     int last_decision = GContext::last_decision(flow->id);
 
+    return last_decision;
 
     if (repath_chances == 0) {
         return last_decision;     
@@ -561,12 +562,6 @@ int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
         }
 
         spdlog::critical("doing a repathing for flow {} from {} to {}, {} chances left", flow->id, last_decision, new_random, repath_chances);
-
-        // spdlog::critical("flow: {}, last_decision: {}, new_random: {}, last_run_rate: {}, index_percentile: {}", 
-        //                  flow->id, last_decision, new_random, last_run_rate, index_percentile);
-
-        // spdlog::critical("flow: {}, start: {}, end: {}, average_rate: {}", 
-        //                  flow->id, last_run.flow_start[flow->id], last_run.flow_end[flow->id], last_run_rate);
 
         repath_chances -= 1; 
         return new_random;

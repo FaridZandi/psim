@@ -25,7 +25,8 @@ CoreConnectedNetwork::~CoreConnectedNetwork() {
 void CoreConnectedNetwork::record_link_status(double timer) {
     int timer_int = int(timer);
 
-    if (lb_scheme != LBScheme::FUTURE_LOAD) {
+    if (lb_scheme != LBScheme::FUTURE_LOAD and 
+        lb_scheme != LBScheme::FUTURE_LOAD_2) {
         return;
     }
 

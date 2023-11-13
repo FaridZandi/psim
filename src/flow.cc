@@ -69,7 +69,7 @@ void Flow::compute_priority(){
 
         
         // whoever manages to the be started first gets the highest priority
-        selected_priority = (int) start_time; 
+        selected_priority = (int) ((start_time * protocol->tasks.size()) + id);
     }
 }
 
@@ -133,11 +133,24 @@ double Flow::get_load(LoadMetric load_metric_arg) {
 double Flow::make_progress(double current_time, double step_size) {
     double allocated_rate = std::numeric_limits<double>::max();
 
-    for (auto bottleneck : this->path) {
+    int rate_bottleneck_number = 0;
+
+    for (auto bottleneck : path) {
         double bn_rate = bottleneck->get_allocated_rate(id, registered_rate,
                                                         selected_priority);
 
-        allocated_rate = std::min(allocated_rate, bn_rate);
+        if (bn_rate < allocated_rate) {
+            allocated_rate = bn_rate;
+            rate_bottleneck_number = bottleneck->id;
+        }
+    }
+
+    if (rate_bottleneck_number == 0 or rate_bottleneck_number == (path.size() - 1)) {
+        // bottlenecked by the source or the destination
+        bottlenecked_by_srcdst_count += 1;
+    } else {
+        // bottlenecked by an intermediate bottleneck
+        bottlenecked_by_intermediate_count += 1;
     }
 
     current_rate = allocated_rate;
@@ -212,6 +225,9 @@ void Flow::reset(){
     dst = nullptr;
     bn_priority_levels = GConf::inst().bn_priority_levels;
     selected_priority = -1;
+
+    bottlenecked_by_intermediate_count = 0; 
+    bottlenecked_by_srcdst_count = 0;
 }
 
 PTask* Flow::make_shallow_copy(){

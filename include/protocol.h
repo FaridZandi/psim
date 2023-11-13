@@ -122,6 +122,10 @@ public:
     int selected_priority;
     int bn_priority_levels;
 
+
+    int bottlenecked_by_intermediate_count;
+    int bottlenecked_by_srcdst_count;
+    
     std::vector<Bottleneck *> path;
     Machine *src;
     Machine *dst;

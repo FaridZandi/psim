@@ -35,13 +35,18 @@ public:
     static LoadBalancer* create_load_balancer(int item_count, LBScheme lb_scheme);
 
     int item_count;
+    int lower_item_count; 
+
     std::map<std::pair<int, int>, Bottleneck*> link_up_map;
     std::map<std::pair<int, int>, Bottleneck*> link_down_map;
 
-protected:
-
     Bottleneck* uplink(int lower_item, int upper_item);
     Bottleneck* downlink(int lower_item, int upper_item);
+
+protected:
+
+
+
 };
 
 std::pair<int, int> get_prof_limits(double start_time, double end_time);

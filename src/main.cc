@@ -50,6 +50,7 @@ int main(int argc, char** argv) {
 
         change_log_path(worker_dir + "run-" + std::to_string(rep), "results.txt");
         psim->log_results(); 
+        psim->measure_regret(); 
 
 
         if (rep == 1){
@@ -155,3 +156,4 @@ void log_core_status_history(int rep, PSim* psim){
         ofs.close();
     }
 }
+

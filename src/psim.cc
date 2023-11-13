@@ -384,15 +384,19 @@ void PSim::log_results() {
         int index = int(average_rates.size() * i / 100); 
         percentiles.push_back(average_rates[index]);
     }
-    spdlog::critical("average rates \%ile: {}", percentiles);
+    // spdlog::critical("average rates \%ile: {}", percentiles);
 
-    // show the number of tasks on the critical path 
-    // and the number of tasks that are not on the critical path.
+
+
 
     int critical_path_count = 0;
     int non_critical_path_count = 0;
     for(Protocol* protocol: protocols){
         for (PTask* task: protocol->tasks){
+            if (task->get_type() != PTaskType::FLOW){
+                continue;
+            }
+
             if (task->is_on_critical_path){
                 critical_path_count += 1;
             } else {
@@ -402,15 +406,193 @@ void PSim::log_results() {
         break; 
     }
 
-    spdlog::critical("critical path count: {}", critical_path_count);
-    spdlog::critical("non critical path count: {}", non_critical_path_count);
+    spdlog::critical("critical flows: {}, non-critical flows: {}", 
+                     critical_path_count, non_critical_path_count);
 
 
+
+    int bottlenecked_by_intermediate_count = 0; 
+    int bottlenecked_by_srcdst_count = 0;
+    int bottlenecked_by_both = 0; 
+
+    for (Flow* flow: finished_flows){
+        int intermediate_count = flow->bottlenecked_by_intermediate_count;
+        int srcdst_count = flow->bottlenecked_by_srcdst_count;
+        int total = intermediate_count + srcdst_count;
+
+        if (intermediate_count > total * 0.9){
+            bottlenecked_by_intermediate_count += 1;
+        } else if (srcdst_count > total * 0.9){
+            bottlenecked_by_srcdst_count += 1;
+        } else {
+            bottlenecked_by_both += 1;
+        }
+    }
+
+    spdlog::critical("flows limited by core: {}, by src/dst: {}, both: {}", 
+        bottlenecked_by_intermediate_count, bottlenecked_by_srcdst_count, bottlenecked_by_both);
+
+
+    std::vector<int> core_choices(network->core_load_balancer->item_count, 0);
+    std::vector<int> cp_core_choices(network->core_load_balancer->item_count, 0);
+    for (auto& kv: this_run.core_decision){
+        core_choices[kv.second] += 1;
+
+        if (this_run.is_on_critical_path[kv.first]){
+            cp_core_choices[kv.second] += 1;
+        }
+    }
+    spdlog::critical("core choices: {}", core_choices);
+    spdlog::critical("critical path core choices: {}", cp_core_choices);
 
 
 
     spdlog::critical("-------------------------------------------------------");
 
+
+}
+
+
+void PSim::measure_regret() {
+    int prof_interval = GConf::inst().core_status_profiling_interval; 
+    double step_size = GConf::inst().step_size;
+    LBScheme lb_scheme = GConf::inst().lb_scheme;
+    NetworkType network_type = GConf::inst().network_type;
+
+
+    if (lb_scheme != LBScheme::FUTURE_LOAD and lb_scheme != LBScheme::FUTURE_LOAD_2) {
+        spdlog::error("regret measurement is only supported for future load balancing");
+        exit(1);
+    }
+    if (prof_interval != (int)step_size) {
+        spdlog::error("prof_interval and step_size must be the same");
+        exit(1);
+    }
+    if (network_type != NetworkType::LEAF_SPINE){
+        spdlog::error("regret measurement is only supported for leaf-spine networks");
+        exit(1);
+    }
+
+    auto& this_run = GContext::this_run();
+    LeafSpineNetwork* lsnetwork = (LeafSpineNetwork*) this->network;
+    LoadBalancer* lb = network->core_load_balancer;
+
+    auto& link_up_map = lb->link_up_map;
+    auto& link_down_map = lb->link_down_map; 
+    int upper_level_items = lb->item_count; 
+    int lower_level_items = lb->lower_item_count; 
+
+    double max_score = -1;
+    double max_score_new_core = -1; 
+    Flow* max_score_flow = nullptr; 
+    int repath_count = 0; 
+
+    for (Flow* flow: finished_flows) {
+        if (not flow->is_on_critical_path) {
+            continue; 
+        }   
+        // we only want to do this for critical path flows.
+
+        int core_decision = this_run.core_decision[flow->id]; 
+        double average_rate = this_run.average_rate[flow->id];
+        double actual_flow_fct = flow->end_time - flow->start_time;
+        auto prof_limits = get_prof_limits(flow->start_time, flow->end_time);
+
+        int src_lower_item = lsnetwork->server_loc_map[flow->src_dev_id].rack;
+        int dst_lower_item = lsnetwork->server_loc_map[flow->dst_dev_id].rack;
+
+        double max_regret = -1; 
+        double max_regret_core = -1;
+        double max_regret_fct = -1;  
+
+        for (int c = 0; c < upper_level_items; c++) {
+            
+            if (c == core_decision) {
+                continue;
+            }
+
+            std::vector<Bottleneck*> path = flow->path;
+
+            path[1] = link_up_map[std::make_pair(src_lower_item, c)];
+            path[2] = link_down_map[std::make_pair(dst_lower_item, c)];
+
+            double flow_remaining_size = flow->size;  
+            int t = prof_limits.first;
+            
+            for (;flow_remaining_size > 0; t += prof_interval) {
+                
+                double min_link_availability = std::numeric_limits<double>::max();
+
+                for (auto& link: path) {
+                    double util = this_run.network_status[t].link_loads[link->id];
+                    double capacity = link->bandwidth;
+
+                    double link_availability = (capacity - util); // + (util / (flow_count + 1));
+
+                    min_link_availability = std::min(min_link_availability, link_availability);
+
+                    // spdlog::critical("link: {}, util: {}, flow_count: {}, capacity: {}, availability: {}", 
+                                    //  link->id, util, flow_count, capacity, link_availability);
+                }
+
+                flow_remaining_size -= (min_link_availability * prof_interval);
+                if (flow_remaining_size < 0) {
+                    t -= int(flow_remaining_size / min_link_availability);
+                }
+            }
+
+            double new_fct = t - flow->start_time;
+            double regret = actual_flow_fct / new_fct;
+            
+            // spdlog::critical("critflow {} with size: {}, core {}->{}, fct: {}->{}, regret: {:.2f}", 
+            //                  flow->id, flow->size,
+            //                  core_decision, c, 
+            //                  actual_flow_fct, new_fct, 
+            //                  regret);
+
+            if (regret > max_regret) {
+                max_regret_core = c;
+                max_regret_fct = new_fct;
+                max_regret = regret;
+            }
+        }
+
+        double chance = 1; // rand() / double(RAND_MAX);
+        double regret_score = max_regret * flow->size * chance; 
+
+        // spdlog::critical("normal score: {}, chance: {}, after chance: {}", 
+        //                     max_regret * flow->size, chance, regret_score);
+
+
+        if (max_regret > 1.5) {
+            GContext::save_decision(flow->id, max_regret_core);
+            repath_count += 1; 
+        }
+
+        if (regret_score > max_score) {
+            max_score = regret_score;
+            max_score_flow = flow;
+            max_score_new_core = max_regret_core;
+        }
+        // spdlog::critical("critflow {} with size: {}, core {}->{}, fct: {}->{}, regret: {:.2f}", 
+        //                  flow->id, flow->size,
+        //                  core_decision, max_regret_core, 
+        //                  actual_flow_fct, max_regret_fct, 
+        //                  max_regret);
+    }
+
+    // spdlog::critical("max regret score: {:.2f}, flow: {}, core: {} -> {}, transfer: {} to {}", 
+    //                  max_score, max_score_flow->id, 
+    //                  GContext::this_run().core_decision[max_score_flow->id],
+    //                  max_score_new_core, 
+    //                  max_score_flow->start_time, 
+    //                  max_score_flow->end_time);
+
+    // if (max_score_flow != nullptr){
+    //     GContext::save_decision(max_score_flow->id, max_score_new_core);
+    // }
+
+    spdlog::critical("repath count: {}", repath_count);
 
 }
 

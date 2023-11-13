@@ -30,6 +30,11 @@ struct run_info{
     std::map<int, double> flow_end; 
     std::map<int, double> average_rate; 
     std::map<int, bool> is_on_critical_path; 
+
+
+    // regret stuff 
+    int flow_number;
+    int new_decision; 
 };
 
 
