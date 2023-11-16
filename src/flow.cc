@@ -96,7 +96,7 @@ void Flow::update_rate(double step_size) {
     }
 
     if (should_drop) {
-        current_rate /= 2;
+        current_rate *= rate_decrease_factor;
     } else {
         double multipier = pow(rate_increase, step_size);
         current_rate = current_rate * multipier;
@@ -215,6 +215,7 @@ void Flow::reset(){
     min_bottleneck_rate = 0;
     last_rate = 0;
     initial_rate = current_rate;
+    rate_decrease_factor = GConf::inst().rate_decrease_factor;
     rate_increase = GConf::inst().rate_increase;
     min_rate = GConf::inst().min_rate;
     registered_rate = 0;

@@ -113,6 +113,7 @@ public:
     double registered_rate;
     double rate_increase;
     double min_bottleneck_rate;
+    double rate_decrease_factor;
 
     int src_dev_id;
     int dst_dev_id;

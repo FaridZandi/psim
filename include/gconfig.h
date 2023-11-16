@@ -51,6 +51,8 @@ public:
     double initial_rate = 10;
     double min_rate = 1;
     double link_bandwidth = 100;
+    double rate_decrease_factor = 0.5; 
+    double drop_chance_multiplier = 1.0;
     std::string protocol_file_dir = "../input";
     std::string protocol_file_name = "vgg.txt";
     bool plot_graphs = false;

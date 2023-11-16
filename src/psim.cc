@@ -349,6 +349,14 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
 
 
 void PSim::log_results() {
+
+    if (this->protocols.size() != 1) {
+        spdlog::error("log_results is only supported for single protocol runs");
+        return;
+    }
+
+    spdlog::critical("run number: {}", GContext::this_run().run_number);
+
     spdlog::critical("psim time: {}", timer);
 
     double average_fct = 0;
@@ -435,14 +443,19 @@ void PSim::log_results() {
 
     std::vector<int> core_choices(network->core_load_balancer->item_count, 0);
     std::vector<int> cp_core_choices(network->core_load_balancer->item_count, 0);
+    std::vector<int> core_choices_size(network->core_load_balancer->item_count, 0);
+
     for (auto& kv: this_run.core_decision){
         core_choices[kv.second] += 1;
+        double flow_size = ((Flow*) (this->protocols[0]->task_map[kv.first]))->size;
+        core_choices_size[kv.second] += flow_size;
 
         if (this_run.is_on_critical_path[kv.first]){
             cp_core_choices[kv.second] += 1;
         }
     }
     spdlog::critical("core choices: {}", core_choices);
+    spdlog::critical("core choices size: {}", core_choices_size);
     spdlog::critical("critical path core choices: {}", cp_core_choices);
 
 
@@ -460,17 +473,17 @@ void PSim::measure_regret() {
     NetworkType network_type = GConf::inst().network_type;
 
 
-    if (lb_scheme != LBScheme::FUTURE_LOAD and lb_scheme != LBScheme::FUTURE_LOAD_2) {
+    if (lb_scheme != LBScheme::FUTURE_LOAD_2) {
         spdlog::error("regret measurement is only supported for future load balancing");
-        exit(1);
+        return; 
     }
     if (prof_interval != (int)step_size) {
         spdlog::error("prof_interval and step_size must be the same");
-        exit(1);
+        return;
     }
     if (network_type != NetworkType::LEAF_SPINE){
         spdlog::error("regret measurement is only supported for leaf-spine networks");
-        exit(1);
+        return;
     }
 
     auto& this_run = GContext::this_run();
@@ -557,17 +570,20 @@ void PSim::measure_regret() {
             }
         }
 
-        double chance = 1; // rand() / double(RAND_MAX);
-        double regret_score = max_regret * flow->size * chance; 
+        // double chance = 1; 
+        double chance = rand() / double(RAND_MAX);
+        // double regret_score = max_regret * flow->size;
+        // double regret_score = max_regret; 
+        double regret_score = max_regret * chance;
 
         // spdlog::critical("normal score: {}, chance: {}, after chance: {}", 
         //                     max_regret * flow->size, chance, regret_score);
 
 
-        if (max_regret > 1.5) {
-            GContext::save_decision(flow->id, max_regret_core);
-            repath_count += 1; 
-        }
+        // if (max_regret > 1.5) {
+        //     GContext::save_decision(flow->id, max_regret_core);
+        //     repath_count += 1; 
+        // }
 
         if (regret_score > max_score) {
             max_score = regret_score;
@@ -581,18 +597,20 @@ void PSim::measure_regret() {
         //                  max_regret);
     }
 
-    // spdlog::critical("max regret score: {:.2f}, flow: {}, core: {} -> {}, transfer: {} to {}", 
-    //                  max_score, max_score_flow->id, 
-    //                  GContext::this_run().core_decision[max_score_flow->id],
-    //                  max_score_new_core, 
-    //                  max_score_flow->start_time, 
-    //                  max_score_flow->end_time);
+    spdlog::critical("max regret score: {:.2f}, flow: {}, core: {} -> {}, transfer: {} to {}", 
+                     max_score, max_score_flow->id, 
+                     GContext::this_run().core_decision[max_score_flow->id],
+                     max_score_new_core, 
+                     max_score_flow->start_time, 
+                     max_score_flow->end_time);
 
-    // if (max_score_flow != nullptr){
-    //     GContext::save_decision(max_score_flow->id, max_score_new_core);
-    // }
+    if (max_score_flow != nullptr){
+        GContext::save_decision(max_score_flow->id, max_score_new_core);
+        repath_count += 1; 
+    }
 
     spdlog::critical("repath count: {}", repath_count);
+    spdlog::critical("-------------------------------------------------------");
 
 }
 

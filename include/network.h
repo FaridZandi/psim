@@ -206,6 +206,7 @@ public:
     double current_flow_size_sum;
     std::vector<Flow*> flows;
     LoadMetric load_metric;
+    double drop_chance_multiplier;
 
     // history
     std::vector<double> total_register_history;

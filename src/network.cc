@@ -289,6 +289,7 @@ Bottleneck::Bottleneck(double bandwidth) {
     setup_bwalloc();
 
     this->load_metric = GConf::inst().load_metric;
+    this->drop_chance_multiplier = GConf::inst().drop_chance_multiplier;
 }
 
 
@@ -370,13 +371,14 @@ bool Bottleneck::should_drop(double step_size){
     if (excess > 0) {
         // probablity of dropping a packet is proportional to the excess rate
         double drop_prob = excess / bandwidth;
+        
         // drop_prob = 1 - pow(1 - drop_prob, step_size);
         drop_prob *= step_size;
 
+        drop_prob *= drop_chance_multiplier;
+        
         double rand_num = (double) rand() / RAND_MAX;
-
         if (rand_num < drop_prob) {
-            // std::cout << "dropping rate! who would have thought! \n" << std::endl;
             return true;
         }
     }

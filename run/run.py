@@ -105,7 +105,7 @@ for option in options.items():
         cmd += " --" + option[0] + "=" + str(option[1])
 
 if use_gdb:
-    cmd = "gdb --args " + cmd
+    cmd = "gdb -ex run --args " + cmd
     
 print("running the command:", cmd)            
 

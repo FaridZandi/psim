@@ -51,6 +51,8 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("load-metric", po::value<std::string>(), "load metric")
         ("core-status-profiling-interval", po::value<int>(), "core status profiling interval")
         ("log-file-name", po::value<std::string>(), "log file name")
+        ("rate-decrease-factor", po::value<double>(), "rate decrease factor")
+        ("drop-chance-multiplier", po::value<double>(), "drop chance multiplier")
     ;
 
     po::variables_map vm;
@@ -272,6 +274,12 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("rep-count")) {
         GConf::inst().rep_count = vm["rep-count"].as<int>();
     }
+    if (vm.count("rate-decrease-factor")) {
+        GConf::inst().rate_decrease_factor = vm["rate-decrease-factor"].as<double>();
+    }
+    if (vm.count("drop-chance-multiplier")) {
+        GConf::inst().drop_chance_multiplier = vm["drop-chance-multiplier"].as<double>();
+    }
 }
 
 void psim::log_config() {
@@ -313,6 +321,8 @@ void psim::log_config() {
     spdlog::info("==== load_metric: {}", int(GConf::inst().load_metric));
     spdlog::info("==== core_status_profiling_interval: {}", GConf::inst().core_status_profiling_interval);
     spdlog::info("==== log_file_name: {}", GConf::inst().log_file_name);
+    spdlog::info("==== rate_decrease_factor: {}", GConf::inst().rate_decrease_factor);
+    spdlog::info("==== drop_chance_multiplier: {}", GConf::inst().drop_chance_multiplier);
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }
