@@ -26,7 +26,7 @@ run_info& GContext::last_run() {
 
 bool GContext::is_first_run() {
     return inst().run_info_list.size() == 1;
-}   
+}
 
 void GContext::save_decision(int flow_id, int decision) {
     this_run().core_decision[flow_id] = decision;
@@ -44,7 +44,7 @@ void GContext::start_new_run() {
     // we can either always choose the better of the last two runs to keep (a 
     // greedy approach), or we can just keep the last one. 
     bool keep_the_better_one = false; 
-
+    
     // keep at most 2 items in the list 
     if (inst().run_info_list.size() > 2) {
         if (keep_the_better_one){
@@ -87,4 +87,8 @@ void GContext::initiate_device_shuffle_map(){
 
 int GContext::get_device_shuffle_map(int device_id){
     return inst().device_shuffle_map[device_id];
+}
+
+int GContext::run_number() {
+    return inst().run_info_list.back().run_number;
 }

@@ -27,20 +27,20 @@ Network::~Network() {
 }
 
 void Network::integrate_protocol_knowledge(std::vector<Protocol*>& protocols) {
-    std::map<int, std::vector<double>> src_flow_sizes;
+    std::map<int, std::vector<Flow*>> src_flows;
     std::vector<Flow*> protocol_flows;
     int src;
     for (size_t p_idx = 0; p_idx < protocols.size(); p_idx++) {
         protocol_flows = protocols[p_idx]->get_flows();
         for (size_t f_idx = 0; f_idx < protocol_flows.size(); f_idx++) {
             src = get_source_for_flow(protocol_flows[f_idx]);
-            if (src_flow_sizes.find(src) == src_flow_sizes.end()) {
-                src_flow_sizes[src] = std::vector<double>();
+            if (src_flows.find(src) == src_flows.end()) {
+                src_flows[src] = std::vector<Flow*>();
             }
-            src_flow_sizes[src].push_back(protocol_flows[f_idx]->size);
+            src_flows[src].push_back(protocol_flows[f_idx]);
         }
     }
-    core_load_balancer->add_flow_sizes(src_flow_sizes);
+    core_load_balancer->add_flow_info(src_flows);
 }
 
 

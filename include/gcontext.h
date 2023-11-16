@@ -8,33 +8,28 @@
 #include "gconfig.h"
 
 namespace psim {
-class Flow; 
+class Flow;
 
 struct core_link_status {
-    int time; 
-    std::map<int, double> link_loads; 
+    int time;
+    std::map<int, double> link_loads;
     std::map<int, double> flow_loads;
 
     std::map<int, std::vector<double>> link_flow_loads; 
 };
 
 struct run_info{
-    int run_number = 0; 
+    int run_number = 0;
     int max_time_step = 0;
     double psim_time = 0; 
-
+    
     std::map<int, core_link_status> network_status;
-    std::map<int, int> core_decision; 
+    std::map<int, int> core_decision;
     std::map<int, double> flow_fct;
     std::map<int, double> flow_start; 
     std::map<int, double> flow_end; 
-    std::map<int, double> average_rate; 
-    std::map<int, bool> is_on_critical_path; 
-
-
-    // regret stuff 
-    int flow_number;
-    int new_decision; 
+    std::map<int, double> average_rate;
+    std::map<int, bool> is_on_critical_path;
 };
 
 
@@ -50,21 +45,22 @@ public:
     static void start_new_run();
     static void initiate_device_shuffle_map();
     static int get_device_shuffle_map(int device_id);
+    static int run_number();
 
 
     GContext(GContext const&) = delete;
     void operator=(GContext const&) = delete;
-    
-    int cut_off_time = 0; 
-    int cut_off_decrease_step = 0; 
+
+    int cut_off_time = 0;
+    int cut_off_decrease_step = 0;
     std::vector<run_info> run_info_list;
-    std::map<int, int> device_shuffle_map; 
-    int run_counter = 0; 
+    std::map<int, int> device_shuffle_map;
+    int run_counter = 0;
 
 private:
     GContext();
 
 };
-    
+
 } // namespace psim
 #endif // CONFIG_H
