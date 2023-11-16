@@ -53,6 +53,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("log-file-name", po::value<std::string>(), "log file name")
         ("rate-decrease-factor", po::value<double>(), "rate decrease factor")
         ("drop-chance-multiplier", po::value<double>(), "drop chance multiplier")
+        ("lb-decisions-file", po::value<std::string>(), "LB decisions file")
     ;
 
     po::variables_map vm;
@@ -152,6 +153,8 @@ void psim::process_arguments(po::variables_map vm){
             GConf::inst().lb_scheme = LBScheme::RANDOM;
         } else if (lb_scheme_str == "roundrobin") {
             GConf::inst().lb_scheme = LBScheme::ROUND_ROBIN;
+        } else if (lb_scheme_str == "readfile") {
+            GConf::inst().lb_scheme = LBScheme::READ_FILE;
         } else if (lb_scheme_str == "leastloaded") {
             GConf::inst().lb_scheme = LBScheme::LEAST_LOADED;
         } else if (lb_scheme_str.substr(0, 7) == "powerof") {
@@ -279,6 +282,9 @@ void psim::process_arguments(po::variables_map vm){
     }
     if (vm.count("drop-chance-multiplier")) {
         GConf::inst().drop_chance_multiplier = vm["drop-chance-multiplier"].as<double>();
+    }
+    if (vm.count("lb-decisions-file")) {
+        GConf::inst().lb_decisions_file = vm["lb-decisions-file"].as<std::string>();
     }
 }
 

@@ -355,6 +355,7 @@ void PSim::log_results() {
         return;
     }
 
+    
     spdlog::critical("run number: {}", GContext::this_run().run_number);
 
     spdlog::critical("psim time: {}", timer);
@@ -474,15 +475,15 @@ void PSim::measure_regret() {
 
 
     if (lb_scheme != LBScheme::FUTURE_LOAD_2) {
-        spdlog::error("regret measurement is only supported for future load balancing");
         return; 
     }
+
     if (prof_interval != (int)step_size) {
-        spdlog::error("prof_interval and step_size must be the same");
+        spdlog::critical("prof_interval and step_size must be the same");
         return;
     }
     if (network_type != NetworkType::LEAF_SPINE){
-        spdlog::error("regret measurement is only supported for leaf-spine networks");
+        spdlog::critical("regret measurement is only supported for leaf-spine networks");
         return;
     }
 
@@ -612,6 +613,17 @@ void PSim::measure_regret() {
     spdlog::critical("repath count: {}", repath_count);
     spdlog::critical("-------------------------------------------------------");
 
+}
+
+void PSim::log_lb_decisions(){
+    auto& this_run = GContext::this_run();
+    auto& core_decisions = this_run.core_decision;
+
+    for (auto& kv: core_decisions){
+        spdlog::warn("flow {} core {}", kv.first, kv.second);
+    }
+
+    spdlog::warn("-------------------------------------------------------");
 }
 
 

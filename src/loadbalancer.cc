@@ -3,8 +3,10 @@
 #include "gcontext.h"
 #include "gconfig.h"
 #include <algorithm>
+#include <sstream>
 #include <cassert>
 #include <iostream>
+#include <fstream>
 #include <vector>
 
 using namespace psim;
@@ -46,7 +48,9 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
         case LBScheme::RANDOM:
             return new RandomLoadBalancer(item_count);
         case LBScheme::ROUND_ROBIN:
-            return new RoundRobinLoadBalancer(item_count);
+            return new RoundRobinLoadBalancer(item_count); 
+        case LBScheme::READ_FILE:
+            return new ReadFileLoadBalancer(item_count);
         case LBScheme::LEAST_LOADED:
             return new LeastLoadedLoadBalancer(item_count);
         case LBScheme::POWER_OF_K:
@@ -110,6 +114,57 @@ AlwaysZeroLoadBalancer::AlwaysZeroLoadBalancer(int item_count) : LoadBalancer(it
 int AlwaysZeroLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
     return 0; 
 }
+
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
+ReadFileLoadBalancer::ReadFileLoadBalancer(int item_count) : LoadBalancer(item_count) {
+    std::ifstream infile(GConf::inst().lb_decisions_file);
+
+    // check if the file exists 
+    if (not infile.good()) {
+        spdlog::error("File {} does not exist", GConf::inst().lb_decisions_file);
+        exit(1);
+    }
+
+
+    std::string line;
+    while (std::getline(infile, line)) {
+
+        // line structure: [13:56:38.811] [critical] flow 9925 core 2
+        std::istringstream iss(line);
+
+        std::string word;
+        int flow_number;
+        int core_number;
+
+        // read until we find the word "flow"
+        while (iss >> word and word != "flow") {
+            continue;
+        }
+        iss >> flow_number;
+
+        // read until we find the word "core"
+        while (iss >> word and word != "core") {
+            continue;
+        }
+        iss >> core_number;
+
+
+        decisions[flow_number] = core_number;
+    }
+}
+
+int ReadFileLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+    if (decisions.find(flow->id) == decisions.end()) {
+        spdlog::error("Flow {} not found in the decisions file", flow->id);
+        exit(1);
+    }
+
+    return decisions[flow->id];
+}
+
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////

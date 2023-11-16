@@ -48,10 +48,16 @@ int main(int argc, char** argv) {
         GContext::this_run().psim_time = psim_time;
         psim_time_list.push_back(psim_time);
 
+
         change_log_path(worker_dir + "run-" + std::to_string(rep), "results.txt");
         psim->log_results(); 
-        psim->measure_regret(); 
 
+
+        change_log_path(worker_dir + "run-" + std::to_string(rep), "lb-decisions.txt");
+        psim->log_lb_decisions(); 
+
+        
+        psim->measure_regret(); 
 
         if (rep == 1){
             GContext::inst().cut_off_time = psim_time;

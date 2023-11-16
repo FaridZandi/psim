@@ -57,7 +57,8 @@ public:
     void add_protocols_from_input();
 
     void log_results(); 
-    void measure_regret(); 
+    void measure_regret();
+    void log_lb_decisions();  
     
     Network *network;
 

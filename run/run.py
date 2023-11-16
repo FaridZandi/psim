@@ -68,7 +68,7 @@ options = {
     "core-status-profiling-interval": 10,
     "rep-count": 100, 
     "console-log-level": 4,
-    "file-log-level": 4,
+    "file-log-level": 3,
     
     "initial-rate": 100,
     "min-rate": 10,

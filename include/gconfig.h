@@ -13,6 +13,7 @@ enum class LoadMetric {
 enum class LBScheme{
     RANDOM,
     ROUND_ROBIN,
+    READ_FILE,
     LEAST_LOADED,
     POWER_OF_K,
     ROBIN_HOOD,
@@ -66,6 +67,7 @@ public:
     int rep_count = 2;
     bool shuffle_device_map = false;
     std::string shuffle_map_file = "";
+    std::string lb_decisions_file = ""; 
 
     PriorityAllocator priority_allocator = PriorityAllocator::FAIR_SHARE;
     NetworkType network_type = NetworkType::FAT_TREE;
