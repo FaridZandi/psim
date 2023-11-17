@@ -115,15 +115,11 @@ double Flow::get_load(LoadMetric load_metric_arg) {
 
     switch (load_metric) {
       case LoadMetric::REGISTERED:
+          return this->registered_rate;
       case LoadMetric::UTILIZATION:
-      case LoadMetric::ALLOCATED: {
-          if (GContext::is_first_run()) {
-              return this->registered_rate;
-          }
-          auto& last_run = GContext::last_run();
-          double last_flow_fct = last_run.flow_fct[this->id];
-          return this->size / last_flow_fct;
-      }
+          return this->last_rate;
+      case LoadMetric::ALLOCATED:
+          return this->registered_rate;
       case LoadMetric::FLOWSIZE:
           return this->size;
       case LoadMetric::FLOWCOUNT:
