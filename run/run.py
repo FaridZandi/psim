@@ -17,6 +17,10 @@ run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 # read the env for the base dir 
 base_dir = os.environ.get("PSIM_BASE_DIR")
 print("base_dir:", base_dir)
+if base_dir is None:
+    print("PSIM_BASE_DIR not set, exiting")
+    sys.exit(1)
+    
 build_path = base_dir + "/build"
 run_path = base_dir + "/run"
 base_executable = build_path + "/psim"

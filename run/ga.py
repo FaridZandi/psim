@@ -66,13 +66,13 @@ options = {
 
     "step-size": 10,
     "core-status-profiling-interval": 10,
-    "rep-count": 1, 
+    "rep-count": 10, 
     "console-log-level": 4,
     "file-log-level": 3,
     
     "initial-rate": 100,
-    "min-rate": 100,
-    "priority-allocator": "priorityqueue", #"fairshare",
+    "min-rate": 10,
+    "priority-allocator": "fairshare", #"priorityqueue",
 
     "network-type": "leafspine",    
     "link-bandwidth": 100,
@@ -94,7 +94,6 @@ options = {
 }
 
 options.update(params)
-
 
 baseline_lb_schemes = [
     # "futureload",
@@ -328,8 +327,13 @@ def evaluate_population(population):
                                      shell=True, 
                                      preexec_fn=os.setsid))
     
+    print("evaluating population ", end="")
+    sys.stdout.flush()
     for job in jobs:
         job.wait()
+        print(".", end="")
+        sys.stdout.flush()
+    print(" done")
     
     results = {}
     for i, job in enumerate(jobs):
@@ -464,10 +468,7 @@ def update_stats(round_counter, sorted_results):
     round_median = np.median([result[1]["time"] for result in sorted_results])
     round_median_times.append(round_median)
     
-    if round_counter > 2 and round_best_times[-1] >= round_best_times[-2]:
-        global no_improvement_counter
-        no_improvement_counter += 1
-
+    
     if round_counter != 0:    
         topscore_ranks_sum = 0
         permute_ranks_sum = 0
@@ -516,30 +517,40 @@ def update_stats(round_counter, sorted_results):
         plt.clf()
         
     
-def update_options(): 
+def update_options(round_counter): 
     global no_improvement_counter
+    
+    if round_counter > 2 and round_best_times[-1] >= round_best_times[-2]:
+        no_improvement_counter += 1
+    else:
+        no_improvement_counter = 0
+    
     if no_improvement_counter > 10:
         # choose a number between -1 or 1 
         step_size_change = np.random.randint(-1, 2)
         options["step-size"] += step_size_change 
+        
+        if options["step-size"] < 5:
+            options["step-size"] = 5
+        if options["step-size"] > 15:
+            options["step-size"] = 15
+            
         print("no improvement for 10 rounds, changing step size to {}".format(options["step-size"]))
         no_improvement_counter = 0
 
-    # if round == 1000:
-    #     options["step-size"] = 1
-    # if round == 1500:
-    #     options["step-size"] = 0.1
-    
-    # options["step-size"] = 100 - round_counter * 0.01
-    
-    # alternate between 10 and 100
-    # if options["step-size"] == 10: 
-    #     options["step-size"] = 100
     # else:
     #     options["step-size"] = 10
     return 
 
 
+def print_results(round_counter, sorted_results):
+    print("round {} evaluated, results:".format(round_counter))
+    for i, result in enumerate(sorted_results):
+        print("rank: {:3d} time: {:6.2f} prev_rank: {:3d} method: {:>15}".format(
+              i, result[1]["time"], 
+              result[0], result[1]["banner"]))
+    
+        
 def genetic_algorithm():
     num_rounds = 2000
     
@@ -549,15 +560,16 @@ def genetic_algorithm():
     population = make_initial_population()
 
     for round_counter in range(num_rounds):
-        update_options()
+        # evaluate the current population
+        update_options(round_counter)
         results = evaluate_population(population)
         sorted_results = sorted(results.items(), key=lambda kv: kv[1]["time"])
         update_stats(round_counter, sorted_results)
         
-        print("round {} evaluated, results: \n".format(round_counter))
-        for i, result in enumerate(sorted_results):
-            print(i, round(result[1]["time"], 2), result[1]["banner"])
-            
+        # print the results
+        print_results(round_counter, sorted_results)
+        
+        
         # prepare the next round
         new_round_dir = "lb-decisions/round_{}".format(round_counter + 1)
         os.system("mkdir -p {}".format(new_round_dir))  
