@@ -54,6 +54,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("rate-decrease-factor", po::value<double>(), "rate decrease factor")
         ("drop-chance-multiplier", po::value<double>(), "drop chance multiplier")
         ("lb-decisions-file", po::value<std::string>(), "LB decisions file")
+        ("workers-dir", po::value<std::string>(), "workers directory")
     ;
 
     po::variables_map vm;
@@ -286,6 +287,9 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("lb-decisions-file")) {
         GConf::inst().lb_decisions_file = vm["lb-decisions-file"].as<std::string>();
     }
+    if (vm.count("workers-dir")) {
+        GConf::inst().workers_dir = vm["workers-dir"].as<std::string>();
+    }
 }
 
 void psim::log_config() {
@@ -329,6 +333,8 @@ void psim::log_config() {
     spdlog::info("==== log_file_name: {}", GConf::inst().log_file_name);
     spdlog::info("==== rate_decrease_factor: {}", GConf::inst().rate_decrease_factor);
     spdlog::info("==== drop_chance_multiplier: {}", GConf::inst().drop_chance_multiplier);
+    spdlog::info("==== lb_decisions_file: {}", GConf::inst().lb_decisions_file);
+    spdlog::info("==== workers_dir: {}", GConf::inst().workers_dir);
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

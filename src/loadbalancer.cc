@@ -139,15 +139,34 @@ ReadFileLoadBalancer::ReadFileLoadBalancer(int item_count) : LoadBalancer(item_c
         int flow_number;
         int core_number;
 
+        bool flow_found = false; 
+        bool core_found = false;
+        
+
         // read until we find the word "flow"
-        while (iss >> word and word != "flow") {
+        while (iss >> word) {
+            if (word == "flow") {
+                flow_found = true;
+                break;
+            }
             continue;
+        }
+        if (not flow_found) {
+            continue; 
         }
         iss >> flow_number;
 
+
         // read until we find the word "core"
-        while (iss >> word and word != "core") {
+        while (iss >> word) {
+            if (word == "core") {
+                core_found = true;
+                break;
+            }
             continue;
+        }
+        if (not core_found) {
+            continue; 
         }
         iss >> core_number;
 

@@ -32,9 +32,11 @@ int main(int argc, char** argv) {
     // p->export_graph(ofs);
     // ofs.close();
     // exit(0);
+    auto workers_dir = GConf::inst().workers_dir;
 
     for (int rep = 1; rep <= GConf::inst().rep_count; rep ++) {
-        std::string worker_dir = "workers/worker-" + std::to_string(GConf::inst().worker_id) + "/";
+        std::string worker_id_string = std::to_string(GConf::inst().worker_id);
+        std::string worker_dir = workers_dir + "/worker-" + worker_id_string + "/";
         change_log_path(worker_dir + "run-" + std::to_string(rep), "runtime.txt", true);
         GContext::start_new_run();
 
@@ -56,7 +58,6 @@ int main(int argc, char** argv) {
         change_log_path(worker_dir + "run-" + std::to_string(rep), "lb-decisions.txt");
         psim->log_lb_decisions(); 
 
-        
         psim->measure_regret(); 
 
         if (rep == 1){
@@ -82,8 +83,15 @@ void init(int argc, char** argv){
     po::variables_map vm = parse_arguments(argc, argv);
     process_arguments(vm);
 
-    // output + worker id
-    GConf::inst().output_dir = "workers/worker-" + std::to_string(GConf::inst().worker_id) + "/";
+    // make the workers directory
+    auto workers_dir = GConf::inst().workers_dir;
+    std::string mkdir_command = "mkdir -p " + workers_dir;
+    int ret = system(mkdir_command.c_str());
+    
+    // std::string link_command = "ln -s " + workers_dir + " .";
+
+    auto worker_id_string = std::to_string(GConf::inst().worker_id);
+    GConf::inst().output_dir = workers_dir + "/worker-" + worker_id_string + "/";
 
     setup_logger(true);
     log_config();
@@ -91,8 +99,8 @@ void init(int argc, char** argv){
 
 
 void log_core_status_history(int rep, PSim* psim){
-
-    std::string worker_dir = "workers/worker-" + std::to_string(GConf::inst().worker_id) + "/";
+    auto workers_dir = GConf::inst().workers_dir;
+    std::string worker_dir = workers_dir + "/worker-" + std::to_string(GConf::inst().worker_id) + "/";
 
 
     if (GConf::inst().record_link_flow_loads and 

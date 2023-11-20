@@ -47,6 +47,7 @@ public:
     void operator=(GConf const&) = delete;
 
     int worker_id = 0;
+    std::string workers_dir = "workers/";
     double step_size = 0.01;
     double rate_increase = 1.1;
     double initial_rate = 10;

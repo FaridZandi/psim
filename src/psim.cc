@@ -620,7 +620,10 @@ void PSim::log_lb_decisions(){
     auto& core_decisions = this_run.core_decision;
 
     for (auto& kv: core_decisions){
-        spdlog::warn("flow {} core {}", kv.first, kv.second);
+        int flow_id = kv.first;
+        int core_id = kv.second;
+        bool crit = this_run.is_on_critical_path[flow_id];
+        spdlog::warn("flow {} core {} crit {}", flow_id, core_id, crit);
     }
 
     spdlog::warn("-------------------------------------------------------");
