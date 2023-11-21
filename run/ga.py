@@ -4,8 +4,7 @@ import subprocess
 import numpy as np
 import sys 
 import resource
-from util import make_shuffle
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from utils.util import *
 from tqdm import tqdm
 import matplotlib.pyplot as plt
 import re
@@ -15,8 +14,7 @@ run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 
 # setting up the basic paths
 # read the env for the base dir 
-base_dir = os.environ.get("PSIM_BASE_DIR")
-print("base_dir:", base_dir)
+base_dir = get_base_dir()
 build_path = base_dir + "/build"
 run_path = base_dir + "/run/"
 base_executable = build_path + "/psim"
@@ -24,52 +22,34 @@ executable = build_path + "/psim-" + run_id
 input_dir = base_dir + "/input/"
 shuffle_path  = input_dir + "/shuffle/shuffle-{}.txt".format(run_id)
 workers_dir = run_path + "/workers/"
-use_gdb = False
-
-
-population_size = 30 
-base_step_size = 10
-core_count = 4
-ga_rounds = 2000
-rep_count = 20
-
+results_dir = "ga-results/{}-run/".format(run_id)
+os.system("mkdir -p {}".format(results_dir))
 baselines_path = "lb-decisions/baselines/"
 line_regex = re.compile(r".*flow \d+ core \d+ crit (true|false)")
 
+# genetic algorithm parameters
+population_size = 30 
+base_step_size = 100
+core_count = 4
+ga_rounds = 2000
+rep_count = 10
+no_improvement_limit = 20
 
-# build the executable, exit if build fails
-os.chdir(build_path)
-# run the make -j command, get the exit code
-exit_code = os.system("make -j")
-if exit_code != 0:
-    print("make failed, exiting")
-    sys.exit(1)
-os.chdir(run_path)
-os.system("cp {} {}".format(base_executable, executable))
+# runtime stats
+round_best_times = []
+round_avg_times = [] 
+round_median_times = []
+round_top_score_avg_rank = []
+round_permute_avg_rank = []
+round_crossover_avg_rank = []
+round_random_avg_rank = []
+no_improvement_counter = 0
+no_improvement_ref = 10e12
+best_so_far = 10e12
 
+build_exec(executable, base_executable, build_path, run_path)
 make_shuffle(128, shuffle_path)
-
-
-# get the parameters from the command line
-params = {}
-for i, arg in enumerate(sys.argv):
-    if i == 0:
-        continue
-    p = arg.split("=")
-    key = p[0][2:]
-    if len(p) == 1:
-        val = True
-    else:
-        val = p[1]
-        if val == "true":
-            val = True
-        if val == "false":
-            val = False
-    params[key] = val
-    
-if "gdb" in params:
-    use_gdb = True
-    del params["gdb"]
+set_memory_limit(10 * 1e9)
 
 options = {
     "protocol-file-dir": base_dir + "/input/128search-dpstart-2",
@@ -106,8 +86,6 @@ options = {
     "shuffle-map-file": run_path + "/round_416/shuffle-NmRjMzQ3.txt",
 }
 
-options.update(params)
-
 baseline_lb_schemes = [
     # "futureload",
     "random",
@@ -133,63 +111,15 @@ load_metric_map = {
 }
 
 
-memory_limit_kb = 10 * 1e9
-memory_limit_kb = int(memory_limit_kb)
-resource.setrlimit(resource.RLIMIT_AS, (memory_limit_kb, memory_limit_kb))
-
-round_best_times = []
-round_avg_times = [] 
-round_median_times = []
-
-round_top_score_avg_rank = []
-round_permute_avg_rank = []
-round_crossover_avg_rank = []
-round_random_avg_rank = []
-
-no_improvement_counter = 0
 
 
 def clean_up(): 
     os.system("rm -rf lb-decisions/*")
     
-def make_cmd(executable, options):
-    cmd = executable
-    for option in options.items():
-        if option[1] is False:
-            continue
-        elif option[1] is True:
-            cmd += " --" + option[0]
-        else: 
-            cmd += " --" + option[0] + "=" + str(option[1])
-
-    if use_gdb:
-        cmd = "gdb -ex run --args " + cmd
-
-    return cmd
-    
-    
-def get_psim_time(job_output): 
-    psim_times = []
-    
-    for line in iter(job_output.readline, b''):
-        output = line.decode("utf-8")
-        if "psim time:" in output:
-            psim_time = float(output.split("psim time:")[1])
-            psim_times.append(psim_time)
-    
-    result = {
-        "avg": np.mean(psim_times), 
-        "max": np.max(psim_times),
-        "min": np.min(psim_times),
-        "median": np.median(psim_times), 
-    } 
-    
-    return result
-        
 
 def make_baseline_decisions(rep_count = 2): 
-
     jobs = []    
+    
     for i, lb_scheme in enumerate(baseline_lb_schemes):
         job_options = options.copy()
         job_options["worker-id"] = i
@@ -532,13 +462,13 @@ def plot_stats():
     
 def update_stats(round_counter, sorted_results): 
     
-    round_best = sorted_results[0][1]["time"]   
+    round_best = sorted_results[0][1]["time"]["avg"]   
     round_best_times.append(round_best)
     
-    round_avg = np.mean([result[1]["time"] for result in sorted_results])
+    round_avg = np.mean([result[1]["time"]["avg"] for result in sorted_results])
     round_avg_times.append(round_avg)
     
-    round_median = np.median([result[1]["time"] for result in sorted_results])
+    round_median = np.median([result[1]["time"]["avg"] for result in sorted_results])
     round_median_times.append(round_median)
     
     
@@ -576,30 +506,68 @@ def update_stats(round_counter, sorted_results):
     if round_counter % 10 == 0 and round_counter != 0:
         plot_stats()
         
-    
+
+
+
 def update_options(round_counter): 
+    if round_counter == 0:
+        return
+    
     global no_improvement_counter
+    global no_improvement_ref    
+    global best_so_far
+    global base_step_size
     
-    if round_counter > 2 and round_best_times[-1] >= round_best_times[-2]:
-        no_improvement_counter += 1
-    else:
+    # every 1000 rounds, decrease the step size by a factor of 10
+    if round_counter % 500 == 0: 
+        base_step_size /= 10 
+        options["step-size"] = base_step_size
         no_improvement_counter = 0
+        no_improvement_ref = 10e12
+        
     
-    if no_improvement_counter > 10:
-        step_size_change = np.random.randint(-1, 2) # -1, 0, or 1
-        options["step-size"] = base_step_size + step_size_change 
-            
-        print("no improvement for 10 rounds, changing step size to {}".format(options["step-size"]))
+    # if there were no improvements compared to the reference for a while,
+    # change the step size a bit. The ref changes every time there is an improvement 
+    # to the best results seen so far, or when we detect that we are stuck and 
+    # we need to change the step size. 
+    last_round_best = round_best_times[-1]
+    
+    is_improvement = (last_round_best < no_improvement_ref)
+    no_improvement_counter += (0 if is_improvement else 1)
+    
+    if is_improvement:
+        no_improvement_ref = last_round_best
+    
+    if no_improvement_counter > 0: 
+        print("no improvement seen for {} rounds compared to ref {}".format(
+              no_improvement_counter, no_improvement_ref))
+        
+    if no_improvement_counter > no_improvement_limit:
+        new_step_size = 0 
+        while new_step_size != options["step-size"]:
+            sign = np.random.choice([-1, 0, 1])
+            new_step_size = base_step_size * (1 + sign * 0.1)
+              
+        options["step-size"] = new_step_size
         no_improvement_counter = 0
-
-    return 
-
+        no_improvement_ref = 10e12
+        
+        print("no improvement seen for {} rounds, changing step size to {}".format(
+              no_improvement_counter, new_step_size))
+        
+    
+    if last_round_best < best_so_far:
+        no_improvement_ref = last_round_best
+        no_improvement_counter = 0
+        best_so_far = last_round_best
+    
+    
 
 def print_results(round_counter, sorted_results):
     print("round {} evaluated, results:".format(round_counter))
     for i, result in enumerate(sorted_results):
         print("rank: {:3d} time: {:6.2f} prev_rank: {:3d} method: {:>15}".format(
-              i, result[1]["time"], 
+              i, result[1]["time"]["avg"], 
               result[0], result[1]["banner"]))
     
         
@@ -663,7 +631,7 @@ def evaluate_stuff():
     
     for i, lb_scheme in enumerate(lbs):
         if lb_scheme == "genetic":
-            worker_decisions_path = "round_{}/decisions-0.txt".format(ga_rounds)
+            worker_decisions_path = "lb-decisions/round_{}/decisions-0.txt".format(ga_rounds)
         else:
             worker_decisions_path = "lb-decisions/baselines/{}.txt".format(i)
         

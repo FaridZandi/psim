@@ -9,7 +9,7 @@ import queue
 import threading
 import sys
 import datetime
-from util import make_shuffle, get_incremented_number
+from utils.util import *
 import resource
 
 
@@ -20,8 +20,9 @@ import resource
 # run_id = os.popen("date +%s | sha256sum | base64 | head -c 4").read()
 run_id = str(get_incremented_number())
 
-base_dir = os.environ.get("PSIM_BASE_DIR")
+base_dir = get_base_dir() 
 input_dir = base_dir + "/input/"
+
 workloads_dir = input_dir
 if (len(sys.argv) == 1 or sys.argv[1].lower() == "full"):
     workloads_dir += "128search-dpstart-2/"
@@ -49,7 +50,6 @@ simulation_timestep = 1
 number_worker_threads = 20
 rep_count = 3
 protocols_count = 999 # all protocols
-memory_limit_kb = 10 * 1e9
 
 # select a random subset of protocols, exclude the random ones
 protocol_names = list(os.listdir(workloads_dir))
@@ -126,7 +126,7 @@ base_options = {
     
 
     # load balancing options
-    "load-metric" : "flowsize",
+    "load-metric" : "notset",
     "shuffle-device-map": True,
     "shuffle-map-file": shuffle_path,
 }
@@ -149,8 +149,9 @@ threads = []
 exp_q = queue.Queue()
 print_lock = threading.Lock()    
 
-memory_limit_kb = int(memory_limit_kb)
-resource.setrlimit(resource.RLIMIT_AS, (memory_limit_kb, memory_limit_kb))
+build_exec(run_executable, base_executable, build_path, run_path)
+make_shuffle(128, shuffle_path)
+set_memory_limit(10 * 1e9)
 
 def run_experiment(exp, worker_id):
     start_time = datetime.datetime.now()
@@ -163,14 +164,7 @@ def run_experiment(exp, worker_id):
     options["load-metric"] = load_metric_map[options["lb-scheme"]]
 
     # create the command
-    cmd = run_executable
-    for option in options.items():
-        if option[1] is False:
-            continue
-        elif option[1] is True:
-            cmd += " --" + option[0]
-        else:
-            cmd += " --" + option[0] + "=" + str(option[1])
+    cmd = make_cmd(run_executable, options, use_gdb=False, print_cmd=False)
 
     try:
         output = subprocess.check_output(cmd, shell=True)
@@ -226,51 +220,39 @@ def run_experiment(exp, worker_id):
         print("worker id: {}".format(worker_id))
         print("--------------------------------------------")
 
-worker_num = 0
-
-def worker(exp):
-    global worker_num
-    worker_id = worker_num
-    worker_num += 1
+worker_num_counter = 0
+def worker():
+    global worker_num_counter
+    worker_id = worker_num_counter
+    worker_num_counter += 1
 
     while True:
         try:
             exp = exp_q.get(block = 0)
         except queue.Empty:
             return
-
         run_experiment(exp, worker_id)
 
 
+def run_all_configs():
+    keys, values = zip(*sweep_config.items())
+    permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
 
+    for exp in permutations_dicts:
+        exp_q.put(exp)
 
-# build the executable, exit if build fails
-os.chdir(build_path)
-exit_code = os.system("make -j")
-if exit_code != 0:
-    print("make failed, exiting")
-    sys.exit(1)
-os.chdir(run_path)
-os.system("cp {} {}".format(base_executable, run_executable))
+    global total_jobs
+    total_jobs = exp_q.qsize()
 
-# build the shuffle map
-make_shuffle(128, shuffle_path)
+    for i in range(number_worker_threads):
+        t = threading.Thread(target=worker, args=())
+        threads.append(t)
+        t.start()
 
-keys, values = zip(*sweep_config.items())
-permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
+    for t in threads:
+        t.join()
 
-for exp in permutations_dicts:
-    exp_q.put(exp)
-
-total_jobs = exp_q.qsize()
-
-for i in range(number_worker_threads):
-    t = threading.Thread(target=worker, args=(exp_q,))
-    threads.append(t)
-    t.start()
-
-for t in threads:
-    t.join()
+run_all_configs()
 
 os.system("rm {}".format(run_executable))
 os.system("mv {} {}".format(shuffle_path, results_dir))
