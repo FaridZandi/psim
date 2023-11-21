@@ -27,9 +27,12 @@ workers_dir = run_path + "/workers/"
 use_gdb = False
 
 
-worker_count = 30
+population_size = 30 
 base_step_size = 10
 core_count = 4
+ga_rounds = 2000
+rep_count = 20
+
 baselines_path = "lb-decisions/baselines/"
 line_regex = re.compile(r".*flow \d+ core \d+ crit (true|false)")
 
@@ -75,12 +78,12 @@ options = {
 
     "step-size": base_step_size,
     "core-status-profiling-interval": 10,
-    "rep-count": 1, 
+    "rep-count": rep_count, 
     "console-log-level": 4,
     "file-log-level": 3,
     
     "initial-rate": 100,
-    "min-rate": 100,
+    "min-rate": 10,
     "priority-allocator": "fairshare", #"priorityqueue",
 
     "network-type": "leafspine",    
@@ -99,7 +102,8 @@ options = {
     "load-metric": "utilization",
     "shuffle-device-map": True,
     # "shuffle-map-file": input_dir + "/shuffle/shuffle-map.txt",
-    "shuffle-map-file": shuffle_path,
+    # "shuffle-map-file": shuffle_path,
+    "shuffle-map-file": run_path + "/round_416/shuffle-NmRjMzQ3.txt",
 }
 
 options.update(params)
@@ -164,7 +168,7 @@ def make_cmd(executable, options):
     return cmd
     
     
-def get_avg_psim_time(job_output): 
+def get_psim_time(job_output): 
     psim_times = []
     
     for line in iter(job_output.readline, b''):
@@ -173,12 +177,17 @@ def get_avg_psim_time(job_output):
             psim_time = float(output.split("psim time:")[1])
             psim_times.append(psim_time)
     
-    avg_psim_time = np.mean(psim_times)
-    return avg_psim_time
+    result = {
+        "avg": np.mean(psim_times), 
+        "max": np.max(psim_times),
+        "min": np.min(psim_times),
+        "median": np.median(psim_times), 
+    } 
+    
+    return result
         
 
-def make_baseline_decisions(): 
-    rep_count = 2 
+def make_baseline_decisions(rep_count = 2): 
 
     jobs = []    
     for i, lb_scheme in enumerate(baseline_lb_schemes):
@@ -205,15 +214,24 @@ def make_baseline_decisions():
     print(" done")
 
     os.system("mkdir -p {}".format(baselines_path))
-            
+    
+    results = {}
+    
     for i, job in enumerate(jobs):
-        avg_psim_time = get_avg_psim_time(job.stdout)
-        print("baseline {} avg psim time: {}".format(baseline_lb_schemes[i], avg_psim_time))
-        
+        # save the lb decisions file 
         source_path = "{}/worker-{}/run-{}/lb-decisions.txt".format(workers_dir, i, rep_count)
         dest_path = "lb-decisions/baselines/{}.txt".format(i)        
         os.system("cp {} {}".format(source_path, dest_path))        
+
+        # get the timing stats 
+        psim_time_stats = get_psim_time(job.stdout)
+        avg_psim_time = psim_time_stats["avg"]
+        print("baseline {} avg psim time: {}".format(baseline_lb_schemes[i], avg_psim_time))
+        results[baseline_lb_schemes[i]] = psim_time_stats
         
+    return results    
+        
+                
     
 
 def decisions_file_to_map(file_path):
@@ -260,6 +278,28 @@ def genetic_permute(decisions_map, num_permutations=1):
     
     return new_decisions
 
+
+def genetic_permute_crit(decisions_map, num_permutations=1):
+    new_decisions = decisions_deep_copy(decisions_map)
+    
+    keys = list(decisions_map.keys()) 
+    
+    for i in range(num_permutations):
+        # find a critical flow 
+        attempts = 0
+        while True:
+            flow = np.random.choice(keys)    
+            if decisions_map[flow]["crit"]:
+                break
+            attempts += 1
+            if attempts > 100:
+                break
+        
+        new_core = np.random.randint(0, core_count)
+        new_decisions[flow] = {"core": new_core, 
+                               "crit": False}
+    
+    return new_decisions
 
 # keep the same keys, but randomize the values, for all the keys
 def genetic_random(decisions_map):
@@ -360,7 +400,8 @@ def evaluate_population(population):
         results[i] = {}
         results[i].update(population[i])
         results[i].update({
-            "time": get_avg_psim_time(job.stdout), 
+            "time": get_psim_time(job.stdout), 
+            "lb-output-path": workers_dir + "/worker-{}/run-1/lb-decisions.txt".format(i)
         })    
     return results
 
@@ -373,7 +414,7 @@ def make_initial_population():
     population = {}
     initial_decisions = decisions_file_to_map("lb-decisions/baselines/0.txt")
     
-    for i in range(worker_count):
+    for i in range(population_size):
         worker_decisions_path = "lb-decisions/round_0/decisions-{}.txt".format(i)
         
         if i < baseline_count:
@@ -399,9 +440,9 @@ def make_initial_population():
 
 
 def make_next_population_item(i, new_round_dir, sorted_results):
-    keep_limit = int(worker_count * 0.3)
-    permute_limit = int(worker_count * 0.6)
-    crossover_limit = int(worker_count * 0.9)
+    keep_limit = int(population_size * 0.3)
+    permute_limit = int(population_size * 0.6)
+    crossover_limit = int(population_size * 0.9)
     
     decisions_path = "{}/decisions-{}.txt".format(new_round_dir, i)
     decisions = {} 
@@ -411,6 +452,7 @@ def make_next_population_item(i, new_round_dir, sorted_results):
     if i < keep_limit:
         method = "topscore"
         banner = "\033[92m" + "topscore_" + str(i) + "\033[0m"
+
         prev_decisions = sorted_results[i][1]["decisions"]
         decisions = genetic_permute(prev_decisions, i)
         
@@ -428,7 +470,7 @@ def make_next_population_item(i, new_round_dir, sorted_results):
         
     elif i < crossover_limit:
         crossover_source1 = np.random.randint(0, keep_limit)
-        crossover_source2 = np.random.randint(0, worker_count)
+        crossover_source2 = np.random.randint(0, population_size)
         crossover_ratio = np.random.random()
         crossover_method = np.random.choice(["combine-1-2", "combine-2-1"])
         
@@ -464,7 +506,7 @@ def make_next_population_item(i, new_round_dir, sorted_results):
 def make_next_population(new_round_dir, sorted_results):
     print("making next population ", end="")
     next_population = {}
-    for i in range(worker_count):
+    for i in range(population_size):
         next_population[i] = make_next_population_item(i, new_round_dir, sorted_results)
         print(".", end="")
         sys.stdout.flush()
@@ -562,17 +604,15 @@ def print_results(round_counter, sorted_results):
     
         
 def genetic_algorithm():
-    num_rounds = 2000
-    
     clean_up()
     os.system("mkdir -p lb-decisions/round_0")
     population = make_initial_population()
 
-    for round_counter in range(num_rounds):
+    for round_counter in range(ga_rounds):
         # evaluate the current population
         update_options(round_counter)
         results = evaluate_population(population)
-        sorted_results = sorted(results.items(), key=lambda kv: kv[1]["time"])
+        sorted_results = sorted(results.items(), key=lambda kv: kv[1]["time"]["avg"])
         update_stats(round_counter, sorted_results)
         
         # print the results
@@ -584,7 +624,7 @@ def genetic_algorithm():
         population = make_next_population(new_round_dir, sorted_results)
         
         # delete the old round
-        # os.system("rm -rf lb-decisions/round_{}".format(round_counter))
+        os.system("rm -rf lb-decisions/round_{}".format(round_counter))
 
 
 def signal_handler(sig, frame):
@@ -593,6 +633,100 @@ def signal_handler(sig, frame):
     
 signal.signal(signal.SIGQUIT, signal_handler)
 
+
 genetic_algorithm()
+
+
+###########################################################
+###########################################################
+###########################################################
+# some experimental stuff
+
+
+def evaluate_stuff():
+    clean_up() 
+
+    results = make_baseline_decisions(rep_count=rep_count)
+    
+    # add online to every key in the results 
+    keys = list(results.keys()) 
+    for key in keys:
+        online_key = key + "_online"
+        results[online_key] = results[key]
+        del results[key]
+        
+    # make a population with the baseline decisions
+    population = {}
+    
+    lbs = baseline_lb_schemes.copy() 
+    lbs .append("genetic")
+    
+    for i, lb_scheme in enumerate(lbs):
+        if lb_scheme == "genetic":
+            worker_decisions_path = "round_{}/decisions-0.txt".format(ga_rounds)
+        else:
+            worker_decisions_path = "lb-decisions/baselines/{}.txt".format(i)
+        
+        decisions = decisions_file_to_map(worker_decisions_path)
+        
+        population[i] = {"path" : worker_decisions_path, 
+                         "decisions": decisions,
+                         "method": "baseline",
+                         "banner" : "\033[92m" + "baseline" + "\033[0m"}
+        
+    pop_results = evaluate_population(population)
+    
+    for i, result in pop_results.items():
+        print("baseline {} avg psim time: {}".format(lbs[i], result["time"]))
+        offline_key = lbs[i] + "_offline"
+        results[offline_key] = result["time"]
+        
+    import matplotlib.pyplot as plt 
+    # for each item in the results, plot a bar that shows the min and max 
+    
+    labels = []
+    mins = []
+    maxs = []
+    avgs = []
+    medians = []
+    
+    # sort the results by the key 
+    results = {k: v for k, v in sorted(results.items(), key=lambda item: item[0])}    
+    
+    for key, value in results.items():
+        labels.append(key)
+        mins.append(value["min"])
+        maxs.append(value["max"])
+        avgs.append(value["avg"])
+        medians.append(value["median"])    
+        
+    # x range with some distance between every group of two bars
+    x = [-3] 
+    for i in range(int(len(labels) / 2) ):
+        x.append(i * 4)
+        x.append(i * 4 + 1)
+    print("x:", x)
+    width = 1
+    
+    fig, ax = plt.subplots()
+    rects4 = ax.bar(x, maxs, width, 
+                    label='max', edgecolor="black", linewidth=1, color = "white")
+    rects1 = ax.bar(x, mins, width, label='min', edgecolor="black", linewidth=1)
+    
+    ax.set_ylabel('time')
+    ax.set_title('time by lb scheme')
+
+    #rotate the xtick labels 90 degrees
+    plt.xticks(rotation=90)
+    ax.set_xticks(x)
+    ax.set_xticklabels(labels)    
+    
+    plt.savefig("baseline.png", bbox_inches='tight', dpi=300)
+        
+    pprint(results)
+        
+    
+    
+evaluate_stuff()
 
 os.system("rm {}".format(executable))
