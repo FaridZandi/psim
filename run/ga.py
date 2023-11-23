@@ -10,47 +10,47 @@ import matplotlib.pyplot as plt
 import re
 import signal 
 
-run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 
-# setting up the basic paths
-# read the env for the base dir 
+# general paths
 base_dir = get_base_dir()
 build_path = base_dir + "/build"
 run_path = base_dir + "/run/"
 base_executable = build_path + "/psim"
-executable = build_path + "/psim-" + run_id
 input_dir = base_dir + "/input/"
-shuffle_path  = input_dir + "/shuffle/shuffle-{}.txt".format(run_id)
 workers_dir = run_path + "/workers/"
-results_dir = "ga-results/{}-run/".format(run_id)
-os.system("mkdir -p {}".format(results_dir))
-baselines_path = "lb-decisions/baselines/"
+
+
+# run-specific paths
+run_id = str(get_incremented_number())
+executable = build_path + "/psim-" + run_id
+ga_run_dir = run_path + "ga/{}/".format(run_id)
+os.system("mkdir -p {}".format(ga_run_dir))
+shuffle_path  = ga_run_dir + "shuffle.txt"
+ga_rounds_dir = ga_run_dir + "rounds/"
+ga_baselines_dir = ga_rounds_dir + "baselines/"
+
+
+# overall parameters
+core_count = 4
+rep_count = 15
 line_regex = re.compile(r".*flow \d+ core \d+ crit (true|false)")
 
+
 # genetic algorithm parameters
-population_size = 30 
-base_step_size = 100
-core_count = 4
-ga_rounds = 2000
-rep_count = 10
+sorting_metric = "max" # min, avg, max
+population_size = 40 
 no_improvement_limit = 20
+halving_steps = 6 
+halving_rounds_interval = 200
+ga_rounds = halving_rounds_interval * halving_steps
+max_multiplier = 2 ** (halving_steps - 1)
+base_step_size = 10 * max_multiplier
+permutation_count_high = 10 * max_multiplier
+permutation_count_low = 1 * max_multiplier
 
-# runtime stats
-round_best_times = []
-round_avg_times = [] 
-round_median_times = []
-round_top_score_avg_rank = []
-round_permute_avg_rank = []
-round_crossover_avg_rank = []
-round_random_avg_rank = []
-no_improvement_counter = 0
-no_improvement_ref = 10e12
-best_so_far = 10e12
 
-build_exec(executable, base_executable, build_path, run_path)
-make_shuffle(128, shuffle_path)
-set_memory_limit(10 * 1e9)
 
+# simulator options and parameters
 options = {
     "protocol-file-dir": base_dir + "/input/128search-dpstart-2",
     "protocol-file-name": "candle128-simtime.txt",
@@ -81,9 +81,7 @@ options = {
     "lb-scheme": "readfile",
     "load-metric": "utilization",
     "shuffle-device-map": True,
-    # "shuffle-map-file": input_dir + "/shuffle/shuffle-map.txt",
-    # "shuffle-map-file": shuffle_path,
-    "shuffle-map-file": run_path + "/round_416/shuffle-NmRjMzQ3.txt",
+    "shuffle-map-file": shuffle_path,
 }
 
 baseline_lb_schemes = [
@@ -111,11 +109,65 @@ load_metric_map = {
 }
 
 
+# runtime stats
+round_best_times = []
+round_avg_times = [] 
+round_median_times = []
+round_top_score_avg_rank = []
+round_permute_avg_rank = []
+round_crossover_avg_rank = []
+round_random_avg_rank = []
+no_improvement_counter = 0
+no_improvement_ref = 10e12
+best_so_far = 10e12
 
 
-def clean_up(): 
-    os.system("rm -rf lb-decisions/*")
+
+
+###########################################################
+#################      helpers        #####################
+###########################################################
+
+
+def reset_runtime_stats(): 
+    global round_best_times
+    global round_avg_times
+    global round_median_times
+    global round_top_score_avg_rank
+    global round_permute_avg_rank
+    global round_crossover_avg_rank
+    global round_random_avg_rank
+    global no_improvement_counter
+    global no_improvement_ref
+    global best_so_far
     
+    round_best_times = []
+    round_avg_times = [] 
+    round_median_times = []
+    round_top_score_avg_rank = []
+    round_permute_avg_rank = []
+    round_crossover_avg_rank = []
+    round_random_avg_rank = []
+    no_improvement_counter = 0
+    no_improvement_ref = 10e12
+    best_so_far = 10e12
+    
+def dump_globals(file_path):
+    with open(ga_run_dir + file_path, "w") as f:
+        pprint("globals", stream=f)
+        pprint(globals(), stream=f)
+        
+def get_banner(text, color):
+    if color == "red":
+        return "\033[91m" + text + "\033[0m"
+    elif color == "green":
+        return "\033[92m" + text + "\033[0m"
+    elif color == "yellow":
+        return "\033[93m" + text + "\033[0m"
+    elif color == "blue":
+        return "\033[94m" + text + "\033[0m"
+    elif color == "purple":
+        return "\033[95m" + text + "\033[0m"
 
 def make_baseline_decisions(rep_count = 2): 
     jobs = []    
@@ -143,14 +195,14 @@ def make_baseline_decisions(rep_count = 2):
         sys.stdout.flush()
     print(" done")
 
-    os.system("mkdir -p {}".format(baselines_path))
+    os.system("mkdir -p {}".format(ga_baselines_dir))
     
     results = {}
     
     for i, job in enumerate(jobs):
         # save the lb decisions file 
         source_path = "{}/worker-{}/run-{}/lb-decisions.txt".format(workers_dir, i, rep_count)
-        dest_path = "lb-decisions/baselines/{}.txt".format(i)        
+        dest_path = ga_baselines_dir + "{}.txt".format(i)        
         os.system("cp {} {}".format(source_path, dest_path))        
 
         # get the timing stats 
@@ -195,17 +247,28 @@ def decisions_map_to_file(decisions, file_path):
             f.write("flow {} core {}\n".format(flow, flow_info["core"]))
 
 
-def genetic_permute(decisions_map, num_permutations=1):
-    new_decisions = decisions_deep_copy(decisions_map)
+# either change the core of each flow to a different random core, 
+# or change the core of all permutated flows to the same random core
+def genetic_permute(decisions_map, 
+                    num_permutations=1, 
+                    permute_method="change"):
     
+    new_decisions = decisions_deep_copy(decisions_map)
     keys = list(decisions_map.keys()) 
     
-    for i in range(num_permutations):
-        flow = np.random.choice(keys)    
+    if permute_method == "change":
+        for i in range(num_permutations):
+            flow = np.random.choice(keys)    
+            new_core = np.random.randint(0, core_count)
+            new_decisions[flow] = {"core": new_core, 
+                                   "crit": False}
+    elif permute_method == "clump":
         new_core = np.random.randint(0, core_count)
-        new_decisions[flow] = {"core": new_core, 
-                               "crit": False}
-    
+        for i in range(num_permutations):
+            flow = np.random.choice(keys)    
+            new_decisions[flow] = {"core": new_core, 
+                                   "crit": False}
+            
     return new_decisions
 
 
@@ -342,20 +405,20 @@ def make_initial_population():
     baseline_count = len(baseline_lb_schemes)
     
     population = {}
-    initial_decisions = decisions_file_to_map("lb-decisions/baselines/0.txt")
+    initial_decisions = decisions_file_to_map(ga_baselines_dir + "/0.txt")
     
     for i in range(population_size):
-        worker_decisions_path = "lb-decisions/round_0/decisions-{}.txt".format(i)
+        worker_decisions_path = ga_rounds_dir + "/0/{}.txt".format(i)
         
         if i < baseline_count:
-            baseline_path = "lb-decisions/baselines/{}.txt".format(i)
+            baseline_path = ga_baselines_dir + "/{}.txt".format(i)
             baseline_decisions = decisions_file_to_map(baseline_path)
             decisions_map_to_file(baseline_decisions, worker_decisions_path)
 
             population[i] = {"path" : worker_decisions_path, 
                              "decisions": baseline_decisions,
                              "method": "baseline",
-                             "banner" : "\033[92m" + "baseline" + "\033[0m"}
+                             "banner" : get_banner(baseline_lb_schemes[i], "green")}
             
         else: 
             worker_decisions = genetic_random(initial_decisions)
@@ -364,7 +427,7 @@ def make_initial_population():
             population[i] = {"path" : worker_decisions_path, 
                              "decisions": worker_decisions,
                              "method": "random",
-                             "banner" : "\033[91m" + "random" + "\033[0m"}
+                             "banner" : get_banner("random", "red")}
             
     return population
 
@@ -374,28 +437,42 @@ def make_next_population_item(i, new_round_dir, sorted_results):
     permute_limit = int(population_size * 0.6)
     crossover_limit = int(population_size * 0.9)
     
-    decisions_path = "{}/decisions-{}.txt".format(new_round_dir, i)
+    decisions_path = "{}/{}.txt".format(new_round_dir, i)
     decisions = {} 
     method = None
     banner = None
     
     if i < keep_limit:
         method = "topscore"
-        banner = "\033[92m" + "topscore_" + str(i) + "\033[0m"
 
         prev_decisions = sorted_results[i][1]["decisions"]
-        decisions = genetic_permute(prev_decisions, i)
         
-        
+        if i == 0:
+            banner = get_banner("topscore_0", "green")
+            decisions = decisions_deep_copy(prev_decisions)
+        else: 
+            perm_cnt = np.random.randint(1, (permutation_count_high // 10) + 1) 
+
+            banner_text = "topscore_{}_{}".format(i, perm_cnt)
+            banner = get_banner(banner_text, "green")        
+
+            decisions = genetic_permute(prev_decisions, perm_cnt, "change")
+            
     elif i < permute_limit:
-        perm_src = np.random.randint(0, permute_limit)
-        perm_cnt = np.random.randint(0, 10)
+        
+        perm_src = np.random.randint(0, keep_limit)
+        perm_cnt = np.random.randint(permutation_count_low, 
+                                     permutation_count_high)
+        perm_method = np.random.choice(["change", "clump"])
 
         method = "permute"
-        banner = "\033[94m" + "permute_" + str(perm_src) + "_" + str(perm_cnt) + "\033[0m"
+        banner_text = "permute_{}_{}_{}".format(perm_src, 
+                                                perm_cnt, 
+                                                perm_method)
+        banner = get_banner(banner_text, "yellow")
         
         src_decisions = sorted_results[perm_src][1]["decisions"]
-        decisions = genetic_permute(src_decisions, perm_cnt)
+        decisions = genetic_permute(src_decisions, perm_cnt, perm_method)
         
         
     elif i < crossover_limit:
@@ -405,8 +482,13 @@ def make_next_population_item(i, new_round_dir, sorted_results):
         crossover_method = np.random.choice(["combine-1-2", "combine-2-1"])
         
         method = "crossover"
-        banner = "\033[93m" + "crossover_" + str(crossover_source1) + "_" + str(crossover_source2) + "\033[0m"
-        
+        crossover_ratio_int = int(round(crossover_ratio, 2) * 100)
+        banner_text = "crossover_{}_{}_{}_{}".format(crossover_source1,
+                                                     crossover_source2,
+                                                     crossover_ratio_int,
+                                                     crossover_method)
+        banner = get_banner(banner_text, "purple")
+
         worker_decisions1 = sorted_results[crossover_source1][1]["decisions"]
         worker_decisions2 = sorted_results[crossover_source2][1]["decisions"]
         
@@ -417,9 +499,9 @@ def make_next_population_item(i, new_round_dir, sorted_results):
         
     else:
         method = "random"
-        banner = "\033[91m" + "random" + "\033[0m"
+        banner = get_banner("random", "red")
         
-        initial_decisions = decisions_file_to_map("lb-decisions/baselines/0.txt")
+        initial_decisions = decisions_file_to_map(ga_baselines_dir + "0.txt")
         worker_decisions = genetic_random(initial_decisions)
         
         decisions = worker_decisions
@@ -444,12 +526,12 @@ def make_next_population(new_round_dir, sorted_results):
     return next_population
     
 
-def plot_stats(): 
+def plot_runtime_stats(): 
     plt.plot(round_best_times, label="best")    
     plt.plot(round_avg_times, label="avg")
     plt.plot(round_median_times, label="median")
     plt.legend()
-    plt.savefig("ga.png")
+    plt.savefig("{}/ga-times-{}.png".format(ga_run_dir, base_step_size))
     plt.clf()
     
     plt.plot(round_top_score_avg_rank, label="topscore avg rank")
@@ -457,7 +539,7 @@ def plot_stats():
     plt.plot(round_crossover_avg_rank, label="crossover avg rank")
     plt.plot(round_random_avg_rank, label="random avg rank")
     plt.legend()
-    plt.savefig("ga-ranks.png")
+    plt.savefig("{}/ga-ranks-{}.png".format(ga_run_dir, base_step_size))
     plt.clf()
     
 def update_stats(round_counter, sorted_results): 
@@ -503,12 +585,50 @@ def update_stats(round_counter, sorted_results):
         round_random_avg_rank.append(random_ranks_sum / random_count)
             
                         
-    if round_counter % 10 == 0 and round_counter != 0:
-        plot_stats()
+    # if round_counter % 10 == 0 and round_counter != 0:
+    #     plot_runtime_stats()
         
+    if round_counter != 0: 
+        plot_runtime_stats()
 
 
+def handle_halving(round_counter, current_population): 
+    global base_step_size
+    global permutation_count_high
+    global permutation_count_low
+    
+    base_step_size /= 2
+    permutation_count_high /= 2  
+    permutation_count_low /= 2  
+    
+    options["step-size"] = base_step_size
+    reset_runtime_stats()
+    
+    # for the new step size, make the baseline decisions again 
+    # then change the last items in the population to the 
+    # new baseline decisions generated for the new step size
+    new_population = current_population.copy()
+    
+    make_baseline_decisions()
 
+    replacing_index_start = population_size - len(baseline_lb_schemes)
+    for i in range(replacing_index_start, population_size): 
+        baseline_index = i - replacing_index_start
+        baseline_name = baseline_lb_schemes[baseline_index] 
+        
+        baseline_path = ga_baselines_dir + "/{}.txt".format(baseline_index)
+        worker_decisions_path = ga_rounds_dir + "/{}/{}.txt".format(round_counter, i)
+        baseline_decisions = decisions_file_to_map(baseline_path)
+        decisions_map_to_file(baseline_decisions, worker_decisions_path)
+
+        new_population[i] = {"path" : worker_decisions_path, 
+                             "decisions": baseline_decisions,
+                             "method": "baseline",
+                             "banner" : get_banner(baseline_name, "green")}
+    
+    return new_population
+    
+    
 def update_options(round_counter): 
     if round_counter == 0:
         return
@@ -516,20 +636,9 @@ def update_options(round_counter):
     global no_improvement_counter
     global no_improvement_ref    
     global best_so_far
-    global base_step_size
-    
-    # every 1000 rounds, decrease the step size by a factor of 10
-    if round_counter % 500 == 0: 
-        base_step_size /= 10 
-        options["step-size"] = base_step_size
-        no_improvement_counter = 0
-        no_improvement_ref = 10e12
-        
     
     # if there were no improvements compared to the reference for a while,
-    # change the step size a bit. The ref changes every time there is an improvement 
-    # to the best results seen so far, or when we detect that we are stuck and 
-    # we need to change the step size. 
+    # change the step size a bit. 
     last_round_best = round_best_times[-1]
     
     is_improvement = (last_round_best < no_improvement_ref)
@@ -542,11 +651,11 @@ def update_options(round_counter):
         print("no improvement seen for {} rounds compared to ref {}".format(
               no_improvement_counter, no_improvement_ref))
         
-    if no_improvement_counter > no_improvement_limit:
+    if no_improvement_counter >= no_improvement_limit:
         new_step_size = 0 
         while new_step_size != options["step-size"]:
-            sign = np.random.choice([-1, 0, 1])
-            new_step_size = base_step_size * (1 + sign * 0.1)
+            change = np.random.choice([-1, 0, 1])
+            new_step_size = base_step_size + change
               
         options["step-size"] = new_step_size
         no_improvement_counter = 0
@@ -554,8 +663,7 @@ def update_options(round_counter):
         
         print("no improvement seen for {} rounds, changing step size to {}".format(
               no_improvement_counter, new_step_size))
-        
-    
+
     if last_round_best < best_so_far:
         no_improvement_ref = last_round_best
         no_improvement_counter = 0
@@ -564,122 +672,142 @@ def update_options(round_counter):
     
 
 def print_results(round_counter, sorted_results):
-    print("round {} evaluated, results:".format(round_counter))
+    print("round {} evaluated with step size {}, results:".format(
+        round_counter, options["step-size"]))
+    
     for i, result in enumerate(sorted_results):
-        print("rank: {:3d} time: {:6.2f} prev_rank: {:3d} method: {:>15}".format(
-              i, result[1]["time"]["avg"], 
-              result[0], result[1]["banner"]))
+        print("rank: {:3d} time: [{:>7.2f} .. {:>7.2f} .. {:>7.2f}] prev_rank: {:3d} method: {:>15}".format(
+              i, 
+              result[1]["time"]["min"], 
+              result[1]["time"]["avg"], 
+              result[1]["time"]["max"], 
+              result[0], 
+              result[1]["banner"]))
     
         
 def genetic_algorithm():
-    clean_up()
-    os.system("mkdir -p lb-decisions/round_0")
+    os.system("mkdir -p {}/0".format(ga_rounds_dir))
     population = make_initial_population()
 
     for round_counter in range(ga_rounds):
         # evaluate the current population
-        update_options(round_counter)
+        if round_counter > 0: 
+            if round_counter % halving_rounds_interval == 0: 
+                population = handle_halving(round_counter, population)
+            else:
+                update_options(round_counter)
+                
         results = evaluate_population(population)
-        sorted_results = sorted(results.items(), key=lambda kv: kv[1]["time"]["avg"])
+        sorted_results = sorted(results.items(), 
+                                key=lambda kv: kv[1]["time"][sorting_metric])
         update_stats(round_counter, sorted_results)
         
         # print the results
         print_results(round_counter, sorted_results)
         
         # prepare the next round
-        new_round_dir = "lb-decisions/round_{}".format(round_counter + 1)
+        prev_round_dir = ga_rounds_dir + "{}".format(round_counter)
+        new_round_dir = ga_rounds_dir + "{}".format(round_counter + 1)
         os.system("mkdir -p {}".format(new_round_dir))  
         population = make_next_population(new_round_dir, sorted_results)
         
         # delete the old round
-        os.system("rm -rf lb-decisions/round_{}".format(round_counter))
+        os.system("rm -rf {}".format(prev_round_dir))
 
 
 def signal_handler(sig, frame):
-    print("saving stats")
-    plot_stats()
+    print("\n\nsaving stats\n\n")
+    plot_runtime_stats()
+
+
+def plot_final_results():
+    options["step-size"] = 10
+    options["rep-count"] = 1    
     
-signal.signal(signal.SIGQUIT, signal_handler)
-
-
-genetic_algorithm()
-
-
-###########################################################
-###########################################################
-###########################################################
-# some experimental stuff
-
-
-def evaluate_stuff():
-    clean_up() 
-
-    results = make_baseline_decisions(rep_count=rep_count)
+    final_results = {}
     
-    # add online to every key in the results 
-    keys = list(results.keys()) 
-    for key in keys:
-        online_key = key + "_online"
-        results[online_key] = results[key]
-        del results[key]
+    for i in range(rep_count):
+        results = make_baseline_decisions(rep_count=1)
         
-    # make a population with the baseline decisions
-    population = {}
-    
-    lbs = baseline_lb_schemes.copy() 
-    lbs .append("genetic")
-    
-    for i, lb_scheme in enumerate(lbs):
-        if lb_scheme == "genetic":
-            worker_decisions_path = "lb-decisions/round_{}/decisions-0.txt".format(ga_rounds)
-        else:
-            worker_decisions_path = "lb-decisions/baselines/{}.txt".format(i)
+        # add online to every key in the results 
+        keys = list(results.keys()) 
+        for key in keys:
+            online_key = key + "_online"
+            results[online_key] = results[key]
+            del results[key]
+            
+        # make a population with the baseline decisions
+        population = {}
         
-        decisions = decisions_file_to_map(worker_decisions_path)
+        lbs = baseline_lb_schemes.copy() 
+        lbs.append("genetic")
         
-        population[i] = {"path" : worker_decisions_path, 
-                         "decisions": decisions,
-                         "method": "baseline",
-                         "banner" : "\033[92m" + "baseline" + "\033[0m"}
+        for i, lb_scheme in enumerate(lbs):
+            if lb_scheme == "genetic":
+                worker_decisions_path = ga_rounds_dir + "/{}/0.txt".format(ga_rounds)
+            else:
+                worker_decisions_path = ga_baselines_dir + "/{}.txt".format(i)
+            
+            decisions = decisions_file_to_map(worker_decisions_path)
+            
+            population[i] = {"path" : worker_decisions_path, 
+                            "decisions": decisions,
+                            "method": "baseline",
+                            "banner" : "\033[92m" + "baseline" + "\033[0m"}
+            
+        pop_results = evaluate_population(population)
         
-    pop_results = evaluate_population(population)
-    
-    for i, result in pop_results.items():
-        print("baseline {} avg psim time: {}".format(lbs[i], result["time"]))
-        offline_key = lbs[i] + "_offline"
-        results[offline_key] = result["time"]
+        for i, result in pop_results.items():
+            print("baseline {} avg psim time: {}".format(lbs[i], result["time"]))
+            offline_key = lbs[i] + "_offline"
+            results[offline_key] = result["time"]
+            
+            
+        # sort the results by key alphabetically, 
+        # but the genetic_offline key should be the last
+        # hate this code, but I guess it works
+        genetics_results = results["genetic_offline"].copy()
+        del results["genetic_offline"]
+        no_genetic_sorted = sorted(results.items(), key=lambda kv: kv[0])
+        sorted_results = {"genetic_offline": genetics_results}
+        for key, value in no_genetic_sorted:
+            sorted_results[key] = value
         
-    import matplotlib.pyplot as plt 
-    # for each item in the results, plot a bar that shows the min and max 
-    
+
+        for key, value in sorted_results.items():
+            if key not in final_results:
+                final_results[key] = {"min": 10e12,
+                                      "max": 0}
+                
+            final_results[key]["min"] = min(final_results[key]["min"], value["min"])
+            final_results[key]["max"] = max(final_results[key]["max"], value["max"])
+                
+
+    print("final results")
+    pprint(final_results)
+
     labels = []
     mins = []
     maxs = []
-    avgs = []
-    medians = []
-    
-    # sort the results by the key 
-    results = {k: v for k, v in sorted(results.items(), key=lambda item: item[0])}    
-    
-    for key, value in results.items():
+
+    for key, value in final_results.items():
         labels.append(key)
         mins.append(value["min"])
         maxs.append(value["max"])
-        avgs.append(value["avg"])
-        medians.append(value["median"])    
         
+    import matplotlib.pyplot as plt 
+
     # x range with some distance between every group of two bars
     x = [-3] 
     for i in range(int(len(labels) / 2) ):
         x.append(i * 4)
         x.append(i * 4 + 1)
-    print("x:", x)
     width = 1
     
     fig, ax = plt.subplots()
-    rects4 = ax.bar(x, maxs, width, 
+    ax.bar(x, maxs, width, 
                     label='max', edgecolor="black", linewidth=1, color = "white")
-    rects1 = ax.bar(x, mins, width, label='min', edgecolor="black", linewidth=1)
+    ax.bar(x, mins, width, label='min', edgecolor="black", linewidth=1)
     
     ax.set_ylabel('time')
     ax.set_title('time by lb scheme')
@@ -689,12 +817,28 @@ def evaluate_stuff():
     ax.set_xticks(x)
     ax.set_xticklabels(labels)    
     
-    plt.savefig("baseline.png", bbox_inches='tight', dpi=300)
+    plt_path = ga_run_dir + "baseline.png"
+    plt.savefig(plt_path, bbox_inches='tight', dpi=300)
         
-    pprint(results)
-        
-    
-    
-evaluate_stuff()
 
-os.system("rm {}".format(executable))
+
+###########################################################
+#################      setup        #######################
+###########################################################
+dump_globals("globals.txt")
+signal.signal(signal.SIGQUIT, signal_handler) 
+build_exec(executable, base_executable, build_path, run_path)
+make_shuffle(128, shuffle_path)
+set_memory_limit(10 * 1e9)
+
+###########################################################
+#################      run        #######################
+###########################################################
+genetic_algorithm()       
+plot_final_results()
+
+
+###########################################################
+#################      clean        #######################
+###########################################################
+os.system("mv {} {}".format(executable, ga_run_dir))
