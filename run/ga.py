@@ -1,14 +1,14 @@
-import os
-from pprint import pprint 
 import subprocess
-import numpy as np
+import os
 import sys 
-import resource
-from utils.util import *
-from tqdm import tqdm
-import matplotlib.pyplot as plt
 import re
 import signal 
+
+import matplotlib.pyplot as plt
+import numpy as np
+
+from utils.util import *
+from pprint import pprint 
 
 
 # general paths
@@ -17,7 +17,8 @@ build_path = base_dir + "/build"
 run_path = base_dir + "/run/"
 base_executable = build_path + "/psim"
 input_dir = base_dir + "/input/"
-workers_dir = run_path + "/workers/"
+# workers_dir = run_path + "/workers/"
+workers_dir = "/tmp/workers/"
 
 
 # run-specific paths
@@ -30,44 +31,49 @@ ga_rounds_dir = ga_run_dir + "rounds/"
 ga_baselines_dir = ga_rounds_dir + "baselines/"
 
 
-# overall parameters
-core_count = 4
-rep_count = 15
+# input parameters
 line_regex = re.compile(r".*flow \d+ core \d+ crit (true|false)")
-
-
-# genetic algorithm parameters
+protocol_file_name = "candle128-simtime.txt"
+# protocol_file_name = "transformer128-simtime+compute.txt"
+core_count = 4
+rep_count = 1
+link_bandwidth = 100
 sorting_metric = "max" # min, avg, max
 population_size = 40 
-no_improvement_limit = 20
-halving_steps = 6 
-halving_rounds_interval = 200
+tweak_tolerance_limit = 5
+halving_steps = 3
+halving_rounds_interval = 100
+do_shuffle = True 
+final_step_size = 10
+final_perm_count_range = (1, 10)
+
+# computed parameters
 ga_rounds = halving_rounds_interval * halving_steps
 max_multiplier = 2 ** (halving_steps - 1)
-base_step_size = 10 * max_multiplier
-permutation_count_high = 10 * max_multiplier
-permutation_count_low = 1 * max_multiplier
+base_step_size = final_step_size * max_multiplier
+permutation_count_low = final_perm_count_range[0] * max_multiplier
+permutation_count_high = final_perm_count_range[1] * max_multiplier
 
 
 
 # simulator options and parameters
 options = {
     "protocol-file-dir": base_dir + "/input/128search-dpstart-2",
-    "protocol-file-name": "candle128-simtime.txt",
+    "protocol-file-name": protocol_file_name,
     # "protocol-file-name": "transformer128-simtime+compute.txt",
 
     "step-size": base_step_size,
-    "core-status-profiling-interval": 10,
+    "core-status-profiling-interval": base_step_size,
     "rep-count": rep_count, 
     "console-log-level": 4,
     "file-log-level": 3,
     
-    "initial-rate": 100,
-    "min-rate": 10,
+    "initial-rate": link_bandwidth,
+    "min-rate": link_bandwidth, 
     "priority-allocator": "fairshare", #"priorityqueue",
 
     "network-type": "leafspine",    
-    "link-bandwidth": 100,
+    "link-bandwidth": link_bandwidth,
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
@@ -80,12 +86,13 @@ options = {
     
     "lb-scheme": "readfile",
     "load-metric": "utilization",
-    "shuffle-device-map": True,
+    "shuffle-device-map": do_shuffle,
     "shuffle-map-file": shuffle_path,
+    "workers-dir": workers_dir,
 }
 
 baseline_lb_schemes = [
-    # "futureload",
+    "futureload",
     "random",
     "roundrobin",
     "powerof2",
@@ -117,17 +124,18 @@ round_top_score_avg_rank = []
 round_permute_avg_rank = []
 round_crossover_avg_rank = []
 round_random_avg_rank = []
-no_improvement_counter = 0
+tweak_tolerance_counter = 0
 no_improvement_ref = 10e12
 best_so_far = 10e12
-
-
 
 
 ###########################################################
 #################      helpers        #####################
 ###########################################################
 
+def update_step_size(step_size):
+    options["step-size"] = step_size
+    options["core-status-profiling-interval"] = step_size
 
 def reset_runtime_stats(): 
     global round_best_times
@@ -137,7 +145,7 @@ def reset_runtime_stats():
     global round_permute_avg_rank
     global round_crossover_avg_rank
     global round_random_avg_rank
-    global no_improvement_counter
+    global tweak_tolerance_counter
     global no_improvement_ref
     global best_so_far
     
@@ -148,14 +156,16 @@ def reset_runtime_stats():
     round_permute_avg_rank = []
     round_crossover_avg_rank = []
     round_random_avg_rank = []
-    no_improvement_counter = 0
+    tweak_tolerance_counter = 0
     no_improvement_ref = 10e12
     best_so_far = 10e12
+    
     
 def dump_globals(file_path):
     with open(ga_run_dir + file_path, "w") as f:
         pprint("globals", stream=f)
         pprint(globals(), stream=f)
+        
         
 def get_banner(text, color):
     if color == "red":
@@ -169,9 +179,12 @@ def get_banner(text, color):
     elif color == "purple":
         return "\033[95m" + text + "\033[0m"
 
+
 def make_baseline_decisions(rep_count = 2): 
-    jobs = []    
+    os.system("mkdir -p {}".format(ga_baselines_dir))
     
+    jobs = []    
+    cmds = [] 
     for i, lb_scheme in enumerate(baseline_lb_schemes):
         job_options = options.copy()
         job_options["worker-id"] = i
@@ -179,8 +192,8 @@ def make_baseline_decisions(rep_count = 2):
         job_options["load-metric"] = load_metric_map[lb_scheme]
         job_options["rep-count"] = rep_count
         job_options["file-log-level"] = 3
-        
         cmd = make_cmd(executable, job_options)
+        cmds.append(cmd)
         
         jobs.append(subprocess.Popen(cmd, 
                                      stdout=subprocess.PIPE, 
@@ -194,8 +207,6 @@ def make_baseline_decisions(rep_count = 2):
         print(".", end="")
         sys.stdout.flush()
     print(" done")
-
-    os.system("mkdir -p {}".format(ga_baselines_dir))
     
     results = {}
     
@@ -206,7 +217,14 @@ def make_baseline_decisions(rep_count = 2):
         os.system("cp {} {}".format(source_path, dest_path))        
 
         # get the timing stats 
-        psim_time_stats = get_psim_time(job.stdout)
+        try:
+            psim_time_stats = get_psim_time(job.stdout)
+        except Exception as e:
+            print("running cmd: ", cmds[i])
+            print("error getting psim time stats for baseline {}:".format(baseline_lb_schemes[i]))
+            print(e)
+            exit(0)
+            
         avg_psim_time = psim_time_stats["avg"]
         print("baseline {} avg psim time: {}".format(baseline_lb_schemes[i], avg_psim_time))
         results[baseline_lb_schemes[i]] = psim_time_stats
@@ -361,7 +379,7 @@ def genetic_crossover(decisions_map1,
             
     
 # population is a map from worker id to decisions file path
-def evaluate_population(population): 
+def evaluate_population(population, round_counter=-1): 
     
     # run the jobs in parallel
     jobs = []
@@ -396,7 +414,13 @@ def evaluate_population(population):
             "time": get_psim_time(job.stdout), 
             "lb-output-path": workers_dir + "/worker-{}/run-1/lb-decisions.txt".format(i)
         })    
-    return results
+        
+    sorted_results = sorted(results.items(), 
+                            key=lambda kv: kv[1]["time"][sorting_metric])
+    
+    print_results(round_counter, sorted_results)
+    
+    return sorted_results
 
 
 
@@ -544,13 +568,13 @@ def plot_runtime_stats():
     
 def update_stats(round_counter, sorted_results): 
     
-    round_best = sorted_results[0][1]["time"]["avg"]   
+    round_best = sorted_results[0][1]["time"][sorting_metric]   
     round_best_times.append(round_best)
     
-    round_avg = np.mean([result[1]["time"]["avg"] for result in sorted_results])
+    round_avg = np.mean([result[1]["time"][sorting_metric] for result in sorted_results])
     round_avg_times.append(round_avg)
     
-    round_median = np.median([result[1]["time"]["avg"] for result in sorted_results])
+    round_median = np.median([result[1]["time"][sorting_metric] for result in sorted_results])
     round_median_times.append(round_median)
     
     
@@ -592,16 +616,16 @@ def update_stats(round_counter, sorted_results):
         plot_runtime_stats()
 
 
-def handle_halving(round_counter, current_population): 
+def handle_stepsize_halving(round_counter, current_population): 
     global base_step_size
     global permutation_count_high
     global permutation_count_low
     
-    base_step_size /= 2
-    permutation_count_high /= 2  
-    permutation_count_low /= 2  
+    base_step_size //= 2
+    permutation_count_high //= 2  
+    permutation_count_low //= 2  
     
-    options["step-size"] = base_step_size
+    update_step_size(base_step_size)
     reset_runtime_stats()
     
     # for the new step size, make the baseline decisions again 
@@ -629,11 +653,12 @@ def handle_halving(round_counter, current_population):
     return new_population
     
     
-def update_options(round_counter): 
-    if round_counter == 0:
+
+def handle_stepsize_tweaking_no_improvement(): 
+    if len(round_best_times) == 0:
         return
     
-    global no_improvement_counter
+    global tweak_tolerance_counter
     global no_improvement_ref    
     global best_so_far
     
@@ -642,33 +667,78 @@ def update_options(round_counter):
     last_round_best = round_best_times[-1]
     
     is_improvement = (last_round_best < no_improvement_ref)
-    no_improvement_counter += (0 if is_improvement else 1)
+    tweak_tolerance_counter += (0 if is_improvement else 1)
     
     if is_improvement:
         no_improvement_ref = last_round_best
     
-    if no_improvement_counter > 0: 
-        print("no improvement seen for {} rounds compared to ref {}".format(
-              no_improvement_counter, no_improvement_ref))
+    if tweak_tolerance_counter > 0: 
+        print("no improvement seen for {} rounds compared to ref {}, best so far: {}".format(
+              tweak_tolerance_counter, no_improvement_ref, best_so_far))
         
-    if no_improvement_counter >= no_improvement_limit:
-        new_step_size = 0 
-        while new_step_size != options["step-size"]:
-            change = np.random.choice([-1, 0, 1])
+    if tweak_tolerance_counter >= tweak_tolerance_limit:
+        new_step_size = options["step-size"]
+        while new_step_size == options["step-size"]:
+            change = np.random.choice([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
             new_step_size = base_step_size + change
-              
-        options["step-size"] = new_step_size
-        no_improvement_counter = 0
+            
+        update_step_size(new_step_size)
+        tweak_tolerance_counter = 0
         no_improvement_ref = 10e12
         
         print("no improvement seen for {} rounds, changing step size to {}".format(
-              no_improvement_counter, new_step_size))
+              tweak_tolerance_counter, new_step_size))
 
     if last_round_best < best_so_far:
         no_improvement_ref = last_round_best
-        no_improvement_counter = 0
+        tweak_tolerance_counter = 0
         best_so_far = last_round_best
     
+    
+    
+# if the median of the population is getting too close to the best,
+# then it means that the population is converging, so we should
+# change something to make it diverge again. 
+
+# if the median remains close to the best for tweak_tolerance_limit rounds,
+# then change the step size a bit.
+def handle_stepsize_tweaking_with_median():
+    if len(round_best_times) == 0:
+        return
+
+    global tweak_tolerance_counter
+    
+    last_round_best = round_best_times[-1]
+    last_round_median = round_median_times[-1]
+    last_round_avg = round_avg_times[-1]
+    
+    best_avg_diff = last_round_avg - last_round_best  
+    median_avg_diff = last_round_avg - last_round_median
+    
+    print("best_avg_diff: {}, median_avg_diff: {}".format(best_avg_diff, median_avg_diff))
+    
+    if median_avg_diff > best_avg_diff * 0.65:
+        tweak_tolerance_counter += 1
+        
+        print("median has been close to the best for {}/{} rounds".format(
+              tweak_tolerance_counter, tweak_tolerance_limit)) 
+        
+        if tweak_tolerance_counter >= tweak_tolerance_limit: 
+            new_step_size = options["step-size"]
+            while new_step_size == options["step-size"]:
+                change = np.random.choice([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+                new_step_size = base_step_size + change
+            
+            update_step_size(new_step_size)
+            print("step size changed to {}".format(new_step_size))
+
+            tweak_tolerance_counter = 0
+                
+    else: 
+        tweak_tolerance_counter = 0
+                
+        
+        
     
 
 def print_results(round_counter, sorted_results):
@@ -693,17 +763,13 @@ def genetic_algorithm():
         # evaluate the current population
         if round_counter > 0: 
             if round_counter % halving_rounds_interval == 0: 
-                population = handle_halving(round_counter, population)
+                population = handle_stepsize_halving(round_counter, population)
             else:
-                update_options(round_counter)
+                # handle_stepsize_tweaking()
+                handle_stepsize_tweaking_with_median()
                 
-        results = evaluate_population(population)
-        sorted_results = sorted(results.items(), 
-                                key=lambda kv: kv[1]["time"][sorting_metric])
+        sorted_results = evaluate_population(population, round_counter)
         update_stats(round_counter, sorted_results)
-        
-        # print the results
-        print_results(round_counter, sorted_results)
         
         # prepare the next round
         prev_round_dir = ga_rounds_dir + "{}".format(round_counter)
@@ -720,68 +786,87 @@ def signal_handler(sig, frame):
     plot_runtime_stats()
 
 
-def plot_final_results():
-    options["step-size"] = 10
-    options["rep-count"] = 1    
+# extremely bad code, just to get the plot done
+# this is the worst code I've ever written. 
+# just kidding, I've written worse.
+
+def plot_compare_ga_with_baselines():
     
-    final_results = {}
+    final_results = []
     
-    for i in range(rep_count):
-        results = make_baseline_decisions(rep_count=1)
+    update_step_size(final_step_size)
+    options["rep-count"] = 2  # futureload needs at least 2 reps to work
+                              # the others are not affected by the rep count
+                              # we get the "last" time from the second rep
+    
+    for rep in range(rep_count):
+        round_results = []
         
-        # add online to every key in the results 
-        keys = list(results.keys()) 
-        for key in keys:
+        # Step 1: online baseline results
+        online_baseline_results = make_baseline_decisions(rep_count=2)
+        for key, value in online_baseline_results.items():
             online_key = key + "_online"
-            results[online_key] = results[key]
-            del results[key]
-            
-        # make a population with the baseline decisions
-        population = {}
+            round_results.append((online_key, value))
+
+
+        # Step 2: offline baseline results
+
+        # Step 2.1: make a population with the baseline decisions
+        offline_population = {}
+        offline_schemes = baseline_lb_schemes.copy() 
+        offline_schemes.append("genetic")
         
-        lbs = baseline_lb_schemes.copy() 
-        lbs.append("genetic")
-        
-        for i, lb_scheme in enumerate(lbs):
-            if lb_scheme == "genetic":
+        for j, offline_scheme in enumerate(offline_schemes):
+            if offline_scheme == "genetic":
+                # the best decisions from the last round
                 worker_decisions_path = ga_rounds_dir + "/{}/0.txt".format(ga_rounds)
             else:
-                worker_decisions_path = ga_baselines_dir + "/{}.txt".format(i)
+                # the baseline decisions, generated in the online phase
+                worker_decisions_path = ga_baselines_dir + "/{}.txt".format(j)
             
             decisions = decisions_file_to_map(worker_decisions_path)
             
-            population[i] = {"path" : worker_decisions_path, 
-                            "decisions": decisions,
-                            "method": "baseline",
-                            "banner" : "\033[92m" + "baseline" + "\033[0m"}
-            
-        pop_results = evaluate_population(population)
+            offline_population[j] = {"path" : worker_decisions_path, 
+                                     "decisions": decisions,
+                                     "method": offline_scheme,
+                                     "banner" : get_banner(offline_scheme, "green")}
         
-        for i, result in pop_results.items():
-            print("baseline {} avg psim time: {}".format(lbs[i], result["time"]))
-            offline_key = lbs[i] + "_offline"
-            results[offline_key] = result["time"]
+        
+        # Step 2.2: evaluate the population
+        pop_results = evaluate_population(offline_population)
+                
+        # Step 2.3: add the results to the round results
+        for _, result in enumerate(pop_results):
+            offline_key = result[1]["method"] + "_offline"
+            round_results.append((offline_key, result[1]["time"]))
             
             
-        # sort the results by key alphabetically, 
-        # but the genetic_offline key should be the last
-        # hate this code, but I guess it works
-        genetics_results = results["genetic_offline"].copy()
-        del results["genetic_offline"]
-        no_genetic_sorted = sorted(results.items(), key=lambda kv: kv[0])
-        sorted_results = {"genetic_offline": genetics_results}
-        for key, value in no_genetic_sorted:
-            sorted_results[key] = value
+        # Step 2.4: print the results    
+        pprint(round_results)
+
+        # Step 2.5: sort the results by key alphabetically, 
+        # but the genetic_offline key should be the first
+        sorted_results = sorted(round_results,
+                                key=lambda kv: kv[0])
+        sorted_results = sorted(sorted_results,
+                                key=lambda kv: kv[0] != "genetic_offline")
+        
+        pprint(sorted_results)
+        
         
 
-        for key, value in sorted_results.items():
-            if key not in final_results:
-                final_results[key] = {"min": 10e12,
-                                      "max": 0}
-                
-            final_results[key]["min"] = min(final_results[key]["min"], value["min"])
-            final_results[key]["max"] = max(final_results[key]["max"], value["max"])
-                
+        for j, result in enumerate(sorted_results): 
+            scheme_key = result[0]
+            scheme_times = result[1]
+            
+            if rep == 0: 
+                final_results.append({"key": scheme_key,
+                                      "min": scheme_times["last"],
+                                      "max": scheme_times["last"]})
+            else:
+                final_results[j]["min"] = min(final_results[j]["min"], scheme_times["last"])
+                final_results[j]["max"] = max(final_results[j]["max"], scheme_times["last"])
+            
 
     print("final results")
     pprint(final_results)
@@ -790,12 +875,11 @@ def plot_final_results():
     mins = []
     maxs = []
 
-    for key, value in final_results.items():
-        labels.append(key)
-        mins.append(value["min"])
-        maxs.append(value["max"])
+    for result in final_results:
+        labels.append(result["key"])
+        mins.append(result["min"])
+        maxs.append(result["max"])
         
-    import matplotlib.pyplot as plt 
 
     # x range with some distance between every group of two bars
     x = [-3] 
@@ -831,11 +915,12 @@ build_exec(executable, base_executable, build_path, run_path)
 make_shuffle(128, shuffle_path)
 set_memory_limit(10 * 1e9)
 
+
 ###########################################################
-#################      run        #######################
+#################      run          #######################
 ###########################################################
 genetic_algorithm()       
-plot_final_results()
+plot_compare_ga_with_baselines()
 
 
 ###########################################################

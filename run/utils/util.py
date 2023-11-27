@@ -132,6 +132,7 @@ def get_psim_time(job_output, print_output=False):
         "max": np.max(psim_times),
         "min": np.min(psim_times),
         "median": np.median(psim_times), 
+        "last": psim_times[-1]
     } 
     
     return result

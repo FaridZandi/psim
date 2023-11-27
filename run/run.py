@@ -34,12 +34,12 @@ options = {
     "console-log-level": 4,
     "file-log-level": 3,
     
-    "initial-rate": 100,
-    "min-rate": 10,
+    "initial-rate": 50,
+    "min-rate": 5,
     "priority-allocator": "fairshare", #"priorityqueue", 
 
     "network-type": "leafspine",    
-    "link-bandwidth": 100,
+    "link-bandwidth": 50,
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
@@ -52,7 +52,7 @@ options = {
     
     "lb-scheme": "futureload",
     "load-metric": "utilization",
-    "shuffle-device-map": True,
+    "shuffle-device-map": False,
     "shuffle-map-file": shuffle_path,
 }
 
@@ -77,7 +77,7 @@ psim_times = get_psim_time(p.stdout, True)["all"]
 # plot the results
 plt.plot(psim_times)
 plt.xticks(np.arange(0, len(psim_times), 1.0))
-plt.savefig("psim-times.png")
+plt.savefig("plots/psim-times.png")
 
 
 # clean up the garbage 
