@@ -58,6 +58,7 @@ int main(int argc, char** argv) {
         change_log_path(worker_dir + "run-" + std::to_string(rep), "lb-decisions.txt");
         psim->log_lb_decisions(); 
 
+        change_log_path(worker_dir + "run-" + std::to_string(rep), "regrets.txt");
         psim->measure_regret(); 
 
         if (rep == 1){

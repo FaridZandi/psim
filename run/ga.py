@@ -17,8 +17,7 @@ build_path = base_dir + "/build"
 run_path = base_dir + "/run/"
 base_executable = build_path + "/psim"
 input_dir = base_dir + "/input/"
-# workers_dir = run_path + "/workers/"
-workers_dir = "/tmp/workers/"
+workers_dir = run_path + "/workers/"
 
 
 # run-specific paths
@@ -32,16 +31,15 @@ ga_baselines_dir = ga_rounds_dir + "baselines/"
 
 
 # input parameters
-line_regex = re.compile(r".*flow \d+ core \d+ crit (true|false)")
 protocol_file_name = "candle128-simtime.txt"
 # protocol_file_name = "transformer128-simtime+compute.txt"
 core_count = 4
-rep_count = 1
+rep_count = 10
 link_bandwidth = 100
 sorting_metric = "max" # min, avg, max
 population_size = 40 
 tweak_tolerance_limit = 5
-halving_steps = 3
+halving_steps = 2
 halving_rounds_interval = 100
 do_shuffle = True 
 final_step_size = 10
@@ -53,6 +51,12 @@ max_multiplier = 2 ** (halving_steps - 1)
 base_step_size = final_step_size * max_multiplier
 permutation_count_low = final_perm_count_range[0] * max_multiplier
 permutation_count_high = final_perm_count_range[1] * max_multiplier
+
+
+# [18:22:53.193] [warning] flow 9925 core 0 crit false
+lb_decisions_file_regex = re.compile(r".*flow \d+ core \d+ crit (true|false)")
+# [19:19:49.369] [critical] flow 12125 old core 3 new core 1 regret score 296
+regret_file_regex = re.compile(r".*flow \d+ old core \d+ new core \d+ regret score \d+")
 
 
 
@@ -69,7 +73,7 @@ options = {
     "file-log-level": 3,
     
     "initial-rate": link_bandwidth,
-    "min-rate": link_bandwidth, 
+    "min-rate": link_bandwidth // 10, 
     "priority-allocator": "fairshare", #"priorityqueue",
 
     "network-type": "leafspine",    
@@ -201,7 +205,7 @@ def make_baseline_decisions(rep_count = 2):
                                      shell=True, 
                                      preexec_fn=os.setsid))
 
-    print("running the baseline method ", end="")
+    print("running the baseline methods ", end="")
     for job in jobs:
         job.wait()
         print(".", end="")
@@ -240,7 +244,7 @@ def decisions_file_to_map(file_path):
     
     with open(file_path, "r") as f:
         for line in f:
-            if not line_regex.match(line):
+            if not lb_decisions_file_regex.match(line):
                 continue
             
             flow = int(line.split("flow ")[1].split(" ")[0])
@@ -290,26 +294,55 @@ def genetic_permute(decisions_map,
     return new_decisions
 
 
-def genetic_permute_crit(decisions_map, num_permutations=1):
+def parse_regret_files(regret_file_paths_list):
+    regret_map = {} 
+    # [19:19:49.369] [critical] flow 12125 old core 3 new core 1 regret score 296
+
+    for file_path in regret_file_paths_list:
+        # if path doesn't exist, just skip it
+        if not os.path.exists(file_path):
+            continue
+        
+        with open(file_path, "r") as f:
+            for line in f:
+                if not regret_file_regex.match(line):
+                    continue
+                
+                flow = int(line.split("flow ")[1].split(" ")[0])
+                old_core = int(line.split("old core ")[1].split(" ")[0])
+                new_core = int(line.split("new core ")[1].split(" ")[0])
+                regret_score = int(line.split("regret score ")[1].strip())
+                
+                if flow in regret_map:
+                    if regret_map[flow]["score"] < regret_score:
+                        regret_map[flow] = {"old-core": old_core, 
+                                            "new-core": new_core, 
+                                            "score": regret_score}  
+                else: 
+                    regret_map[flow] = {"old-core": old_core, 
+                                        "new-core": new_core, 
+                                        "score": regret_score}             
+
+    return regret_map
+
+
+def genetic_permute_regret(decisions_map, regret_map, permute_count = 1): 
     new_decisions = decisions_deep_copy(decisions_map)
     
-    keys = list(decisions_map.keys()) 
     
-    for i in range(num_permutations):
-        # find a critical flow 
-        attempts = 0
-        while True:
-            flow = np.random.choice(keys)    
-            if decisions_map[flow]["crit"]:
-                break
-            attempts += 1
-            if attempts > 100:
-                break
+    for i in range(permute_count):
+        flow = np.random.choice(list(regret_map.keys()))
+
+        regret_info = regret_map[flow]
         
-        new_core = np.random.randint(0, core_count)
-        new_decisions[flow] = {"core": new_core, 
+        if decisions_map[flow]["core"] != regret_info["old-core"]:
+            print("probable error in regret file, flow {} core {} to {}".format(
+                flow, new_decisions[flow]["core"], regret_info["old-core"]))    
+            continue
+            
+        new_decisions[flow] = {"core": regret_info["new-core"], 
                                "crit": False}
-    
+
     return new_decisions
 
 # keep the same keys, but randomize the values, for all the keys
@@ -377,7 +410,9 @@ def genetic_crossover(decisions_map1,
             
         return new_decisions
             
-    
+
+
+
 # population is a map from worker id to decisions file path
 def evaluate_population(population, round_counter=-1): 
     
@@ -408,11 +443,21 @@ def evaluate_population(population, round_counter=-1):
     
     results = {}
     for i, job in enumerate(jobs):
+        worker_run_dir = workers_dir + "/worker-{}/run-1".format(i)
+        lb_decisions_output_path = worker_run_dir + "/lb-decisions.txt"
+        
+        regrets_paths = []
+        for j in range(options["rep-count"]):
+            worker_run_dir = workers_dir + "/worker-{}/run-{}".format(i, j + 1)
+            regrets_paths.append(worker_run_dir + "/regrets.txt")
+            
+        
         results[i] = {}
         results[i].update(population[i])
         results[i].update({
             "time": get_psim_time(job.stdout), 
-            "lb-output-path": workers_dir + "/worker-{}/run-1/lb-decisions.txt".format(i)
+            "lb-output-output-path": lb_decisions_output_path,
+            "regrets": parse_regret_files(regrets_paths),
         })    
         
     sorted_results = sorted(results.items(), 
@@ -456,10 +501,10 @@ def make_initial_population():
     return population
 
 
-def make_next_population_item(i, new_round_dir, sorted_results):
-    keep_limit = int(population_size * 0.3)
-    permute_limit = int(population_size * 0.6)
-    crossover_limit = int(population_size * 0.9)
+def make_next_population_item(i, new_round_dir, sorted_results, method_limits):
+    keep_limit = int(population_size * method_limits[0])
+    permute_limit = int(population_size * method_limits[1])
+    crossover_limit = int(population_size * method_limits[2])
     
     decisions_path = "{}/{}.txt".format(new_round_dir, i)
     decisions = {} 
@@ -475,12 +520,17 @@ def make_next_population_item(i, new_round_dir, sorted_results):
             banner = get_banner("topscore_0", "green")
             decisions = decisions_deep_copy(prev_decisions)
         else: 
-            perm_cnt = np.random.randint(1, (permutation_count_high // 10) + 1) 
-
-            banner_text = "topscore_{}_{}".format(i, perm_cnt)
-            banner = get_banner(banner_text, "green")        
-
-            decisions = genetic_permute(prev_decisions, perm_cnt, "change")
+            # perm_cnt = np.random.randint(1, (permutation_count_high // 10) + 1) 
+            # banner_text = "topscore_{}_{}".format(i, perm_cnt)
+            # banner = get_banner(banner_text, "green")        
+            # decisions = genetic_permute(prev_decisions, perm_cnt, "change")
+            
+            perm_cnt = np.random.randint(1, permutation_count_high) 
+            banner_text = "topscore_{}_regret_{}".format(i, perm_cnt)
+            banner = get_banner(banner_text, "green")
+            decisions = genetic_permute_regret(prev_decisions, 
+                                               sorted_results[i][1]["regrets"], 
+                                               perm_cnt)
             
     elif i < permute_limit:
         
@@ -543,7 +593,10 @@ def make_next_population(new_round_dir, sorted_results):
     print("making next population ", end="")
     next_population = {}
     for i in range(population_size):
-        next_population[i] = make_next_population_item(i, new_round_dir, sorted_results)
+        next_population[i] = make_next_population_item(i, 
+                                                       new_round_dir, 
+                                                       sorted_results, 
+                                                       [0.5, 0.7, 0.9])
         print(".", end="")
         sys.stdout.flush()
     print(" done")

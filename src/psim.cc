@@ -467,6 +467,14 @@ void PSim::log_results() {
 }
 
 
+struct regret_entry {
+    int flow_id;
+    int old_decision; 
+    int core_decision;
+    double regret_score;
+};
+
+
 void PSim::measure_regret() {
     int prof_interval = GConf::inst().core_status_profiling_interval; 
     double step_size = GConf::inst().step_size;
@@ -474,7 +482,7 @@ void PSim::measure_regret() {
     NetworkType network_type = GConf::inst().network_type;
 
 
-    if (lb_scheme != LBScheme::FUTURE_LOAD_2) {
+    if (lb_scheme != LBScheme::FUTURE_LOAD_2 and lb_scheme != LBScheme::READ_FILE) {
         return; 
     }
 
@@ -501,6 +509,8 @@ void PSim::measure_regret() {
     Flow* max_score_flow = nullptr; 
     int repath_count = 0; 
 
+    std::vector<regret_entry> regret_entries;
+
     for (Flow* flow: finished_flows) {
         if (not flow->is_on_critical_path) {
             continue; 
@@ -514,6 +524,10 @@ void PSim::measure_regret() {
 
         int src_lower_item = lsnetwork->server_loc_map[flow->src_dev_id].rack;
         int dst_lower_item = lsnetwork->server_loc_map[flow->dst_dev_id].rack;
+
+        if (src_lower_item == dst_lower_item) {
+            continue;
+        }
 
         double max_regret = -1; 
         double max_regret_core = -1;
@@ -586,6 +600,14 @@ void PSim::measure_regret() {
         //     repath_count += 1; 
         // }
 
+        regret_entry entry;
+        entry.flow_id = flow->id;
+        entry.old_decision = core_decision;
+        entry.core_decision = max_regret_core;
+        entry.regret_score = regret_score;
+        regret_entries.push_back(entry);
+
+
         if (regret_score > max_score) {
             max_score = regret_score;
             max_score_flow = flow;
@@ -598,20 +620,38 @@ void PSim::measure_regret() {
         //                  max_regret);
     }
 
-    spdlog::critical("max regret score: {:.2f}, flow: {}, core: {} -> {}, transfer: {} to {}", 
-                     max_score, max_score_flow->id, 
-                     GContext::this_run().core_decision[max_score_flow->id],
-                     max_score_new_core, 
-                     max_score_flow->start_time, 
-                     max_score_flow->end_time);
+    // spdlog::critical("max regret score: {:.2f}, flow: {}, core: {} -> {}, transfer: {} to {}", 
+    //                  max_score, 
+    //                  max_score_flow->id, 
+    //                  GContext::this_run().core_decision[max_score_flow->id],
+    //                  max_score_new_core, 
+    //                  max_score_flow->start_time, 
+    //                  max_score_flow->end_time);
 
-    if (max_score_flow != nullptr){
-        GContext::save_decision(max_score_flow->id, max_score_new_core);
-        repath_count += 1; 
+    // spdlog::critical("flow {} core {} to {}", max_score_flow->id, GContext::this_run().core_decision[max_score_flow->id], max_score_new_core); 
+
+    // sort the flows based on their regret scores.
+    std::sort(regret_entries.begin(), regret_entries.end(), 
+        [](regret_entry a, regret_entry b) {return a.regret_score > b.regret_score;});
+
+    // log the top 10 flows with the highest regret scores.
+    for (int i = 0; i < 10; i++) {
+        regret_entry entry = regret_entries[i];
+        spdlog::critical("flow {} old core {} new core {} regret score {}", 
+                         entry.flow_id, 
+                         entry.old_decision, 
+                         entry.core_decision, 
+                         (int) entry.regret_score);
     }
 
-    spdlog::critical("repath count: {}", repath_count);
-    spdlog::critical("-------------------------------------------------------");
+
+    // if (max_score_flow != nullptr){
+    //     GContext::save_decision(max_score_flow->id, max_score_new_core);
+    //     repath_count += 1; 
+    // }
+
+    // spdlog::critical("repath count: {}", repath_count);
+    // spdlog::critical("-------------------------------------------------------");
 
 }
 

@@ -50,10 +50,11 @@ options = {
     "ft-agg-core-link-capacity-mult": 1,
     
     
-    "lb-scheme": "futureload",
+    "lb-scheme": "readfile",
+    "lb-decisions-file": "/home/faridzandi/git/psim/run/ga/124/rounds/1/0.txt",
     "load-metric": "utilization",
-    "shuffle-device-map": False,
-    "shuffle-map-file": shuffle_path,
+    "shuffle-device-map": True,
+    "shuffle-map-file": "/home/faridzandi/git/psim/run/ga/124/shuffle.txt",
 }
 
 set_memory_limit(10 * 1e9)
