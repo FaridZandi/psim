@@ -130,7 +130,7 @@ psim::simple_pipeline_protocol(int length){
 
 Protocol* 
 psim::simple_protocol_v1(){
-    return NULL; 
+    return nullptr; 
 }
 
 

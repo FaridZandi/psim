@@ -33,15 +33,18 @@ ga_baselines_dir = ga_rounds_dir + "baselines/"
 # input parameters
 protocol_file_name = "candle128-simtime.txt"
 # protocol_file_name = "transformer128-simtime+compute.txt"
+# protocol_file_name = "vgg128-simtime+maxmem+mem.txt"
+
 core_count = 4
-rep_count = 10
-link_bandwidth = 100
+rep_count = 1
+link_bandwidth = 10
+min_rate_ratio = 1
 sorting_metric = "max" # min, avg, max
 population_size = 40 
 tweak_tolerance_limit = 5
-halving_steps = 2
-halving_rounds_interval = 100
-do_shuffle = True 
+halving_steps = 1
+halving_rounds_interval = 1000
+do_shuffle = False
 final_step_size = 10
 final_perm_count_range = (1, 10)
 
@@ -73,7 +76,7 @@ options = {
     "file-log-level": 3,
     
     "initial-rate": link_bandwidth,
-    "min-rate": link_bandwidth // 10, 
+    "min-rate": int(link_bandwidth * min_rate_ratio), 
     "priority-allocator": "fairshare", #"priorityqueue",
 
     "network-type": "leafspine",    
@@ -93,6 +96,7 @@ options = {
     "shuffle-device-map": do_shuffle,
     "shuffle-map-file": shuffle_path,
     "workers-dir": workers_dir,
+    "regret-mode": "all", 
 }
 
 baseline_lb_schemes = [
@@ -196,6 +200,8 @@ def make_baseline_decisions(rep_count = 2):
         job_options["load-metric"] = load_metric_map[lb_scheme]
         job_options["rep-count"] = rep_count
         job_options["file-log-level"] = 3
+        job_options["regret-mode"] = "none" 
+        
         cmd = make_cmd(executable, job_options)
         cmds.append(cmd)
         
@@ -269,6 +275,12 @@ def decisions_map_to_file(decisions, file_path):
             f.write("flow {} core {}\n".format(flow, flow_info["core"]))
 
 
+def regrets_map_to_file(regrets_map, file_path):
+    with open(file_path, "w") as f:
+        for flow, flow_info in regrets_map.items():
+            f.write("flow {} old core {} new core {} regret score {}\n".format(
+                flow, flow_info["old-core"], flow_info["new-core"], flow_info["score"]))
+    
 # either change the core of each flow to a different random core, 
 # or change the core of all permutated flows to the same random core
 def genetic_permute(decisions_map, 
@@ -329,8 +341,9 @@ def parse_regret_files(regret_file_paths_list):
 def genetic_permute_regret(decisions_map, regret_map, permute_count = 1): 
     new_decisions = decisions_deep_copy(decisions_map)
     
+    actual_permute_count = min(permute_count, len(regret_map))
     
-    for i in range(permute_count):
+    for i in range(actual_permute_count):
         flow = np.random.choice(list(regret_map.keys()))
 
         regret_info = regret_map[flow]
@@ -343,7 +356,7 @@ def genetic_permute_regret(decisions_map, regret_map, permute_count = 1):
         new_decisions[flow] = {"core": regret_info["new-core"], 
                                "crit": False}
 
-    return new_decisions
+    return new_decisions, actual_permute_count
 
 # keep the same keys, but randomize the values, for all the keys
 def genetic_random(decisions_map):
@@ -450,14 +463,20 @@ def evaluate_population(population, round_counter=-1):
         for j in range(options["rep-count"]):
             worker_run_dir = workers_dir + "/worker-{}/run-{}".format(i, j + 1)
             regrets_paths.append(worker_run_dir + "/regrets.txt")
+        
+        regrets_map = parse_regret_files(regrets_paths)
+        
+        if ("regrets-output-path" in population[i] and 
+            population[i]["regrets-output-path"] is not None):
             
+            regrets_map_to_file(regrets_map, population[i]["regrets-output-path"])
         
         results[i] = {}
         results[i].update(population[i])
         results[i].update({
             "time": get_psim_time(job.stdout), 
             "lb-output-output-path": lb_decisions_output_path,
-            "regrets": parse_regret_files(regrets_paths),
+            "regrets": regrets_map,
         })    
         
     sorted_results = sorted(results.items(), 
@@ -478,6 +497,7 @@ def make_initial_population():
     
     for i in range(population_size):
         worker_decisions_path = ga_rounds_dir + "/0/{}.txt".format(i)
+        regrets_output_path = ga_rounds_dir + "/0/{}-regrets.txt".format(i)
         
         if i < baseline_count:
             baseline_path = ga_baselines_dir + "/{}.txt".format(i)
@@ -485,6 +505,7 @@ def make_initial_population():
             decisions_map_to_file(baseline_decisions, worker_decisions_path)
 
             population[i] = {"path" : worker_decisions_path, 
+                             "regrets-output-path": regrets_output_path,
                              "decisions": baseline_decisions,
                              "method": "baseline",
                              "banner" : get_banner(baseline_lb_schemes[i], "green")}
@@ -493,7 +514,8 @@ def make_initial_population():
             worker_decisions = genetic_random(initial_decisions)
             decisions_map_to_file(worker_decisions, worker_decisions_path)
             
-            population[i] = {"path" : worker_decisions_path, 
+            population[i] = {"path" : worker_decisions_path,
+                             "regrets-output-path": regrets_output_path,
                              "decisions": worker_decisions,
                              "method": "random",
                              "banner" : get_banner("random", "red")}
@@ -507,6 +529,7 @@ def make_next_population_item(i, new_round_dir, sorted_results, method_limits):
     crossover_limit = int(population_size * method_limits[2])
     
     decisions_path = "{}/{}.txt".format(new_round_dir, i)
+    regrets_output_path = "{}/{}-regrets.txt".format(new_round_dir, i)
     decisions = {} 
     method = None
     banner = None
@@ -525,13 +548,22 @@ def make_next_population_item(i, new_round_dir, sorted_results, method_limits):
             # banner = get_banner(banner_text, "green")        
             # decisions = genetic_permute(prev_decisions, perm_cnt, "change")
             
-            perm_cnt = np.random.randint(1, permutation_count_high) 
-            banner_text = "topscore_{}_regret_{}".format(i, perm_cnt)
-            banner = get_banner(banner_text, "green")
-            decisions = genetic_permute_regret(prev_decisions, 
-                                               sorted_results[i][1]["regrets"], 
-                                               perm_cnt)
+            # perm_cnt = np.random.randint(1, permutation_count_high) 
             
+            if np.random.random() < 0.5:
+                perm_cnt = np.random.randint(1, permutation_count_high)
+                regrets_map = sorted_results[i][1]["regrets"]
+                decisions, regret_cnt = genetic_permute_regret(prev_decisions, 
+                                                               regrets_map, perm_cnt)
+                banner_text = "topscore_{}_regret_{}".format(i, regret_cnt)
+                banner = get_banner(banner_text, "green")
+            else: 
+                # perm_cnt = 1 
+                perm_cnt = np.random.randint(permutation_count_low, permutation_count_high) 
+                decisions = genetic_permute(prev_decisions, perm_cnt, "change")
+                banner_text = "topscore_{}_permute_{}".format(i, perm_cnt)
+                banner = get_banner(banner_text, "green")
+                
     elif i < permute_limit:
         
         perm_src = np.random.randint(0, keep_limit)
@@ -551,7 +583,10 @@ def make_next_population_item(i, new_round_dir, sorted_results, method_limits):
         
     elif i < crossover_limit:
         crossover_source1 = np.random.randint(0, keep_limit)
-        crossover_source2 = np.random.randint(0, population_size)
+        crossover_source2 = np.random.randint(0, keep_limit)
+        while crossover_source2 == crossover_source1:
+            crossover_source2 = np.random.randint(0, keep_limit)
+            
         crossover_ratio = np.random.random()
         crossover_method = np.random.choice(["combine-1-2", "combine-2-1"])
         
@@ -586,20 +621,44 @@ def make_next_population_item(i, new_round_dir, sorted_results, method_limits):
     return {"banner": banner,
             "method": method, 
             "decisions": decisions,
-            "path": decisions_path} 
+            "path": decisions_path, 
+            "regrets-output-path": regrets_output_path}
 
+
+
+keep_ratio_memory = 0.25 
+
+def get_population_bounds(): 
+    global keep_ratio_memory
+           
+    last_round_best = round_best_times[-1]
+    last_round_median = round_median_times[-1]
+    last_round_avg = round_avg_times[-1]
+    
+    best_avg_diff = last_round_avg - last_round_best  
+    median_avg_diff = last_round_avg - last_round_median
+    
+    new_keep_ratio = (1 - max(median_avg_diff / best_avg_diff, 0)) * 0.5 + (1 / population_size)
+    keep_ratio_memory = (keep_ratio_memory * 0.75) + (new_keep_ratio * 0.25)
+    permute_ratio = keep_ratio_memory + 0.2
+    crossover_ratio = permute_ratio + 0.2
+    
+    return [keep_ratio_memory, permute_ratio, crossover_ratio]
 
 def make_next_population(new_round_dir, sorted_results):
-    print("making next population ", end="")
     next_population = {}
+    
+    bounds = get_population_bounds()
+
+    print("tweak_tolerance_counter: {}, using {}".format(tweak_tolerance_counter, bounds)) 
+    print("making next population ", end="")
+
     for i in range(population_size):
-        next_population[i] = make_next_population_item(i, 
-                                                       new_round_dir, 
-                                                       sorted_results, 
-                                                       [0.5, 0.7, 0.9])
+        next_population[i] = make_next_population_item(i, new_round_dir, sorted_results, bounds)
         print(".", end="")
         sys.stdout.flush()
     print(" done")
+    
     return next_population
     
 
@@ -699,6 +758,7 @@ def handle_stepsize_halving(round_counter, current_population):
         decisions_map_to_file(baseline_decisions, worker_decisions_path)
 
         new_population[i] = {"path" : worker_decisions_path, 
+                             "regrets-output-path": None,
                              "decisions": baseline_decisions,
                              "method": "baseline",
                              "banner" : get_banner(baseline_name, "green")}
@@ -776,21 +836,23 @@ def handle_stepsize_tweaking_with_median():
         print("median has been close to the best for {}/{} rounds".format(
               tweak_tolerance_counter, tweak_tolerance_limit)) 
         
-        if tweak_tolerance_counter >= tweak_tolerance_limit: 
-            new_step_size = options["step-size"]
-            while new_step_size == options["step-size"]:
-                change = np.random.choice([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
-                new_step_size = base_step_size + change
-            
-            update_step_size(new_step_size)
-            print("step size changed to {}".format(new_step_size))
+        # if tweak_tolerance_counter >= tweak_tolerance_limit: 
+        #     # if the step size is the base step size, then change it a bit
+        #     # otherwise, reset it to the base step size
+        #     if options["step-size"] == base_step_size:
+        #         change = np.random.choice([0, 1, 2, 3, 4, 5, 6, 7, 8, 9])
+        #         new_step_size = base_step_size + change
+        #     else: 
+        #         new_step_size = base_step_size
+                            
+        #     update_step_size(new_step_size)
+        #     print("step size changed to {}".format(new_step_size))
 
-            tweak_tolerance_counter = 0
+        #     tweak_tolerance_counter = 0
                 
     else: 
         tweak_tolerance_counter = 0
                 
-        
         
     
 
@@ -809,7 +871,10 @@ def print_results(round_counter, sorted_results):
     
         
 def genetic_algorithm():
+    print("starting genetic algorithm")
     os.system("mkdir -p {}/0".format(ga_rounds_dir))
+    
+    print("initializing population")
     population = make_initial_population()
 
     for round_counter in range(ga_rounds):
@@ -820,7 +885,8 @@ def genetic_algorithm():
             else:
                 # handle_stepsize_tweaking()
                 handle_stepsize_tweaking_with_median()
-                
+                # pass 
+            
         sorted_results = evaluate_population(population, round_counter)
         update_stats(round_counter, sorted_results)
         
@@ -880,6 +946,7 @@ def plot_compare_ga_with_baselines():
             decisions = decisions_file_to_map(worker_decisions_path)
             
             offline_population[j] = {"path" : worker_decisions_path, 
+                                     "regrets-output-path": None, 
                                      "decisions": decisions,
                                      "method": offline_scheme,
                                      "banner" : get_banner(offline_scheme, "green")}

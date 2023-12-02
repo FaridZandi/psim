@@ -105,8 +105,7 @@ void log_core_status_history(int rep, PSim* psim){
 
 
     if (GConf::inst().record_link_flow_loads and 
-        GConf::inst().lb_scheme == LBScheme::FUTURE_LOAD or 
-        GConf::inst().lb_scheme == LBScheme::FUTURE_LOAD_2) {
+        GConf::inst().lb_scheme == LBScheme::FUTURE_LOAD) {
 
         std::ofstream ofs(worker_dir + "run-" + std::to_string(rep) + "/link_flow_loads.txt");
         for (auto& entry: GContext::this_run().network_status) {

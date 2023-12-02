@@ -14,6 +14,7 @@ using namespace psim;
 
 Network::Network() {
     Bottleneck::bottleneck_counter = 0;
+    core_load_balancer = nullptr;
 }
 
 Network::~Network() {
@@ -172,7 +173,9 @@ double Network::make_progress_on_flows(double current_time,
         }
     }
 
-    core_load_balancer->update_state();
+    if (core_load_balancer != nullptr) {
+        core_load_balancer->update_state();
+    }
 
     return step_comm;
 }

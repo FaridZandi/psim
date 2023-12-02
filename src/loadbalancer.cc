@@ -60,14 +60,6 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
             return new RobinHoodLoadBalancer(item_count);
         case LBScheme::FUTURE_LOAD:
             return new FutureLoadLoadBalancer(item_count);
-        case LBScheme::FUTURE_LOAD_2:
-            // start with a baseline for the first run, 
-            // and then switch to future load balancer for the second run.
-            if (GContext::this_run().run_number == 1) {
-                return new RandomLoadBalancer(item_count);
-            } else {
-                return new FutureLoad2LoadBalancer(item_count);
-            }
         case LBScheme::SITA_E:
             return new SitaELoadBalancer(item_count);
         default:
@@ -565,95 +557,6 @@ int FutureLoadLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
 }
 
 
-
-/////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////
-/////////////////////////////////////////////////////////////////////////////////////
-
-
-
-FutureLoad2LoadBalancer::FutureLoad2LoadBalancer(int item_count) : LoadBalancer(item_count) {
-
-    // get all the average rates from the last run, and sort them
-    // so that we can find the percentiles.
-
-    if (not GContext::is_first_run()) {
-        auto& last_run = GContext::last_run();
-        for (auto& kv : last_run.average_rate) {
-            average_rates.push_back(kv.second);
-        }
-        std::sort(average_rates.begin(), average_rates.end());
-    }
-
-    repath_chances = 1000; 
-}
-
-int FutureLoad2LoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
-    
-    // in the first run, we just do random 
-    if (GContext::is_first_run()) {
-        // random
-        return rand() % item_count;
-    }
-
-    // we are past the first run. 
-    // We want to find the decisions that we were poorly made in the previous run.
-    // Then we can make better decisions.  
-
-    auto& last_run = GContext::last_run();
-    int last_decision = GContext::last_decision(flow->id);
-
-    return last_decision;
-
-    if (repath_chances == 0) {
-        return last_decision;     
-    }
-
-    double last_run_rate = last_run.average_rate[flow->id];  
-    double flow_fct = last_run.flow_fct[flow->id]; 
-
-    bool do_repath = false; 
-    
-    // find the index of the last run rate in the sorted list of average rates
-    auto itr = std::lower_bound(average_rates.begin(), average_rates.end(), last_run_rate);
-    int index = itr - average_rates.begin();
-    double index_percentile = index / double(average_rates.size()) * 100; 
-    double chance = rand() % 100;
-
-    if (index_percentile < 50 and 
-        last_run.is_on_critical_path[flow->id] and 
-        // flow_fct > GConf::inst().step_size and 
-        // flow->size > 0.5 and
-        chance < 100) {
-
-        do_repath = true;
-    }
-
-    if (index_percentile < 10 and 
-        not last_run.is_on_critical_path[flow->id] and 
-        // flow_fct > GConf::inst().step_size and 
-        flow->size > 0.5 and
-        chance < 10) {
-
-        do_repath = true;
-    }
-
-    if (not do_repath) {
-        return last_decision; 
-    } else {
-        int new_random = last_decision; 
-        
-        while(new_random == last_decision) {
-            new_random = rand() % item_count;
-        }
-
-        spdlog::critical("doing a repathing for flow {} from {} to {}, {} chances left", flow->id, last_decision, new_random, repath_chances);
-
-        repath_chances -= 1; 
-        return new_random;
-    }
-
-}
 
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////

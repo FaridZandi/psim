@@ -480,10 +480,15 @@ void PSim::measure_regret() {
     double step_size = GConf::inst().step_size;
     LBScheme lb_scheme = GConf::inst().lb_scheme;
     NetworkType network_type = GConf::inst().network_type;
+    RegretMode regret_mode = GConf::inst().regret_mode;
 
-
-    if (lb_scheme != LBScheme::FUTURE_LOAD_2 and lb_scheme != LBScheme::READ_FILE) {
+    if (regret_mode == RegretMode::NONE) {
         return; 
+    }
+
+    if (not GConf::inst().profile_core_status){
+        spdlog::critical("core status profiling must be enabled for regret measurement");
+        return;
     }
 
     if (prof_interval != (int)step_size) {
@@ -512,10 +517,17 @@ void PSim::measure_regret() {
     std::vector<regret_entry> regret_entries;
 
     for (Flow* flow: finished_flows) {
-        if (not flow->is_on_critical_path) {
-            continue; 
-        }   
-        // we only want to do this for critical path flows.
+
+        if (regret_mode == RegretMode::CRITICAL){
+            // we only want to do this for critical path flows.
+            if (not flow->is_on_critical_path) {
+                continue; 
+            }   
+        } 
+
+        if (flow->size < 1) {
+            continue;
+        }
 
         int core_decision = this_run.core_decision[flow->id]; 
         double average_rate = this_run.average_rate[flow->id];
@@ -525,6 +537,7 @@ void PSim::measure_regret() {
         int src_lower_item = lsnetwork->server_loc_map[flow->src_dev_id].rack;
         int dst_lower_item = lsnetwork->server_loc_map[flow->dst_dev_id].rack;
 
+        // only consider flows that go through the core.
         if (src_lower_item == dst_lower_item) {
             continue;
         }
@@ -555,7 +568,7 @@ void PSim::measure_regret() {
                     double util = this_run.network_status[t].link_loads[link->id];
                     double capacity = link->bandwidth;
 
-                    double link_availability = (capacity - util); // + (util / (flow_count + 1));
+                    double link_availability = (capacity - util); //+ (util / (flow_count + 1));
 
                     min_link_availability = std::min(min_link_availability, link_availability);
 
@@ -585,8 +598,8 @@ void PSim::measure_regret() {
             }
         }
 
-        // double chance = 1; 
-        double chance = rand() / double(RAND_MAX);
+        double chance = 1; 
+        // double chance = rand() / double(RAND_MAX);
         // double regret_score = max_regret * flow->size;
         // double regret_score = max_regret; 
         double regret_score = max_regret * chance;
@@ -630,19 +643,27 @@ void PSim::measure_regret() {
 
     // spdlog::critical("flow {} core {} to {}", max_score_flow->id, GContext::this_run().core_decision[max_score_flow->id], max_score_new_core); 
 
-    // sort the flows based on their regret scores.
-    std::sort(regret_entries.begin(), regret_entries.end(), 
-        [](regret_entry a, regret_entry b) {return a.regret_score > b.regret_score;});
+    int reported_regrets = std::min(10, (int) regret_entries.size());
 
-    // log the top 10 flows with the highest regret scores.
-    for (int i = 0; i < 10; i++) {
-        regret_entry entry = regret_entries[i];
-        spdlog::critical("flow {} old core {} new core {} regret score {}", 
-                         entry.flow_id, 
-                         entry.old_decision, 
-                         entry.core_decision, 
-                         (int) entry.regret_score);
+    if (reported_regrets > 0) {
+        // sort the flows based on their regret scores.
+        std::sort(regret_entries.begin(), regret_entries.end(), 
+            [](regret_entry a, regret_entry b) {
+                return a.regret_score > b.regret_score;
+            });
+
+
+        // log the top 10 flows with the highest regret scores.
+        for (int i = 0; i < reported_regrets; i++) {
+            regret_entry entry = regret_entries[i];
+            spdlog::critical("flow {} old core {} new core {} regret score {}", 
+                            entry.flow_id, 
+                            entry.old_decision, 
+                            entry.core_decision, 
+                            (int) entry.regret_score);
+        }
     }
+    
 
 
     // if (max_score_flow != nullptr){

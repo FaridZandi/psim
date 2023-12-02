@@ -18,7 +18,6 @@ enum class LBScheme{
     POWER_OF_K,
     ROBIN_HOOD,
     FUTURE_LOAD,
-    FUTURE_LOAD_2,
     SITA_E,
 };
 
@@ -33,6 +32,12 @@ enum class NetworkType {
     FAT_TREE,
     BIG_SWITCH,
     LEAF_SPINE,
+};
+
+enum class RegretMode {
+    CRITICAL,
+    ALL, 
+    NONE,
 };
 
 
@@ -75,6 +80,10 @@ public:
     LBScheme lb_scheme = LBScheme::ROUND_ROBIN;
     int lb_samples = 2;
     LoadMetric load_metric = LoadMetric::UTILIZATION;
+
+    RegretMode regret_mode = RegretMode::NONE;
+
+    bool profile_core_status = true;
 
     int core_status_profiling_interval = 10;
     std::string log_file_name = "log.txt";

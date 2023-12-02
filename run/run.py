@@ -30,16 +30,16 @@ options = {
 
     "step-size": 10,
     "core-status-profiling-interval": 10,
-    "rep-count": 100, 
+    "rep-count": 2, 
     "console-log-level": 4,
     "file-log-level": 3,
     
-    "initial-rate": 50,
-    "min-rate": 5,
+    "initial-rate": 25,
+    "min-rate": 25,
     "priority-allocator": "fairshare", #"priorityqueue", 
 
     "network-type": "leafspine",    
-    "link-bandwidth": 50,
+    "link-bandwidth": 25,
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
@@ -50,11 +50,11 @@ options = {
     "ft-agg-core-link-capacity-mult": 1,
     
     
-    "lb-scheme": "readfile",
-    "lb-decisions-file": "/home/faridzandi/git/psim/run/ga/124/rounds/1/0.txt",
+    "lb-scheme": "powerof2",
     "load-metric": "utilization",
-    "shuffle-device-map": True,
-    "shuffle-map-file": "/home/faridzandi/git/psim/run/ga/124/shuffle.txt",
+    "shuffle-device-map": False,
+    "shuffle-map-file": shuffle_path,
+    "regret-mode": "critical",
 }
 
 set_memory_limit(10 * 1e9)

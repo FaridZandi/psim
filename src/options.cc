@@ -47,6 +47,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("rep-count", po::value<int>(), "set rep-count")
         ("lb-scheme", po::value<std::string>(), "set core selection mechanism")
         ("shuffle-device-map", po::value<int>()->implicit_value(1), "shuffle device map")
+        ("no-profile-core-status", po::value<int>()->implicit_value(0), "disable core status profiling")
         ("shuffle-map-file", po::value<std::string>(), "shuffle map file")
         ("load-metric", po::value<std::string>(), "load metric")
         ("core-status-profiling-interval", po::value<int>(), "core status profiling interval")
@@ -55,6 +56,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("drop-chance-multiplier", po::value<double>(), "drop chance multiplier")
         ("lb-decisions-file", po::value<std::string>(), "LB decisions file")
         ("workers-dir", po::value<std::string>(), "workers directory")
+        ("regret-mode", po::value<std::string>(), "set the regret mode")
     ;
 
     po::variables_map vm;
@@ -163,8 +165,6 @@ void psim::process_arguments(po::variables_map vm){
             GConf::inst().lb_samples = std::stoi(lb_scheme_str.substr(7));
         } else if (lb_scheme_str == "futureload") {
             GConf::inst().lb_scheme = LBScheme::FUTURE_LOAD;
-        } else if (lb_scheme_str == "futureload2") {
-            GConf::inst().lb_scheme = LBScheme::FUTURE_LOAD_2;
         } else if (lb_scheme_str == "robinhood") {
             GConf::inst().lb_scheme = LBScheme::ROBIN_HOOD;
         } else if (lb_scheme_str == "sita-e") {
@@ -290,6 +290,23 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("workers-dir")) {
         GConf::inst().workers_dir = vm["workers-dir"].as<std::string>();
     }
+    if (vm.count("regret-mode")) {
+        std::string regret_mode_str = vm["regret-mode"].as<std::string>();
+
+        if (regret_mode_str == "all") {
+            GConf::inst().regret_mode = RegretMode::ALL;
+        } else if (regret_mode_str == "none") {
+            GConf::inst().regret_mode = RegretMode::NONE;
+        } else if (regret_mode_str == "critical") {
+            GConf::inst().regret_mode = RegretMode::CRITICAL;
+        } else {
+            spdlog::error("Invalid regret mode: {}", regret_mode_str);
+            exit(1);
+        }
+    }
+    if (vm.count("no-profile-core-status")) {
+        GConf::inst().profile_core_status = false;
+    }
 }
 
 void psim::log_config() {
@@ -334,7 +351,9 @@ void psim::log_config() {
     spdlog::info("==== rate_decrease_factor: {}", GConf::inst().rate_decrease_factor);
     spdlog::info("==== drop_chance_multiplier: {}", GConf::inst().drop_chance_multiplier);
     spdlog::info("==== lb_decisions_file: {}", GConf::inst().lb_decisions_file);
-    spdlog::info("==== workers_dir: {}", GConf::inst().workers_dir);
+    spdlog::info("==== workers-dir: {}", GConf::inst().workers_dir);
+    spdlog::info("==== regret-mode: {}", int(GConf::inst().regret_mode));
+    spdlog::info("==== profile_core_status: {}", GConf::inst().profile_core_status);
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }
