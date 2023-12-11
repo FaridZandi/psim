@@ -25,21 +25,24 @@ shuffle_path  = input_dir + "/shuffle/shuffle-{}.txt".format(run_id)
 
 options = {
     "protocol-file-dir": base_dir + "/input/128search-dpstart-2",
-    "protocol-file-name": "candle128-simtime.txt",
+    # "protocol-file-name": "candle128-simtime.txt",
+    # "protocol-file-name": "build-ring",
+    "protocol-file-name": "build-all-to-all",
+    # "protocol-file-name": "dlrm128-simtime.txt",
     # "protocol-file-name": "transformer128-simtime+compute.txt",
 
-    "step-size": 10,
-    "core-status-profiling-interval": 10,
-    "rep-count": 2, 
+    "step-size": 2,
+    "core-status-profiling-interval": 2,
+    "rep-count": 3, 
     "console-log-level": 4,
     "file-log-level": 3,
     
-    "initial-rate": 25,
-    "min-rate": 25,
+    "initial-rate": 10,
+    "min-rate": 10,
     "priority-allocator": "fairshare", #"priorityqueue", 
 
     "network-type": "leafspine",    
-    "link-bandwidth": 25,
+    "link-bandwidth": 10,
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
@@ -50,11 +53,11 @@ options = {
     "ft-agg-core-link-capacity-mult": 1,
     
     
-    "lb-scheme": "powerof2",
+    "lb-scheme": "random",
     "load-metric": "utilization",
     "shuffle-device-map": False,
     "shuffle-map-file": shuffle_path,
-    "regret-mode": "critical",
+    "regret-mode": "none",
 }
 
 set_memory_limit(10 * 1e9)

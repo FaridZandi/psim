@@ -126,7 +126,7 @@ base_options = {
     
 
     # load balancing options
-    "load-metric" : "notset",
+    "load-metric" : "notset", # is set later based on lb-scheme
     "shuffle-device-map": True,
     "shuffle-map-file": shuffle_path,
 }

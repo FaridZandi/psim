@@ -270,3 +270,103 @@ psim::load_protocol_from_file(std::string file_path){
 
     return protocol;
 } 
+
+
+Protocol* 
+psim::ring_allreduce(int num_replicas, double comm_size, double aggregate_time) {
+    Protocol *protocol = new Protocol();
+
+    int task_counter = 0;
+
+    int num_chunks = num_replicas; 
+
+    // each chuck would start rotating at its corresponding machine, 
+    // going through all the machines, and then back to the original machine. 
+
+    for (int i = 0; i < num_chunks; i++) {
+        // the chunk starts at machine i, goes through all the other machine, 
+        // so the prev machine in the ring would know the aggregate result.
+        // then the chunk will go through all the other machines again, such that
+        // all the machines will have the aggregate result.
+
+        // there would be a total of 2 * (num_replicas - 1) communication steps. 
+        // there would a total of (num_replicas - 1) aggregation steps.
+
+
+        PTask* prev_task = nullptr; 
+
+        for (int j = 0; j < num_replicas - 1; j++) {
+
+            Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW, task_counter);
+            flow->size = comm_size; 
+            flow->src_dev_id = (i + j) % num_replicas;
+            flow->dst_dev_id = (i + j + 1) % num_replicas;
+            task_counter += 1;
+
+            PComp* agg = (PComp*)protocol->create_task(PTaskType::COMPUTE, task_counter);
+            agg->size = aggregate_time; 
+            agg->dev_id = (i + j + 1) % num_replicas;
+            task_counter += 1;
+
+            flow->add_next_task_id(agg->id);
+
+            if (prev_task != nullptr) {
+                prev_task->add_next_task_id(flow->id);
+            }
+
+            prev_task = agg;
+        } 
+
+        // now the aggregate result is at machine i + num_replicas - 1 round the ring. 
+        // now turn the aggregated result round the ring again, so that all the machines
+        // will have the aggregated result.
+
+        int starting = i + num_replicas - 1;
+        for (int j = 0; j < num_replicas - 1; j++) {
+
+            Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW, task_counter);
+            flow->size = comm_size; 
+            flow->src_dev_id = (starting + j) % num_replicas;
+            flow->dst_dev_id = (starting + j + 1) % num_replicas;
+            task_counter += 1;
+
+            if (prev_task != nullptr) {
+                prev_task->add_next_task_id(flow->id);
+            }
+
+            prev_task = flow;
+        }
+    }
+
+
+
+    return protocol;
+} 
+
+Protocol* 
+psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
+    Protocol *protocol = new Protocol();
+
+    int task_counter = 0;
+
+    double chunk_size = comm_size / chunk_count;
+    
+    for (int k = 0; k < chunk_count; k++) {
+        for (int i = 0; i < num_replicas; i++) {
+            for (int j = 0; j < num_replicas; j++) {
+                if (i == j) {
+                    continue;
+                }
+
+                Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW, task_counter);
+                flow->size = comm_size; 
+                flow->src_dev_id = i;
+                flow->dst_dev_id = j;
+                task_counter += 1;
+            }
+        }
+    }
+
+
+    return protocol; 
+}

@@ -31,9 +31,11 @@ ga_baselines_dir = ga_rounds_dir + "baselines/"
 
 
 # input parameters
-protocol_file_name = "candle128-simtime.txt"
+# protocol_file_name = "candle128-simtime.txt"
+# protocol_file_name = "build-ring"
 # protocol_file_name = "transformer128-simtime+compute.txt"
 # protocol_file_name = "vgg128-simtime+maxmem+mem.txt"
+protocol_file_name = "dlrm128-simtime.txt"
 
 core_count = 4
 rep_count = 1
@@ -45,7 +47,7 @@ tweak_tolerance_limit = 5
 halving_steps = 1
 halving_rounds_interval = 1000
 do_shuffle = False
-final_step_size = 10
+final_step_size = 1
 final_perm_count_range = (1, 10)
 
 # computed parameters
@@ -629,8 +631,8 @@ def make_next_population_item(i, new_round_dir, sorted_results, method_limits):
 keep_ratio_memory = 0.25 
 
 def get_population_bounds(): 
-    global keep_ratio_memory
-           
+    global keep_ratio_memory       
+
     last_round_best = round_best_times[-1]
     last_round_median = round_median_times[-1]
     last_round_avg = round_avg_times[-1]
@@ -638,7 +640,11 @@ def get_population_bounds():
     best_avg_diff = last_round_avg - last_round_best  
     median_avg_diff = last_round_avg - last_round_median
     
-    new_keep_ratio = (1 - max(median_avg_diff / best_avg_diff, 0)) * 0.5 + (1 / population_size)
+    if best_avg_diff == 0:
+        new_keep_ratio = 0.5
+    else:    
+        new_keep_ratio = (1 - max(median_avg_diff / best_avg_diff, 0)) * 0.5 + (1 / population_size)
+    
     keep_ratio_memory = (keep_ratio_memory * 0.75) + (new_keep_ratio * 0.25)
     permute_ratio = keep_ratio_memory + 0.2
     crossover_ratio = permute_ratio + 0.2

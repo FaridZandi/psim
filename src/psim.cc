@@ -51,13 +51,26 @@ void PSim::inform_network_of_protocols() {
 }
 
 void PSim::add_protocols_from_input(){
+    
     std::vector<std::string> protocol_file_names;
-
     boost::split(protocol_file_names, GConf::inst().protocol_file_name, boost::is_any_of(","));
 
     for (auto protocol_file_name : protocol_file_names) {
-        std::string path = GConf::inst().protocol_file_dir + "/" + protocol_file_name;
-        Protocol* proto = load_protocol_from_file(path);
+        Protocol *proto = nullptr; 
+
+        if (protocol_file_name == "build-ring") {
+            proto = ring_allreduce(GConf::inst().machine_count,
+                                   GConf::inst().link_bandwidth * 10, 
+                                   2);  
+        } else if (protocol_file_name == "build-all-to-all") {
+            proto = build_all_to_all(GConf::inst().machine_count,
+                                     GConf::inst().link_bandwidth * 10, 
+                                     2);
+        }else {
+            std::string path = GConf::inst().protocol_file_dir + "/" + protocol_file_name;
+            proto = load_protocol_from_file(path);
+        }
+
         proto->build_dependency_graph();
         
         if (GConf::inst().export_dot){
@@ -598,6 +611,10 @@ void PSim::measure_regret() {
             }
         }
 
+        if (max_regret == -1) {
+            continue;
+        }
+        
         double chance = 1; 
         // double chance = rand() / double(RAND_MAX);
         // double regret_score = max_regret * flow->size;
