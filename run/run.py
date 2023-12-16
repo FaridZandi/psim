@@ -17,7 +17,7 @@ run_id = os.popen("date +%s | sha256sum | base64 | head -c 8").read()
 # read the env for the base dir 
 base_dir = get_base_dir()
 build_path = base_dir + "/build"
-run_path = base_dir + "/run"
+run_path = base_dir + "/run/"
 base_executable = build_path + "/psim"
 executable = build_path + "/psim-" + run_id
 input_dir = base_dir + "/input/"
@@ -25,24 +25,25 @@ shuffle_path  = input_dir + "/shuffle/shuffle-{}.txt".format(run_id)
 
 options = {
     "protocol-file-dir": base_dir + "/input/128search-dpstart-2",
-    # "protocol-file-name": "candle128-simtime.txt",
+    "protocol-file-name": "candle128-simtime.txt",
+    # "protocol-file-name": "candle128-simtime.txt,candle128-comm.txt",
     # "protocol-file-name": "build-ring",
-    "protocol-file-name": "build-all-to-all",
+    # "protocol-file-name": "build-all-to-all",
     # "protocol-file-name": "dlrm128-simtime.txt",
     # "protocol-file-name": "transformer128-simtime+compute.txt",
 
-    "step-size": 2,
-    "core-status-profiling-interval": 2,
-    "rep-count": 3, 
+    "step-size": 1,
+    "core-status-profiling-interval": 1,
+    "rep-count": 10, 
     "console-log-level": 4,
     "file-log-level": 3,
     
-    "initial-rate": 10,
-    "min-rate": 10,
+    "initial-rate": 400,
+    "min-rate": 400,
     "priority-allocator": "fairshare", #"priorityqueue", 
 
     "network-type": "leafspine",    
-    "link-bandwidth": 10,
+    "link-bandwidth": 400,
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
@@ -53,7 +54,8 @@ options = {
     "ft-agg-core-link-capacity-mult": 1,
     
     
-    "lb-scheme": "random",
+    "lb-scheme": "readfile",
+    "lb-decisions-file": run_path + "ga/214/rounds/1000/0.txt",
     "load-metric": "utilization",
     "shuffle-device-map": False,
     "shuffle-map-file": shuffle_path,

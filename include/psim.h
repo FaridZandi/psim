@@ -39,10 +39,12 @@ struct history_entry {
     double total_core_bw_utilization;
     double min_core_link_bw_utilization;
     double max_core_link_bw_utilization;
-    double total_link_bandwidth;
+    double total_network_bw;
+    double total_core_bw;
     double total_accelerator_capacity;
 };
 
+#define auto_smooth -4
 
 class PSim {
 public:
@@ -88,8 +90,8 @@ private:
     std::vector<history_entry> history;
     void log_history_entry(history_entry& h);
 
-    void draw_plots(std::initializer_list<std::pair<std::string, std::function<double(history_entry)>>> plots);
-
+    void draw_plots(std::initializer_list<std::pair<std::string, std::function<double(history_entry)>>> plots, 
+                    int smoothing = auto_smooth);
 };
 
 } // namespace psim

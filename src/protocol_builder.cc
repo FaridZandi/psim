@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include "gcontext.h"
+#include "spdlog/spdlog.h"
 
 using namespace psim;
 
@@ -128,11 +129,6 @@ psim::simple_pipeline_protocol(int length){
     return protocol;
 }
 
-Protocol* 
-psim::simple_protocol_v1(){
-    return nullptr; 
-}
-
 
 Protocol* 
 psim::build_random_protocol(int num_comp, int machine_count){
@@ -198,11 +194,19 @@ psim::build_random_protocol(int num_comp, int machine_count){
 
 Protocol* 
 psim::load_protocol_from_file(std::string file_path){
-    Protocol *protocol = new Protocol();
-    int task_counter = 0;
-    
-    std::string line;
+
     std::ifstream myfile (file_path);
+
+    // check if file exists
+    if(not myfile.good()){
+        spdlog::error("protocol file not found. exiting.");
+        spdlog::error("path: {}", file_path);
+        exit(0);
+    }
+
+    Protocol *protocol = new Protocol();
+    std::string line;
+    int task_counter = 0;
 
     if (myfile.is_open()) {
         while (getline(myfile, line)) {

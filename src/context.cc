@@ -65,11 +65,18 @@ void GContext::start_new_run() {
 }
 
 void GContext::initiate_device_shuffle_map(){
+
+    // if shuffle_device_map is false, we don't need to do anything.
+    if (GConf::inst().shuffle_device_map == false){
+        return;
+    }
+
     // read the shuffle map from the file.
     // there's a permutation of the numbers 0 to 127 in the file, separated by commas.
 
     std::string path = GConf::inst().shuffle_map_file;
     std::ifstream file(path);
+
     if(!file.good()){
         std::cout << "shuffle map file not found. exiting." << std::endl;
         std::cout << "path: " << path << std::endl;

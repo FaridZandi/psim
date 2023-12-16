@@ -24,7 +24,7 @@ void log_core_status_history(int rep, PSim* psim);
 int main(int argc, char** argv) {
     init(argc, argv);
     std::vector<double> psim_time_list;
-
+    
     GContext::initiate_device_shuffle_map();
 
     // Protocol* p = build_random_protocol(2000, 128);
@@ -42,7 +42,6 @@ int main(int argc, char** argv) {
 
         PSim* psim = new PSim();
 
-
         psim->add_protocols_from_input();
         psim->inform_network_of_protocols();
 
@@ -50,10 +49,8 @@ int main(int argc, char** argv) {
         GContext::this_run().psim_time = psim_time;
         psim_time_list.push_back(psim_time);
 
-
         change_log_path(worker_dir + "run-" + std::to_string(rep), "results.txt");
         psim->log_results(); 
-
 
         change_log_path(worker_dir + "run-" + std::to_string(rep), "lb-decisions.txt");
         psim->log_lb_decisions(); 

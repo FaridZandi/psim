@@ -52,8 +52,9 @@ public:
     //temp
     virtual void record_link_status(double timer) {};
 
-    virtual double total_link_bandwidth();
+    virtual double total_network_bw();
     virtual double total_bw_utilization();
+    virtual double total_core_bw();
     virtual double total_core_bw_utilization();
     virtual double min_core_link_bw_utilization();
     virtual double max_core_link_bw_utilization();
@@ -115,6 +116,7 @@ public:
 
     void record_link_status(double timer);
 
+    double total_core_bw();
     double total_core_bw_utilization();
     double min_core_link_bw_utilization();
     double max_core_link_bw_utilization();

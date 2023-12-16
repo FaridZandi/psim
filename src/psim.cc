@@ -66,7 +66,7 @@ void PSim::add_protocols_from_input(){
             proto = build_all_to_all(GConf::inst().machine_count,
                                      GConf::inst().link_bandwidth * 10, 
                                      2);
-        }else {
+        } else {
             std::string path = GConf::inst().protocol_file_dir + "/" + protocol_file_name;
             proto = load_protocol_from_file(path);
         }
@@ -184,7 +184,6 @@ double PSim::simulate() {
         // step_finished_tasks vector.
         double stop_comp = network->make_progress_on_machines(timer, step_size, step_finished_tasks);
 
-
         int timer_interval = GConf::inst().core_status_profiling_interval;
 
         if (int(timer) % timer_interval == 0 and int(timer) != last_summary_timer) {
@@ -227,8 +226,10 @@ double PSim::simulate() {
         h.total_core_bw_utilization = network->total_core_bw_utilization();
         h.min_core_link_bw_utilization = network->min_core_link_bw_utilization();
         h.max_core_link_bw_utilization = network->max_core_link_bw_utilization();
-        h.total_link_bandwidth = network->total_link_bandwidth();
+        h.total_network_bw = network->total_network_bw();
+        h.total_core_bw = network->total_core_bw();
         h.total_accelerator_capacity = GConf::inst().machine_count * step_size;
+
         history.push_back(h);
         log_history_entry(h);
 
@@ -244,6 +245,7 @@ double PSim::simulate() {
                 break;
             }
         }
+
         if (all_finished) {
             break;
         }
@@ -324,14 +326,24 @@ void PSim::log_history_entry(history_entry& h){
     spdlog::info("Total Core BW Utilization: {}", h.total_core_bw_utilization);
     spdlog::info("Min Core Link BW Utilization: {}", h.min_core_link_bw_utilization);
     spdlog::info("Max Core Link BW Utilization: {}", h.max_core_link_bw_utilization);
-    spdlog::info("Total Link Bandwidth: {}", h.total_link_bandwidth);
+    spdlog::info("Total Link Bandwidth: {}", h.total_network_bw);
+    spdlog::info("Total Core Bandwidth: {}", h.total_core_bw);
     spdlog::info("Total Accelerator Capacity: {}", h.total_accelerator_capacity);
     spdlog::info("------------------------------------------------------------");
 }
 
+
+
 // a function that receives a names and fields, plots them and saves them to a file.
 // any number of such inputs can be given to the function.
-void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function<double(history_entry)>>> plots){
+void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function<double(history_entry)>>> plots, 
+                      int smoothing) {
+
+
+    if (smoothing == auto_smooth) {
+        smoothing = history.size() / 500;
+    }
+
     plt::figure_size(1200, 780);
 
     std::string plot_name;
@@ -344,6 +356,23 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
         for (auto& h: history){
             data.push_back(field(h));
         }
+
+        if (smoothing > 1) {
+            if (data.size() < smoothing) {
+                smoothing = data.size();
+            }
+            
+            std::vector<double> smoothed_data;
+            for (int i = 0; i < data.size(); i++) {
+                double sum = 0;
+                for (int j = 0; j < smoothing and i + j < data.size(); j++) {
+                    sum += data[i + j];
+                }
+                smoothed_data.push_back(sum / smoothing);
+            }
+            data = smoothed_data;
+        }
+
         plt::plot(data, {{"label", name}});
 
         plot_name += name + "|";
@@ -363,15 +392,17 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
 
 void PSim::log_results() {
 
+    spdlog::critical("run number: {}", GContext::this_run().run_number);
+
+    spdlog::critical("psim time: {}", timer);
+
+
     if (this->protocols.size() != 1) {
-        spdlog::error("log_results is only supported for single protocol runs");
+        spdlog::error("the rest of log_results is only supported for single protocol runs");
         return;
     }
 
     
-    spdlog::critical("run number: {}", GContext::this_run().run_number);
-
-    spdlog::critical("psim time: {}", timer);
 
     double average_fct = 0;
     double average_flow_size = 0;
@@ -713,13 +744,13 @@ void PSim::save_run_results(){
         // plot the data with matplotlibcpp: comm_log, comp_log
 
         draw_plots({
-            {"network-util", [](history_entry h){return h.total_bw_utilization / h.total_link_bandwidth;}},
+            {"network-util", [](history_entry h){return h.total_bw_utilization / h.total_network_bw;}},
             {"accel-util", [](history_entry h){return h.step_comp / h.total_accelerator_capacity;}}
         });
 
         draw_plots({
-            {"network-util", [](history_entry h){return h.total_bw_utilization;}},
-            {"core-util", [](history_entry h){return h.total_core_bw_utilization;}},
+            {"network-util", [](history_entry h){return h.total_bw_utilization / h.total_network_bw;}},
+            {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
         });
 
         draw_plots({

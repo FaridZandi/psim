@@ -129,7 +129,8 @@ def get_psim_time(job_output, print_output=False):
             output_lines.append(output)
     
     if len(psim_times) == 0:
-        print("no psim times found, probably a crash happened")
+        print("no psim times found, simulation probably failed")
+        print("Please check the output to see what went wrong")
         print("no point in continuing, exiting")
         for line in output_lines:
             print(line, end="")

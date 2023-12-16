@@ -31,16 +31,16 @@ ga_baselines_dir = ga_rounds_dir + "baselines/"
 
 
 # input parameters
-# protocol_file_name = "candle128-simtime.txt"
+protocol_file_name = "candle128-simtime.txt"
 # protocol_file_name = "build-ring"
 # protocol_file_name = "transformer128-simtime+compute.txt"
 # protocol_file_name = "vgg128-simtime+maxmem+mem.txt"
-protocol_file_name = "dlrm128-simtime.txt"
+# protocol_file_name = "dlrm128-simtime.txt"
 
 core_count = 4
-rep_count = 1
-link_bandwidth = 10
-min_rate_ratio = 1
+min_rate_ratio = 0.1 # if the ratio isn't 1, then rep_count should be > 1
+rep_count = 50
+link_bandwidth = 400
 sorting_metric = "max" # min, avg, max
 population_size = 40 
 tweak_tolerance_limit = 5
@@ -72,7 +72,7 @@ options = {
     # "protocol-file-name": "transformer128-simtime+compute.txt",
 
     "step-size": base_step_size,
-    "core-status-profiling-interval": base_step_size,
+    "core-status-profiling-interval": int(max(base_step_size,1)),
     "rep-count": rep_count, 
     "console-log-level": 4,
     "file-log-level": 3,
@@ -145,7 +145,7 @@ best_so_far = 10e12
 
 def update_step_size(step_size):
     options["step-size"] = step_size
-    options["core-status-profiling-interval"] = step_size
+    options["core-status-profiling-interval"] = int(max(step_size,1))
 
 def reset_runtime_stats(): 
     global round_best_times
@@ -897,7 +897,7 @@ def genetic_algorithm():
         update_stats(round_counter, sorted_results)
         
         # prepare the next round
-        prev_round_dir = ga_rounds_dir + "{}".format(round_counter)
+        prev_round_dir = ga_rounds_dir + "{}".format(round_counter - 1)
         new_round_dir = ga_rounds_dir + "{}".format(round_counter + 1)
         os.system("mkdir -p {}".format(new_round_dir))  
         population = make_next_population(new_round_dir, sorted_results)

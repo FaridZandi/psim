@@ -99,7 +99,7 @@ Bottleneck* Network::create_bottleneck(double bandwidth) {
 }
 
 
-double Network::total_link_bandwidth() {
+double Network::total_network_bw() {
     static bool is_cached = false;
     static double cached_total = 0;
 
@@ -119,6 +119,7 @@ double Network::total_link_bandwidth() {
     }
 }
 
+
 double Network::total_bw_utilization () {
     double total = 0;
 
@@ -127,6 +128,11 @@ double Network::total_bw_utilization () {
     }
 
     return total;
+}
+
+
+double Network::total_core_bw() {
+    return 0;
 }
 
 double Network::total_core_bw_utilization() {

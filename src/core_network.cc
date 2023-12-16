@@ -49,6 +49,18 @@ void CoreConnectedNetwork::record_link_status(double timer) {
     }
 }
 
+
+double CoreConnectedNetwork::total_core_bw(){
+    double total_bandwidth = 0;
+
+    for (auto& bn: core_bottlenecks) {
+        total_bandwidth += bn.second->bandwidth;
+    }
+
+    return total_bandwidth;
+}
+
+
 double CoreConnectedNetwork::total_core_bw_utilization(){
     double total_utilization = 0;
 

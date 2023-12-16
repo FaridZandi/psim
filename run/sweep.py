@@ -46,7 +46,7 @@ csv_path = results_dir + "results.csv".format(run_id)
 os.system("mkdir -p {}".format(results_dir))
 
 
-simulation_timestep = 1
+simulation_timestep = 0.1
 number_worker_threads = 20
 rep_count = 3
 protocols_count = 999 # all protocols
@@ -108,13 +108,13 @@ base_options = {
     "console-log-level": 4,
 
     # flow rate control options
-    "initial-rate": 100,
-    "min-rate": 10,
+    "initial-rate": 400,
+    "min-rate": 40,
     "priority-allocator": "fairshare", #"priorityqueue", 
 
     # topology options
     "network-type": "leafspine",    
-    "link-bandwidth": 100,
+    "link-bandwidth": 400,
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 4,
     "ft-agg-per-pod": 4,
@@ -127,8 +127,9 @@ base_options = {
 
     # load balancing options
     "load-metric" : "notset", # is set later based on lb-scheme
-    "shuffle-device-map": True,
+    "shuffle-device-map": False,
     "shuffle-map-file": shuffle_path,
+    "regret-mode": "none"
 }
 
 # print the sweep config in a file in the results dir
