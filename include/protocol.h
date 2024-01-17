@@ -120,6 +120,7 @@ public:
     int src_dev_id;
     int dst_dev_id;
     double size;
+    int packet_count; // number of packets
     double progress;
 
     int selected_priority;
@@ -164,7 +165,8 @@ public:
     virtual ~PComp();
 
     int dev_id;
-    double size;
+    // double size;
+    int quantum_count; // number of quanta
     double progress;
 
     Machine *machine;

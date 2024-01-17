@@ -209,7 +209,8 @@ public:
 
     // basic info
     int id;
-    double bandwidth;
+    int packets_per_quantum; 
+    // double bandwidth;
     int current_flow_count;
     double current_flow_size_sum;
     std::vector<Flow*> flows;

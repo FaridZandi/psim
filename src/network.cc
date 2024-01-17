@@ -290,7 +290,14 @@ Bottleneck::Bottleneck(double bandwidth) {
     id = bottleneck_counter;
     bottleneck_counter += 1;
 
-    this->bandwidth = bandwidth;
+    // the bandwidth of the bottleneck given in Gbps. 
+    // For 1342 bytes packets and 10us quantum, we are supposed to get 
+    // 1 packet per quantum for every 1 Gbps of bandwidth.
+    double bandwidth_gbps = bandwidth; 
+    double quantums_per_second = 1000000 / TIME_Q_US; 
+    double packets_per_second = (bandwidth_gbps * 1024 * 1024 * 1024) / (8 * PACKET_SIZE);
+    this->packets_per_quantum = packets_per_second / quantums_per_second;
+
     this->current_flow_count = 0;
     this->current_flow_size_sum = 0;
 
@@ -339,15 +346,15 @@ Bottleneck::~Bottleneck() {
 void Bottleneck::setup_bwalloc() {
     switch (GConf::inst().priority_allocator) {
         case PriorityAllocator::PRIORITY_QUEUE:
-            bwalloc = new PriorityQueueBandwidthAllocator(bandwidth);
+            bwalloc = new PriorityQueueBandwidthAllocator(packets_per_quantum);
             break;
 
         case PriorityAllocator::FIXED_LEVELS:
-            bwalloc = new FixedLevelsBandwidthAllocator(bandwidth);
+            bwalloc = new FixedLevelsBandwidthAllocator(packets_per_quantum);
             break;
 
         case PriorityAllocator::FAIR_SHARE:
-            bwalloc = new FairShareBandwidthAllocator(bandwidth);
+            bwalloc = new FairShareBandwidthAllocator(packets_per_quantum);
             break;
 
         default:

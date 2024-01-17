@@ -9,6 +9,7 @@
 #include <fstream>
 #include <sstream>
 #include "gcontext.h"
+#include "gconfig.h"
 #include "spdlog/spdlog.h"
 
 using namespace psim;
@@ -249,7 +250,11 @@ psim::load_protocol_from_file(std::string file_path){
             if (task_type == PTaskType::COMPUTE) {
 
                 PComp *compute_task = (PComp *)task;
-                compute_task->size = std::stod(tokens[i + 1]);
+                // The size of the compute task in the files is given in ms. 
+                // assuming a time-quantum of 10us, the number of time-quantums is:
+                // (size * 1000) / 10
+                compute_task->quantum_count = int(std::stod(tokens[i + 1]) * 1000 / TIME_Q_US);
+                // compute_task->size = std::stod(tokens[i + 1]);
                 compute_task->dev_id = std::stoi(tokens[i + 3]);
                 if (GConf::inst().shuffle_device_map){
                     compute_task->dev_id = GContext::get_device_shuffle_map(compute_task->dev_id);
@@ -258,7 +263,12 @@ psim::load_protocol_from_file(std::string file_path){
             } else if (task_type == PTaskType::FLOW) {
 
                 Flow *flow = (Flow *)task;
-                flow->size = std::stod(tokens[i + 1]);
+                // The size of the flow in the files is given in Megabits. 
+                // assuming a packet size of 1342 bytes, the number of packets is:
+                // (size * 1024 * 1024 / 8) / 1342
+                int flow_bytes_count = std::stod(tokens[i + 1]) * 1024 * 1024 / 8;
+                flow->packet_count = int(ceil(flow_bytes_count / PACKET_SIZE));
+                // flow->size = std::stod(tokens[i + 1]);
                 flow->src_dev_id = std::stoi(tokens[i + 3]);
                 flow->dst_dev_id = std::stoi(tokens[i + 5]);
                 if (GConf::inst().shuffle_device_map){

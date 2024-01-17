@@ -1,6 +1,9 @@
 #ifndef CONFIG_H
 #define CONFIG_H
 
+const int PACKET_SIZE = 1342; // bytes per packet
+const int TIME_Q_US = 10; // 10 microseconds per time quantum
+
 enum class LoadMetric {
     DEFAULT,
     REGISTERED,
