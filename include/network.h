@@ -40,8 +40,7 @@ public:
 
     void reset_bottleneck_registers();
     void compute_bottleneck_allocations();
-    double make_progress_on_machines(double current_time, double step_size,
-                                     std::vector<PComp*> & step_finished_tasks);
+
 
     virtual void set_path(Flow* flow, double timer) = 0;
     virtual int get_source_for_flow(Flow* flow) = 0;
@@ -60,7 +59,12 @@ public:
     virtual double max_core_link_bw_utilization();
 
     std::vector<Flow *> flows;
-    double make_progress_on_flows(double current_time, std::vector<Flow*> & step_finished_flows);
+
+    double make_progress_on_machines(double current_time, double step_size,
+                                     std::vector<PComp*> & step_finished_tasks);
+    
+    double make_progress_on_flows(double current_time, double step_size, 
+                                  std::vector<Flow*> & step_finished_flows);
 
     LoadBalancer* core_load_balancer;
 
@@ -175,7 +179,9 @@ public:
     virtual ~Machine();
     int name;
 
-    double make_progress(double current_time, double step_size, std::vector<PComp*> & step_finished_tasks);
+    double make_progress(double current_time, double step_size, 
+                         std::vector<PComp*> & step_finished_tasks);
+    
     std::queue<PComp*, std::deque<PComp*> > task_queue;
 
     std::vector<int> task_queue_length_history;

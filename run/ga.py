@@ -944,6 +944,7 @@ def plot_compare_ga_with_baselines():
         for j, offline_scheme in enumerate(offline_schemes):
             if offline_scheme == "genetic":
                 # the best decisions from the last round
+                # TODO: probably should keep the best decisions from all rounds
                 worker_decisions_path = ga_rounds_dir + "/{}/0.txt".format(ga_rounds)
             else:
                 # the baseline decisions, generated in the online phase

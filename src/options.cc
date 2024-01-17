@@ -57,6 +57,9 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("lb-decisions-file", po::value<std::string>(), "LB decisions file")
         ("workers-dir", po::value<std::string>(), "workers directory")
         ("regret-mode", po::value<std::string>(), "set the regret mode")
+        ("adaptive-step-size", po::value<int>()->implicit_value(1), "enable adaptive step size setting")
+        ("adaptive-step-size-min", po::value<double>(), "min adaptive step size")
+        ("adaptive-step-size-max", po::value<double>(), "max adaptive step size")
     ;
 
     po::variables_map vm;
@@ -307,6 +310,15 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("no-profile-core-status")) {
         GConf::inst().profile_core_status = false;
     }
+    if (vm.count("adaptive-step-size")) {
+        GConf::inst().adaptive_step_size = true;
+    }
+    if (vm.count("adaptive-step-size-min")) {
+        GConf::inst().adaptive_step_size_min = vm["adaptive-step-size-min"].as<double>();
+    }
+    if (vm.count("adaptive-step-size-max")) {
+        GConf::inst().adaptive_step_size_max = vm["adaptive-step-size-max"].as<double>();
+    }
 }
 
 void psim::log_config() {
@@ -354,6 +366,9 @@ void psim::log_config() {
     spdlog::info("==== workers-dir: {}", GConf::inst().workers_dir);
     spdlog::info("==== regret-mode: {}", int(GConf::inst().regret_mode));
     spdlog::info("==== profile_core_status: {}", GConf::inst().profile_core_status);
+    spdlog::info("==== adaptive_step_size: {}", GConf::inst().adaptive_step_size);
+    spdlog::info("==== adaptive_step_size_min: {}", GConf::inst().adaptive_step_size_min);
+    spdlog::info("==== adaptive_step_size_max: {}", GConf::inst().adaptive_step_size_max);
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

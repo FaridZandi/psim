@@ -74,6 +74,18 @@ void Protocol::build_dependency_graph() {
     // For each task we initially have the ids identifying its next tasks. This
     // loop populates the next_tasks member for each task with the actual task
     // objects rather than the task IDs.
+
+    // this loop also clears the next_task_ids vector, since it's no longer needed.
+    // The purpose is that the build_dependency_graph function can be called multiple 
+    // times with no problems, and we don't want to keep adding the same next tasks to 
+    // the next_tasks vector. If any new ids are added to the next_task_ids vector, 
+    // they will be added to the next_tasks vector in the next iteration.
+
+    // the is_initiator and is_finisher flags are set to true by default, and
+    // are set to false if the task has a predecessor or successor respectively.
+    // the loop below this one identifies the initiator and finisher tasks.
+    // TODO: set the flags to true here, don't rely on the default value. 
+
     for (auto task : this->tasks) {
         for (auto next_task_id : task->next_task_ids) {
             PTask *next_task = this->task_map[next_task_id];
@@ -389,4 +401,8 @@ PTask* PComp::make_shallow_copy(){
     new_task->dev_id = this->dev_id;
 
     return new_task;
+}
+
+double PComp::crude_remaining_time_estimate(){
+    return (this->size - this->progress); 
 }

@@ -111,6 +111,11 @@ public:
 
     bool record_link_flow_loads = false;
 
+    // experimental shit
+    bool adaptive_step_size = false; 
+    double adaptive_step_size_min = 0.1; 
+    double adaptive_step_size_max = 1; 
+
 
 private:
     GConf() {}

@@ -167,9 +167,10 @@ double PSim::simulate() {
         }
     }
 
+
     // main loop
     while (true) {
-
+        
         // auto new_flows = traffic_gen->get_flows(timer);
         // for (auto flow : new_flows) {
         //     this->start_task(flow);
@@ -177,12 +178,39 @@ double PSim::simulate() {
 
         std::vector<Flow *> step_finished_flows;
         std::vector<PComp *> step_finished_tasks;
+        
+        double this_step_step_size = GConf::inst().step_size;
 
-        // See if any flows have finished and add them to the step_finished_flows vector.
-        double step_comm = network->make_progress_on_flows(timer, step_finished_flows);
-        // See if any tasks on each of the machines have finished and add them to the
-        // step_finished_tasks vector.
-        double stop_comp = network->make_progress_on_machines(timer, step_size, step_finished_tasks);
+        if (GConf::inst().adaptive_step_size){
+
+            this_step_step_size = GConf::inst().adaptive_step_size_max;
+
+            for (auto& flow: network->flows){
+                double remaining_time_estimate = flow->crude_remaining_time_estimate(); 
+                // spdlog::critical("flow {} remaining time estimate: {}", flow->id, remaining_time_estimate);
+                if (remaining_time_estimate < this_step_step_size){
+                    this_step_step_size = remaining_time_estimate;
+                }    
+            }
+            for (auto& task: compute_tasks){
+                double remaining_time_estimate = task->crude_remaining_time_estimate(); 
+                // spdlog::critical("task {} remaining time estimate: {}", task->id, remaining_time_estimate);
+                if (remaining_time_estimate < this_step_step_size){
+                    this_step_step_size = remaining_time_estimate;
+                }    
+            }
+
+            double min_step_size = GConf::inst().adaptive_step_size_min;
+
+            if (this_step_step_size < min_step_size){
+                this_step_step_size = min_step_size;
+            }
+        }
+
+        spdlog::debug("step size: {}", this_step_step_size);
+
+        double step_comm = network->make_progress_on_flows(timer, this_step_step_size, step_finished_flows);
+        double stop_comp = network->make_progress_on_machines(timer, this_step_step_size, step_finished_tasks);
 
         int timer_interval = GConf::inst().core_status_profiling_interval;
 
@@ -203,8 +231,7 @@ double PSim::simulate() {
             start_next_tasks(flow);
         }
 
-        // Remove the finished computation tasks and start up the tasks that
-        // follow.
+        // Remove the finished computation tasks and start up the tasks that follow.
         for (auto& task : step_finished_tasks) {
             this->finished_compute_tasks.push_back(task);
             handle_task_completion(task);
@@ -228,7 +255,7 @@ double PSim::simulate() {
         h.max_core_link_bw_utilization = network->max_core_link_bw_utilization();
         h.total_network_bw = network->total_network_bw();
         h.total_core_bw = network->total_core_bw();
-        h.total_accelerator_capacity = GConf::inst().machine_count * step_size;
+        h.total_accelerator_capacity = GConf::inst().machine_count * this_step_step_size;
 
         history.push_back(h);
         log_history_entry(h);
@@ -250,7 +277,7 @@ double PSim::simulate() {
             break;
         }
 
-        timer += step_size;
+        timer += this_step_step_size;
     }
 
     mark_critical_path(); 

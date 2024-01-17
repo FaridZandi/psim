@@ -1,12 +1,15 @@
+[ ] Change the way the config is handed to the application, maybe create a sort of config file, yaml etc. 
+[ ] Create a system for generating the options.c and and config.h files according to a base config file. changing things everytime is a kind of painful thing to do every time. 
+[ ] Introduce a notion of time and data-transfer quantums, avoid "double" values for that purpose. maybe 1 us for time and the number of packets could be selected for the quantums.   
+[ ] Fix up the issues with the multi-protocol execution, test everything works with the new assumption. 
+[ ] Implement an adaptive step size system, deciding on the progress steps based on the current tasks. 
+[ ] Add the Torus Topology, x-Dimensional. test things out in that setting. 
 [ ] Add support for multigpu machines, with crazy bandwidth numbers between the GPUs on a machine. 
 [ ] Implement the event system, pretty much like the python version. 
 [ ] Create a system for making background flows in the network, using the event for better performance. 
-
 [ ] Change the way that flows and computes are iterated in the make progress thing. make a copy of the array and remove anything that should be removed on the spot. Just like the python implementation. 
 [ ] bulid the logical and physical machines, link them in a reasonable manner. 
 [ ] create placement algorithm to handle logical to physical mapping of the elements.  
-
-
 [ ] Use case: the program is started, and it receives the protocol over a pipe. then it runs the protocal and returns the simulation time and other required info. This way, the code can be added to any other project. But what if they are python code? This is hard to decide then. 
 
 [*] create a thing for global configuration. 

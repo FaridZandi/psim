@@ -61,12 +61,12 @@ void Flow::finished() {
 void Flow::compute_priority(){
 
     if (id == -1){
+        // is this supposed to happen? 
         selected_priority = 1e6;
     } else {
         // selected_priority = rank * protocol->tasks.size() + id;
         // selected_priority = id;
         // selected_priority = rank;
-
         
         // whoever manages to the be started first gets the highest priority
         selected_priority = (int) ((start_time * protocol->tasks.size()) + id);
@@ -237,4 +237,8 @@ PTask* Flow::make_shallow_copy(){
     new_task->src_dev_id = this->src_dev_id;
     new_task->dst_dev_id = this->dst_dev_id;
     return new_task;
+}
+
+double Flow::crude_remaining_time_estimate(){
+    return (size - progress) / min_bottleneck_rate; 
 }

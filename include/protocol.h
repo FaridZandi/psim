@@ -81,6 +81,8 @@ public:
     virtual void reset();
 
     virtual PTask* make_shallow_copy() = 0;
+
+    virtual double crude_remaining_time_estimate() {return 0.0;}
 private:
 
 };
@@ -147,6 +149,10 @@ public:
     void reset();
 
     PTask* make_shallow_copy();
+
+    double crude_remaining_time_estimate(); 
+
+
 private:
     LoadMetric load_metric;
 };
@@ -169,6 +175,8 @@ public:
 
     void reset();
     PTask* make_shallow_copy();
+
+    double crude_remaining_time_estimate(); 
 
 private:
 
@@ -201,7 +209,6 @@ public:
 
     int total_task_count;
     int finished_task_count;
-
 private:
 
 };

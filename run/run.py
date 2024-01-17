@@ -34,7 +34,7 @@ options = {
 
     "step-size": 1,
     "core-status-profiling-interval": 1,
-    "rep-count": 10, 
+    "rep-count": 1, 
     "console-log-level": 4,
     "file-log-level": 3,
     

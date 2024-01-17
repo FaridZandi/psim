@@ -150,10 +150,9 @@ double Network::max_core_link_bw_utilization(){
 
 
 
-double Network::make_progress_on_flows(double current_time,
+double Network::make_progress_on_flows(double current_time, double step_size,
                                        std::vector<Flow*> & step_finished_flows){
 
-    double step_size = GConf::inst().step_size;
     double step_comm = 0;
 
     reset_bottleneck_registers();
