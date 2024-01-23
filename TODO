@@ -11,6 +11,8 @@
 [ ] bulid the logical and physical machines, link them in a reasonable manner. 
 [ ] create placement algorithm to handle logical to physical mapping of the elements.  
 [ ] Use case: the program is started, and it receives the protocol over a pipe. then it runs the protocal and returns the simulation time and other required info. This way, the code can be added to any other project. But what if they are python code? This is hard to decide then. 
+[ ] Make some tests for the code, create some testing facility in general. 
+[ ] rename all instances of bottleneck to link. 
 
 [*] create a thing for global configuration. 
 [*] Implement a more complicated kind of network, like the FatTree in the python code. 

@@ -45,12 +45,13 @@ void Network::integrate_protocol_knowledge(std::vector<Protocol*>& protocols) {
 }
 
 
-double Network::make_progress_on_machines(double current_time, double step_size,
-                                          std::vector<PComp*> & step_finished_tasks){
-    double step_comp = 0;
+int Network::make_progress_on_machines(int current_quantum, int step_quantums,
+                                       std::vector<PComp*> & step_finished_tasks){
+    
+    int step_comp_quantums = 0;
 
     for (auto& machine : this->machines) {
-        step_comp += machine->make_progress(current_time, step_size, step_finished_tasks);
+        step_comp_quantums += machine->make_progress(current_quantum, step_quantums, step_finished_tasks);
     }
 
     if (GConf::inst().record_machine_history){
@@ -59,7 +60,7 @@ double Network::make_progress_on_machines(double current_time, double step_size,
         }
     }
 
-    return step_comp;
+    return step_comp_quantums;
 }
 
 void
@@ -150,21 +151,21 @@ double Network::max_core_link_bw_utilization(){
 
 
 
-double Network::make_progress_on_flows(double current_time, double step_size,
+int Network::make_progress_on_flows(int current_quantum, int step_quantums,
                                        std::vector<Flow*> & step_finished_flows){
 
-    double step_comm = 0;
+    int step_packets_sent = 0;
 
     reset_bottleneck_registers();
 
     for (auto& flow : flows) {
-        flow->register_rate_on_path(step_size);
+        flow->register_rate_on_path(step_quantums);
     }
 
     compute_bottleneck_allocations();
 
     for (auto& flow : flows) {
-        step_comm += flow->make_progress(current_time, step_size);
+        step_packets_sent += flow->make_progress(current_quantum, step_quantums);
 
         if (flow->status == PTaskStatus::FINISHED) {
             step_finished_flows.push_back(flow);
@@ -182,15 +183,13 @@ double Network::make_progress_on_flows(double current_time, double step_size,
         core_load_balancer->update_state();
     }
 
-    return step_comm;
+    return step_packets_sent;
 }
 
 
 std::vector<int> Network::get_core_bottleneck_ids(){
    return std::vector<int>(); 
 }
-
-
 
 
 //==============================================================================
@@ -239,47 +238,39 @@ psim::Machine::~Machine() {
 
 }
 
-double psim::Machine::make_progress(double current_time, double step_size,
+int psim::Machine::make_progress(int current_quantum, int step_quantums,
                                     std::vector<PComp*> & step_finished_tasks) {
+
     if (this->task_queue.empty()) {
         return 0;
     }
 
-    double epsilon = step_size / 1000; // floating point errors ...
-    double step_comp = 0;
-    double avail_comp = step_size;
+    int step_comp_quantums = 0;
+    int machine_remaining_quantums = step_quantums;
 
-    int handled_tasks = 0;
-
-    while (not this->task_queue.empty()){
+    while (not this->task_queue.empty() and machine_remaining_quantums > 0){
         PComp* compute_task = this->task_queue.front();
-        handled_tasks += 1;
 
-        if (compute_task->progress == 0){
-            compute_task->start_time = current_time;
+        if (compute_task->executed_quantum_count == 0){
+            compute_task->start_quantum = current_quantum;
         }
 
-        double task_remaining = compute_task->size - compute_task->progress;
-        double progress_to_make = std::min(avail_comp, task_remaining);
+        int task_remaining_quantums = compute_task->quantum_count - compute_task->executed_quantum_count;
+        int quantums_to_execute = std::min(machine_remaining_quantums, task_remaining_quantums);
 
-        compute_task->progress += progress_to_make;
-        step_comp += progress_to_make;
-        avail_comp -= progress_to_make;
-        task_remaining -= progress_to_make;
+        compute_task->executed_quantum_count += quantums_to_execute;
+        step_comp_quantums += quantums_to_execute;
+        machine_remaining_quantums -= quantums_to_execute;
+        task_remaining_quantums -= quantums_to_execute;
 
-        if (task_remaining < epsilon) {
-            compute_task->progress = compute_task->size;
+        if (task_remaining_quantums == 0) {
             this->task_queue.pop();
             compute_task->status = PTaskStatus::FINISHED;
             step_finished_tasks.push_back(compute_task);
         }
-
-        if (avail_comp < epsilon) {
-            break;
-        }
     }
 
-    return step_comp;
+    return step_comp_quantums;
 }
 
 
@@ -298,13 +289,16 @@ Bottleneck::Bottleneck(double bandwidth) {
     double packets_per_second = (bandwidth_gbps * 1024 * 1024 * 1024) / (8 * PACKET_SIZE);
     this->packets_per_quantum = packets_per_second / quantums_per_second;
 
+    // TODO: remove after testing 
+    spdlog::critical("bandwidth_gbps: {}, quantums_per_second: {}, packets_per_second: {}, packets_per_quantum: {}", 
+                     bandwidth_gbps, quantums_per_second, packets_per_second, this->packets_per_quantum); 
+    
     this->current_flow_count = 0;
-    this->current_flow_size_sum = 0;
-
-    setup_bwalloc();
-
+    this->current_flow_packet_count_sum = 0;
     this->load_metric = GConf::inst().load_metric;
     this->drop_chance_multiplier = GConf::inst().drop_chance_multiplier;
+
+    setup_bwalloc();
 }
 
 
@@ -326,7 +320,7 @@ double Bottleneck::get_load(LoadMetric load_metric_arg) {
         return bwalloc->total_allocated;
 
     case LoadMetric::FLOWSIZE:
-        return current_flow_size_sum;
+        return current_flow_packet_count_sum;
 
     case LoadMetric::FLOWCOUNT:
         return current_flow_count;

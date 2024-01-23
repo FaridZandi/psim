@@ -60,10 +60,10 @@ public:
 
     std::vector<Flow *> flows;
 
-    double make_progress_on_machines(double current_time, double step_size,
+    int make_progress_on_machines(int current_quantum, int step_quantums,
                                      std::vector<PComp*> & step_finished_tasks);
     
-    double make_progress_on_flows(double current_time, double step_size, 
+    int make_progress_on_flows(int current_quantum, int step_quantums, 
                                   std::vector<Flow*> & step_finished_flows);
 
     LoadBalancer* core_load_balancer;
@@ -179,7 +179,7 @@ public:
     virtual ~Machine();
     int name;
 
-    double make_progress(double current_time, double step_size, 
+    int make_progress(int current_quantum, int step_quantums, 
                          std::vector<PComp*> & step_finished_tasks);
     
     std::queue<PComp*, std::deque<PComp*> > task_queue;
@@ -199,7 +199,6 @@ public:
     bool should_drop(double step_size);
 
     // priority allocation wrapper functions
-    BandwidthAllocator* bwalloc;
     void register_rate(int id, double rate, int priority = 0);
     void reset_register();
     void allocate_bandwidths();
@@ -208,11 +207,14 @@ public:
     double get_load(LoadMetric load_metric_arg = LoadMetric::DEFAULT);
 
     // basic info
-    int id;
-    int packets_per_quantum; 
     // double bandwidth;
+    // double current_flow_size_sum;
+
+    int id;
+    int packets_per_quantum;
     int current_flow_count;
-    double current_flow_size_sum;
+    int current_flow_packet_count_sum;
+    BandwidthAllocator* bwalloc;
     std::vector<Flow*> flows;
     LoadMetric load_metric;
     double drop_chance_multiplier;

@@ -71,26 +71,26 @@ psim::super_simple_protocol(){
     Protocol *protocol = new Protocol();
     
     PComp* ptask1 = (PComp*)protocol->create_task(PTaskType::COMPUTE);
-    ptask1->size = 100; 
+    ptask1->quantum_count = 100; 
     ptask1->dev_id = 0;
 
     Flow* ptask2 = (Flow*)protocol->create_task(PTaskType::FLOW);
     Flow* ptask3 = (Flow*)protocol->create_task(PTaskType::FLOW); 
     
-    ptask2->size = 10000; 
+    ptask2->packet_count = 10000; 
     ptask2->src_dev_id = 0;
     ptask2->dst_dev_id = 1;
 
-    ptask3->size = 10000;
+    ptask3->packet_count = 10000;
     ptask3->src_dev_id = 0;
     ptask3->dst_dev_id = 2;
 
     PComp* ptask4 = (PComp*)protocol->create_task(PTaskType::COMPUTE);
-    ptask4->size = 100;
+    ptask4->quantum_count = 100;
     ptask4->dev_id = 1;
 
     PComp* ptask5 = (PComp*)protocol->create_task(PTaskType::COMPUTE);
-    ptask5->size = 100;
+    ptask5->quantum_count = 100;
     ptask5->dev_id = 2;
 
     ptask1->add_next_task_id(ptask2->id);
@@ -110,7 +110,7 @@ psim::simple_pipeline_protocol(int length){
 
     for (int i = 0; i < length; i++) {
         PComp *pc = (PComp*)protocol->create_task(PTaskType::COMPUTE, task_counter);
-        pc->size = 100;
+        pc->quantum_count = 100;
         pc->dev_id = i;
         task_counter += 1;
     }
@@ -123,7 +123,7 @@ psim::simple_pipeline_protocol(int length){
         flow->add_next_task_id(i + 1);
         protocol->task_map[i]->add_next_task_id(flow->id);
 
-        flow->size = 100;
+        flow->packet_count = 100;
         task_counter += 1;
     }
 
@@ -142,7 +142,7 @@ psim::build_random_protocol(int num_comp, int machine_count){
     for (int i = 0; i < num_comp; i++) {
         PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE, task_counter);
         task_map[i] = pc;
-        pc->size = rand() % 50;
+        pc->quantum_count = rand() % 100;
         pc->dev_id = rand() % machine_count;
         task_counter += 1;
     }
@@ -177,7 +177,7 @@ psim::build_random_protocol(int num_comp, int machine_count){
 
                 flow->src_dev_id = task_map[prev]->dev_id;
                 flow->dst_dev_id = task_map[i]->dev_id;
-                flow->size = rand() % 10000;
+                flow->packet_count = rand() % 10000;
 
                 task_map[prev]->add_next_task_id(flow->id);
                 flow->add_next_task_id(task_map[i]->id);
@@ -253,7 +253,8 @@ psim::load_protocol_from_file(std::string file_path){
                 // The size of the compute task in the files is given in ms. 
                 // assuming a time-quantum of 10us, the number of time-quantums is:
                 // (size * 1000) / 10
-                compute_task->quantum_count = int(std::stod(tokens[i + 1]) * 1000 / TIME_Q_US);
+                double compute_time_ms = std::stod(tokens[i + 1]);
+                compute_task->quantum_count = int(compute_time_ms * 1000 / TIME_Q_US);
                 // compute_task->size = std::stod(tokens[i + 1]);
                 compute_task->dev_id = std::stoi(tokens[i + 3]);
                 if (GConf::inst().shuffle_device_map){
@@ -306,19 +307,18 @@ psim::ring_allreduce(int num_replicas, double comm_size, double aggregate_time) 
         // there would be a total of 2 * (num_replicas - 1) communication steps. 
         // there would a total of (num_replicas - 1) aggregation steps.
 
-
         PTask* prev_task = nullptr; 
 
         for (int j = 0; j < num_replicas - 1; j++) {
 
             Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW, task_counter);
-            flow->size = comm_size; 
+            flow->packet_count = int(std::ceil(comm_size / PACKET_SIZE));
             flow->src_dev_id = (i + j) % num_replicas;
             flow->dst_dev_id = (i + j + 1) % num_replicas;
             task_counter += 1;
 
             PComp* agg = (PComp*)protocol->create_task(PTaskType::COMPUTE, task_counter);
-            agg->size = aggregate_time; 
+            agg->quantum_count = aggregate_time * 100; 
             agg->dev_id = (i + j + 1) % num_replicas;
             task_counter += 1;
 
@@ -339,7 +339,7 @@ psim::ring_allreduce(int num_replicas, double comm_size, double aggregate_time) 
         for (int j = 0; j < num_replicas - 1; j++) {
 
             Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW, task_counter);
-            flow->size = comm_size; 
+            flow->packet_count = int(std::ceil(comm_size / PACKET_SIZE)); 
             flow->src_dev_id = (starting + j) % num_replicas;
             flow->dst_dev_id = (starting + j + 1) % num_replicas;
             task_counter += 1;
@@ -351,8 +351,6 @@ psim::ring_allreduce(int num_replicas, double comm_size, double aggregate_time) 
             prev_task = flow;
         }
     }
-
-
 
     return protocol;
 } 
@@ -373,7 +371,7 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
                 }
 
                 Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW, task_counter);
-                flow->size = comm_size; 
+                flow->packet_count = int(std::ceil(chunk_size / PACKET_SIZE));
                 flow->src_dev_id = i;
                 flow->dst_dev_id = j;
                 task_counter += 1;

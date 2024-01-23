@@ -6,7 +6,7 @@
 using namespace psim;
 
 
-void BandwidthAllocator::reset() {
+void BandwidthAllocator::reset(int step_quantums) {
     total_registered = 0;
     total_allocated = 0; 
     utilized_bandwidth = 0;
@@ -17,17 +17,16 @@ void BandwidthAllocator::register_utilization(double utilization) {
 
 }
 
-FairShareBandwidthAllocator::FairShareBandwidthAllocator(double total_available){
-    this->total_available = total_available;
-    BandwidthAllocator::reset(); 
+FairShareBandwidthAllocator::FairShareBandwidthAllocator(int packets_per_quantum){
+    this->packets_per_quantum = packets_per_quantum;
 }
 
 FairShareBandwidthAllocator::~FairShareBandwidthAllocator(){
 
 }
 
-void FairShareBandwidthAllocator::reset(){
-    BandwidthAllocator::reset(); 
+void FairShareBandwidthAllocator::reset(int step_quantums){
+    BandwidthAllocator::reset(step_quantums); 
 }
 
 void FairShareBandwidthAllocator::register_rate(int id, double rate, int priority){
@@ -59,12 +58,10 @@ double FairShareBandwidthAllocator::get_allocated_rate(int id, double registered
 
 
 
-FixedLevelsBandwidthAllocator::FixedLevelsBandwidthAllocator(double total_available){
-    this->total_available = total_available;
+FixedLevelsBandwidthAllocator::FixedLevelsBandwidthAllocator(int packets_per_quantum){
+    this->packets_per_quantum = packets_per_quantum;
+
     this->priority_levels = GConf::inst().bn_priority_levels;
-
-    BandwidthAllocator::reset(); 
-
     for (int i = 0; i < priority_levels; i++){
         register_map.push_back(0);
         availability_map.push_back(0);
@@ -75,8 +72,8 @@ FixedLevelsBandwidthAllocator::~FixedLevelsBandwidthAllocator(){
 
 }
 
-void FixedLevelsBandwidthAllocator::reset(){
-    BandwidthAllocator::reset(); 
+void FixedLevelsBandwidthAllocator::reset(int step_quantums){
+    BandwidthAllocator::reset(step_quantums); 
 
     for (int i = 0; i < priority_levels; i++){
         register_map[i] = 0;
@@ -140,9 +137,8 @@ double FixedLevelsBandwidthAllocator::get_allocated_rate(int id, double register
 
 
 
-PriorityQueueBandwidthAllocator::PriorityQueueBandwidthAllocator(double total_available){
-    this->total_available = total_available;
-    BandwidthAllocator::reset(); 
+PriorityQueueBandwidthAllocator::PriorityQueueBandwidthAllocator(int packets_per_quantum){
+    this->packets_per_quantum = packets_per_quantum;
 }
 
 PriorityQueueBandwidthAllocator::~PriorityQueueBandwidthAllocator(){

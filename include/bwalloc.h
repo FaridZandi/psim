@@ -13,12 +13,14 @@ public:
     BandwidthAllocator() {};
     virtual ~BandwidthAllocator() {};
     
-    double total_available;
+    // double total_available;
+
     double total_registered;
     double total_allocated; 
     double utilized_bandwidth;
+    int packets_per_quantum;
 
-    virtual void reset();
+    virtual void reset(int step_quantums);
     virtual void register_rate(int id, double rate, int priority) = 0;
     virtual void compute_allocations() = 0;
     virtual double get_allocated_rate(int id, double registered_rate = -1, int priority = -1) = 0;
@@ -29,10 +31,10 @@ private:
 
 class FairShareBandwidthAllocator : public BandwidthAllocator {
 public:
-    FairShareBandwidthAllocator(double total_available);
+    FairShareBandwidthAllocator(int packets_per_quantum);
     virtual ~FairShareBandwidthAllocator();
 
-    void reset();
+    void reset(int step_quantums);
     void register_rate(int id, double rate, int priority);
     void compute_allocations();
     double get_allocated_rate(int id, double registered_rate = -1, int priority = -1);
@@ -41,7 +43,7 @@ private:
 
 class FixedLevelsBandwidthAllocator : public BandwidthAllocator {
 public:
-    FixedLevelsBandwidthAllocator(double total_available);
+    FixedLevelsBandwidthAllocator(int packets_per_quantum);
     virtual ~FixedLevelsBandwidthAllocator();
 
     int priority_levels; 
@@ -49,7 +51,7 @@ public:
     std::vector<double> register_map;
     std::vector<double> availability_map;
     
-    void reset();
+    void reset(int step_quantums);
     void register_rate(int id, double rate, int priority);
     void compute_allocations();
     double get_allocated_rate(int id, double registered_rate = -1, int priority = -1);
@@ -61,14 +63,15 @@ private:
 
 class PriorityQueueBandwidthAllocator : public BandwidthAllocator {
 public:
-    PriorityQueueBandwidthAllocator(double total_available);
+    PriorityQueueBandwidthAllocator(int packets_per_quantum);
     virtual ~PriorityQueueBandwidthAllocator();
 
     // a priority queue, items added with <priority, <id, rate> >
+    // TODO: make a struct for this. My eyes are bleeding.
     std::priority_queue<std::pair<int, std::pair<int, double> > > register_queue; 
     std::map<int, double> allocations; 
 
-    void reset();
+    void reset(int step_quantums);
     void register_rate(int id, double rate, int priority);
     void compute_allocations();
     double get_allocated_rate(int id, double registered_rate = -1, int priority = -1);

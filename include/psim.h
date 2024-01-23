@@ -72,6 +72,8 @@ private:
     void mark_critical_path(); 
     void traverse_critical_path(PTask* task); 
     
+
+    int get_current_step_quantums(); 
     TrafficGen *traffic_gen;
     std::vector<Protocol *> protocols;
     std::vector<Flow *> finished_flows;
@@ -81,8 +83,11 @@ private:
     std::vector<PComp *> compute_tasks;
 
 
-    double timer;
-    double step_size;
+    // double timer;
+    // double step_size;
+
+    int current_quantum;
+    int step_quantums;
 
     int total_task_count;
     int finished_task_count;

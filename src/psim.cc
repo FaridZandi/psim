@@ -152,14 +152,40 @@ void PSim::start_task(PTask *task) {
 
 }
 
+int PSim::get_current_step_quantums(){
+    double this_step_step_size = GConf::inst().step_size;
 
+    if (GConf::inst().adaptive_step_size){
+
+        this_step_step_size = GConf::inst().adaptive_step_size_max;
+
+        for (auto& flow: network->flows){
+            double remaining_time_estimate = flow->crude_remaining_time_estimate(); 
+            // spdlog::critical("flow {} remaining time estimate: {}", flow->id, remaining_time_estimate);
+            if (remaining_time_estimate < this_step_step_size){
+                this_step_step_size = remaining_time_estimate;
+            }    
+        }
+        for (auto& task: compute_tasks){
+            double remaining_time_estimate = task->crude_remaining_time_estimate(); 
+            // spdlog::critical("task {} remaining time estimate: {}", task->id, remaining_time_estimate);
+            if (remaining_time_estimate < this_step_step_size){
+                this_step_step_size = remaining_time_estimate;
+            }    
+        }
+
+        double min_step_size = GConf::inst().adaptive_step_size_min;
+
+        if (this_step_step_size < min_step_size){
+            this_step_step_size = min_step_size;
+        }
+    }
+
+    return this_step_step_size;
+}
 
 double PSim::simulate() {
-
-    simulation_counter += 1;
-
-    // last time we've logged a summary.
-    int last_summary_timer = -1;
+    simulation_counter += 1; // TODO: replace this with run number in the gcontext. 
 
     for (auto protocol : this->protocols) {
         for (auto task : protocol->initiators) {
@@ -167,58 +193,32 @@ double PSim::simulate() {
         }
     }
 
+    current_quantum = 0;
 
     // main loop
     while (true) {
-        
-        // auto new_flows = traffic_gen->get_flows(timer);
-        // for (auto flow : new_flows) {
-        //     this->start_task(flow);
-        // }
-
         std::vector<Flow *> step_finished_flows;
         std::vector<PComp *> step_finished_tasks;
         
-        double this_step_step_size = GConf::inst().step_size;
+        int current_step_quantums = get_current_step_quantums();
+        spdlog::debug("current step size: {}", current_step_quantums);
 
-        if (GConf::inst().adaptive_step_size){
+        double step_comm = network->make_progress_on_flows(current_quantum, 
+                                                           current_step_quantums, 
+                                                           step_finished_flows);
 
-            this_step_step_size = GConf::inst().adaptive_step_size_max;
+        double stop_comp = network->make_progress_on_machines(current_quantum, 
+                                                              current_step_quantums, 
+                                                              step_finished_tasks);
 
-            for (auto& flow: network->flows){
-                double remaining_time_estimate = flow->crude_remaining_time_estimate(); 
-                // spdlog::critical("flow {} remaining time estimate: {}", flow->id, remaining_time_estimate);
-                if (remaining_time_estimate < this_step_step_size){
-                    this_step_step_size = remaining_time_estimate;
-                }    
-            }
-            for (auto& task: compute_tasks){
-                double remaining_time_estimate = task->crude_remaining_time_estimate(); 
-                // spdlog::critical("task {} remaining time estimate: {}", task->id, remaining_time_estimate);
-                if (remaining_time_estimate < this_step_step_size){
-                    this_step_step_size = remaining_time_estimate;
-                }    
-            }
-
-            double min_step_size = GConf::inst().adaptive_step_size_min;
-
-            if (this_step_step_size < min_step_size){
-                this_step_step_size = min_step_size;
-            }
+        // TODO: as this point, we should have added to the timer, since now the timestep is processed. 
+        // I should probably increase the timestep in the beginning of this loop as opposed to the end.
+        if (int(current_quantum) % GConf::inst().core_status_profiling_interval == 0) { 
+            // TODO: this is currently set as ms, not quantums.
+            network->record_link_status(current_quantum);
         }
 
-        spdlog::debug("step size: {}", this_step_step_size);
-
-        double step_comm = network->make_progress_on_flows(timer, this_step_step_size, step_finished_flows);
-        double stop_comp = network->make_progress_on_machines(timer, this_step_step_size, step_finished_tasks);
-
-        int timer_interval = GConf::inst().core_status_profiling_interval;
-
-        if (int(timer) % timer_interval == 0 and int(timer) != last_summary_timer) {
-            last_summary_timer = int(timer);
-            network->record_link_status(timer);
-        }
-
+        // TODO: don't like this section for some reason.  
         // Remove the finished flows and start up the tasks that follow.
         for (auto& flow : step_finished_flows) {
             finished_flows.push_back(flow);
@@ -242,7 +242,7 @@ double PSim::simulate() {
 
 
         history_entry h;
-        h.time = timer;
+        h.time = current_quantum;
         h.flow_count = network->flows.size();
         h.step_finished_flows = step_finished_flows.size();
         h.comp_task_count = compute_tasks.size();
@@ -255,14 +255,14 @@ double PSim::simulate() {
         h.max_core_link_bw_utilization = network->max_core_link_bw_utilization();
         h.total_network_bw = network->total_network_bw();
         h.total_core_bw = network->total_core_bw();
-        h.total_accelerator_capacity = GConf::inst().machine_count * this_step_step_size;
+        h.total_accelerator_capacity = GConf::inst().machine_count * current_step_quantums; 
 
         history.push_back(h);
         log_history_entry(h);
 
 
         spdlog::debug("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}",
-                      int(timer), network->flows.size(), compute_tasks.size(),
+                      int(current_quantum), network->flows.size(), compute_tasks.size(),
                       this->finished_task_count, this->total_task_count);
 
         bool all_finished = true;
@@ -277,14 +277,14 @@ double PSim::simulate() {
             break;
         }
 
-        timer += this_step_step_size;
+        current_quantum += current_step_quantums;
     }
 
     mark_critical_path(); 
 
     save_run_results();
 
-    return timer;
+    return current_quantum;
 }
 
 void PSim::mark_critical_path(){
@@ -316,10 +316,6 @@ void PSim::mark_critical_path(){
         // of the tasks will collide. sorry for the stupid design.
         break;
     }
-
-
-
-
 }
 
 void PSim::traverse_critical_path(PTask* task) {

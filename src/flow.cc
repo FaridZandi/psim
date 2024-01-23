@@ -23,17 +23,17 @@ Flow::~Flow() {
 }
 
 void Flow::initiate(){
-    min_bottleneck_rate = std::numeric_limits<double>::max(); 
+    min_link_packet_per_q = std::numeric_limits<int>::max();
 
     for (Bottleneck* bottleneck : this->path) {
-        min_bottleneck_rate = std::min(min_bottleneck_rate, bottleneck->bandwidth);
+        min_link_packet_per_q = std::min(min_link_packet_per_q, bottleneck->packets_per_quantum);
     }
 
     compute_priority();
 
     for (Bottleneck* bottleneck : this->path) {
         bottleneck->current_flow_count += 1;
-        bottleneck->current_flow_size_sum += this->size;
+        bottleneck->current_flow_packet_count_sum += this->packet_count;
         bottleneck->flows.push_back(this);
     }
 }
@@ -41,7 +41,7 @@ void Flow::initiate(){
 void Flow::finished() {
     for (Bottleneck* bottleneck : this->path) {
         bottleneck->current_flow_count -= 1;
-        bottleneck->current_flow_size_sum -= this->size;
+        bottleneck->current_flow_count -= this->packet_count;
 
         // remove this flow from the bottleneck's flow list
         bottleneck->flows.erase(std::remove(bottleneck->flows.begin(),
@@ -51,10 +51,13 @@ void Flow::finished() {
     }
 
     auto& this_run = GContext::this_run();
-    this_run.flow_start[id] = start_time;
-    this_run.flow_end[id] = end_time;
-    this_run.flow_fct[id] = end_time - start_time;
-    this_run.average_rate[id] = size / (end_time - start_time);
+    
+    this_run.flow_start_quantum[id] = start_quantum;
+    this_run.flow_end_quantum[id] = end_quantum;
+    this_run.flow_fct_quantum[id] = end_quantum - start_quantum;
+
+    this_run.average_rate[id] = size / (end_time - start_time); // TODO: fix this to get the Gbps value 
+
     // spdlog::critical("Flow {} with size {} transmitted from {} to {}", id, size, start_time, end_time);
 }
 
@@ -69,13 +72,13 @@ void Flow::compute_priority(){
         // selected_priority = rank;
         
         // whoever manages to the be started first gets the highest priority
-        selected_priority = (int) ((start_time * protocol->tasks.size()) + id);
+        selected_priority = (int) ((start_quantum * protocol->tasks.size()) + id);
     }
 }
 
 
 
-void Flow::register_rate_on_path(double step_size){
+void Flow::register_rate_on_path(int step_quantums){
 
     double completion_rate = (size - progress) / step_size;
     registered_rate = std::min(completion_rate, current_rate);
@@ -85,7 +88,7 @@ void Flow::register_rate_on_path(double step_size){
     }
 }
 
-void Flow::update_rate(double step_size) {
+void Flow::update_rate(int step_quantums) {
     bool should_drop = false;
 
     for (auto bottleneck : this->path) {
@@ -130,7 +133,7 @@ double Flow::get_load(LoadMetric load_metric_arg) {
     }
 }
 
-double Flow::make_progress(double current_time, double step_size) {
+double Flow::make_progress(int current_quantum, int step_quantums) {
     double allocated_rate = std::numeric_limits<double>::max();
 
     int rate_bottleneck_number = 0;
@@ -209,7 +212,7 @@ Flow::print_task_info(std::ostream& os){
 }
 
 void Flow::reset(){
-    size = 0;
+    packet_count = 0;
     progress = 0;
     current_rate = GConf::inst().initial_rate;
     min_bottleneck_rate = 0;

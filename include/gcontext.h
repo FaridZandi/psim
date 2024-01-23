@@ -25,11 +25,16 @@ struct run_info{
     
     std::map<int, core_link_status> network_status;
     std::map<int, int> core_decision;
-    std::map<int, double> flow_fct;
-    std::map<int, double> flow_start; 
-    std::map<int, double> flow_end; 
-    std::map<int, double> average_rate;
     std::map<int, bool> is_on_critical_path;
+    // std::map<int, double> flow_fct;
+    // std::map<int, double> flow_start; 
+    // std::map<int, double> flow_end; 
+
+    std::map<int, double> average_rate; // TODO: fix this is the flow finished function
+
+    std::map<int, int> flow_start_quantum;
+    std::map<int, int> flow_end_quantum;
+    std::map<int, int> flow_fct_quantum;   
 };
 
 

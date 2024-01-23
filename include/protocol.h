@@ -68,8 +68,12 @@ public:
     int rank;
     bool rank_bfs_queued;
 
-    double start_time;
-    double end_time;
+    // double start_time;
+    // double end_time;
+
+    int start_quantum;
+    int end_quantum;
+    
 
     PTaskStatus status;
     bool is_initiator;
@@ -108,24 +112,33 @@ public:
     Flow();
     virtual ~Flow();
 
-    double current_rate;
-    double last_rate;
-    double initial_rate;
-    double min_rate;
-    double registered_rate;
-    double rate_increase;
-    double min_bottleneck_rate;
-    double rate_decrease_factor;
+    // double current_rate;
+    // double last_rate;
+    // double initial_rate;
+    // double min_rate;
+    // double registered_rate;
+    // double rate_increase;
+    // double min_bottleneck_rate;
+    // double rate_decrease_factor;
+    // double size;
+    // double progress;
+
+    int current_packet_per_q; 
+    int last_packet_per_q;
+    int initial_packet_per_q;
+    int min_packet_per_q;
+    int registered_packet_per_q;
+    int min_link_packet_per_q;    
+    double packet_per_q_increase_factor;
+    double packet_per_q_decrease_factor;
+    int packet_count; // number of packets
+    int transmitted_packet_count; // number of transmitted packets
 
     int src_dev_id;
     int dst_dev_id;
-    double size;
-    int packet_count; // number of packets
-    double progress;
 
     int selected_priority;
     int bn_priority_levels;
-
 
     int bottlenecked_by_intermediate_count;
     int bottlenecked_by_srcdst_count;
@@ -137,9 +150,9 @@ public:
     void initiate();
     void finished();
     void compute_priority();
-    void register_rate_on_path(double step_size);
-    double make_progress(double current_time, double step_size);
-    void update_rate(double step_size);
+    void register_rate_on_path(int step_quantums);
+    double make_progress(int current_quantum, int step_quantums);
+    void update_rate(int step_quantums);
 
     double get_load(LoadMetric load_metric_arg = LoadMetric::DEFAULT);
 
@@ -151,8 +164,10 @@ public:
 
     PTask* make_shallow_copy();
 
+    // this is very crude. The estimate that it gives it very far from the actual remaining time.
+    // I should think of a better way to estimate the remaining time, but that's not an easy task.
+    // However, without a better estimate, the adaptive timestep decision is not going to work well.
     double crude_remaining_time_estimate(); 
-
 
 private:
     LoadMetric load_metric;
@@ -166,8 +181,10 @@ public:
 
     int dev_id;
     // double size;
+    // double progress;
+    
     int quantum_count; // number of quanta
-    double progress;
+    int executed_quantum_count; // number of executed quanta
 
     Machine *machine;
 
