@@ -1,3 +1,4 @@
+[ ] Add support for multipath routing, such that flows will have a routing mode, which can be set to single path or multipath. The multipath implementations can be different.
 [ ] Change the way the config is handed to the application, maybe create a sort of config file, yaml etc. 
 [ ] Create a system for generating the options.c and and config.h files according to a base config file. changing things everytime is a kind of painful thing to do every time. 
 [ ] Introduce a notion of time and data-transfer quantums, avoid "double" values for that purpose. maybe 1 us for time and the number of packets could be selected for the quantums.   
