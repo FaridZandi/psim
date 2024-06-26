@@ -260,7 +260,9 @@ double PSim::simulate() {
         h.total_accelerator_capacity = GConf::inst().machine_count * this_step_step_size;
 
         history.push_back(h);
-        log_history_entry(h);
+        if ((int)timer % 1000 == 0){
+            log_history_entry(h);
+        }
 
 
         spdlog::debug("Time: {}, Flows: {}, Tasks: {}, Progress:{}/{}",
@@ -782,6 +784,10 @@ void PSim::save_run_results(){
             {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
         });
 
+        draw_plots({
+            {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
+        });
+        
         draw_plots({
             {"min-core-util", [](history_entry h){return h.min_core_link_bw_utilization;}},
             {"max-core-util", [](history_entry h){return h.max_core_link_bw_utilization;}},

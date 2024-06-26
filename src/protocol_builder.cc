@@ -469,7 +469,7 @@ insert_simple_data_parallelism(Protocol* protocol,
                                int initial_wait) {
 
     int forward_size = comp_size;
-    int backward_size = comp_size * 2; 
+    int backward_size = comp_size; 
     
     EmptyTask* last_iter_finisher = nullptr;
 
@@ -544,22 +544,43 @@ insert_simple_data_parallelism(Protocol* protocol,
     }
 }
 
+
+int LCM(int a, int b){
+    return a * b / std::__gcd(a, b);
+}
+
 Protocol* 
 psim::build_periodic_test() { 
 
     int node_count = 6; 
-    int layer_count = 6; 
-    int iter_count = 2;
-    int comp_size = 500; 
-    int comm_size = 5000; 
+    int layer_count = 12; 
+
+    int job1_length_base = GConf::inst().general_param_2; 
+    int job2_length_base = GConf::inst().general_param_3;
+    int hyper_period = LCM(job1_length_base, job2_length_base);
+    int comp_length_amplification = 200;
+    int comm_length_amplification = 7500; 
+    int job1_reps_per_hyper_period = hyper_period / job1_length_base;
+    int job2_reps_per_hyper_period = hyper_period / job2_length_base;
+    int reps_multiplier = 100;
 
     Protocol *protocol = new Protocol();
     
-    int second_protocol_wait = GConf::inst().general_param_1;
+    int job2_inital_wait = GConf::inst().general_param_1;
     
     // insert_simple_data_parallelism(protocol, node_count, 0, layer_count, 3, 500, 5000);
-    insert_simple_data_parallelism(protocol, 6, 0, 6, 50, 300, 6000, 0);
-    insert_simple_data_parallelism(protocol, 6, 6, 6, 30, 500, 10000, second_protocol_wait);
+    insert_simple_data_parallelism(protocol, node_count, 0, layer_count, 
+                                   job1_reps_per_hyper_period * reps_multiplier, 
+                                   job1_length_base * comp_length_amplification, 
+                                   job1_length_base * comm_length_amplification, 
+                                   0);
+
+    insert_simple_data_parallelism(protocol, node_count, 0 + node_count, layer_count, 
+                                   job2_reps_per_hyper_period * reps_multiplier, 
+                                   job2_length_base * comp_length_amplification, 
+                                   job2_length_base * comm_length_amplification, 
+                                   job2_inital_wait);                             
+
     
     return protocol;
 }

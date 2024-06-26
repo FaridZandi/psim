@@ -17,7 +17,10 @@ all_sweep_params = ["min-rate",
                     "priority-allocator",
                     "load-metric",
                     "lb-scheme", 
-                    "general-param-1"]
+                    "general-param-2", 
+                    "general-param-3", 
+                    "general-param-1", 
+                    ]
 
 colors = {
     "random": "red",
@@ -56,7 +59,6 @@ for param in all_sweep_params:
     if param in pd_frame:
         if len(pd_frame[param].unique()) > 1:
             sweep_params.append(param)
-
 
 # combine these params into a single column
 pd_frame["params"] = ""
@@ -128,7 +130,6 @@ for i in range (all_params_count):
 
         grouping_label = grouping_label.strip("\n")
 
-
     for k, param_comb in enumerate(param_combination):
         total_offset += (sub_group_width * param_comb)
         if k == 0: 
@@ -144,7 +145,7 @@ for i in range (all_params_count):
 
     max_group_width = max(max_group_width, total_offset)
 
-# pprint(tick_labels)
+pprint(tick_labels)
 ############################################################################################
 ############################################################################################
 ############################################################################################
@@ -161,6 +162,7 @@ def get_color(mech):
 pd_frame["rel_max_psim_time"] = 0
 pd_frame["rel_min_psim_time"] = 0
 pd_frame["rel_last_psim_time"] = 0
+pd_frame["rel_avg_psim_time"] = 0
 
 for protocol in protocols:
     protocol_data = pd_frame[pd_frame["protocol-file-name"] == protocol]
@@ -170,10 +172,14 @@ for protocol in protocols:
         pd_frame.loc[index, "rel_max_psim_time"] = row["max_psim_time"] / max_max_time
         pd_frame.loc[index, "rel_min_psim_time"] = row["min_psim_time"] / max_max_time
         pd_frame.loc[index, "rel_last_psim_time"] = row["last_psim_time"] / max_max_time
+        pd_frame.loc[index, "rel_avg_psim_time"] = row["avg_psim_time"] / max_max_time
 
         if row["rel_last_psim_time"] > 1:
             print("error: rel_last_psim_time > 1")
             print(row)
+            
+# plot_ylim_min = pd_frame["rel_min_psim_time"].min()
+plot_ylim_min = 0
 
 inner_grouping_size = group_sizes[0]
 sub_group_width = inner_grouping_size
@@ -200,20 +206,27 @@ for i, param in enumerate(params):
                 color=get_color(param), edgecolor="black")
 
     else:
-        plt.bar(x_offset, param_data["rel_max_psim_time"],
-                width=1, color="white",
-                edgecolor="black", hatch="///")
+        # plt.bar(x_offset, param_data["rel_max_psim_time"],
+        #         width=1, color="white",
+        #         edgecolor="black", hatch="///")
 
 
-        plt.bar(x_offset, param_data["rel_min_psim_time"],
+        # plt.bar(x_offset, param_data["rel_min_psim_time"],
+        #         width=1, label=param,
+        #         color=get_color(param), edgecolor="black")
+
+        plt.bar(x_offset, param_data["rel_avg_psim_time"],
                 width=1, label=param,
                 color=get_color(param), edgecolor="black")
+        
+                
 
 
 # xticks on the top of the plot
 plt.xticks(x, protocols)
 plt.tick_params(axis='x', which='both', bottom=False, top=True, labelbottom=False, labeltop=True)
 plt.xticks(rotation=90)
+plt.ylim(plot_ylim_min * 0.99, 1.01)
 
 # the labels
 plt.xlabel("Protocol")
@@ -234,6 +247,7 @@ for i, protocol in enumerate(protocols):
         this_offset = start_offset + offset - group_width / 2 + sub_group_width / 2
         plt.annotate(text, (this_offset, 0), xytext=(0, -20), textcoords="offset points",
                  rotation=45, ha='center', va='top')
+        
     start_offset += (group_width + group_spacing)
 
 

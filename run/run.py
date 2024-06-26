@@ -33,7 +33,7 @@ options = {
     # "protocol-file-name": "transformer128-simtime+compute.txt",
 
     "step-size": 1,
-    "core-status-profiling-interval": 1,
+    "core-status-profiling-interval": 100000,
     "rep-count": 1, 
     "console-log-level": 4,
     "file-log-level": 3,
