@@ -44,8 +44,8 @@ options = {
 
     "network-type": "leafspine",    
     "link-bandwidth": 400,
-    "ft-server-per-rack": 8,
-    "ft-rack-per-pod": 4,
+    "ft-server-per-rack": 4,
+    "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 4,
     "ft-core-count": 4,
     "ft-pod-count": 4,
@@ -55,6 +55,7 @@ options = {
     
     
     "lb-scheme": "random",
+    # "lb-scheme": "roundrobin",
     # "lb-decisions-file": run_path + "ga/214/rounds/1000/0.txt",
     # "load-metric": "utilization",
     "shuffle-device-map": False,

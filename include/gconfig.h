@@ -116,8 +116,19 @@ public:
     double adaptive_step_size_min = 0.1; 
     double adaptive_step_size_max = 1; 
 
+    // I wanna set these so that I could use them for experimental purposes, such that I don't have to change 
+    // the name and go through the process every time something comes up. 
+    int general_param_1 = 0; 
+    int general_param_2 = 0;
+    int general_param_3 = 0;
+    int general_param_4 = 0;
+    int general_param_5 = 0;
+    int general_param_6 = 0;
+    int general_param_7 = 0;
+    int general_param_8 = 0;
+    int general_param_9 = 0;
+    int general_param_10 = 0;
 
-private:
     GConf() {}
 };
 

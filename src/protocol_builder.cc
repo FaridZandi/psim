@@ -375,38 +375,130 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
 }
 
 
-Protocol* 
-psim::build_periodic_test() { 
+EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, 
+                                           std::vector<PComp*> last_layer_pcs, int num_replicas, 
+                                           int comm_size, double aggregate_time) {
 
-    int node_count = 3; 
-    int layer_count = 3; 
-    int iter_count = 3;
+    EmptyTask* all_reduce_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+    all_reduce_finisher->name = "AllR";
 
-    Protocol *protocol = new Protocol();
+    int node_count = last_layer_pcs.size();
+    int num_chunks = num_replicas; 
+
+    // each chuck would start rotating at its corresponding machine, 
+    // going through all the machines, and then back to the original machine. 
+
+    for (int i = 0; i < num_chunks; i++) {
+        // the chunk starts at machine i, goes through all the other machine, 
+        // so the prev machine in the ring would know the aggregate result.
+        // then the chunk will go through all the other machines again, such that
+        // all the machines will have the aggregate result.
+
+        // there would be a total of 2 * (num_replicas - 1) communication steps. 
+        // there would a total of (num_replicas - 1) aggregation steps.
+
+        PTask* prev_task = nullptr; 
+
+        for (int j = 0; j < num_replicas - 1; j++) {
+
+            Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+            flow->size = comm_size;
+            int flow_src_index = (i + j) % num_replicas; 
+            int flow_dst_index = (i + j + 1) % num_replicas;
+            flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
+            flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
+
+            // PComp* agg = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+            // agg->size = aggregate_time; 
+            // int agg_index = (i + j + 1) % num_replicas;
+            // agg->dev_id = last_layer_pcs[agg_index]->dev_id;
+
+            EmptyTask* agg = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+            agg->name = "AllR"; 
+
+            flow->add_next_task_id(agg->id);
+
+            if (prev_task != nullptr) {
+                prev_task->add_next_task_id(flow->id);
+            } else {
+                // if this is the first task in the chain, then it should be connected to the last layer pcs. 
+                last_layer_pcs[(i + j) % num_replicas]->add_next_task_id(flow->id);
+            }
+
+            prev_task = agg;
+        } 
+
+        // now the aggregate result is at machine i + num_replicas - 1 round the ring. 
+        // now turn the aggregated result round the ring again, so that all the machines
+        // will have the aggregated result.
+
+        int starting = i + num_replicas - 1;
+
+        for (int j = 0; j < num_replicas - 1; j++) {
+
+            Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+            flow->size = comm_size;
+            int flow_src_index = (starting + j) % num_replicas;
+            int flow_dst_index = (starting + j + 1) % num_replicas;
+
+            flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
+            flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
+
+            if (prev_task != nullptr) {
+                prev_task->add_next_task_id(flow->id);
+            }
+
+            prev_task = flow;
+
+            if (j == num_replicas - 2) {
+                flow->add_next_task_id(all_reduce_finisher->id);
+            }
+        }
+    }
+
+
+    return all_reduce_finisher;
+} 
+
+
+void 
+insert_simple_data_parallelism(Protocol* protocol, 
+                               int node_count, int init_node_id, 
+                               int layer_count, int iter_count, 
+                               int comp_size, int comm_size, 
+                               int initial_wait) {
+
+    int forward_size = comp_size;
+    int backward_size = comp_size * 2; 
     
+    EmptyTask* last_iter_finisher = nullptr;
 
-    PComp* last_iter_dummy_pc = nullptr;
+
+    if(initial_wait != 0) {
+        PComp* wait = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+        wait->size = initial_wait;
+        wait->dev_id = init_node_id;
+        last_iter_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+
+        wait->add_next_task_id(last_iter_finisher->id);
+    }
 
     for (int i = 0; i < iter_count; i ++) {
-        // if it's not the first iteration, I have to connect it somehow to the previous iteration. 
-
-        // TODO 
-
-
         std::vector<PComp*> last_layer_pcs; 
 
         // build the forward pass for the current iteration. the tasks for each machine are connected in a chain.
-        for (int j = 0; j < node_count; j++) {
+        for (int j = init_node_id; j < init_node_id + node_count; j++) {
             
             PComp* last_pc = nullptr; 
             
             for (int k = 0; k < layer_count; k++) {
                 PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
-                pc->size = 100;
+                pc->size = forward_size;
                 pc->dev_id = j;
 
-                if (k == 0 and i != 0) {
-                    last_iter_dummy_pc->add_next_task_id(pc->id);
+                // if it's not the first iteration, I have to connect it somehow to the previous iteration. 
+                if (k == 0 and last_iter_finisher != nullptr) {
+                    last_iter_finisher->add_next_task_id(pc->id);
                 }
 
                 if (last_pc != nullptr) {
@@ -421,31 +513,53 @@ psim::build_periodic_test() {
             }
         }
 
-        last_iter_dummy_pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
-        last_iter_dummy_pc->size = 0;
-        last_iter_dummy_pc->dev_id = 0;
+        last_iter_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+        last_iter_finisher->name = "ITER" + std::to_string(i);
 
         // build the backward pass for the current iteration. the tasks for each machine are connected in a chain.
         for (int j = layer_count - 1; j >= 0; j--) {
 
-            for (int k = 0; k < node_count; k++) {
+            for (int k = init_node_id; k < init_node_id + node_count; k++) {
                 PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
-                pc->size = 100;
+                pc->size = backward_size;
                 pc->dev_id = k;
 
                 // connect the last layer pc to this layer 
-                last_layer_pcs[k]->add_next_task_id(pc->id);
+                last_layer_pcs[k - init_node_id]->add_next_task_id(pc->id);
 
                 // subsitute the last layer pc with the current pc
-                last_layer_pcs[k] = pc;
-
+                last_layer_pcs[k - init_node_id] = pc;
 
                 if (j == 0) {
-                    pc->add_next_task_id(last_iter_dummy_pc->id);
+                    pc->add_next_task_id(last_iter_finisher->id);
                 }
             }
+
+            // at this point last_layer_pcs contains the last layer of the backward pass.
+            // we can do the all_reduce to the protocol. 
+            EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_count, comm_size, 1);
+
+            all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
         }
     }
+}
 
+Protocol* 
+psim::build_periodic_test() { 
+
+    int node_count = 6; 
+    int layer_count = 6; 
+    int iter_count = 2;
+    int comp_size = 500; 
+    int comm_size = 5000; 
+
+    Protocol *protocol = new Protocol();
+    
+    int second_protocol_wait = GConf::inst().general_param_1;
+    
+    // insert_simple_data_parallelism(protocol, node_count, 0, layer_count, 3, 500, 5000);
+    insert_simple_data_parallelism(protocol, 6, 0, 6, 50, 300, 6000, 0);
+    insert_simple_data_parallelism(protocol, 6, 6, 6, 30, 500, 10000, second_protocol_wait);
+    
     return protocol;
 }

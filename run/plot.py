@@ -16,7 +16,8 @@ all_sweep_params = ["min-rate",
                     "shuffle-device-map",
                     "priority-allocator",
                     "load-metric",
-                    "lb-scheme"]
+                    "lb-scheme", 
+                    "general-param-1"]
 
 colors = {
     "random": "red",

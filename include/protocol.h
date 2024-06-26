@@ -99,6 +99,9 @@ public:
     void reset();
 
     PTask* make_shallow_copy();
+
+    // let's give them names so they are happy. 
+    std::string name; 
 private:
 
 };

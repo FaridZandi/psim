@@ -60,6 +60,16 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("adaptive-step-size", po::value<int>()->implicit_value(1), "enable adaptive step size setting")
         ("adaptive-step-size-min", po::value<double>(), "min adaptive step size")
         ("adaptive-step-size-max", po::value<double>(), "max adaptive step size")
+        ("general-param-1", po::value<int>(), "general param 1")
+        ("general-param-2", po::value<int>(), "general param 2")
+        ("general-param-3", po::value<int>(), "general param 3")
+        ("general-param-4", po::value<int>(), "general param 4")
+        ("general-param-5", po::value<int>(), "general param 5")
+        ("general-param-6", po::value<int>(), "general param 6")
+        ("general-param-7", po::value<int>(), "general param 7")
+        ("general-param-8", po::value<int>(), "general param 8")
+        ("general-param-9", po::value<int>(), "general param 9")
+        ("general-param-10", po::value<int>(), "general param 10")
     ;
 
     po::variables_map vm;
@@ -137,6 +147,37 @@ void psim::process_arguments(po::variables_map vm){
             exit(1);
         }
     }
+    if (vm.count("general-param-1")) {
+        GConf::inst().general_param_1 = vm["general-param-1"].as<int>();
+    }
+    if (vm.count("general-param-2")) {
+        GConf::inst().general_param_2 = vm["general-param-2"].as<int>();
+    }
+    if (vm.count("general-param-3")) {
+        GConf::inst().general_param_3 = vm["general-param-3"].as<int>();
+    }
+    if (vm.count("general-param-4")) {
+        GConf::inst().general_param_4 = vm["general-param-4"].as<int>();
+    }
+    if (vm.count("general-param-5")) {
+        GConf::inst().general_param_5 = vm["general-param-5"].as<int>();
+    }
+    if (vm.count("general-param-6")) {
+        GConf::inst().general_param_6 = vm["general-param-6"].as<int>();
+    }
+    if (vm.count("general-param-7")) {
+        GConf::inst().general_param_7 = vm["general-param-7"].as<int>();
+    }
+    if (vm.count("general-param-8")) {
+        GConf::inst().general_param_8 = vm["general-param-8"].as<int>();
+    }
+    if (vm.count("general-param-9")) {
+        GConf::inst().general_param_9 = vm["general-param-9"].as<int>();
+    }
+    if (vm.count("general-param-10")) {
+        GConf::inst().general_param_10 = vm["general-param-10"].as<int>();
+    }
+
     if (vm.count("core-status-profiling-interval")) {
         GConf::inst().core_status_profiling_interval = vm["core-status-profiling-interval"].as<int>();
     }

@@ -190,7 +190,8 @@ void Protocol::export_dot(std::string filename){
 
             label = "Comm\n" + size_str + "\nM" + std::to_string(flow->src_dev_id) + "->M" + std::to_string(flow->dst_dev_id);
         } else {
-            label = "AllR";
+            EmptyTask *empty_task = (EmptyTask *)task;
+            label = empty_task->name; 
         }
 
         protocol_log << task->id << " [label=\"" << task->id << "|" << label << "\"";
@@ -306,6 +307,7 @@ void PTask::add_to_next(PTask *task) {
 
 EmptyTask::EmptyTask() : PTask() {
     reset();
+    name = "Empty";
 }
 
 EmptyTask::~EmptyTask() {
