@@ -66,6 +66,8 @@ void PSim::add_protocols_from_input(){
             proto = build_all_to_all(GConf::inst().machine_count,
                                      GConf::inst().link_bandwidth * 10, 
                                      2);
+        } else if (protocol_file_name == "periodic-test") {
+            proto = build_periodic_test(); 
         } else {
             std::string path = GConf::inst().protocol_file_dir + "/" + protocol_file_name;
             proto = load_protocol_from_file(path);

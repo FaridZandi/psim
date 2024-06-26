@@ -371,6 +371,81 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
         }
     }
 
-
     return protocol; 
+}
+
+
+Protocol* 
+psim::build_periodic_test() { 
+
+    int node_count = 3; 
+    int layer_count = 3; 
+    int iter_count = 3;
+
+    Protocol *protocol = new Protocol();
+    
+
+    PComp* last_iter_dummy_pc = nullptr;
+
+    for (int i = 0; i < iter_count; i ++) {
+        // if it's not the first iteration, I have to connect it somehow to the previous iteration. 
+
+        // TODO 
+
+
+        std::vector<PComp*> last_layer_pcs; 
+
+        // build the forward pass for the current iteration. the tasks for each machine are connected in a chain.
+        for (int j = 0; j < node_count; j++) {
+            
+            PComp* last_pc = nullptr; 
+            
+            for (int k = 0; k < layer_count; k++) {
+                PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+                pc->size = 100;
+                pc->dev_id = j;
+
+                if (k == 0 and i != 0) {
+                    last_iter_dummy_pc->add_next_task_id(pc->id);
+                }
+
+                if (last_pc != nullptr) {
+                    last_pc->add_next_task_id(pc->id);
+                }
+
+                last_pc = pc;
+
+                if (k == layer_count - 1) {
+                    last_layer_pcs.push_back(pc);
+                }
+            }
+        }
+
+        last_iter_dummy_pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+        last_iter_dummy_pc->size = 0;
+        last_iter_dummy_pc->dev_id = 0;
+
+        // build the backward pass for the current iteration. the tasks for each machine are connected in a chain.
+        for (int j = layer_count - 1; j >= 0; j--) {
+
+            for (int k = 0; k < node_count; k++) {
+                PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+                pc->size = 100;
+                pc->dev_id = k;
+
+                // connect the last layer pc to this layer 
+                last_layer_pcs[k]->add_next_task_id(pc->id);
+
+                // subsitute the last layer pc with the current pc
+                last_layer_pcs[k] = pc;
+
+
+                if (j == 0) {
+                    pc->add_next_task_id(last_iter_dummy_pc->id);
+                }
+            }
+        }
+    }
+
+    return protocol;
 }
