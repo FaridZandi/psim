@@ -127,8 +127,8 @@ void PSim::start_task(PTask *task) {
             flow->dst = this->network->get_machine(flow->dst_dev_id);
             this->network->set_path(flow, timer);
             flow->initiate();
-
             break;
+
         } case PTaskType::COMPUTE: {
             task->status = PTaskStatus::RUNNING;
             task->start_time = timer;
@@ -138,14 +138,21 @@ void PSim::start_task(PTask *task) {
             compute_task->machine = this->network->get_machine(compute_task->dev_id);
             this->compute_tasks.push_back(compute_task);
             compute_task->machine->task_queue.push(compute_task);
-
             break;
+
         } case PTaskType::EMPTY: {
             task->status = PTaskStatus::FINISHED;
             task->start_time = timer;
+
+            EmptyTask* empty_task = (EmptyTask *)task;
+            if (empty_task->print_on_exec){
+                spdlog::critical("[{}]: {}", timer, empty_task->print_message);
+            }
+
             handle_task_completion(task);
             start_next_tasks(task);
             break;
+
         } default: {
             std::cout << "Unknown task type" << std::endl;
             break;
@@ -291,6 +298,12 @@ double PSim::simulate() {
         }
 
         timer += this_step_step_size;
+    }
+
+    for (Flow* flow: finished_flows){
+        spdlog::critical("flow: {} jobid {}: start: {} end: {} fct: {}", 
+                         flow->id, flow->jobid, flow->start_time, flow->end_time, 
+                         flow->end_time - flow->start_time);
     }
 
     mark_critical_path(); 

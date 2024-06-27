@@ -102,6 +102,8 @@ public:
 
     // let's give them names so they are happy. 
     std::string name; 
+    std::string print_message; 
+    bool print_on_exec; 
 private:
 
 };
@@ -128,7 +130,6 @@ public:
 
     int selected_priority;
     int bn_priority_levels;
-
 
     int bottlenecked_by_intermediate_count;
     int bottlenecked_by_srcdst_count;

@@ -375,9 +375,9 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
 }
 
 
-EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, 
-                                           std::vector<PComp*> last_layer_pcs, int num_replicas, 
-                                           int comm_size, double aggregate_time, int jobid) {
+EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp*> last_layer_pcs, 
+                                           int num_replicas, int comm_size, int jobid, 
+                                           EmptyTask* last_all_reduce_finisher, bool add_stage_barriers) {
 
     EmptyTask* all_reduce_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
     all_reduce_finisher->name = "AllR";
@@ -385,8 +385,20 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol,
     int node_count = last_layer_pcs.size();
     int num_chunks = num_replicas; 
 
+    // shuffle the last_layer_pcs to creat a random chain 
+    // std::random_shuffle(last_layer_pcs.begin(), last_layer_pcs.end());
+
     // each chuck would start rotating at its corresponding machine, 
     // going through all the machines, and then back to the original machine. 
+
+    Flow*** all_flows = new Flow**[num_chunks];
+    for (int i = 0; i < num_chunks; i++) {
+        all_flows[i] = new Flow*[2 * num_replicas - 2];
+        for (int j = 0; j < 2 * num_replicas - 2; j++) {
+            all_flows[i][j] = nullptr;
+        }
+    }
+
 
     for (int i = 0; i < num_chunks; i++) {
         // the chunk starts at machine i, goes through all the other machine, 
@@ -397,11 +409,15 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol,
         // there would be a total of 2 * (num_replicas - 1) communication steps. 
         // there would a total of (num_replicas - 1) aggregation steps.
 
+
+
         PTask* prev_task = nullptr; 
 
         for (int j = 0; j < num_replicas - 1; j++) {
 
             Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+            all_flows[i][j] = flow;
+            
             flow->jobid = jobid;
             flow->size = comm_size;
             int flow_src_index = (i + j) % num_replicas; 
@@ -415,7 +431,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol,
             // agg->dev_id = last_layer_pcs[agg_index]->dev_id;
 
             EmptyTask* agg = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
-            agg->name = "AllR"; 
+            agg->name = "Agg"; 
 
             flow->add_next_task_id(agg->id);
 
@@ -424,6 +440,10 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol,
             } else {
                 // if this is the first task in the chain, then it should be connected to the last layer pcs. 
                 last_layer_pcs[(i + j) % num_replicas]->add_next_task_id(flow->id);
+
+                if (last_all_reduce_finisher != nullptr) {
+                    last_all_reduce_finisher->add_next_task_id(flow->id);
+                }
             }
 
             prev_task = agg;
@@ -436,8 +456,9 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol,
         int starting = i + num_replicas - 1;
 
         for (int j = 0; j < num_replicas - 1; j++) {
-
             Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+            all_flows[i][num_replicas - 1 + j] = flow;
+
             flow->jobid = jobid;
             flow->size = comm_size;
             int flow_src_index = (starting + j) % num_replicas;
@@ -458,6 +479,17 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol,
         }
     }
 
+    if (add_stage_barriers) {
+        for (int j = 0; j < 2 * num_replicas - 3; j++) {
+            EmptyTask* barrier = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+            barrier->name = "barrier";
+
+            for (int i = 0; i < num_chunks; i++) {
+                all_flows[i][j]->add_next_task_id(barrier->id);
+                barrier->add_next_task_id(all_flows[i][j + 1]->id);
+            }
+        }
+    }
 
     return all_reduce_finisher;
 } 
@@ -473,15 +505,15 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
     int forward_size = comp_size;
     int backward_size = comp_size; 
     
-    EmptyTask* last_iter_finisher = nullptr;
-
+    EmptyTask* last_iter_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+    last_iter_finisher->name = "protocol start";
+    last_iter_finisher->print_on_exec = true;
+    last_iter_finisher->print_message = "job " + std::to_string(jobid) + " started";
 
     if(initial_wait != 0) {
         PComp* wait = (PComp*)protocol->create_task(PTaskType::COMPUTE);
         wait->size = initial_wait;
         wait->dev_id = init_node_id;
-        last_iter_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
-
         wait->add_next_task_id(last_iter_finisher->id);
     }
 
@@ -517,8 +549,12 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
 
         last_iter_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
         last_iter_finisher->name = "ITER" + std::to_string(i);
+        last_iter_finisher->print_on_exec = true;
+        last_iter_finisher->print_message = "job " + std::to_string(jobid) + " iter " + std::to_string(i + 1) + " finished";
 
         // build the backward pass for the current iteration. the tasks for each machine are connected in a chain.
+        EmptyTask* last_all_reduce_finisher = nullptr;
+
         for (int j = layer_count - 1; j >= 0; j--) {
 
             for (int k = init_node_id; k < init_node_id + node_count; k++) {
@@ -539,9 +575,16 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
 
             // at this point last_layer_pcs contains the last layer of the backward pass.
             // we can do the all_reduce to the protocol. 
-            EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_count, comm_size, 1, jobid);
+
+            bool add_stage_barriers = false; 
+            // bool add_stage_barriers = true; 
+
+            EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_count, comm_size, 
+                                                                            jobid, last_all_reduce_finisher, add_stage_barriers);
 
             all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
+
+            // last_all_reduce_finisher = all_reduce_finisher;
         }
     }
 }

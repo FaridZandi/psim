@@ -307,7 +307,7 @@ void PTask::add_to_next(PTask *task) {
 
 EmptyTask::EmptyTask() : PTask() {
     reset();
-    name = "Empty";
+
 }
 
 EmptyTask::~EmptyTask() {
@@ -339,7 +339,9 @@ EmptyTask::print_task_info(std::ostream& os){
 
 
 void EmptyTask::reset(){
-
+    name = "Empty";
+    print_message = ""; 
+    print_on_exec = false; 
 }
 
 PTask* EmptyTask::make_shallow_copy(){
