@@ -576,15 +576,19 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             // at this point last_layer_pcs contains the last layer of the backward pass.
             // we can do the all_reduce to the protocol. 
 
-            bool add_stage_barriers = false; 
-            // bool add_stage_barriers = true; 
+            bool add_stage_barriers = true; 
+            // bool add_stage_barriers = false; 
 
             EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_count, comm_size, 
                                                                             jobid, last_all_reduce_finisher, add_stage_barriers);
 
             all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
 
-            // last_all_reduce_finisher = all_reduce_finisher;
+            // if you want a barrier between this all_reduce and the next all_reduce, 
+            // uncomment the following line. This would be equivalent to have NCCL or 
+            // something like that avoiding a new collective operation before the 
+            // previous one is finished. 
+            last_all_reduce_finisher = all_reduce_finisher;
         }
     }
 }
@@ -613,22 +617,22 @@ psim::build_periodic_test() {
     int hyper_period = LCM(job1_length_base, job2_length_base);
     int comp_length_amplification = 200;
     int comm_length_amplification = 4000; 
-    int reps_multiplier = 30;
+    int reps_multiplier = 1;
 
     int job1_reps_per_hyper_period = hyper_period / job1_length_base;
     int job2_reps_per_hyper_period = hyper_period / job2_length_base;
 
-
     Protocol *protocol = new Protocol();
 
-
-    insert_simple_data_parallelism(protocol, job1_jobid, node_count, job1_starting_node, layer_count, 
+    insert_simple_data_parallelism(protocol, job1_jobid, node_count, 
+                                   job1_starting_node, layer_count, 
                                    job1_reps_per_hyper_period * reps_multiplier, 
                                    job1_length_base * comp_length_amplification, 
                                    job1_length_base * comm_length_amplification, 
                                    job1_initial_wait);
 
-    insert_simple_data_parallelism(protocol, job2_jobid, node_count, job2_starting_node, layer_count, 
+    insert_simple_data_parallelism(protocol, job2_jobid, node_count, 
+                                   job2_starting_node, layer_count, 
                                    job2_reps_per_hyper_period * reps_multiplier, 
                                    job2_length_base * comp_length_amplification, 
                                    job2_length_base * comm_length_amplification, 

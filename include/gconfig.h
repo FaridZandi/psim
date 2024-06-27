@@ -11,6 +11,7 @@ enum class LoadMetric {
 };
 
 enum class LBScheme{
+    ECMP, 
     RANDOM,
     ROUND_ROBIN,
     READ_FILE,

@@ -45,6 +45,8 @@ Bottleneck* LoadBalancer::downlink(int lower_item, int upper_item){
 
 LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_scheme) {
     switch (lb_scheme) {
+        case LBScheme::ECMP:
+            return new ECMPLoadBalancer(item_count);   
         case LBScheme::RANDOM:
             return new RandomLoadBalancer(item_count);
         case LBScheme::ROUND_ROBIN:
@@ -96,7 +98,28 @@ RandomLoadBalancer::RandomLoadBalancer(int item_count) : LoadBalancer(item_count
 int RandomLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
     int upper_item = rand() % item_count;
     return upper_item;
-}/////////////////////////////////////////////////////////////////////////////////////
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
+ECMPLoadBalancer::ECMPLoadBalancer(int item_count) : LoadBalancer(item_count) {}
+
+int ECMPLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+
+    lb_x_tuple key = {flow->src_dev_id, flow->dst_dev_id};
+    
+    if (lb_cache.find(key) == lb_cache.end()) {
+        lb_cache[key] = rand() % item_count;
+        spdlog::critical("saving the decision for src: {}, dst: {}, core: {}", flow->src_dev_id, flow->dst_dev_id, lb_cache[key]);
+    }
+
+    return lb_cache[key];
+}
+
+
+/////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 

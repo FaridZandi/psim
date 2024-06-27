@@ -300,11 +300,11 @@ double PSim::simulate() {
         timer += this_step_step_size;
     }
 
-    for (Flow* flow: finished_flows){
-        spdlog::critical("flow: {} jobid {}: start: {} end: {} fct: {}", 
-                         flow->id, flow->jobid, flow->start_time, flow->end_time, 
-                         flow->end_time - flow->start_time);
-    }
+    // for (Flow* flow: finished_flows){
+    //     spdlog::critical("flow: {} jobid {}: start: {} end: {} fct: {}", 
+    //                      flow->id, flow->jobid, flow->start_time, flow->end_time, 
+    //                      flow->end_time - flow->start_time);
+    // }
 
     mark_critical_path(); 
 

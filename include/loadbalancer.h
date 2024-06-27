@@ -67,6 +67,35 @@ public:
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
+struct lb_x_tuple {  
+    int src; 
+    int dst;
+
+    bool operator<(const lb_x_tuple& other) const {
+        if (src < other.src) {
+            return true; 
+        } else if (src == other.src) {
+            return dst < other.dst; 
+        } else {
+            return false; 
+        }
+    } 
+}; 
+
+
+class ECMPLoadBalancer : public LoadBalancer {
+    std::map<lb_x_tuple, int> lb_cache;
+
+public:
+    ECMPLoadBalancer(int item_count);
+    virtual ~ECMPLoadBalancer() {}
+    int get_upper_item(int src, int dst, Flow* flow, int timer) override;
+};
+
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
 class AlwaysZeroLoadBalancer : public LoadBalancer {
 public:
     AlwaysZeroLoadBalancer(int item_count);
