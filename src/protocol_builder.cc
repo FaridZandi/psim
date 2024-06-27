@@ -377,7 +377,7 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
 
 EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, 
                                            std::vector<PComp*> last_layer_pcs, int num_replicas, 
-                                           int comm_size, double aggregate_time) {
+                                           int comm_size, double aggregate_time, int jobid) {
 
     EmptyTask* all_reduce_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
     all_reduce_finisher->name = "AllR";
@@ -402,6 +402,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol,
         for (int j = 0; j < num_replicas - 1; j++) {
 
             Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+            flow->jobid = jobid;
             flow->size = comm_size;
             int flow_src_index = (i + j) % num_replicas; 
             int flow_dst_index = (i + j + 1) % num_replicas;
@@ -437,6 +438,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol,
         for (int j = 0; j < num_replicas - 1; j++) {
 
             Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+            flow->jobid = jobid;
             flow->size = comm_size;
             int flow_src_index = (starting + j) % num_replicas;
             int flow_dst_index = (starting + j + 1) % num_replicas;
@@ -462,7 +464,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol,
 
 
 void 
-insert_simple_data_parallelism(Protocol* protocol, 
+insert_simple_data_parallelism(Protocol* protocol, int jobid,
                                int node_count, int init_node_id, 
                                int layer_count, int iter_count, 
                                int comp_size, int comm_size, 
@@ -537,7 +539,7 @@ insert_simple_data_parallelism(Protocol* protocol,
 
             // at this point last_layer_pcs contains the last layer of the backward pass.
             // we can do the all_reduce to the protocol. 
-            EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_count, comm_size, 1);
+            EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_count, comm_size, 1, jobid);
 
             all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
         }
@@ -556,31 +558,38 @@ psim::build_periodic_test() {
     int layer_count = 12; 
 
     int job1_length_base = GConf::inst().general_param_2; 
+    int job1_initial_wait = 0;
+    int job1_starting_node = 0; 
+    int job1_jobid = 1; 
+
     int job2_length_base = GConf::inst().general_param_3;
+    int job2_initial_wait = GConf::inst().general_param_1;
+    int job2_starting_node = job1_starting_node + node_count;
+    int job2_jobid = 2; 
+    
     int hyper_period = LCM(job1_length_base, job2_length_base);
     int comp_length_amplification = 200;
-    int comm_length_amplification = 7500; 
+    int comm_length_amplification = 4000; 
+    int reps_multiplier = 30;
+
     int job1_reps_per_hyper_period = hyper_period / job1_length_base;
     int job2_reps_per_hyper_period = hyper_period / job2_length_base;
-    int reps_multiplier = 100;
+
 
     Protocol *protocol = new Protocol();
-    
-    int job2_inital_wait = GConf::inst().general_param_1;
-    
-    // insert_simple_data_parallelism(protocol, node_count, 0, layer_count, 3, 500, 5000);
-    insert_simple_data_parallelism(protocol, node_count, 0, layer_count, 
+
+
+    insert_simple_data_parallelism(protocol, job1_jobid, node_count, job1_starting_node, layer_count, 
                                    job1_reps_per_hyper_period * reps_multiplier, 
                                    job1_length_base * comp_length_amplification, 
                                    job1_length_base * comm_length_amplification, 
-                                   0);
+                                   job1_initial_wait);
 
-    insert_simple_data_parallelism(protocol, node_count, 0 + node_count, layer_count, 
+    insert_simple_data_parallelism(protocol, job2_jobid, node_count, job2_starting_node, layer_count, 
                                    job2_reps_per_hyper_period * reps_multiplier, 
                                    job2_length_base * comp_length_amplification, 
                                    job2_length_base * comm_length_amplification, 
-                                   job2_inital_wait);                             
+                                   job2_initial_wait);                             
 
-    
     return protocol;
 }

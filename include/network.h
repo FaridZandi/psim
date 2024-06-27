@@ -64,7 +64,8 @@ public:
                                      std::vector<PComp*> & step_finished_tasks);
     
     double make_progress_on_flows(double current_time, double step_size, 
-                                  std::vector<Flow*> & step_finished_flows);
+                                  std::vector<Flow*> & step_finished_flows,
+                                  double job_progress[]);
 
     LoadBalancer* core_load_balancer;
 

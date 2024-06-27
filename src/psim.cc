@@ -211,7 +211,12 @@ double PSim::simulate() {
 
         spdlog::debug("step size: {}", this_step_step_size);
 
-        double step_comm = network->make_progress_on_flows(timer, this_step_step_size, step_finished_flows);
+        double job_progress[10]; 
+        for (int i = 0; i < 10; i++){
+            job_progress[i] = 0;
+        }
+
+        double step_comm = network->make_progress_on_flows(timer, this_step_step_size, step_finished_flows, job_progress);
         double stop_comp = network->make_progress_on_machines(timer, this_step_step_size, step_finished_tasks);
 
         int timer_interval = GConf::inst().core_status_profiling_interval;
@@ -241,9 +246,8 @@ double PSim::simulate() {
             start_next_tasks(task);
         }
 
-
-
         history_entry h;
+
         h.time = timer;
         h.flow_count = network->flows.size();
         h.step_finished_flows = step_finished_flows.size();
@@ -259,7 +263,12 @@ double PSim::simulate() {
         h.total_core_bw = network->total_core_bw();
         h.total_accelerator_capacity = GConf::inst().machine_count * this_step_step_size;
 
+        for (int i = 0; i < 10; i++){
+            h.job_progress[i] = job_progress[i];
+        }
+
         history.push_back(h);
+
         if ((int)timer % 1000 == 0){
             log_history_entry(h);
         }
@@ -774,24 +783,37 @@ void PSim::save_run_results(){
     if (GConf::inst().plot_graphs) {
         // plot the data with matplotlibcpp: comm_log, comp_log
 
+        // draw_plots({
+        //     {"network-util", [](history_entry h){return h.total_bw_utilization / h.total_network_bw;}},
+        //     {"accel-util", [](history_entry h){return h.step_comp / h.total_accelerator_capacity;}}
+        // });
+
+        // draw_plots({
+        //     {"network-util", [](history_entry h){return h.total_bw_utilization / h.total_network_bw;}},
+        //     {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
+        // });
+
+        // draw_plots({
+        //     {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
+        // });
+        
+        // draw_plots({
+        //     {"min-core-util", [](history_entry h){return h.min_core_link_bw_utilization;}},
+        //     {"max-core-util", [](history_entry h){return h.max_core_link_bw_utilization;}},
+        // });
+
         draw_plots({
-            {"network-util", [](history_entry h){return h.total_bw_utilization / h.total_network_bw;}},
-            {"accel-util", [](history_entry h){return h.step_comp / h.total_accelerator_capacity;}}
+            {"step_comp", [](history_entry h){return h.step_comm;}},
         });
 
         draw_plots({
-            {"network-util", [](history_entry h){return h.total_bw_utilization / h.total_network_bw;}},
-            {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
+            {"job1_progress", [](history_entry h){return h.job_progress[1];}},
         });
 
         draw_plots({
-            {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
+            {"job2_progress", [](history_entry h){return h.job_progress[2];}},
         });
         
-        draw_plots({
-            {"min-core-util", [](history_entry h){return h.min_core_link_bw_utilization;}},
-            {"max-core-util", [](history_entry h){return h.max_core_link_bw_utilization;}},
-        });
 
 
         if (GConf::inst().record_machine_history) {

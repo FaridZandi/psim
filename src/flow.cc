@@ -209,6 +209,7 @@ Flow::print_task_info(std::ostream& os){
 }
 
 void Flow::reset(){
+    jobid = -1; 
     size = 0;
     progress = 0;
     current_rate = GConf::inst().initial_rate;

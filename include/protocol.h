@@ -124,6 +124,7 @@ public:
     int dst_dev_id;
     double size;
     double progress;
+    int jobid; 
 
     int selected_priority;
     int bn_priority_levels;

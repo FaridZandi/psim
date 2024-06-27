@@ -42,6 +42,7 @@ struct history_entry {
     double total_network_bw;
     double total_core_bw;
     double total_accelerator_capacity;
+    double job_progress[10];  // TODO: make this dynamic
 };
 
 #define auto_smooth -4
