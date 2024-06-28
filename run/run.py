@@ -40,8 +40,8 @@ options = {
     
     "initial-rate": 400,
     "min-rate": 400,
-    # "priority-allocator": "fairshare",
-    "priority-allocator": "priorityqueue", 
+    "priority-allocator": "fairshare",
+    # "priority-allocator": "priorityqueue", 
 
     "network-type": "leafspine",    
     "link-bandwidth": 400,

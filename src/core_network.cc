@@ -333,6 +333,8 @@ void LeafSpineNetwork::set_path(Flow* flow, double timer) {
 
     } else {
         int core_num = core_load_balancer->get_upper_item(src_loc.rack, dst_loc.rack, flow, timer);
+        flow->lb_decision = core_num;
+        
         GContext::inst().save_decision(flow->id, core_num);
 
         flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, src_loc.rack, src_loc.server, 1, -1}]);

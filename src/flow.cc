@@ -78,8 +78,9 @@ void Flow::compute_priority(){
 
 void Flow::register_rate_on_path(double step_size){
 
-    double completion_rate = (size - progress) / step_size;
-    registered_rate = std::min(completion_rate, current_rate);
+    // double completion_rate = (size - progress) / step_size;
+    // registered_rate = std::min(completion_rate, current_rate);
+    registered_rate = current_rate;
 
     for (auto& bottleneck : this->path) {
         bottleneck->register_rate(id, registered_rate, selected_priority);
@@ -210,6 +211,7 @@ Flow::print_task_info(std::ostream& os){
 }
 
 void Flow::reset(){
+    lb_decision = -1; 
     jobid = -1; 
     size = 0;
     progress = 0;

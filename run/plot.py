@@ -20,6 +20,13 @@ all_sweep_params = ["min-rate",
                     "general-param-2", 
                     "general-param-3", 
                     "general-param-1", 
+                    "general-param-4", 
+                    "general-param-5",
+                    "general-param-6",
+                    "general-param-7",
+                    "general-param-8",
+                    "general-param-9",
+                    "general-param-10",
                     ]
 
 colors = {

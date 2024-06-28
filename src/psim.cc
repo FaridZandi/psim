@@ -300,11 +300,30 @@ double PSim::simulate() {
         timer += this_step_step_size;
     }
 
-    // for (Flow* flow: finished_flows){
-    //     spdlog::critical("flow: {} jobid {}: start: {} end: {} fct: {}", 
-    //                      flow->id, flow->jobid, flow->start_time, flow->end_time, 
-    //                      flow->end_time - flow->start_time);
-    // }
+    for (Flow* flow: finished_flows){
+        if (flow->lb_decision == -1) {
+            continue; 
+        }
+
+        bool outgoing = false; 
+        if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
+            outgoing = true; 
+        }
+
+        std::string progress_history = "";
+
+        for (double ph: flow->progress_history){
+            // 2 digits after the decimal point.
+            std::string item = fmt::format("{:.2f}", ph);
+            progress_history += item + " ";
+        }
+
+        spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} progress_history: {}", 
+                         flow->id, flow->jobid,
+                         outgoing ? "outgoing" : "incoming", 
+                         flow->start_time, flow->end_time, 
+                         flow->end_time - flow->start_time, flow->lb_decision, progress_history);
+    }
 
     mark_critical_path(); 
 
@@ -423,7 +442,7 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
                 }
                 smoothed_data.push_back(sum / smoothing);
             }
-            data = smoothed_data;
+            // data = smoothed_data;
         }
 
         plt::plot(data, {{"label", name}});

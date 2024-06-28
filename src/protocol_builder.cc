@@ -594,7 +594,7 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             // something like that avoiding a new collective operation before the 
             // previous one is finished. 
 
-            last_all_reduce_finisher = all_reduce_finisher;
+            // last_all_reduce_finisher = all_reduce_finisher;
         }
     }
 }
@@ -607,8 +607,9 @@ int LCM(int a, int b){
 Protocol* 
 psim::build_periodic_test() { 
 
-    int node_count = 3; 
-    int layer_count = 3; 
+    int node_count = 6; // n: number of machines
+    int layer_count = 1;  // l: number of teeth in the graph
+    int reps_multiplier = 1; // i: 0 .. reps_multiplier * hyper_period
 
     int job1_length_base = GConf::inst().general_param_2; 
     if (job1_length_base == 0) {
@@ -635,7 +636,6 @@ psim::build_periodic_test() {
         comm_length_amplification = 4000; // 10 units of time for the 400G links 
     }
 
-    int reps_multiplier = 1;
     
     int hyper_period = LCM(job1_length_base, job2_length_base);
     int job1_reps_per_hyper_period = hyper_period / job1_length_base;

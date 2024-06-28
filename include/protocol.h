@@ -134,6 +134,9 @@ public:
     int bottlenecked_by_intermediate_count;
     int bottlenecked_by_srcdst_count;
     
+    int lb_decision; 
+    std::vector<double> progress_history; 
+
     std::vector<Bottleneck *> path;
     Machine *src;
     Machine *dst;

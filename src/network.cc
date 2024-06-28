@@ -167,6 +167,8 @@ double Network::make_progress_on_flows(double current_time, double step_size,
     for (auto& flow : flows) {
         double flow_step_progress = flow->make_progress(current_time, step_size);
         step_comm += flow_step_progress; 
+        flow->progress_history.push_back(flow_step_progress);
+        
         job_progress[flow->jobid] += flow_step_progress;
 
         if (flow->status == PTaskStatus::FINISHED) {
