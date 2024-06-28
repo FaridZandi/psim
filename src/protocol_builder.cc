@@ -399,6 +399,22 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         }
     }
 
+    EmptyTask* initial_barrier = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+    initial_barrier->name = "init";
+
+    // the initial barrier will make sure all the layers have prepared their data before 
+    // starting the all-reduce operation. 
+    for (int j = 0; j < num_replicas; j++) {
+        last_layer_pcs[j]->add_next_task_id(initial_barrier->id);
+    }
+
+    // There's the option to serialize the all-reduce operations. One all-reduce wouldn't
+    // start until the earlier one has finished. if the pointer is given, the dependency 
+    // will be added. 
+    if (last_all_reduce_finisher != nullptr) {
+        last_all_reduce_finisher->add_next_task_id(initial_barrier->id);
+    }
+
 
     for (int i = 0; i < num_chunks; i++) {
         // the chunk starts at machine i, goes through all the other machine, 
@@ -409,12 +425,9 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         // there would be a total of 2 * (num_replicas - 1) communication steps. 
         // there would a total of (num_replicas - 1) aggregation steps.
 
-
-
         PTask* prev_task = nullptr; 
 
         for (int j = 0; j < num_replicas - 1; j++) {
-
             Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
             all_flows[i][j] = flow;
             
@@ -435,15 +448,10 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
 
             flow->add_next_task_id(agg->id);
 
-            if (prev_task != nullptr) {
+            if (j != 0) {
                 prev_task->add_next_task_id(flow->id);
             } else {
-                // if this is the first task in the chain, then it should be connected to the last layer pcs. 
-                last_layer_pcs[(i + j) % num_replicas]->add_next_task_id(flow->id);
-
-                if (last_all_reduce_finisher != nullptr) {
-                    last_all_reduce_finisher->add_next_task_id(flow->id);
-                }
+                initial_barrier->add_next_task_id(flow->id);    
             }
 
             prev_task = agg;
@@ -467,10 +475,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
             flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
 
-            if (prev_task != nullptr) {
-                prev_task->add_next_task_id(flow->id);
-            }
-
+            prev_task->add_next_task_id(flow->id);
             prev_task = flow;
 
             if (j == num_replicas - 2) {
@@ -573,11 +578,11 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
                 }
             }
 
-            // at this point last_layer_pcs contains the last layer of the backward pass.
+            // at this point last_layer_pcs contains the last layer of the backward passes.
             // we can do the all_reduce to the protocol. 
 
-            bool add_stage_barriers = true; 
-            // bool add_stage_barriers = false; 
+            // bool add_stage_barriers = true; 
+            bool add_stage_barriers = false; 
 
             EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_count, comm_size, 
                                                                             jobid, last_all_reduce_finisher, add_stage_barriers);
@@ -588,6 +593,7 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             // uncomment the following line. This would be equivalent to have NCCL or 
             // something like that avoiding a new collective operation before the 
             // previous one is finished. 
+
             last_all_reduce_finisher = all_reduce_finisher;
         }
     }
@@ -601,24 +607,37 @@ int LCM(int a, int b){
 Protocol* 
 psim::build_periodic_test() { 
 
-    int node_count = 6; 
-    int layer_count = 12; 
+    int node_count = 3; 
+    int layer_count = 3; 
 
     int job1_length_base = GConf::inst().general_param_2; 
+    if (job1_length_base == 0) {
+        job1_length_base = 1;
+    }
+
     int job1_initial_wait = 0;
     int job1_starting_node = 0; 
     int job1_jobid = 1; 
 
     int job2_length_base = GConf::inst().general_param_3;
+    if (job2_length_base == 0) {
+        job2_length_base = 1;
+    }
+
     int job2_initial_wait = GConf::inst().general_param_1;
     int job2_starting_node = job1_starting_node + node_count;
     int job2_jobid = 2; 
     
-    int hyper_period = LCM(job1_length_base, job2_length_base);
+    
     int comp_length_amplification = 200;
-    int comm_length_amplification = 4000; 
-    int reps_multiplier = 1;
+    int comm_length_amplification = GConf::inst().general_param_4; 
+    if (comm_length_amplification == 0) {
+        comm_length_amplification = 4000; // 10 units of time for the 400G links 
+    }
 
+    int reps_multiplier = 1;
+    
+    int hyper_period = LCM(job1_length_base, job2_length_base);
     int job1_reps_per_hyper_period = hyper_period / job1_length_base;
     int job2_reps_per_hyper_period = hyper_period / job2_length_base;
 

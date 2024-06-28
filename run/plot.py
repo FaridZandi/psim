@@ -211,12 +211,16 @@ for i, param in enumerate(params):
         #         width=1, color="white",
         #         edgecolor="black", hatch="///")
 
-
         # plt.bar(x_offset, param_data["rel_min_psim_time"],
         #         width=1, label=param,
         #         color=get_color(param), edgecolor="black")
 
-        plt.bar(x_offset, param_data["rel_avg_psim_time"],
+        # plt.bar(x_offset, param_data["rel_min_psim_time"],
+        #         width=1, label=param,
+        #         color=get_color(param), edgecolor="black")
+    
+        plt.bar(x_offset, param_data["rel_max_psim_time"] - param_data["rel_min_psim_time"],
+                bottom=param_data["rel_min_psim_time"],
                 width=1, label=param,
                 color=get_color(param), edgecolor="black")
         
