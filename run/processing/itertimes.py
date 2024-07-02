@@ -7,7 +7,6 @@ def parse_line(line):
     # pattern like below, but instead of the first int, it should accept a floating point number 
     # so the ([0-9]+)\ part should be changed
     # pattern = r'\[([0-9]+)\]: job (\d+) iter (\d+) finished'
-    print(line)    
     pattern = r'\[([+-]?(?:\d+(\.\d*)?|\.\d+))\]: job (\d+) iter (\d+) finished'
     
     match = re.search(pattern, line)
@@ -48,7 +47,6 @@ def calculate_iteration_lengths(file_path):
 
                     job_iteration_starts[job_id].append(sim_time)
                     job_iteration_times[job_id].append(iteration_length)
-                    print(job_id, job_iteration_times[job_id])
     
     return job_iteration_times, job_iteration_starts
 

@@ -48,6 +48,7 @@ int main(int argc, char** argv) {
         double psim_time = psim->simulate();
         GContext::this_run().psim_time = psim_time;
         psim_time_list.push_back(psim_time);
+        spdlog::critical("done with rep {}", rep);
 
         change_log_path(worker_dir + "run-" + std::to_string(rep), "results.txt");
         psim->log_results(); 

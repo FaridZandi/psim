@@ -121,6 +121,8 @@ public:
     double rate_increase;
     double min_bottleneck_rate;
     double rate_decrease_factor;
+    
+    std::string label_for_progress_graph; 
 
     int src_dev_id;
     int dst_dev_id;

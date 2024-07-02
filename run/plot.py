@@ -10,24 +10,25 @@ from pprint import pprint
 ############################################################################################
 
 # the params that might vary in the experiments     
-all_sweep_params = ["min-rate",
-                    "ft-core-count",
-                    "ft-agg-core-link-capacity-mult",
-                    "shuffle-device-map",
-                    "priority-allocator",
-                    "load-metric",
-                    "lb-scheme", 
-                    "general-param-2", 
-                    "general-param-3", 
-                    "general-param-1", 
-                    "general-param-4", 
-                    "general-param-5",
-                    "general-param-6",
-                    "general-param-7",
-                    "general-param-8",
-                    "general-param-9",
-                    "general-param-10",
-                    ]
+all_sweep_params = [
+    "min-rate",
+    "ft-core-count",
+    "ft-agg-core-link-capacity-mult",
+    "shuffle-device-map",
+    "priority-allocator",
+    "load-metric",
+    "general-param-2", 
+    "general-param-3", 
+    "general-param-1", 
+    "general-param-4", 
+    "general-param-5",
+    "general-param-6",
+    "general-param-7",
+    "general-param-8",
+    "general-param-9",
+    "general-param-10",
+    "lb-scheme", 
+]
 
 colors = {
     "random": "red",
@@ -186,8 +187,8 @@ for protocol in protocols:
             print("error: rel_last_psim_time > 1")
             print(row)
             
-# plot_ylim_min = pd_frame["rel_min_psim_time"].min()
-plot_ylim_min = 0
+plot_ylim_min = pd_frame["rel_min_psim_time"].min()
+# plot_ylim_min = 0
 
 inner_grouping_size = group_sizes[0]
 sub_group_width = inner_grouping_size
@@ -257,7 +258,7 @@ start_offset = 0
 for i, protocol in enumerate(protocols):
     for offset, text in tick_labels.items():
         this_offset = start_offset + offset - group_width / 2 + sub_group_width / 2
-        plt.annotate(text, (this_offset, 0), xytext=(0, -20), textcoords="offset points",
+        plt.annotate(text, (this_offset, plot_ylim_min * 0.99), xytext=(0, -20), textcoords="offset points",
                  rotation=45, ha='center', va='top')
         
     start_offset += (group_width + group_spacing)

@@ -22,7 +22,8 @@ def parse_line(line):
             fct = float(flow_info[11])
             core = int(flow_info[13])
             stepsize = float(flow_info[15])
-            progress_history = list(map(float, flow_info[17:]))
+            label = flow_info[17]
+            progress_history = list(map(float, flow_info[19:]))
             
             start_time = round(start_time / stepsize)
             end_time = round(end_time / stepsize)
@@ -37,6 +38,7 @@ def parse_line(line):
                 "dir": dir_str, # "in" or "out
                 "fct": fct,
                 "core": core,
+                "label": label, 
                 "progress_history": progress_history
             }
             
@@ -88,17 +90,15 @@ def parse_flow_progress(file_path):
 def get_color(min_time, max_time, time, jobid): 
     # for job 1, the color would gradually change from yellow to red 
     # for job 2, the color would gradually change from blue to green
-    
     # the color is decided by the time, the earlier the time, the more yellow or blue the color would be
-    
     if jobid == 1:
-        r = 1 - (time - min_time) / (max_time - min_time)
-        g = 1 - r
+        r = (time - min_time) / (max_time - min_time)
+        g = 1
         b = 0
         
     else:
         b = 1 - (time - min_time) / (max_time - min_time)
-        g = 1 - b
+        g = 0
         r = 0
         
     return (r, g, b)
@@ -118,38 +118,30 @@ def main():
     # increase the space between the subplots
     plt.subplots_adjust(hspace=0.5)
     plt.subplots_adjust(wspace=0.5)
-    
         
-    plt.stackplot
-    
     def func(core, flows, j): 
         print("core: ", core, " flows: ", len(flows))
+        if len(flows) == 0:
+            return 
+        
+        # the progress history for each flow is padded with 0s to match the min_time and max_time
+        # so all the flows have the same history shape regardless of their start and end time
         progress_history = []
+        
         for flow in flows:
             flow_progress_history = flow["progress_history"]
             padded_progress_history = base_util_array.copy()
             for i in range (flow["start_time"], flow["end_time"]):
                 padded_progress_history[i - min_time] = flow_progress_history[i - flow["start_time"]]
-                
-                
             progress_history.append(padded_progress_history)
         
-        if len(flows) == 0:
-            return 
-        
-        # the bar would be solidly colored, if the job_id for the flow is 1, 
-        # the bar would be hatched filled, if the job_id for the flow is 2
-        
-        labels = [f"Flow {flow['flow_id']}" for flow in flows]
+
+        labels = [flow['label'] for flow in flows]
         hatches = ['////' if flow["job_id"] == 1 else 'oo' for flow in flows]
-        print(hatches)
         colors = [get_color(min_time, max_time, flow["start_time"], flow["job_id"]) for flow in flows]
         
-        r = axs[core][j].stackplot(range(min_time, max_time + 1), 
-                            progress_history,
-                            labels=labels,
-                            edgecolor='black',
-                            linewidth=1)
+        r = axs[core][j].stackplot(range(min_time, max_time + 1), progress_history,
+                                   labels=labels, edgecolor='black', linewidth=1)
         
         # go through each bar and set the hatch
         for i, patch in enumerate(r):
@@ -170,8 +162,6 @@ def main():
         
     for core, flows in flow_progress_outgoing.items():
         func(core, flows, 1) 
-        
-        
     
     # legend outside the plot, to the right of the plot 
     plt.savefig("plots/flow_progress.png", bbox_inches='tight', dpi=300)

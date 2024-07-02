@@ -300,31 +300,31 @@ double PSim::simulate() {
         timer += this_step_step_size;
     }
 
-    for (Flow* flow: finished_flows){
-        if (flow->lb_decision == -1) {
-            continue; 
-        }
+    // for (Flow* flow: finished_flows){
+    //     if (flow->lb_decision == -1) {
+    //         continue; 
+    //     }
 
-        bool outgoing = false; 
-        if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
-            outgoing = true; 
-        }
+    //     bool outgoing = false; 
+    //     if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
+    //         outgoing = true; 
+    //     }
 
-        std::string progress_history = "";
+    //     std::string progress_history = "";
 
-        for (double ph: flow->progress_history){
-            // 2 digits after the decimal point.
-            std::string item = fmt::format("{:.2f}", ph);
-            progress_history += item + " ";
-        }
+    //     for (double ph: flow->progress_history){
+    //         // 2 digits after the decimal point.
+    //         std::string item = fmt::format("{:.2f}", ph);
+    //         progress_history += item + " ";
+    //     }
 
-        spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} progress_history: {}", 
-                         flow->id, flow->jobid,
-                         outgoing ? "outgoing" : "incoming", 
-                         flow->start_time, flow->end_time, 
-                         flow->end_time - flow->start_time, flow->lb_decision, 
-                         step_size, progress_history);
-    }
+    //     spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
+    //                      flow->id, flow->jobid,
+    //                      outgoing ? "outgoing" : "incoming", 
+    //                      flow->start_time, flow->end_time, 
+    //                      flow->end_time - flow->start_time, flow->lb_decision, 
+    //                      step_size, flow->label_for_progress_graph, progress_history);
+    // }
 
     mark_critical_path(); 
 
@@ -445,7 +445,6 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
             }
             // data = smoothed_data;
         }
-
         plt::plot(data, {{"label", name}});
 
         plot_name += name + "|";

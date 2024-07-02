@@ -433,6 +433,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             
             flow->jobid = jobid;
             flow->size = comm_size;
+            flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + 1);
             int flow_src_index = (i + j) % num_replicas; 
             int flow_dst_index = (i + j + 1) % num_replicas;
             flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
@@ -469,6 +470,8 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
 
             flow->jobid = jobid;
             flow->size = comm_size;
+            flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + num_replicas - 1 + 1);
+
             int flow_src_index = (starting + j) % num_replicas;
             int flow_dst_index = (starting + j + 1) % num_replicas;
 
@@ -608,8 +611,11 @@ Protocol*
 psim::build_periodic_test() { 
 
     int node_count = 6; // n: number of machines
-    int layer_count = 1;  // l: number of teeth in the graph
-    int reps_multiplier = 1; // i: 0 .. reps_multiplier * hyper_period
+    int layer_count = 12;  // l: number of teeth in the graph
+    int reps_multiplier = GConf::inst().general_param_5; // i: 0 .. reps_multiplier * hyper_period
+    if (reps_multiplier == 0) {
+        reps_multiplier = 1;
+    }
 
     int job1_length_base = GConf::inst().general_param_2; 
     if (job1_length_base == 0) {
@@ -635,7 +641,6 @@ psim::build_periodic_test() {
     if (comm_length_amplification == 0) {
         comm_length_amplification = 4000; // 10 units of time for the 400G links 
     }
-
     
     int hyper_period = LCM(job1_length_base, job2_length_base);
     int job1_reps_per_hyper_period = hyper_period / job1_length_base;

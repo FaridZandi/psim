@@ -213,6 +213,7 @@ Flow::print_task_info(std::ostream& os){
 }
 
 void Flow::reset(){
+    label_for_progress_graph = "";
     lb_decision = -1; 
     jobid = -1; 
     size = 0;
