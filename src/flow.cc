@@ -158,7 +158,9 @@ double Flow::make_progress(double current_time, double step_size) {
     current_rate = allocated_rate;
 
     double step_progress = allocated_rate * step_size;
-
+    if (step_progress > size - progress) {
+        step_progress = size - progress;
+    }
 
     // TODO: fix this. The time that the flow was actually
     // initiated by the protocol runner can also be important.

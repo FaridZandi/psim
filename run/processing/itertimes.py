@@ -4,15 +4,22 @@ import matplotlib.pyplot as plt
 
 def parse_line(line):
     """Parse a line to extract simulation time, job ID, and iteration ID."""
-    pattern = r'\[([0-9]+)\]: job (\d+) iter (\d+) finished'
+    # pattern like below, but instead of the first int, it should accept a floating point number 
+    # so the ([0-9]+)\ part should be changed
+    # pattern = r'\[([0-9]+)\]: job (\d+) iter (\d+) finished'
+    print(line)    
+    pattern = r'\[([+-]?(?:\d+(\.\d*)?|\.\d+))\]: job (\d+) iter (\d+) finished'
+    
     match = re.search(pattern, line)
     if match:
-        return int(match.group(1)), int(match.group(2)), int(match.group(3)), "iterfinish"
+        time = float((match.group(1)))            
+        return time, int(match.group(3)), int(match.group(4)), "iterfinish"
     else: 
-        pattern = r'\[([0-9]+)\]: job (\d+) started'
+        pattern = r'\[([+-]?(?:\d+(\.\d*)?|\.\d+))\]: job (\d+) started'
         match = re.search(pattern, line)
         if match:
-            return int(match.group(1)), int(match.group(2)), 0, "jobstart"
+            time = float((match.group(1)))            
+            return time, int(match.group(3)), 0, "jobstart"
         else:
             return None
 
@@ -48,7 +55,7 @@ def calculate_iteration_lengths(file_path):
 def main():
     file_path = sys.argv[1]  # Update this path to your file containing the log data
     iteration_lengths, iteration_starts = calculate_iteration_lengths(file_path)
-
+    
     for job_id, iterations in iteration_lengths.items():
         print(f"Job {job_id}:")
         for iter_id, length in enumerate(iterations, start=1):
@@ -72,7 +79,7 @@ def main():
     plt.plot(range(1, len(drifts) + 1), drifts, label="Drift")
         
     plt.legend() 
-    plt.savefig("iteration_lengths.png")
+    plt.savefig("plots/iteration_lengths.png")
     
 if __name__ == "__main__":
     main()

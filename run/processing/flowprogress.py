@@ -17,11 +17,17 @@ def parse_line(line):
             flow_id = int(flow_info[1])
             job_id = int(flow_info[3])
             dir_str = flow_info[5]
-            start_time = int(flow_info[7])
-            end_time = int(flow_info[9])
-            fct = int(flow_info[11])
+            start_time = float(flow_info[7])
+            end_time = float(flow_info[9])
+            fct = float(flow_info[11])
             core = int(flow_info[13])
-            progress_history = list(map(float, flow_info[15:]))
+            stepsize = float(flow_info[15])
+            progress_history = list(map(float, flow_info[17:]))
+            
+            start_time = round(start_time / stepsize)
+            end_time = round(end_time / stepsize)
+            fct = round(fct / stepsize)
+            
             
             flow_info = {
                 "flow_id": flow_id,
@@ -35,7 +41,7 @@ def parse_line(line):
             }
             
             if len(progress_history) != fct: 
-                print("Error: progress history length does not match fct")
+                print("Error: progress history length does not match fct, len(progress_history): ", len(progress_history), " fct: ", fct)
                 print("Probably something will go wrong") 
             
             sum_progress = sum(progress_history)
@@ -79,7 +85,25 @@ def parse_flow_progress(file_path):
             
     return core_flows_incoming, core_flows_outgoing, min_time, max_time
             
-
+def get_color(min_time, max_time, time, jobid): 
+    # for job 1, the color would gradually change from yellow to red 
+    # for job 2, the color would gradually change from blue to green
+    
+    # the color is decided by the time, the earlier the time, the more yellow or blue the color would be
+    
+    if jobid == 1:
+        r = 1 - (time - min_time) / (max_time - min_time)
+        g = 1 - r
+        b = 0
+        
+    else:
+        b = 1 - (time - min_time) / (max_time - min_time)
+        g = 1 - b
+        r = 0
+        
+    return (r, g, b)
+        
+    
 def main():
     file_path = sys.argv[1]  # Update this path to your file containing the log data
     flow_progress_incoming, flow_progress_outgoing, min_time, max_time = parse_flow_progress(file_path)
@@ -89,14 +113,15 @@ def main():
     base_util_array = [0] * (max_time - min_time + 1)
     
     # make a subplot for each core, vertically aligned 
-    fig, axs = plt.subplots(4, 2, figsize=(20, 10))
+    fig, axs = plt.subplots(2, 2, figsize=(20, 10))
     
     # increase the space between the subplots
     plt.subplots_adjust(hspace=0.5)
-    plt.subplots_adjust(wspace=1)
+    plt.subplots_adjust(wspace=0.5)
     
         
-        
+    plt.stackplot
+    
     def func(core, flows, j): 
         print("core: ", core, " flows: ", len(flows))
         progress_history = []
@@ -112,13 +137,33 @@ def main():
         if len(flows) == 0:
             return 
         
-        axs[core][j].stackplot(range(min_time, max_time + 1), 
+        # the bar would be solidly colored, if the job_id for the flow is 1, 
+        # the bar would be hatched filled, if the job_id for the flow is 2
+        
+        labels = [f"Flow {flow['flow_id']}" for flow in flows]
+        hatches = ['////' if flow["job_id"] == 1 else 'oo' for flow in flows]
+        print(hatches)
+        colors = [get_color(min_time, max_time, flow["start_time"], flow["job_id"]) for flow in flows]
+        
+        r = axs[core][j].stackplot(range(min_time, max_time + 1), 
                             progress_history,
-                            labels=[f"Flow {flow['flow_id']}" for flow in flows])
+                            labels=labels,
+                            edgecolor='black',
+                            linewidth=1)
+        
+        # go through each bar and set the hatch
+        for i, patch in enumerate(r):
+            patch.set_hatch(hatches[i])
+            # patch.set_facecolor(colors[i])
+            
         axs[core][j].set_title(f"Core {core} {['Incoming', 'Outgoing'][j]} Flows Progress")
         axs[core][j].set_xlabel("Time")
         axs[core][j].set_ylabel("Progress")
+
+        # add the hatch guide to the existing legend items      
         axs[core][j].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+
+
         
     for core, flows in flow_progress_incoming.items():
         func(core, flows, 0)
@@ -129,7 +174,7 @@ def main():
         
     
     # legend outside the plot, to the right of the plot 
-    plt.savefig("flow_progress.png", bbox_inches='tight', dpi=300)
+    plt.savefig("plots/flow_progress.png", bbox_inches='tight', dpi=300)
     
 if __name__ == "__main__":
     main()

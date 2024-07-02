@@ -318,11 +318,12 @@ double PSim::simulate() {
             progress_history += item + " ";
         }
 
-        spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} progress_history: {}", 
+        spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} progress_history: {}", 
                          flow->id, flow->jobid,
                          outgoing ? "outgoing" : "incoming", 
                          flow->start_time, flow->end_time, 
-                         flow->end_time - flow->start_time, flow->lb_decision, progress_history);
+                         flow->end_time - flow->start_time, flow->lb_decision, 
+                         step_size, progress_history);
     }
 
     mark_critical_path(); 
@@ -473,8 +474,6 @@ void PSim::log_results() {
         spdlog::error("the rest of log_results is only supported for single protocol runs");
         return;
     }
-
-    
 
     double average_fct = 0;
     double average_flow_size = 0;

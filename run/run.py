@@ -48,7 +48,7 @@ options = {
     "ft-server-per-rack": 4,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 4,
-    "ft-core-count": 4,
+    "ft-core-count": 2,
     "ft-pod-count": 4,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
