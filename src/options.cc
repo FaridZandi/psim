@@ -202,6 +202,8 @@ void psim::process_arguments(po::variables_map vm){
             GConf::inst().lb_scheme = LBScheme::ROUND_ROBIN;
         } else if (lb_scheme_str == "ecmp") {
             GConf::inst().lb_scheme = LBScheme::ECMP;
+        } else if (lb_scheme_str == "zero") {
+            GConf::inst().lb_scheme = LBScheme::ZERO;
         } else if (lb_scheme_str == "readfile") {
             GConf::inst().lb_scheme = LBScheme::READ_FILE;
         } else if (lb_scheme_str == "leastloaded") {

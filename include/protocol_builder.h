@@ -9,7 +9,8 @@ Protocol* super_simple_protocol();
 Protocol* simple_pipeline_protocol(int length);
 Protocol* ring_allreduce(int num_replicas, double comm_size, double aggregate_time); 
 Protocol* build_all_to_all(int num_replicas, double comm_size, int chunk_count); 
-Protocol* build_periodic_test(); 
+Protocol* build_periodic_data_parallelism(); 
+Protocol* build_periodic_simple();
 } // namespace psim
 
 #endif

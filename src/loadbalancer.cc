@@ -46,7 +46,9 @@ Bottleneck* LoadBalancer::downlink(int lower_item, int upper_item){
 LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_scheme) {
     switch (lb_scheme) {
         case LBScheme::ECMP:
-            return new ECMPLoadBalancer(item_count);   
+            return new ECMPLoadBalancer(item_count);
+        case LBScheme::ZERO: 
+            return new AlwaysZeroLoadBalancer(item_count);   
         case LBScheme::RANDOM:
             return new RandomLoadBalancer(item_count);
         case LBScheme::ROUND_ROBIN:

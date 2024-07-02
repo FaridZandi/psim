@@ -608,7 +608,7 @@ int LCM(int a, int b){
 }
 
 Protocol* 
-psim::build_periodic_test() { 
+psim::build_periodic_data_parallelism() { 
 
     int node_count = 6; // n: number of machines
     int layer_count = 12;  // l: number of teeth in the graph
@@ -661,6 +661,75 @@ psim::build_periodic_test() {
                                    job2_length_base * comp_length_amplification, 
                                    job2_length_base * comm_length_amplification, 
                                    job2_initial_wait);                             
+
+    return protocol;
+}
+
+
+//    insert_simple_periodic(protocol, job1_src_machine, job1_dst_machine, bump_count, comp_length, comm_length, job1_job_id, reps_multiplier);
+void insert_simple_periodic(Protocol* protocol, int src_machine, 
+                            int dst_machine, int bump_count, int comp_length, 
+                            int comm_length, int job_id, int reps_multiplier, 
+                            int initial_wait) {
+    
+
+    // build a chain of computation tasks.
+    PComp* last_pc = nullptr;
+
+    if (initial_wait != 0) {
+        PComp* wait = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+        wait->size = initial_wait;
+        wait->dev_id = src_machine;
+        last_pc = wait;
+    }
+    
+    for (int j = 0; j < reps_multiplier; j++) {
+        for (int i = 0; i < bump_count; i++) {
+            PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+            pc->size = comp_length;
+            pc->dev_id = src_machine;
+            if (last_pc != nullptr) {
+                last_pc->add_next_task_id(pc->id);
+            }
+
+            Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+            flow->size = comm_length;
+            flow->label_for_progress_graph = "chain_" + std::to_string(j + 1) + "_hop_" + std::to_string(i + 1);
+            flow->src_dev_id = src_machine;
+            flow->dst_dev_id = dst_machine;
+            flow->jobid = job_id; 
+            pc->add_next_task_id(flow->id);
+            
+            last_pc = pc;
+        }
+    }
+}
+
+Protocol* 
+psim::build_periodic_simple() { 
+
+    int bump_count = 6; 
+
+    int job1_src_machine = 3; 
+    int job1_dst_machine = 4;
+
+    int job2_src_machine = 8;
+    int job2_dst_machine = 7;
+
+    int job2_offset = GConf::inst().general_param_1; 
+
+    int comp_length = 100; 
+    int comm_length = 400 * 60; 
+
+    int job1_job_id = 1; 
+    int job2_job_id = 2;
+
+    int reps_multiplier = 2;
+
+    Protocol *protocol = new Protocol(); 
+
+    insert_simple_periodic(protocol, job1_src_machine, job1_dst_machine, bump_count, comp_length, comm_length, job1_job_id, reps_multiplier, 0);
+    insert_simple_periodic(protocol, job2_src_machine, job2_dst_machine, bump_count, comp_length, comm_length, job2_job_id, reps_multiplier, job2_offset);
 
     return protocol;
 }

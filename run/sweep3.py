@@ -48,7 +48,7 @@ os.system("mkdir -p {}".format(results_dir))
 
 simulation_timestep = 1
 number_worker_threads = 40
-rep_count = 20
+rep_count = 30
 protocols_count = 999 # all protocols
 
 # select a random subset of protocols, exclude the random ones
@@ -99,6 +99,7 @@ load_metric_map = {
     "roundrobin": "flowsize",
     "sita-e": "utilization",
     "ecmp": "flowsize",
+    "zero": "flowsize", 
 }
 
 # base options
@@ -137,8 +138,9 @@ base_options = {
     "regret-mode": "none", 
     
     "general-param-1": 0,
-    "general-param-2": 3, 
-    "general-param-3": 2,
+    "general-param-2": 1, 
+    "general-param-3": 1,
+    "general-param-4": 4000,
     "general-param-5": 10,
 }
 
