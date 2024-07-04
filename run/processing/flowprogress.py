@@ -3,7 +3,8 @@ import sys
 import matplotlib.pyplot as plt
 from pprint import pprint 
 
-def parse_line(line):
+
+def parse_line(line, limit_flow_label=None):
     s = line.split("[critical]")
     if len(s) == 2: 
         critical_info = s[1].strip()
@@ -48,13 +49,19 @@ def parse_line(line):
             
             sum_progress = sum(progress_history)
             print("sum_progress: ", sum_progress)
-                        
-            return flow_info
+                
+            if limit_flow_label is not None: 
+                if label.startswith(limit_flow_label):
+                    return flow_info
+                else: 
+                    return None
+            else: 
+                return flow_info
         
     return None
             
 
-def parse_flow_progress(file_path):
+def parse_flow_progress(file_path, limit_flow_label):
     
     min_time = 1e9 
     max_time = 0
@@ -64,7 +71,7 @@ def parse_flow_progress(file_path):
     
     with open(file_path, 'r') as file:
         for line in file:
-            flow_info = parse_line(line)
+            flow_info = parse_line(line, limit_flow_label)
             
             if flow_info is None:
                 continue
@@ -106,7 +113,12 @@ def get_color(min_time, max_time, time, jobid):
     
 def main():
     file_path = sys.argv[1]  # Update this path to your file containing the log data
-    flow_progress_incoming, flow_progress_outgoing, min_time, max_time = parse_flow_progress(file_path)
+    if len(sys.argv) > 2:
+        limit_flow_label = sys.argv[2]
+    else:
+        limit_flow_label = None
+        
+    flow_progress_incoming, flow_progress_outgoing, min_time, max_time = parse_flow_progress(file_path, limit_flow_label)
 
     print("min_time: ", min_time, " max_time: ", max_time)  
     
@@ -118,8 +130,13 @@ def main():
     # increase the space between the subplots
     plt.subplots_adjust(hspace=0.5)
     plt.subplots_adjust(wspace=0.5)
-        
+    plt.stackplot
     def func(core, flows, j): 
+        
+        axs[core][j].set_title(f"Core {core} {['Incoming', 'Outgoing'][j]} Flows Progress")
+        axs[core][j].set_xlabel("Time")
+        axs[core][j].set_ylabel("Progress")
+        
         print("core: ", core, " flows: ", len(flows))
         if len(flows) == 0:
             return 
@@ -129,34 +146,32 @@ def main():
         progress_history = []
         
         for flow in flows:
+            
             flow_progress_history = flow["progress_history"]
             padded_progress_history = base_util_array.copy()
+            
             for i in range (flow["start_time"], flow["end_time"]):
                 padded_progress_history[i - min_time] = flow_progress_history[i - flow["start_time"]]
+            
             progress_history.append(padded_progress_history)
         
 
-        labels = [flow['label'] for flow in flows]
-        hatches = ['////' if flow["job_id"] == 1 else 'oo' for flow in flows]
+        labels = [str(flow['flow_id']) + "_" + flow["label"] for flow in flows]
+        hatches = ['////' if flow["job_id"] == 1 else None for flow in flows]
         colors = [get_color(min_time, max_time, flow["start_time"], flow["job_id"]) for flow in flows]
         
         r = axs[core][j].stackplot(range(min_time, max_time + 1), progress_history,
-                                   labels=labels, edgecolor='black', linewidth=1)
+                                   baseline="zero", labels=labels, 
+                                   edgecolor='black', linewidth=1)
         
         # go through each bar and set the hatch
         for i, patch in enumerate(r):
             patch.set_hatch(hatches[i])
             # patch.set_facecolor(colors[i])
-            
-        axs[core][j].set_title(f"Core {core} {['Incoming', 'Outgoing'][j]} Flows Progress")
-        axs[core][j].set_xlabel("Time")
-        axs[core][j].set_ylabel("Progress")
 
         # add the hatch guide to the existing legend items      
         axs[core][j].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
 
-
-        
     for core, flows in flow_progress_incoming.items():
         func(core, flows, 0)
         
@@ -167,5 +182,6 @@ def main():
     plt.savefig("plots/flow_progress.png", bbox_inches='tight', dpi=300)
     
 if __name__ == "__main__":
+
     main()
     

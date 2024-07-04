@@ -611,7 +611,11 @@ Protocol*
 psim::build_periodic_data_parallelism() { 
 
     int node_count = 6; // n: number of machines
-    int layer_count = 12;  // l: number of teeth in the graph
+    int layer_count = GConf::inst().general_param_6;  // l: number of teeth in the graph
+    if (layer_count == 0) {
+        layer_count = 12;
+    }
+
     int reps_multiplier = GConf::inst().general_param_5; // i: 0 .. reps_multiplier * hyper_period
     if (reps_multiplier == 0) {
         reps_multiplier = 1;
@@ -636,11 +640,15 @@ psim::build_periodic_data_parallelism() {
     int job2_jobid = 2; 
     
     
-    int comp_length_amplification = 200;
-    int comm_length_amplification = GConf::inst().general_param_4; 
-    if (comm_length_amplification == 0) {
-        comm_length_amplification = 4000; // 10 units of time for the 400G links 
+    int comp_length_amplification = 100;
+    
+    double comm_duty_cycle = GConf::inst().general_param_4; 
+    if (comm_duty_cycle == 0) {
+        comm_duty_cycle = 50; // 10 units of time for the 400G links 
     }
+
+    int link_rate = 400; 
+    int comm_length_amplification = link_rate * comp_length_amplification * (comm_duty_cycle / 100) / (2 * (node_count - 1));
     
     int hyper_period = LCM(job1_length_base, job2_length_base);
     int job1_reps_per_hyper_period = hyper_period / job1_length_base;
@@ -669,12 +677,13 @@ psim::build_periodic_data_parallelism() {
 //    insert_simple_periodic(protocol, job1_src_machine, job1_dst_machine, bump_count, comp_length, comm_length, job1_job_id, reps_multiplier);
 void insert_simple_periodic(Protocol* protocol, int src_machine, 
                             int dst_machine, int bump_count, int comp_length, 
-                            int comm_length, int job_id, int reps_multiplier, 
-                            int initial_wait) {
+                            int comm_length, int jobid, int reps_multiplier, 
+                            int initial_wait, int long_pc_length) {
     
 
     // build a chain of computation tasks.
-    PComp* last_pc = nullptr;
+    PTask* last_pc = nullptr;
+    PTask* last_flow = nullptr; 
 
     if (initial_wait != 0) {
         PComp* wait = (PComp*)protocol->create_task(PTaskType::COMPUTE);
@@ -682,33 +691,62 @@ void insert_simple_periodic(Protocol* protocol, int src_machine,
         wait->dev_id = src_machine;
         last_pc = wait;
     }
+
+    EmptyTask* last_iter_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+    last_iter_finisher->name = "protocol start";
+    last_iter_finisher->print_on_exec = true;
+    last_iter_finisher->print_message = "job " + std::to_string(jobid) + " started";
     
+    if (last_pc != nullptr) {
+        last_pc->add_next_task_id(last_iter_finisher->id);
+        last_pc = last_iter_finisher; 
+    } else {
+        last_pc = last_iter_finisher;
+    }
+
+
     for (int j = 0; j < reps_multiplier; j++) {
         for (int i = 0; i < bump_count; i++) {
             PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
             pc->size = comp_length;
             pc->dev_id = src_machine;
-            if (last_pc != nullptr) {
-                last_pc->add_next_task_id(pc->id);
-            }
 
             Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
             flow->size = comm_length;
             flow->label_for_progress_graph = "chain_" + std::to_string(j + 1) + "_hop_" + std::to_string(i + 1);
             flow->src_dev_id = src_machine;
             flow->dst_dev_id = dst_machine;
-            flow->jobid = job_id; 
+            flow->jobid = jobid; 
+            
+            last_pc->add_next_task_id(pc->id);
             pc->add_next_task_id(flow->id);
             
+            last_flow = flow; 
             last_pc = pc;
         }
+        
+        PComp* long_pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+        long_pc->size = long_pc_length;
+        long_pc->dev_id = src_machine;
+        last_flow->add_next_task_id(long_pc->id);
+        last_pc = long_pc;
+
+        last_iter_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+        last_iter_finisher->name = "ITER" + std::to_string(j);
+        last_iter_finisher->print_on_exec = true;
+        last_iter_finisher->print_message = "job " + std::to_string(jobid) + " iter " + std::to_string(j + 1) + " finished";
+        
+        last_pc->add_next_task_id(last_iter_finisher->id);
     }
 }
 
 Protocol* 
 psim::build_periodic_simple() { 
 
-    int bump_count = 6; 
+    int bump_count = GConf::inst().general_param_4;
+    if (bump_count == 0) {
+        bump_count = 6;
+    } 
 
     int job1_src_machine = 3; 
     int job1_dst_machine = 4;
@@ -716,20 +754,34 @@ psim::build_periodic_simple() {
     int job2_src_machine = 8;
     int job2_dst_machine = 7;
 
+    int job1_offset = 0; 
     int job2_offset = GConf::inst().general_param_1; 
 
     int comp_length = 100; 
-    int comm_length = 400 * 60; 
+    int comm_length = 400 * GConf::inst().general_param_2; 
+    if (comm_length == 0) {
+        comm_length = 400 * 50; 
+    }
 
     int job1_job_id = 1; 
     int job2_job_id = 2;
 
-    int reps_multiplier = 2;
+    int reps_multiplier = GConf::inst().general_param_3;
+    if (reps_multiplier == 0) {
+        reps_multiplier = 1;
+    }
+
+    int long_pc_length = 1500; 
 
     Protocol *protocol = new Protocol(); 
 
-    insert_simple_periodic(protocol, job1_src_machine, job1_dst_machine, bump_count, comp_length, comm_length, job1_job_id, reps_multiplier, 0);
-    insert_simple_periodic(protocol, job2_src_machine, job2_dst_machine, bump_count, comp_length, comm_length, job2_job_id, reps_multiplier, job2_offset);
+    insert_simple_periodic(protocol, job1_src_machine, job1_dst_machine, 
+                           bump_count, comp_length, comm_length, 
+                           job1_job_id, reps_multiplier, job1_offset, long_pc_length);
+
+    insert_simple_periodic(protocol, job2_src_machine, job2_dst_machine, 
+                           bump_count, comp_length, comm_length, 
+                           job2_job_id, reps_multiplier, job2_offset, long_pc_length);
 
     return protocol;
 }

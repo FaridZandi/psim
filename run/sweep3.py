@@ -11,7 +11,7 @@ import sys
 import datetime
 from utils.util import *
 import resource
-
+from processing.itertimes import get_convergence_info
 
 # pd.set_option('display.max_rows', 500)
 # pd.set_option('display.max_columns', 500)
@@ -43,12 +43,14 @@ run_executable = build_path + "/psim-" + run_id
 shuffle_path  = input_dir + "/shuffle/shuffle-{}.txt".format(run_id)
 results_dir = "results/{}-run/".format(run_id)
 csv_path = results_dir + "results.csv".format(run_id)
+workers_dir = run_path + "/workers/"
+
 os.system("mkdir -p {}".format(results_dir))
 
 
 simulation_timestep = 1
 number_worker_threads = 40
-rep_count = 30
+rep_count = 1
 protocols_count = 999 # all protocols
 
 # select a random subset of protocols, exclude the random ones
@@ -62,8 +64,7 @@ protocol_names.sort()
 sweep_config = {
     "lb-scheme": [
     #     "futureload",
-        "ecmp",
-        "random",
+        "zero",
         # "roundrobin",
     #     "powerof2",
     #     "powerof3",
@@ -83,9 +84,10 @@ sweep_config = {
     # ],
     # "ft-core-count": [2, 4, 8],
     # "ft-agg-core-link-capacity-mult": [2, 4, 8],
-    "protocol-file-name": ["periodic-test"],
+    "protocol-file-name": ["periodic-test-simple"],
     # "general-param-1": range(0, 500, 25),
-    "general-param-1": range(0, 2000, 100),
+    "general-param-1": range(0, 4000, 100),
+    "general-param-2": range(40, 101, 10), 
 }
 
 load_metric_map = {
@@ -115,7 +117,8 @@ base_options = {
     # flow rate control options
     "initial-rate": 400,
     "min-rate": 400,
-    "priority-allocator": "fairshare", #"priorityqueue", 
+    # "priority-allocator": "fairshare",
+    "priority-allocator": "priorityqueue", 
 
     # topology options
     "network-type": "leafspine",    
@@ -137,11 +140,10 @@ base_options = {
     "shuffle-map-file": shuffle_path,
     "regret-mode": "none", 
     
-    "general-param-1": 0,
-    "general-param-2": 1, 
-    "general-param-3": 1,
-    "general-param-4": 4000,
-    "general-param-5": 10,
+    "general-param-1": 0,  # job 2 initial shift
+    "general-param-2": 55, # comm duty cycle
+    "general-param-3": 70, # number of reps 
+    "general-param-4": 10, # number of teeth
 }
 
 # print the sweep config in a file in the results dir
@@ -199,15 +201,31 @@ def run_experiment(exp, worker_id):
                 if psim_time < min_psim_time:
                     min_psim_time = psim_time
                 last_psim_time = psim_time
-
+                
+        # assuming just one rep for now 
+        runtime_file_path = workers_dir + "worker-{}/run-1/runtime.txt".format(worker_id)
+        convergence_info = get_convergence_info(runtime_file_path)
+        
+        j1_conv_point = convergence_info[0] 
+        j1_conv_value = convergence_info[1]
+        j2_conv_point = convergence_info[2]
+        j2_conv_value = convergence_info[3]
+        drifts_conv_point = convergence_info[4]
+        drifts_conv_value = convergence_info[5]
+        
+        if (j1_conv_point is None or j2_conv_point is None or 
+            j1_conv_value is None or j2_conv_value is None or 
+            drifts_conv_point is None or drifts_conv_value is None):
+            
+            print("Convergence not found for")
+            pprint(options) 
+        
     except subprocess.CalledProcessError as e:
         min_psim_time = 0
         max_psim_time = 0
         last_psim_time = 0
         all_times = []
         duration = datetime.timedelta(0)
-
-    global exp_results
 
     this_exp_results = {
         "min_psim_time": min_psim_time,
@@ -217,11 +235,18 @@ def run_experiment(exp, worker_id):
         "all_times": all_times,
         "exp_duration": duration.microseconds,
         "run_id": run_id,
+        "j1_conv_point": j1_conv_point,
+        "j2_conv_point": j2_conv_point,
+        "j1_conv_value": j1_conv_value,
+        "j2_conv_value": j2_conv_value, 
+        "drifts_conv_point": drifts_conv_point,
+        "drifts_conv_value": drifts_conv_value,
     }
 
     for key, val in sweep_config.items():
         this_exp_results[key] = exp[key]
 
+    global exp_results
     exp_results.append(this_exp_results)
 
     global print_lock
@@ -273,4 +298,4 @@ os.system("mv {} {}".format(shuffle_path, results_dir))
 
 all_pd_frame = pd.DataFrame(exp_results)
 all_pd_frame.to_csv(csv_path)
-os.system("python plot.py {}".format(csv_path))
+# os.system("python plot.py {}".format(csv_path))

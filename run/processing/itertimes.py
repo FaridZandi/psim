@@ -32,7 +32,6 @@ def calculate_iteration_lengths(file_path):
             parsed_data = parse_line(line)
             if parsed_data:
                 sim_time, job_id, iter_id, type = parsed_data
-                print (sim_time, job_id, iter_id, type)
                 
                 if type == "jobstart":
                     job_start_times[job_id] = sim_time
@@ -48,27 +47,34 @@ def calculate_iteration_lengths(file_path):
                     job_iteration_starts[job_id].append(sim_time)
                     job_iteration_times[job_id].append(iteration_length)
     
-    return job_iteration_times, job_iteration_starts
+    
+    drifts = []
+    drifts.append(job_start_times[1] - job_start_times[2])
+    for iter_id in range(1, min(len(job_iteration_times[1]), len(job_iteration_times[2]))):
+        drift = job_iteration_starts[1][iter_id] - job_iteration_starts[2][iter_id]
+        drifts.append(drift)
+        
+    return job_iteration_times, job_iteration_starts, job_start_times, drifts
 
 def main():
     file_path = sys.argv[1]  # Update this path to your file containing the log data
-    iteration_lengths, iteration_starts = calculate_iteration_lengths(file_path)
+    iteration_lengths, iteration_starts, job_start_times, drifts = calculate_iteration_lengths(file_path)
     
     for job_id, iterations in iteration_lengths.items():
         print(f"Job {job_id}:")
         for iter_id, length in enumerate(iterations, start=1):
             print(f"  Iteration {iter_id}: {length} ms")
     
+    
+    # print drifts
+    print("Drifts:")
+    for iter_id, drift in enumerate(drifts, start=0):
+        print(f"  Iteration {iter_id}: {drift} ms")
+    
     # calculate the drift between the same iterations of the different jobs
     if len(iteration_lengths) != 2:
         print("The drift can only be calculated between two jobs.")
         return
-
-    drifts = []
-    for iter_id in range(1, min(len(iteration_lengths[1]), len(iteration_lengths[2]))):
-        drift = iteration_starts[1][iter_id] - iteration_starts[2][iter_id]
-        drifts.append(drift)
-        print(f"Drift between iteration {iter_id}: {drift} ms")
     
     # Plot the iteration lengths
     for job_id, iterations in iteration_lengths.items():
@@ -78,6 +84,48 @@ def main():
         
     plt.legend() 
     plt.savefig("plots/iteration_lengths.png")
+    
+    conv = get_convergence_info(file_path)
+    print("convergence point 1: ", conv[0])
+    print("convergence value 1: ", conv[1])
+    print("convergence point 2: ", conv[2])
+    print("convergence value 2: ", conv[3])
+    print("drifts convergence point: ", conv[4])
+    print("drifts convergence value: ", conv[5])
+    
+
+def find_convergence(arr, repeat_tolerance):
+    if not arr or repeat_tolerance < 1:
+        return None, None  # Invalid input case
+
+    last_value = arr[0]
+    count = 1
+    
+    for i in range(1, len(arr)):
+        if arr[i] == last_value:
+            count += 1
+            if count == repeat_tolerance:
+                return i - repeat_tolerance + 1, last_value
+        else:
+            last_value = arr[i]
+            count = 1
+            
+    return None, None  # No convergence found
+
+def get_convergence_info(file_path, repeat_tolerance=10): 
+    iteration_lengths, iteration_starts, job_start_times, drifts = calculate_iteration_lengths(file_path)
+    
+    iteration_lengths1 = iteration_lengths[1]
+    iteration_lengths2 = iteration_lengths[2]
+    
+    # Find the convergence point
+    convergence_point_1, convergence_value_1 = find_convergence(iteration_lengths1, repeat_tolerance)
+    convergence_point_2, convergence_value_2 = find_convergence(iteration_lengths2, repeat_tolerance)
+    drifts_convergence_point, drifts_convergence_value = find_convergence(drifts, repeat_tolerance)
+
+    return (convergence_point_1, convergence_value_1, 
+            convergence_point_2, convergence_value_2, 
+            drifts_convergence_point, drifts_convergence_value)
     
 if __name__ == "__main__":
     main()

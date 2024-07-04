@@ -148,7 +148,15 @@ void PSim::start_task(PTask *task) {
 
             EmptyTask* empty_task = (EmptyTask *)task;
             if (empty_task->print_on_exec){
-                spdlog::critical("[{}]: {}", timer, empty_task->print_message);
+                double time_to_print = 0; 
+
+                if (timer < step_size){
+                    time_to_print = 0;
+                } else {
+                    time_to_print = timer + step_size;
+                }
+
+                spdlog::critical("[{}]: {}", time_to_print, empty_task->print_message);
             }
 
             handle_task_completion(task);
@@ -302,31 +310,31 @@ double PSim::simulate() {
         timer += this_step_step_size;
     }
 
-    for (Flow* flow: finished_flows){
-        if (flow->lb_decision == -1) {
-            continue; 
-        }
+    // for (Flow* flow: finished_flows){
+    //     if (flow->lb_decision == -1) {
+    //         continue; 
+    //     }
 
-        bool outgoing = false; 
-        if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
-            outgoing = true; 
-        }
+    //     bool outgoing = false; 
+    //     if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
+    //         outgoing = true; 
+    //     }
 
-        std::string progress_history = "";
+    //     std::string progress_history = "";
 
-        for (double ph: flow->progress_history){
-            // 2 digits after the decimal point.
-            std::string item = fmt::format("{:.2f}", ph);
-            progress_history += item + " ";
-        }
+    //     for (double ph: flow->progress_history){
+    //         // 2 digits after the decimal point.
+    //         std::string item = fmt::format("{:.2f}", ph);
+    //         progress_history += item + " ";
+    //     }
 
-        spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
-                         flow->id, flow->jobid,
-                         outgoing ? "outgoing" : "incoming", 
-                         flow->start_time, flow->end_time, 
-                         flow->end_time - flow->start_time, flow->lb_decision, 
-                         step_size, flow->label_for_progress_graph, progress_history);
-    }
+    //     spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
+    //                      flow->id, flow->jobid,
+    //                      outgoing ? "outgoing" : "incoming", 
+    //                      flow->start_time, flow->end_time, 
+    //                      flow->end_time - flow->start_time, flow->lb_decision, 
+    //                      step_size, flow->label_for_progress_graph, progress_history);
+    // }
 
     mark_critical_path(); 
 
@@ -843,6 +851,13 @@ void PSim::save_run_results(){
         });
 
         draw_plots({
+            {"job2_progress", [](history_entry h){return h.job_progress[2];}},
+        });
+
+        // draw all together now 
+        draw_plots({
+            {"step_comp", [](history_entry h){return h.step_comm;}},
+            {"job1_progress", [](history_entry h){return h.job_progress[1];}},
             {"job2_progress", [](history_entry h){return h.job_progress[2];}},
         });
         

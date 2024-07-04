@@ -25,7 +25,8 @@ shuffle_path  = input_dir + "/shuffle/shuffle-{}.txt".format(run_id)
 
 options = {
     "protocol-file-dir": base_dir + "/input/128search-dpstart-2",
-    "protocol-file-name": "periodic-test-simple",
+    # "protocol-file-name": "periodic-test-simple",
+    "protocol-file-name": "periodic-test",
     # "protocol-file-name": "candle128-simtime.txt,candle128-comm.txt",
     # "protocol-file-name": "build-ring",
     # "protocol-file-name": "build-all-to-all",
@@ -39,8 +40,11 @@ options = {
     "file-log-level": 3,
     
     "initial-rate": 400,
-    "min-rate": 400,
+    "min-rate": 10,
+    "drop-chance-multiplier": 0, 
+    "rate-increase": 2, 
     "priority-allocator": "fairshare",
+ 
     # "priority-allocator": "priorityqueue", 
 
     "network-type": "leafspine",    
@@ -55,8 +59,7 @@ options = {
     "ft-agg-core-link-capacity-mult": 1,
     
     
-    # "lb-scheme": "random",
-    "lb-scheme": "zero", 
+    "lb-scheme": "random",
     # "lb-scheme": "roundrobin",
     # "lb-decisions-file": run_path + "ga/214/rounds/1000/0.txt",
     # "load-metric": "utilization",
