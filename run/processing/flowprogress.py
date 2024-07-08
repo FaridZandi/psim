@@ -2,16 +2,17 @@ import re
 import sys 
 import matplotlib.pyplot as plt
 from pprint import pprint 
+import seaborn as sns 
 
+CORES = 1 
+JOBS = 2 
+DIRS = 2 
 
 def parse_line(line, limit_flow_label=None):
     s = line.split("[critical]")
     if len(s) == 2: 
         critical_info = s[1].strip()
         if critical_info.startswith("flow:"):
-            
-            # critical_info looks like this. 
-            # flow: 31 jobid: 1 start: 656 end: 717 fct: 61 core: 0 progress_history: 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 66.67 0.00
             
             # parse the numbers: 
             flow_info = critical_info.split(" ")
@@ -29,7 +30,6 @@ def parse_line(line, limit_flow_label=None):
             start_time = round(start_time / stepsize)
             end_time = round(end_time / stepsize)
             fct = round(fct / stepsize)
-            
             
             flow_info = {
                 "flow_id": flow_id,
@@ -117,25 +117,26 @@ def main():
         limit_flow_label = sys.argv[2]
     else:
         limit_flow_label = None
-        
-    flow_progress_incoming, flow_progress_outgoing, min_time, max_time = parse_flow_progress(file_path, limit_flow_label)
-
-    print("min_time: ", min_time, " max_time: ", max_time)  
     
+    flow_progress_incoming, flow_progress_outgoing, min_time, max_time = parse_flow_progress(file_path, limit_flow_label)
+    print("min_time: ", min_time, " max_time: ", max_time)  
     base_util_array = [0] * (max_time - min_time + 1)
     
     # make a subplot for each core, vertically aligned 
-    fig, axs = plt.subplots(2, 2, figsize=(20, 10))
+    sns.set_theme() 
+    fig, axs = plt.subplots(CORES + JOBS, DIRS, figsize=(20, 10))
     
     # increase the space between the subplots
     plt.subplots_adjust(hspace=0.5)
     plt.subplots_adjust(wspace=0.5)
-    plt.stackplot
-    def func(core, flows, j): 
+    
+    used_colors = {} 
+    
+    def plot_core_usage(core, flows, dir, ax): 
         
-        axs[core][j].set_title(f"Core {core} {['Incoming', 'Outgoing'][j]} Flows Progress")
-        axs[core][j].set_xlabel("Time")
-        axs[core][j].set_ylabel("Progress")
+        ax.set_title(f"Core {core} {['Incoming', 'Outgoing'][dir]} Flows Progress")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Progress")
         
         print("core: ", core, " flows: ", len(flows))
         if len(flows) == 0:
@@ -146,7 +147,54 @@ def main():
         progress_history = []
         
         for flow in flows:
+            flow_progress_history = flow["progress_history"]
+            padded_progress_history = base_util_array.copy()
             
+            for i in range (flow["start_time"], flow["end_time"]):
+                padded_progress_history[i - min_time] = flow_progress_history[i - flow["start_time"]]
+            
+            progress_history.append(padded_progress_history)
+
+        labels = [str(flow['flow_id']) + "_" + flow["label"] for flow in flows]
+        hatches = ['////' if flow["job_id"] == 1 else None for flow in flows]
+        
+        r = axs[core][dir].stackplot(range(min_time, max_time + 1), progress_history,
+                                     baseline="zero", labels=labels, 
+                                     edgecolor='black', linewidth=1)
+        
+        
+        # go through each bar and set the hatch
+        for i, patch in enumerate(r):
+            patch.set_hatch(hatches[i])
+            # get the color that was used for this bar 
+            color = patch.get_facecolor()
+            used_colors[labels[i]] = color
+            
+
+        # add the hatch guide to the existing legend items      
+        axs[core][dir].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+        
+        
+    def plot_job_usage(dir, job, core_flows, ax):        
+        ax.set_title(f"Job {job} {['Incoming', 'Outgoing'][dir]} Flows Progress")
+        ax.set_xlabel("Time")
+        ax.set_ylabel("Progress")
+        
+        # the progress history for each flow is padded with 0s to match the min_time and max_time
+        # so all the flows have the same history shape regardless of their start and end time
+        progress_history = []
+        
+        flows = [] 
+        for core, core_flows in core_flows.items():
+            for flow in core_flows:
+                if flow["job_id"] == job:
+                    flows.append(flow)
+    
+        print("job: ", job, " flows: ", len(flows))
+        if len(flows) == 0: 
+            return
+              
+        for flow in flows:
             flow_progress_history = flow["progress_history"]
             padded_progress_history = base_util_array.copy()
             
@@ -158,26 +206,34 @@ def main():
 
         labels = [str(flow['flow_id']) + "_" + flow["label"] for flow in flows]
         hatches = ['////' if flow["job_id"] == 1 else None for flow in flows]
-        colors = [get_color(min_time, max_time, flow["start_time"], flow["job_id"]) for flow in flows]
         
-        r = axs[core][j].stackplot(range(min_time, max_time + 1), progress_history,
+        r = ax.stackplot(range(min_time, max_time + 1), progress_history,
                                    baseline="zero", labels=labels, 
                                    edgecolor='black', linewidth=1)
         
-        # go through each bar and set the hatch
         for i, patch in enumerate(r):
             patch.set_hatch(hatches[i])
-            # patch.set_facecolor(colors[i])
-
+            patch.set_facecolor(used_colors[labels[i]])
+            
         # add the hatch guide to the existing legend items      
-        axs[core][j].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+        # ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
 
     for core, flows in flow_progress_incoming.items():
-        func(core, flows, 0)
+        plot_core_usage(core, flows, 0, axs[core][0])
         
     for core, flows in flow_progress_outgoing.items():
-        func(core, flows, 1) 
-    
+        plot_core_usage(core, flows, 1, axs[core][1]) 
+        
+    for dir in range(DIRS):
+        for job in range(1, JOBS + 1): 
+            ax = axs[job - 1 + CORES][dir]
+            
+            if dir == 0:
+                plot_job_usage(dir, job, flow_progress_incoming, ax)
+            else:
+                plot_job_usage(dir, job, flow_progress_outgoing, ax)
+                            
+              
     # legend outside the plot, to the right of the plot 
     plt.savefig("plots/flow_progress.png", bbox_inches='tight', dpi=300)
     

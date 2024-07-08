@@ -11,7 +11,7 @@ import sys
 import datetime
 from utils.util import *
 import resource
-from processing.itertimes import get_convergence_info
+from processing.itertimes import get_convergence_info, get_first_iter_info
 
 # pd.set_option('display.max_rows', 500)
 # pd.set_option('display.max_columns', 500)
@@ -86,8 +86,8 @@ sweep_config = {
     # "ft-agg-core-link-capacity-mult": [2, 4, 8],
     "protocol-file-name": ["periodic-test-simple"],
     # "general-param-1": range(0, 500, 25),
-    "general-param-1": range(0, 4000, 100),
-    "general-param-2": range(40, 101, 10), 
+    "general-param-1": range(0, 800, 1),
+    "general-param-2": range(10, 51, 10), 
 }
 
 load_metric_map = {
@@ -117,8 +117,13 @@ base_options = {
     # flow rate control options
     "initial-rate": 400,
     "min-rate": 400,
-    # "priority-allocator": "fairshare",
-    "priority-allocator": "priorityqueue", 
+    ###########################
+    # "min-rate": 10,
+    # "drop-chance-multiplier": 0, 
+    # "rate-increase": 2,
+    ###########################
+    "priority-allocator": "fairshare",
+    # "priority-allocator": "priorityqueue", 
 
     # topology options
     "network-type": "leafspine",    
@@ -140,10 +145,12 @@ base_options = {
     "shuffle-map-file": shuffle_path,
     "regret-mode": "none", 
     
-    "general-param-1": 0,  # job 2 initial shift
-    "general-param-2": 55, # comm duty cycle
-    "general-param-3": 70, # number of reps 
-    "general-param-4": 10, # number of teeth
+    "general-param-1": 100,  # job 2 initial shift
+    "general-param-2": 80, # comm duty cycle
+    "general-param-3": 2, # number of reps 
+    "general-param-4": 4, # number of teeth
+    "general-param-5": 0, # dependency between the flows
+    "general-param-6": 400, # wait in between
 }
 
 # print the sweep config in a file in the results dir
@@ -159,6 +166,7 @@ with open(results_dir + "sweep-config.txt", "w") as f:
     pprint(globals(), stream=f)
 
 total_jobs = 0
+non_converged_jobs = 0 
 exp_results = []
 threads = []
 exp_q = queue.Queue()
@@ -213,12 +221,18 @@ def run_experiment(exp, worker_id):
         drifts_conv_point = convergence_info[4]
         drifts_conv_value = convergence_info[5]
         
+        j1_iter1, j2_iter1 = get_first_iter_info(runtime_file_path)
+        
         if (j1_conv_point is None or j2_conv_point is None or 
             j1_conv_value is None or j2_conv_value is None or 
             drifts_conv_point is None or drifts_conv_value is None):
             
             print("Convergence not found for")
             pprint(options) 
+            
+            global non_converged_jobs
+            non_converged_jobs += 1 
+        
         
     except subprocess.CalledProcessError as e:
         min_psim_time = 0
@@ -241,6 +255,8 @@ def run_experiment(exp, worker_id):
         "j2_conv_value": j2_conv_value, 
         "drifts_conv_point": drifts_conv_point,
         "drifts_conv_value": drifts_conv_value,
+        "job_1_iter_1": j1_iter1, 
+        "job_2_iter_1": j2_iter1,
     }
 
     for key, val in sweep_config.items():
@@ -291,11 +307,14 @@ def run_all_configs():
     for t in threads:
         t.join()
 
-run_all_configs()
 
-os.system("rm {}".format(run_executable))
-os.system("mv {} {}".format(shuffle_path, results_dir))
+if __name__ == "__main__": 
+    run_all_configs()
 
-all_pd_frame = pd.DataFrame(exp_results)
-all_pd_frame.to_csv(csv_path)
-# os.system("python plot.py {}".format(csv_path))
+    print ("number of jobs that didn't converge:", non_converged_jobs)
+    os.system("rm {}".format(run_executable))
+    os.system("mv {} {}".format(shuffle_path, results_dir))
+
+    all_pd_frame = pd.DataFrame(exp_results)
+    all_pd_frame.to_csv(csv_path)
+    # os.system("python plot.py {}".format(csv_path))

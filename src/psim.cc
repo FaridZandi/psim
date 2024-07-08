@@ -101,19 +101,19 @@ void PSim::handle_task_completion(PTask *task) {
     }
 }
 
-void PSim::start_next_tasks(PTask *task){
+void PSim::start_next_tasks(PTask *task, bool start_in_next_timestep){
 
     for (auto next_task : task->next_tasks) {
         next_task->dep_left -= 1;
 
         if (next_task->dep_left == 0) {
-            start_task(next_task);
+            start_task(next_task, start_in_next_timestep);
         }
     }
 }
 
 
-void PSim::start_task(PTask *task) {
+void PSim::start_task(PTask *task, bool start_in_next_timestep) {
     // std::cout << "Timer:" << timer << " starting task: " << task->id << std::endl;
 
     PTaskType type = task->get_type();
@@ -122,6 +122,10 @@ void PSim::start_task(PTask *task) {
         case PTaskType::FLOW: {
             task->status = PTaskStatus::RUNNING;
             task->start_time = timer;
+            if (start_in_next_timestep) {
+                task->start_time += step_size;
+            }
+
             Flow* flow = (Flow *)task;
             this->network->flows.push_back(flow);
 
@@ -134,6 +138,9 @@ void PSim::start_task(PTask *task) {
         } case PTaskType::COMPUTE: {
             task->status = PTaskStatus::RUNNING;
             task->start_time = timer;
+            if (start_in_next_timestep) {
+                task->start_time += step_size;
+            }
 
             PComp* compute_task = (PComp *)task;
 
@@ -160,7 +167,13 @@ void PSim::start_task(PTask *task) {
             }
 
             handle_task_completion(task);
-            start_next_tasks(task);
+
+            if (start_in_next_timestep) {
+                start_next_tasks(task, true);
+            } else {
+                start_next_tasks(task, false);
+            }
+
             break;
 
         } default: {
@@ -182,7 +195,7 @@ double PSim::simulate() {
 
     for (auto protocol : this->protocols) {
         for (auto task : protocol->initiators) {
-            this->start_task(task);
+            this->start_task(task, false);
         }
     }
 
@@ -252,7 +265,7 @@ double PSim::simulate() {
             auto& flows = network->flows;
             flows.erase(std::remove(flows.begin(), flows.end(), flow), flows.end());
 
-            start_next_tasks(flow);
+            start_next_tasks(flow, true);
         }
 
         // Remove the finished computation tasks and start up the tasks that follow.
@@ -260,7 +273,7 @@ double PSim::simulate() {
             this->finished_compute_tasks.push_back(task);
             handle_task_completion(task);
             compute_tasks.erase(std::remove(compute_tasks.begin(), compute_tasks.end(), task), compute_tasks.end());
-            start_next_tasks(task);
+            start_next_tasks(task, true);
         }
 
         history_entry h;
@@ -310,31 +323,31 @@ double PSim::simulate() {
         timer += this_step_step_size;
     }
 
-    // for (Flow* flow: finished_flows){
-    //     if (flow->lb_decision == -1) {
-    //         continue; 
-    //     }
+    for (Flow* flow: finished_flows){
+        if (flow->lb_decision == -1) {
+            continue; 
+        }
 
-    //     bool outgoing = false; 
-    //     if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
-    //         outgoing = true; 
-    //     }
+        bool outgoing = false; 
+        if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
+            outgoing = true; 
+        }
 
-    //     std::string progress_history = "";
+        std::string progress_history = "";
 
-    //     for (double ph: flow->progress_history){
-    //         // 2 digits after the decimal point.
-    //         std::string item = fmt::format("{:.2f}", ph);
-    //         progress_history += item + " ";
-    //     }
+        for (double ph: flow->progress_history){
+            // 2 digits after the decimal point.
+            std::string item = fmt::format("{:.2f}", ph);
+            progress_history += item + " ";
+        }
 
-    //     spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
-    //                      flow->id, flow->jobid,
-    //                      outgoing ? "outgoing" : "incoming", 
-    //                      flow->start_time, flow->end_time, 
-    //                      flow->end_time - flow->start_time, flow->lb_decision, 
-    //                      step_size, flow->label_for_progress_graph, progress_history);
-    // }
+        spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
+                         flow->id, flow->jobid,
+                         outgoing ? "outgoing" : "incoming", 
+                         flow->start_time, flow->end_time, 
+                         flow->end_time - flow->start_time + step_size, flow->lb_decision, 
+                         step_size, flow->label_for_progress_graph, progress_history);
+    }
 
     mark_critical_path(); 
 

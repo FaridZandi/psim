@@ -1,24 +1,25 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import seaborn as sns 
+import sys 
 
-def plot_csv_data(df, metric, ax):
+def plot_csv_data(df, metric, plot_path):
+    
     sns.lineplot(
-        ax=ax,
         data=df, 
         x='Job 2 inital shift',
         y=metric,
         hue='Comm. Duty Cycle',
         palette='tab10',
     )
-    ax.set_xlabel('Job 2 inital shift')
-    ax.set_ylabel(metric)
-    ax.set_title(f'{metric} vs Job 2 inital shift')
+    plt.xlabel('Job 2 inital shift')
+    plt.ylabel(metric)
+    plt.title(f'{metric} vs Job 2 inital shift')
     
-    ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1), title='Comm. Duty Cycle')
-
-                
-import sys 
+    plt.legend(loc='upper left', bbox_to_anchor=(1.05, 1), title='Comm. Duty Cycle')
+    
+    plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+    plt.clf()
 
 if __name__ == "__main__": 
     csv_file_path = sys.argv[1] 
@@ -31,14 +32,13 @@ if __name__ == "__main__":
         'general-param-2': 'Comm. Duty Cycle',
     }
     df = df.rename(columns=m)
+    
     metrics = ["j1_conv_point", "j2_conv_point", 
                "j1_conv_value", "j2_conv_value", 
-               "drifts_conv_point", "drifts_conv_value"]
+               "drifts_conv_point", "drifts_conv_value", 
+               "max_psim_time", 
+               "job_1_iter_1", "job_2_iter_1"]
     
-    # create subplots for each metric
-    fig, axs = plt.subplots(6, 1, figsize=(10, 40), sharex=True)
-    # increase the space between the subplots
-    plt.subplots_adjust(hspace=0.5)
     
     for i, metric in enumerate(metrics): 
         if ('Job 2 inital shift' not in df.columns or
@@ -48,8 +48,9 @@ if __name__ == "__main__":
             print("The specified columns are not found in the CSV file.")
             exit(0)
         
-        plot_csv_data(df, metric, axs[i])
+        results_dir = csv_file_path[:csv_file_path.rfind("/")] + "/"
+        plot_path = "{}/convergence-{}.png".format(results_dir, metric)
+        plot_csv_data(df, metric, plot_path)
     
-    results_dir = csv_file_path[:csv_file_path.rfind("/")] + "/"
-    plt.savefig("{}/convergence.png".format(results_dir), bbox_inches='tight', dpi=300)
+
     

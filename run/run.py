@@ -40,9 +40,9 @@ options = {
     "file-log-level": 3,
     
     "initial-rate": 400,
-    "min-rate": 10,
-    "drop-chance-multiplier": 0, 
-    "rate-increase": 2, 
+    "min-rate": 400,
+    # "drop-chance-multiplier": 0, 
+    # "rate-increase": 2, 
     "priority-allocator": "fairshare",
  
     # "priority-allocator": "priorityqueue", 

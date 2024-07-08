@@ -70,7 +70,8 @@ void Flow::compute_priority(){
         
         // whoever manages to the be started first gets the highest priority
         // selected_priority = (int) ((start_time * protocol->tasks.size()) + id);
-        selected_priority = jobid * protocol->tasks.size() + id; 
+        // selected_priority = jobid * protocol->tasks.size() + id; 
+        selected_priority = jobid; 
     }
 }
 

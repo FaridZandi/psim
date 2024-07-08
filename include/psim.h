@@ -67,8 +67,8 @@ public:
 
 private:
     void handle_task_completion(PTask *task);
-    void start_next_tasks(PTask *task);
-    void start_task(PTask *task);
+    void start_next_tasks(PTask *task, bool start_in_next_timestep);
+    void start_task(PTask *task, bool start_in_next_timestep);
     void save_run_results();
     void mark_critical_path(); 
     void traverse_critical_path(PTask* task); 

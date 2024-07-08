@@ -48,11 +48,14 @@ def calculate_iteration_lengths(file_path):
                     job_iteration_times[job_id].append(iteration_length)
     
     
+    
     drifts = []
-    drifts.append(job_start_times[1] - job_start_times[2])
-    for iter_id in range(1, min(len(job_iteration_times[1]), len(job_iteration_times[2]))):
-        drift = job_iteration_starts[1][iter_id] - job_iteration_starts[2][iter_id]
-        drifts.append(drift)
+    
+    if len(job_iteration_times) == 2: 
+        drifts.append(job_start_times[1] - job_start_times[2])
+        for iter_id in range(1, min(len(job_iteration_times[1]), len(job_iteration_times[2]))):
+            drift = job_iteration_starts[1][iter_id] - job_iteration_starts[2][iter_id]
+            drifts.append(drift)
         
     return job_iteration_times, job_iteration_starts, job_start_times, drifts
 
@@ -94,7 +97,7 @@ def main():
     print("drifts convergence value: ", conv[5])
     
 
-def find_convergence(arr, repeat_tolerance):
+def find_convergence(arr, repeat_tolerance = 10):
     if not arr or repeat_tolerance < 1:
         return None, None  # Invalid input case
 
@@ -115,17 +118,21 @@ def find_convergence(arr, repeat_tolerance):
 def get_convergence_info(file_path, repeat_tolerance=10): 
     iteration_lengths, iteration_starts, job_start_times, drifts = calculate_iteration_lengths(file_path)
     
-    iteration_lengths1 = iteration_lengths[1]
-    iteration_lengths2 = iteration_lengths[2]
-    
     # Find the convergence point
-    convergence_point_1, convergence_value_1 = find_convergence(iteration_lengths1, repeat_tolerance)
-    convergence_point_2, convergence_value_2 = find_convergence(iteration_lengths2, repeat_tolerance)
+    convergence_point_1, convergence_value_1 = find_convergence(iteration_lengths[1], repeat_tolerance)
+    convergence_point_2, convergence_value_2 = find_convergence(iteration_lengths[2], repeat_tolerance)
     drifts_convergence_point, drifts_convergence_value = find_convergence(drifts, repeat_tolerance)
 
     return (convergence_point_1, convergence_value_1, 
             convergence_point_2, convergence_value_2, 
             drifts_convergence_point, drifts_convergence_value)
+
+
+def get_first_iter_info(file_path): 
+    iteration_lengths, iteration_starts, job_start_times, drifts = calculate_iteration_lengths(file_path)
+    
+    return iteration_lengths[1][0], iteration_lengths[2][0]
+    
     
 if __name__ == "__main__":
     main()

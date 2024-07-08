@@ -163,31 +163,86 @@ void PriorityQueueBandwidthAllocator::register_rate(int id, double rate, int pri
     register_queue.push(std::make_pair(-1 * priority, std::make_pair(id, rate)));
 }
 
+// void PriorityQueueBandwidthAllocator::compute_allocations(){
+//     double available = total_available;
+
+//     while (!register_queue.empty()) {
+//         std::pair<int, std::pair<int, double> > item = register_queue.top();
+//         register_queue.pop();
+        
+//         int priority = item.first;
+//         int id = item.second.first;
+//         double rate = item.second.second;
+
+//         bool depleted = (rate >= available);
+
+//         allocations[id] = std::min(rate, available);
+//         available -= allocations[id];
+
+//         if (depleted) {
+//             while (!register_queue.empty()) {
+//                 register_queue.pop();
+//             }
+//             break;
+//         }
+//     }
+// }
+
 void PriorityQueueBandwidthAllocator::compute_allocations(){
     double available = total_available;
 
-    while (!register_queue.empty()) {
-        std::pair<int, std::pair<int, double> > item = register_queue.top();
-        register_queue.pop();
-
-        int priority = item.first;
-        int id = item.second.first;
-        double rate = item.second.second;
-
-        bool depleted = (rate >= available);
-
-        allocations[id] = std::min(rate, available);
-        available -= allocations[id];
-
-        if (depleted) {
-            while (!register_queue.empty()) {
-                register_queue.pop();
-            }
-            break;
-        }
+    // if we have no items in the queue, we can return
+    if (register_queue.empty()) {
+        return;
     }
 
+    while (available > 0 and not register_queue.empty()) {
+        // we have at least one item in the queue. get the top priority. 
+        int top_priority = register_queue.top().first;
+        std::vector<std::pair<int, double> > top_priority_items;
+
+        // get all the items with the top priority
+        while (!register_queue.empty() && register_queue.top().first == top_priority) {
+            std::pair<int, std::pair<int, double> > item = register_queue.top();
+            register_queue.pop();
+            top_priority_items.push_back(std::make_pair(item.second.first, item.second.second));
+        }
+
+        // get the total rate of all the items with the top priority
+        double top_priority_rate_sum = 0;
+        for (auto item : top_priority_items) {
+            top_priority_rate_sum += item.second;
+        }
+
+        // if the total rate of all the items with the top priority is less than the available bandwidth,
+        // we can allocate all the rate to the items with the top priority
+        if (top_priority_rate_sum <= available) {
+            for (auto item : top_priority_items) {
+                allocations[item.first] = item.second;
+                available -= item.second;
+            }
+        } else {
+            // if the total rate of all the items with the top priority is more than the available bandwidth,
+            // we need to allocate the bandwidth in proportion to the rate of each item. 
+
+            double allocation_ratio = available / top_priority_rate_sum; 
+
+            for (auto item : top_priority_items) {
+                double allocated_rate = item.second * allocation_ratio; 
+                allocations[item.first] = allocated_rate;
+                available -= allocated_rate;
+            }
+        }
+
+        // the next iteration will happen with the remaining available bandwidth, 
+        // and the rest of the items in the lower priority levels.
+    }
+
+    while (!register_queue.empty()) {
+        register_queue.pop();
+    }
 }
+
 
 double PriorityQueueBandwidthAllocator::get_allocated_rate(int id, double registered_rate, int priority){
     if (allocations.find(id) == allocations.end()) {
