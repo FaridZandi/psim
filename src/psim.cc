@@ -466,7 +466,7 @@ void PSim::draw_plots(std::initializer_list<std::pair<std::string, std::function
                 }
                 smoothed_data.push_back(sum / smoothing);
             }
-            // data = smoothed_data;
+            data = smoothed_data;
         }
         plt::plot(data, {{"label", name}});
 
@@ -505,7 +505,7 @@ void PSim::log_results() {
     for (auto flow : finished_flows) {
         average_fct += flow->end_time - flow->start_time;
         average_flow_size += flow->size;
-        average_flow_bw += (flow->size) / (flow->end_time - flow->start_time);
+        average_flow_bw += (flow->size) / (flow->end_time - flow->start_time + step_size);
         average_flow_path_length += flow->path.size();
     }
 

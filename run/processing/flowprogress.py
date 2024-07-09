@@ -111,12 +111,8 @@ def get_color(min_time, max_time, time, jobid):
     return (r, g, b)
         
     
-def main():
-    file_path = sys.argv[1]  # Update this path to your file containing the log data
-    if len(sys.argv) > 2:
-        limit_flow_label = sys.argv[2]
-    else:
-        limit_flow_label = None
+def main(file_path, limit_flow_label=None):
+
     
     flow_progress_incoming, flow_progress_outgoing, min_time, max_time = parse_flow_progress(file_path, limit_flow_label)
     print("min_time: ", min_time, " max_time: ", max_time)  
@@ -124,7 +120,7 @@ def main():
     
     # make a subplot for each core, vertically aligned 
     sns.set_theme() 
-    fig, axs = plt.subplots(CORES + JOBS, DIRS, figsize=(20, 10))
+    fig, axs = plt.subplots(CORES + JOBS, DIRS, figsize=(20, 10), sharex=True, sharey=True)
     
     # increase the space between the subplots
     plt.subplots_adjust(hspace=0.5)
@@ -172,7 +168,7 @@ def main():
             
 
         # add the hatch guide to the existing legend items      
-        axs[core][dir].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+        # axs[core][dir].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
         
         
     def plot_job_usage(dir, job, core_flows, ax):        
@@ -238,6 +234,17 @@ def main():
     plt.savefig("plots/flow_progress.png", bbox_inches='tight', dpi=300)
     
 if __name__ == "__main__":
-
-    main()
+    if len(sys.argv) < 2:
+        path = "workers/worker-0/run-1/runtime.txt"
+        print("using the default path: ", path)    
+    else :
+        path = sys.argv[1]
+    
+    if len(sys.argv) > 2:
+        limit_flow_label = sys.argv[2]
+    else:
+        limit_flow_label = None
+        
+    main(file_path = path, 
+         limit_flow_label = limit_flow_label)
     

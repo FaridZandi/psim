@@ -11,13 +11,15 @@ def parse_line(line):
     
     match = re.search(pattern, line)
     if match:
-        time = float((match.group(1)))            
+        time = float((match.group(1)))    
+        time = round(time, 2)
         return time, int(match.group(3)), int(match.group(4)), "iterfinish"
     else: 
         pattern = r'\[([+-]?(?:\d+(\.\d*)?|\.\d+))\]: job (\d+) started'
         match = re.search(pattern, line)
         if match:
-            time = float((match.group(1)))            
+            time = float((match.group(1)))
+            time = round(time, 2)           
             return time, int(match.group(3)), 0, "jobstart"
         else:
             return None
@@ -41,9 +43,11 @@ def calculate_iteration_lengths(file_path):
                 elif type == "iterfinish":
                     if iter_id == 1: 
                         iteration_length = sim_time - job_start_times[job_id]
+                        iteration_length = round(iteration_length, 2)
                     else:
                         iteration_length = sim_time - (sum(job_iteration_times[job_id]) + job_start_times[job_id])
-
+                        iteration_length = round(iteration_length, 2)
+                        
                     job_iteration_starts[job_id].append(sim_time)
                     job_iteration_times[job_id].append(iteration_length)
     
@@ -59,8 +63,7 @@ def calculate_iteration_lengths(file_path):
         
     return job_iteration_times, job_iteration_starts, job_start_times, drifts
 
-def main():
-    file_path = sys.argv[1]  # Update this path to your file containing the log data
+def main(file_path):
     iteration_lengths, iteration_starts, job_start_times, drifts = calculate_iteration_lengths(file_path)
     
     for job_id, iterations in iteration_lengths.items():
@@ -83,10 +86,13 @@ def main():
     for job_id, iterations in iteration_lengths.items():
         plt.plot(range(1, len(iterations) + 1), iterations, label=f"Job {job_id}")
     
-    plt.plot(range(1, len(drifts) + 1), drifts, label="Drift")
-        
     plt.legend() 
     plt.savefig("plots/iteration_lengths.png")
+
+    plt.plot(range(1, len(drifts) + 1), drifts, label="Drift")
+    plt.legend() 
+        
+    plt.savefig("plots/iteration_lengths_drift.png")
     
     conv = get_convergence_info(file_path)
     print("convergence point 1: ", conv[0])
@@ -129,10 +135,16 @@ def get_convergence_info(file_path, repeat_tolerance=10):
 
 
 def get_first_iter_info(file_path): 
-    iteration_lengths, iteration_starts, job_start_times, drifts = calculate_iteration_lengths(file_path)
+    iteration_lengths, _, _, _ = calculate_iteration_lengths(file_path)
     
     return iteration_lengths[1][0], iteration_lengths[2][0]
     
     
 if __name__ == "__main__":
-    main()
+    if len(sys.argv) < 2:
+        path = "workers/worker-0/run-1/runtime.txt"
+        print("using the default path: ", path)    
+    else :
+        path = sys.argv[1]
+    
+    main(file_path=path)

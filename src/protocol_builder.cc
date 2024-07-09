@@ -377,13 +377,18 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
 
 EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp*> last_layer_pcs, 
                                            int num_replicas, int comm_size, int jobid, 
-                                           EmptyTask* last_all_reduce_finisher, bool add_stage_barriers) {
+                                           EmptyTask* last_all_reduce_finisher, bool add_stage_barriers,
+                                           bool reverse_ring) {
 
     EmptyTask* all_reduce_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
     all_reduce_finisher->name = "AllR";
 
     int node_count = last_layer_pcs.size();
     int num_chunks = num_replicas; 
+
+    if(reverse_ring) {
+        std::reverse(last_layer_pcs.begin(), last_layer_pcs.end());
+    }
 
     // shuffle the last_layer_pcs to creat a random chain 
     // std::random_shuffle(last_layer_pcs.begin(), last_layer_pcs.end());
@@ -508,7 +513,7 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
                                int node_count, int init_node_id, 
                                int layer_count, int iter_count, 
                                int comp_size, int comm_size, 
-                               int initial_wait) {
+                               int initial_wait, bool reverse_ring) {
 
     int forward_size = comp_size;
     int backward_size = comp_size; 
@@ -587,8 +592,8 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             // bool add_stage_barriers = true; 
             bool add_stage_barriers = false; 
 
-            EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_count, comm_size, 
-                                                                            jobid, last_all_reduce_finisher, add_stage_barriers);
+            EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_count, 
+                                                                            comm_size, jobid, last_all_reduce_finisher, add_stage_barriers, reverse_ring);
 
             all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
 
@@ -661,14 +666,14 @@ psim::build_periodic_data_parallelism() {
                                    job1_reps_per_hyper_period * reps_multiplier, 
                                    job1_length_base * comp_length_amplification, 
                                    job1_length_base * comm_length_amplification, 
-                                   job1_initial_wait);
+                                   job1_initial_wait, false);
 
     insert_simple_data_parallelism(protocol, job2_jobid, node_count, 
                                    job2_starting_node, layer_count, 
                                    job2_reps_per_hyper_period * reps_multiplier, 
                                    job2_length_base * comp_length_amplification, 
                                    job2_length_base * comm_length_amplification, 
-                                   job2_initial_wait);                             
+                                   job2_initial_wait, true);                             
 
     return protocol;
 }
@@ -750,10 +755,15 @@ void insert_simple_periodic(Protocol* protocol, int src_machine,
 Protocol* 
 psim::build_periodic_simple() { 
 
-    int bump_count = GConf::inst().general_param_4;
-    if (bump_count == 0) {
-        bump_count = 6;
+    int job1_bump_count = GConf::inst().general_param_4;
+    if (job1_bump_count == 0) {
+        job1_bump_count = 6;
     } 
+
+    int job2_bump_count = GConf::inst().general_param_8;
+    if (job2_bump_count == 0) {
+        job2_bump_count = 6;
+    }
 
     int job1_src_machine = 3; 
     int job1_dst_machine = 4;
@@ -764,10 +774,18 @@ psim::build_periodic_simple() {
     int job1_offset = 0; 
     int job2_offset = GConf::inst().general_param_1; 
 
-    int comp_length = 100; 
-    int comm_length = 400 * GConf::inst().general_param_2; 
-    if (comm_length == 0) {
-        comm_length = 400 * 50; 
+    int comp_length = 100;
+
+
+
+    int job1_comm_length = 400 * GConf::inst().general_param_2; 
+    if (job1_comm_length == 0) {
+        job1_comm_length = 400 * 50; 
+    }
+
+    int job2_comm_length = 400 * GConf::inst().general_param_7;
+    if (job2_comm_length == 0) {
+        job2_comm_length = 400 * 50; 
     }
 
     int job1_job_id = 1; 
@@ -791,12 +809,12 @@ psim::build_periodic_simple() {
     Protocol *protocol = new Protocol(); 
 
     insert_simple_periodic(protocol, job1_src_machine, job1_dst_machine, 
-                           bump_count, comp_length, comm_length, 
+                           job1_bump_count, comp_length, job1_comm_length, 
                            job1_job_id, reps_multiplier, job1_offset, 
                            long_pc_length, add_flow_dependencies);
 
     insert_simple_periodic(protocol, job2_src_machine, job2_dst_machine, 
-                           bump_count, comp_length, comm_length, 
+                           job2_bump_count, comp_length, job2_comm_length, 
                            job2_job_id, reps_multiplier, job2_offset, 
                            long_pc_length, add_flow_dependencies);
 
