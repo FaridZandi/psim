@@ -28,6 +28,7 @@ enum class PriorityAllocator {
     PRIORITY_QUEUE,
     FIXED_LEVELS,
     FAIR_SHARE,
+    MAX_MIN_FAIR_SHARE,
 };
 
 enum class NetworkType {

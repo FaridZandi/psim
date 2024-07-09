@@ -107,6 +107,10 @@ void Flow::update_rate(double step_size) {
 
     current_rate = std::min(current_rate, min_bottleneck_rate);
     current_rate = std::max(current_rate, min_rate);
+
+    if (custom_maximum_rate > 0) {
+        current_rate = std::min(current_rate, custom_maximum_rate);
+    }
 }
 
 double Flow::get_load(LoadMetric load_metric_arg) {
@@ -215,6 +219,7 @@ Flow::print_task_info(std::ostream& os){
 
 void Flow::reset(){
     label_for_progress_graph = "";
+    custom_maximum_rate = -1;
     lb_decision = -1; 
     jobid = -1; 
     size = 0;

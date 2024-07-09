@@ -200,7 +200,7 @@ double PSim::simulate() {
     }
 
 
-    // main loop
+    // THE main simulator loop. everything happens in here. 
     while (true) {
         
         // auto new_flows = traffic_gen->get_flows(timer);
@@ -214,7 +214,6 @@ double PSim::simulate() {
         double this_step_step_size = GConf::inst().step_size;
 
         if (GConf::inst().adaptive_step_size){
-
             this_step_step_size = GConf::inst().adaptive_step_size_max;
 
             for (auto& flow: network->flows){
@@ -245,8 +244,14 @@ double PSim::simulate() {
         for (int i = 0; i < 10; i++){
             job_progress[i] = 0;
         }
+        double job_progress_through_core[10]; 
+        for (int i = 0; i < 10; i++){
+            job_progress_through_core[i] = 0;
+        }
 
-        double step_comm = network->make_progress_on_flows(timer, this_step_step_size, step_finished_flows, job_progress);
+        double step_comm = network->make_progress_on_flows(timer, this_step_step_size, step_finished_flows, 
+                                                           job_progress, job_progress_through_core);
+
         double stop_comp = network->make_progress_on_machines(timer, this_step_step_size, step_finished_tasks);
 
         int timer_interval = GConf::inst().core_status_profiling_interval;
@@ -295,6 +300,7 @@ double PSim::simulate() {
 
         for (int i = 0; i < 10; i++){
             h.job_progress[i] = job_progress[i];
+            h.job_progress_through_core[i] = job_progress_through_core[i];
         }
 
         history.push_back(h);
@@ -855,23 +861,23 @@ void PSim::save_run_results(){
         //     {"max-core-util", [](history_entry h){return h.max_core_link_bw_utilization;}},
         // });
 
-        draw_plots({
-            {"step_comp", [](history_entry h){return h.step_comm;}},
-        });
+        // draw_plots({
+        //     {"step_comp", [](history_entry h){return h.step_comm;}},
+        // });
 
-        draw_plots({
-            {"job1_progress", [](history_entry h){return h.job_progress[1];}},
-        });
+        // draw_plots({
+        //     {"job1_progress", [](history_entry h){return h.job_progress[1];}},
+        // });
 
-        draw_plots({
-            {"job2_progress", [](history_entry h){return h.job_progress[2];}},
-        });
+        // draw_plots({
+        //     {"job2_progress", [](history_entry h){return h.job_progress[2];}},
+        // });
 
         // draw all together now 
         draw_plots({
-            {"step_comp", [](history_entry h){return h.step_comm;}},
-            {"job1_progress", [](history_entry h){return h.job_progress[1];}},
-            {"job2_progress", [](history_entry h){return h.job_progress[2];}},
+            // {"step_comp", [](history_entry h){return h.step_comm;}},
+            {"job1_progress", [](history_entry h){return h.job_progress_through_core[1];}},
+            {"job2_progress", [](history_entry h){return h.job_progress_through_core[2];}},
         });
         
 

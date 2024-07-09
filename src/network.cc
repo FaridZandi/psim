@@ -152,7 +152,7 @@ double Network::max_core_link_bw_utilization(){
 
 double Network::make_progress_on_flows(double current_time, double step_size,
                                        std::vector<Flow*> & step_finished_flows, 
-                                       double job_progress[]){
+                                       double job_progress[], double job_progress_through_core[]){
 
     double step_comm = 0;
 
@@ -170,6 +170,12 @@ double Network::make_progress_on_flows(double current_time, double step_size,
         flow->progress_history.push_back(flow_step_progress);
         
         job_progress[flow->jobid] += flow_step_progress;
+
+        if(flow->lb_decision != -1) { // then this is a flow that passes through the core. 
+            // this is such a bad way to be doing this. 
+            job_progress_through_core[flow->jobid] += flow_step_progress;
+        } 
+
 
         if (flow->status == PTaskStatus::FINISHED) {
             step_finished_flows.push_back(flow);
@@ -355,6 +361,10 @@ void Bottleneck::setup_bwalloc() {
             bwalloc = new FairShareBandwidthAllocator(bandwidth);
             break;
 
+        case PriorityAllocator::MAX_MIN_FAIR_SHARE:
+            bwalloc = new MaxMinFairShareBandwidthAllocator(bandwidth); 
+            break; 
+            
         default:
             spdlog::error("Invalid priority allocator: {}", int(GConf::inst().priority_allocator));
             exit(1);

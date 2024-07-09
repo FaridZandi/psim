@@ -32,12 +32,30 @@ public:
     FairShareBandwidthAllocator(double total_available);
     virtual ~FairShareBandwidthAllocator();
 
+
     void reset();
     void register_rate(int id, double rate, int priority);
     void compute_allocations();
     double get_allocated_rate(int id, double registered_rate = -1, int priority = -1);
 private:
 };
+
+
+class MaxMinFairShareBandwidthAllocator : public BandwidthAllocator {
+public:
+    MaxMinFairShareBandwidthAllocator(double total_available);
+    virtual ~MaxMinFairShareBandwidthAllocator();
+
+    std::vector<std::pair<int, double> > register_list;
+    std::map<int, double> allocations; 
+    
+    void reset();
+    void register_rate(int id, double rate, int priority);
+    void compute_allocations();
+    double get_allocated_rate(int id, double registered_rate = -1, int priority = -1);
+private:
+};
+
 
 class FixedLevelsBandwidthAllocator : public BandwidthAllocator {
 public:

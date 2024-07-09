@@ -43,6 +43,7 @@ struct history_entry {
     double total_core_bw;
     double total_accelerator_capacity;
     double job_progress[10];  // TODO: make this dynamic
+    double job_progress_through_core[10];  // TODO: make this dynamic
 };
 
 #define auto_smooth -4

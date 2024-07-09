@@ -123,6 +123,7 @@ public:
     double rate_decrease_factor;
     
     std::string label_for_progress_graph; 
+    double custom_maximum_rate; 
 
     int src_dev_id;
     int dst_dev_id;

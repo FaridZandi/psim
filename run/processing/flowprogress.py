@@ -51,7 +51,8 @@ def parse_line(line, limit_flow_label=None):
             print("sum_progress: ", sum_progress)
                 
             if limit_flow_label is not None: 
-                if label.startswith(limit_flow_label):
+                # if label contains the limit_flow_label, return the flow_info
+                if limit_flow_label in label:
                     return flow_info
                 else: 
                     return None
@@ -168,7 +169,7 @@ def main(file_path, limit_flow_label=None):
             
 
         # add the hatch guide to the existing legend items      
-        # axs[core][dir].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+        axs[core][dir].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
         
         
     def plot_job_usage(dir, job, core_flows, ax):        

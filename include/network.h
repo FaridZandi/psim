@@ -65,7 +65,7 @@ public:
     
     double make_progress_on_flows(double current_time, double step_size, 
                                   std::vector<Flow*> & step_finished_flows,
-                                  double job_progress[]);
+                                  double job_progress[], double job_progress_through_core[]);
 
     LoadBalancer* core_load_balancer;
 

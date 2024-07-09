@@ -17,6 +17,14 @@ void BandwidthAllocator::register_utilization(double utilization) {
 
 }
 
+
+
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+
+
+
 FairShareBandwidthAllocator::FairShareBandwidthAllocator(double total_available){
     this->total_available = total_available;
     BandwidthAllocator::reset(); 
@@ -57,6 +65,64 @@ double FairShareBandwidthAllocator::get_allocated_rate(int id, double registered
 ////////////////////////////////////////////////////////////////////////////////////
 
 
+
+MaxMinFairShareBandwidthAllocator::MaxMinFairShareBandwidthAllocator(double total_available){
+    this->total_available = total_available;
+    BandwidthAllocator::reset(); 
+}
+
+MaxMinFairShareBandwidthAllocator::~MaxMinFairShareBandwidthAllocator(){
+
+}
+
+void MaxMinFairShareBandwidthAllocator::reset(){
+    BandwidthAllocator::reset(); 
+    register_list.clear();
+    allocations.clear();
+}
+
+void MaxMinFairShareBandwidthAllocator::register_rate(int id, double rate, int priority){
+    register_list.push_back(std::make_pair(id, rate));
+}
+
+void MaxMinFairShareBandwidthAllocator::compute_allocations(){
+
+    std::sort(register_list.begin(), register_list.end(), 
+        [](const std::pair<int, double>& a, const std::pair<int, double>& b) -> bool {
+            return a.second > b.second;
+        }
+    );
+
+    double available = total_available;
+    int remaining_item_count = register_list.size();
+
+    for (auto& item : register_list) {
+
+        double rate = item.second;
+        double remaining_fair_share = available / remaining_item_count;
+        double allocated_rate = std::min(rate, remaining_fair_share);
+
+        allocations[item.first] = allocated_rate;
+
+        available -= allocated_rate;
+        remaining_item_count -= 1;
+    }
+}
+
+double MaxMinFairShareBandwidthAllocator::get_allocated_rate(int id, double registered_rate, int priority){
+    if (allocations.find(id) == allocations.end()) {
+        spdlog::error("MaxMinFairShareBandwidthAllocator::get_allocated_rate() called with id that was not registered. id: {}", id);        
+        return 0;
+    } else {
+        double allocated = allocations[id];
+        total_allocated += allocated;
+        return allocated;
+    }
+}
+
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
+////////////////////////////////////////////////////////////////////////////////////
 
 
 FixedLevelsBandwidthAllocator::FixedLevelsBandwidthAllocator(double total_available){
@@ -153,7 +219,7 @@ void PriorityQueueBandwidthAllocator::reset(){
     BandwidthAllocator::reset(); 
 
     if (!register_queue.empty()) {
-        spdlog::warn("PriorityQueueBandwidthAllocator::reset() called with non-empty register_queue");
+        spdlog::error("PriorityQueueBandwidthAllocator::reset() called with non-empty register_queue. but the queue should have been cleared by compute_allocations(). There's something very wrong going on.");
     }
     allocations.clear();
 }

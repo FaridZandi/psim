@@ -243,6 +243,8 @@ void psim::process_arguments(po::variables_map vm){
             GConf::inst().priority_allocator = PriorityAllocator::FIXED_LEVELS;
         } else if (priority_allocator_str == "fairshare") {
             GConf::inst().priority_allocator = PriorityAllocator::FAIR_SHARE;
+        } else if (priority_allocator_str == "maxmin") {
+            GConf::inst().priority_allocator = PriorityAllocator::MAX_MIN_FAIR_SHARE;
         } else {
             spdlog::error("Invalid priority allocator: {}", priority_allocator_str);
             exit(1);

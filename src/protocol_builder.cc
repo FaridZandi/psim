@@ -444,6 +444,9 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
             flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
 
+            // if (flow->id == 44) {
+            //     flow->custom_maximum_rate = 200;
+            // }
             // PComp* agg = (PComp*)protocol->create_task(PTaskType::COMPUTE);
             // agg->size = aggregate_time; 
             // int agg_index = (i + j + 1) % num_replicas;
@@ -615,7 +618,9 @@ int LCM(int a, int b){
 Protocol* 
 psim::build_periodic_data_parallelism() { 
 
-    int node_count = 6; // n: number of machines
+    int node_count = 4; // n: number of machines
+    
+    
     int layer_count = GConf::inst().general_param_6;  // l: number of teeth in the graph
     if (layer_count == 0) {
         layer_count = 12;
@@ -632,7 +637,7 @@ psim::build_periodic_data_parallelism() {
     }
 
     int job1_initial_wait = 0;
-    int job1_starting_node = 0; 
+    int job1_starting_node = 2; 
     int job1_jobid = 1; 
 
     int job2_length_base = GConf::inst().general_param_3;
@@ -668,12 +673,12 @@ psim::build_periodic_data_parallelism() {
                                    job1_length_base * comm_length_amplification, 
                                    job1_initial_wait, false);
 
-    insert_simple_data_parallelism(protocol, job2_jobid, node_count, 
-                                   job2_starting_node, layer_count, 
-                                   job2_reps_per_hyper_period * reps_multiplier, 
-                                   job2_length_base * comp_length_amplification, 
-                                   job2_length_base * comm_length_amplification, 
-                                   job2_initial_wait, true);                             
+    // insert_simple_data_parallelism(protocol, job2_jobid, node_count, 
+    //                                job2_starting_node, layer_count, 
+    //                                job2_reps_per_hyper_period * reps_multiplier, 
+    //                                job2_length_base * comp_length_amplification, 
+    //                                job2_length_base * comm_length_amplification, 
+    //                                job2_initial_wait, true);                             
 
     return protocol;
 }
