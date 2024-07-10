@@ -221,6 +221,7 @@ void Flow::reset(){
     label_for_progress_graph = "";
     custom_maximum_rate = -1;
     lb_decision = -1; 
+    protocol_defined_lb_decision = -1; 
     jobid = -1; 
     size = 0;
     progress = 0;

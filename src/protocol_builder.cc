@@ -375,6 +375,12 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
 }
 
 
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
+
 EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp*> last_layer_pcs, 
                                            int num_replicas, int comm_size, int jobid, 
                                            EmptyTask* last_all_reduce_finisher, bool add_stage_barriers,
@@ -652,14 +658,20 @@ psim::build_periodic_data_parallelism() {
     
     int comp_length_amplification = 100;
     
-    double comm_duty_cycle = GConf::inst().general_param_4; 
-    if (comm_duty_cycle == 0) {
-        comm_duty_cycle = 50; // 10 units of time for the 400G links 
+    // double comm_duty_cycle = GConf::inst().general_param_4; 
+    // if (comm_duty_cycle == 0) {
+    //     comm_duty_cycle = 50; // 10 units of time for the 400G links 
+    // }
+
+    // int link_rate = 400; 
+    // int comm_length_amplification = link_rate * comp_length_amplification * (comm_duty_cycle / 100) / (2 * (node_count - 1));
+    
+    int comm_size = GConf::inst().general_param_4;
+    if (comm_size == 0) {
+        comm_size = 4000; 
     }
 
-    int link_rate = 400; 
-    int comm_length_amplification = link_rate * comp_length_amplification * (comm_duty_cycle / 100) / (2 * (node_count - 1));
-    
+
     int hyper_period = LCM(job1_length_base, job2_length_base);
     int job1_reps_per_hyper_period = hyper_period / job1_length_base;
     int job2_reps_per_hyper_period = hyper_period / job2_length_base;
@@ -670,21 +682,26 @@ psim::build_periodic_data_parallelism() {
                                    job1_starting_node, layer_count, 
                                    job1_reps_per_hyper_period * reps_multiplier, 
                                    job1_length_base * comp_length_amplification, 
-                                   job1_length_base * comm_length_amplification, 
+                                   job1_length_base * comm_size, 
                                    job1_initial_wait, false);
 
-    // insert_simple_data_parallelism(protocol, job2_jobid, node_count, 
-    //                                job2_starting_node, layer_count, 
-    //                                job2_reps_per_hyper_period * reps_multiplier, 
-    //                                job2_length_base * comp_length_amplification, 
-    //                                job2_length_base * comm_length_amplification, 
-    //                                job2_initial_wait, true);                             
+    insert_simple_data_parallelism(protocol, job2_jobid, node_count, 
+                                   job2_starting_node, layer_count, 
+                                   job2_reps_per_hyper_period * reps_multiplier, 
+                                   job2_length_base * comp_length_amplification, 
+                                   job2_length_base * comm_size, 
+                                   job2_initial_wait, true);                             
 
     return protocol;
 }
 
 
-//    insert_simple_periodic(protocol, job1_src_machine, job1_dst_machine, bump_count, comp_length, comm_length, job1_job_id, reps_multiplier);
+
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+//////////////////////////////////////////////////////////////////////////////////////////////////
+
 void insert_simple_periodic(Protocol* protocol, int src_machine, 
                             int dst_machine, int bump_count, int comp_length, 
                             int comm_length, int jobid, int reps_multiplier, 
@@ -715,7 +732,6 @@ void insert_simple_periodic(Protocol* protocol, int src_machine,
         last_pc = last_iter_finisher;
     }
 
-
     for (int j = 0; j < reps_multiplier; j++) {
         for (int i = 0; i < bump_count; i++) {
             PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
@@ -729,6 +745,16 @@ void insert_simple_periodic(Protocol* protocol, int src_machine,
             flow->dst_dev_id = dst_machine;
             flow->jobid = jobid; 
             
+            if (jobid == 1) {
+                flow->protocol_defined_lb_decision = 0; 
+            } else if (jobid == 2) {
+                if (j > 2 and j < 9) {
+                    flow->protocol_defined_lb_decision = 1;
+                } else {
+                    flow->protocol_defined_lb_decision = 0;
+                }
+            }
+
             last_pc->add_next_task_id(pc->id);
             pc->add_next_task_id(flow->id);
 

@@ -138,6 +138,8 @@ public:
     int bottlenecked_by_srcdst_count;
     
     int lb_decision; 
+    int protocol_defined_lb_decision; 
+    
     std::vector<double> progress_history; 
 
     std::vector<Bottleneck *> path;

@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 from pprint import pprint 
 import seaborn as sns 
 
-CORES = 1 
+CORES = 2 
 JOBS = 2 
 DIRS = 2 
 
@@ -131,6 +131,12 @@ def main(file_path, limit_flow_label=None):
     
     def plot_core_usage(core, flows, dir, ax): 
         
+        
+        if core == 0:   
+            sns.set_palette("viridis", len(flows))
+        else: 
+            sns.set_palette("cividis", len(flows))
+            
         ax.set_title(f"Core {core} {['Incoming', 'Outgoing'][dir]} Flows Progress")
         ax.set_xlabel("Time")
         ax.set_ylabel("Progress")
@@ -169,7 +175,7 @@ def main(file_path, limit_flow_label=None):
             
 
         # add the hatch guide to the existing legend items      
-        axs[core][dir].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+        # axs[core][dir].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
         
         
     def plot_job_usage(dir, job, core_flows, ax):        

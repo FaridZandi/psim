@@ -16,6 +16,7 @@ enum class LBScheme{
     RANDOM,
     ROUND_ROBIN,
     READ_FILE,
+    READ_PROTOCOL, 
     LEAST_LOADED,
     POWER_OF_K,
     ROBIN_HOOD,

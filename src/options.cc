@@ -206,6 +206,8 @@ void psim::process_arguments(po::variables_map vm){
             GConf::inst().lb_scheme = LBScheme::ZERO;
         } else if (lb_scheme_str == "readfile") {
             GConf::inst().lb_scheme = LBScheme::READ_FILE;
+        } else if (lb_scheme_str == "readprotocol") {
+            GConf::inst().lb_scheme = LBScheme::READ_PROTOCOL;
         } else if (lb_scheme_str == "leastloaded") {
             GConf::inst().lb_scheme = LBScheme::LEAST_LOADED;
         } else if (lb_scheme_str.substr(0, 7) == "powerof") {

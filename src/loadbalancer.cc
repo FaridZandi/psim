@@ -55,6 +55,8 @@ LoadBalancer* LoadBalancer::create_load_balancer(int item_count, LBScheme lb_sch
             return new RoundRobinLoadBalancer(item_count); 
         case LBScheme::READ_FILE:
             return new ReadFileLoadBalancer(item_count);
+        case LBScheme::READ_PROTOCOL:
+            return new ReadProtocolLoadBalancer(item_count);
         case LBScheme::LEAST_LOADED:
             return new LeastLoadedLoadBalancer(item_count);
         case LBScheme::POWER_OF_K:
@@ -136,6 +138,22 @@ int AlwaysZeroLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int tim
 /////////////////////////////////////////////////////////////////////////////////////
 /////////////////////////////////////////////////////////////////////////////////////
 
+ReadProtocolLoadBalancer::ReadProtocolLoadBalancer(int item_count) : LoadBalancer(item_count) {}
+
+int ReadProtocolLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
+    if (flow->protocol_defined_lb_decision == -1) {
+        spdlog::error("Flow {} does not have a load balancer decision. ", flow->id);
+        spdlog::error("make sure to set the protocol_defined_lb_decision field for all the flows in the protocol"); 
+        exit(1);
+    } else {
+        return flow->protocol_defined_lb_decision;
+    }
+}
+
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+/////////////////////////////////////////////////////////////////////////////////////
+
 ReadFileLoadBalancer::ReadFileLoadBalancer(int item_count) : LoadBalancer(item_count) {
     std::ifstream infile(GConf::inst().lb_decisions_file);
 
@@ -144,7 +162,6 @@ ReadFileLoadBalancer::ReadFileLoadBalancer(int item_count) : LoadBalancer(item_c
         spdlog::error("File {} does not exist", GConf::inst().lb_decisions_file);
         exit(1);
     }
-
 
     std::string line;
     while (std::getline(infile, line)) {
