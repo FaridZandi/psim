@@ -822,15 +822,39 @@ psim::build_periodic_simple() {
     int job1_job_id = 1; 
     int job2_job_id = 2;
 
-    int reps_multiplier = GConf::inst().general_param_3;
-    if (reps_multiplier == 0) {
-        reps_multiplier = 1;
+    int job1_reps_multiplier = GConf::inst().general_param_3;
+    int job2_reps_multiplier = GConf::inst().general_param_3;
+    if (job1_reps_multiplier == 0) {
+        job1_reps_multiplier = 1; 
+        job2_reps_multiplier = 1; 
     }
     
-    int long_pc_length = GConf::inst().general_param_6; 
-    if(long_pc_length == 0) {
-        long_pc_length = 1500;
+    int job1_long_pc_length = GConf::inst().general_param_6; 
+    int job2_long_pc_length = GConf::inst().general_param_6; 
+    
+    if(job1_long_pc_length == 0) {
+        job1_long_pc_length = 1500;
+        job2_long_pc_length = 1500; 
     }
+
+
+    ////////////////////////////////////////
+    comp_length = 40; 
+
+    job1_bump_count = 2; 
+    job1_comm_length = 400 * 20;
+    job1_long_pc_length = 200; 
+    job1_reps_multiplier = 8; 
+
+    job2_bump_count = 3; 
+    job2_comm_length = 400 * 20; 
+    job2_long_pc_length = 260;
+    job2_reps_multiplier = 6; 
+    ////////////////////////////////////////
+
+    
+
+
 
     bool add_flow_dependencies = false; 
     if (GConf::inst().general_param_5 == 1) {
@@ -841,13 +865,15 @@ psim::build_periodic_simple() {
 
     insert_simple_periodic(protocol, job1_src_machine, job1_dst_machine, 
                            job1_bump_count, comp_length, job1_comm_length, 
-                           job1_job_id, reps_multiplier, job1_offset, 
-                           long_pc_length, add_flow_dependencies);
+                           job1_job_id, job1_reps_multiplier, 
+                           job1_offset, 
+                           job1_long_pc_length, add_flow_dependencies);
 
     insert_simple_periodic(protocol, job2_src_machine, job2_dst_machine, 
                            job2_bump_count, comp_length, job2_comm_length, 
-                           job2_job_id, reps_multiplier, job2_offset, 
-                           long_pc_length, add_flow_dependencies);
+                           job2_job_id, job2_reps_multiplier, 
+                           job2_offset, 
+                           job2_long_pc_length, add_flow_dependencies);
 
     return protocol;
 }

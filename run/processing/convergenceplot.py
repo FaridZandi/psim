@@ -55,16 +55,17 @@ if __name__ == "__main__":
         base_iter_diff = row["Job 1 Comm. Duty Cycle"] - row["Job 2 Comm. Duty Cycle"]
         return iter_diff - base_iter_diff   
     
-    metrics = ["j1_conv_point", 
-               "j2_conv_point", 
-               "j1_conv_value", 
-               "j2_conv_value", 
-               "drifts_conv_point", 
-               "drifts_conv_value", 
-               "max_psim_time", 
+    metrics = [
+            # "j1_conv_point", 
+            #    "j2_conv_point", 
+            #    "j1_conv_value", 
+            #    "j2_conv_value", 
+            #    "drifts_conv_point", 
+            #    "drifts_conv_value", 
+            #    "max_psim_time", 
                "job_1_iter_1", 
                "job_2_iter_1", 
-               ("change_in_first_iter", change_in_first_iter),
+            #    ("change_in_first_iter", change_in_first_iter),
                ]
     
     
