@@ -6,6 +6,7 @@ from tqdm import tqdm
 import math
 
 script_dir = os.path.dirname(__file__)
+NUM_PATHS = 2 
 
 def get_the_array(a, b): 
     curr = 0
@@ -16,7 +17,6 @@ def get_the_array(a, b):
     while True: 
         curr = (curr + a) % b
         iter += 1 
-        
         if curr == 0: 
             break
         
@@ -54,10 +54,25 @@ def get_base_signal(job_info):
     return whole_signal
 
 # if the signals don't have the same length, add zeros to the end of the shorter signals
-def make_padded_signals_for_jobs(jobs, key, padded_key): 
-    max_signal_length = max([len(job[key]) for job in jobs])
+def make_padded_signals_for_jobs(jobs, key, padded_key, list_index=-1):
+    
+    if list_index == -1: 
+        max_signal_length = max([len(job[key]) for job in jobs])
+    else:
+        max_signal_length = max([len(job[key][list_index]) for job in jobs])
+        
+        
     for job in jobs:
-        job[padded_key] = job[key] + [0] * (max_signal_length - len(job[key]))
+        if list_index == -1:
+            padding_signal = [0] * (max_signal_length - len(job[key]))
+            job[padded_key] = job[key] + padding_signal
+
+        else:
+            if padded_key not in job:
+                job[padded_key] = [[] for _ in range(NUM_PATHS)]
+                
+            padding_signal = [0] * (max_signal_length - len(job[key][list_index]))    
+            job[padded_key][list_index] = job[key][list_index] + padding_signal
 
 def get_sum_padded_signals(jobs, padded_key): 
     s = [0] * len(jobs[0][padded_key])
@@ -67,7 +82,6 @@ def get_sum_padded_signals(jobs, padded_key):
             s[i] += job[padded_key][i]
             
     return s
-
         
             
 def lcm(numbers):
@@ -100,22 +114,33 @@ def plot_signals(jobs, plot_path):
     plt.clf()
 
 def plot_signals_with_paths(jobs, plot_path):
-    fig, ax = plt.subplots(3, 1, figsize=(10, 6)) 
+    
+    fig, ax = plt.subplots(NUM_PATHS + 1, 1, figsize=(10, 6)) 
     plt.subplots_adjust(hspace=0.5)
     
-    for i in range(3): 
+    for i in range(NUM_PATHS + 1): 
         ax[i].set_ylim(0, 2.1)
-        key = ["padded_signal", "padded_path1_signal", "padded_path2_signal"][i]
+        padded_signals = [] 
         
-        padded_signals = [job[key] for job in jobs]
+        if i == 0:         
+            padded_signals = [job["padded_signal"] for job in jobs]
+            
+        else: 
+            path_num = i - 1
+            padded_signals = [job["padded_path_signals"][path_num] for job in jobs]
+            
         stackplot_x = range(len(padded_signals[0]))
-
         ax[i].stackplot(stackplot_x, padded_signals,
                         colors=[job["color"] for job in jobs],
                         labels=[f"Job {job['jobid']}" for job in jobs])
         
         ax[i].set_xlabel("Time")
         ax[i].set_ylabel("Signal")
+        
+        # add the tick lines every 100, but don't add any new labels 
+        ax[i].set_xticks(range(0, len(stackplot_x), 100))
+        ax[i].set_xticklabels([])
+                
     
     ax[0].legend(loc="upper left", bbox_to_anchor=(1.05, 1))    
         
@@ -124,6 +149,66 @@ def plot_signals_with_paths(jobs, plot_path):
     
 
 
+def add_to_signal(signal1, signal2, shift):
+    for i in range(len(signal2)):
+        signal1[i + shift] += signal2[i]
+
+def does_path_have_capacity(path_signal, added_signal, shift):
+    for i in range(len(added_signal)):
+        if path_signal[i + shift] + added_signal[i] > 1:
+            return False  
+    return True         
+
+def route_signals(jobs, path_num, padded_length):
+    sum_path_signals = [[0] * padded_length for _ in range(path_num)] 
+    
+    for job in jobs:
+        job["path_signals"] = []
+
+        for j in range(path_num): 
+            job["path_signals"].append([0] * job["initial_shift"])
+            
+        curr_shift = job["initial_shift"]
+            
+        for i in range(job["signal_rep_count"]):
+            chosen_path = -1 
+            
+            for j in range(path_num):
+       
+                # if a path has already been chosen, just add empty signal
+                if chosen_path != -1:
+                    job["path_signals"][j].extend([0] * job["base_signal_length"])
+                # check if this path has capacity for the job signal
+                elif j == path_num - 1 or does_path_have_capacity(sum_path_signals[j], 
+                                           job["base_signal"], 
+                                           curr_shift):
+                    
+                    add_to_signal(sum_path_signals[j],
+                                  job["base_signal"],
+                                  curr_shift)
+                            
+                    job["path_signals"][j].extend(job["base_signal"])
+                    
+                    if j == 1: 
+                        print("job {} iter {} added to path {}".format(job["jobid"], i + 1, j)) 
+                    
+                    chosen_path = j 
+                else: 
+                    job["path_signals"][j].extend([0] * job["base_signal_length"])
+                    
+            if chosen_path == -1:
+                print("No path had capacity for the job signal")
+                break 
+            
+            curr_shift += job["base_signal_length"]
+    
+    for j in range(path_num): 
+        make_padded_signals_for_jobs(jobs, "path_signals", "padded_path_signals", j)
+        s_max = max(sum_path_signals[j])
+        print("Path {} max: {}".format(j, s_max))    
+                      
+# this function should be called after the initial shift is set for the 
+# jobs, i.e. the timing schedule should be done before. 
 def create_signals_for_jobs(jobs, hyperperiod_multiplier=1):   
     signals_lengths = [] 
     
@@ -135,52 +220,26 @@ def create_signals_for_jobs(jobs, hyperperiod_multiplier=1):
     # go through enough iterations to get back to the initial state
     hyperperiod = lcm(signals_lengths)
     
-    if len(signals_lengths) != 2:
-        print("Only two jobs are supported for now.")
-        print("I hope you know what you doing. Good luck!")
-        exit(0) 
-        
-    the_array = get_the_array(*signals_lengths)
-    print("the array: ", the_array)
-    x_plus_y = jobs[0]["tooth_period"] + jobs[1]["tooth_period"]
-    array_limit = math.ceil(x_plus_y / math.gcd(*signals_lengths)) - 1
-    
-    print("x + y: ", x_plus_y)  
-    print("Array limit: ", array_limit)
-      
     for job in jobs:
+        job["signal"] = [0] * job["initial_shift"] 
+
         base_signal_rep_count = hyperperiod // job["base_signal_length"]
         signal_rep_count = base_signal_rep_count * hyperperiod_multiplier
-        initial_shift = job["initial_shift"]
-        
-        job["signal"] = [0] * initial_shift + job["base_signal"] * signal_rep_count
-        job["path1_signal"] = [0] * initial_shift 
-        job["path2_signal"] = [0] * initial_shift
-    
-        ## this is highly experimental for now. don't worry about the extremely bad code         
-        for i in range(signal_rep_count):
-            iter = i % base_signal_rep_count 
-            if job["jobid"] == 1 and iter in the_array[-1 * array_limit:]:
-                job["path1_signal"].extend(job["base_signal"])
-                job["path2_signal"].extend([0] * len(job["base_signal"]))
-            else: 
-                job["path1_signal"].extend([0] * len(job["base_signal"]))
-                job["path2_signal"].extend(job["base_signal"])
-                    
+
+        job["signal"].extend(job["base_signal"] * signal_rep_count)
+        job["signal_rep_count"] = signal_rep_count
+
     make_padded_signals_for_jobs(jobs, "signal", "padded_signal")
-    make_padded_signals_for_jobs(jobs, "path1_signal", "padded_path1_signal")
-    make_padded_signals_for_jobs(jobs, "path2_signal", "padded_path2_signal")
+    padded_length = len(jobs[0]["padded_signal"])    
+    route_signals(jobs, NUM_PATHS, padded_length)
     
-    s_signal = get_sum_padded_signals(jobs, "padded_signal")
-    s_path1 = get_sum_padded_signals(jobs, "padded_path1_signal")
-    s_path2 = get_sum_padded_signals(jobs, "padded_path2_signal")
-    
-    s_signal_max = max(s_signal) 
-    s_path1_max = max(s_path1)
-    s_path2_max = max(s_path2)
-    
-    print("Signal max: ", s_signal_max, ", Path 1 max: ", s_path1_max, ", Path 2 max: ", s_path2_max)
-    
+    for key, padded_key in [("signal", "padded_signal")]: 
+    #                         ("path1_signal", "padded_path1_signal"), 
+    #                         ("path2_signal", "padded_path2_signal")]:
+        
+        s_signal = get_sum_padded_signals(jobs, padded_key=padded_key)
+        s_signal_max = max(s_signal) 
+        print(key, " max: ", s_signal_max)    
 
     
 # this function will make copies of the jobs, so nothing should be modified 
@@ -236,30 +295,55 @@ def main():
             "jobid": 1,
             "color": "red",
             "teeth_count": 1, 
-            "tooth_period": 100,
-            "teeth_on_length": 100,
-            "total_iter_time": 534,
+            "tooth_period": 60,
+            "teeth_on_length": 60,
+            "total_iter_time": 300,
             "initial_shift": 0,
         }, 
         {
             "jobid": 2,
             "color": "blue",
             "teeth_count": 1,
-            "tooth_period": 100, 
-            "teeth_on_length": 100,
-            "total_iter_time": 768,
+            "tooth_period": 60, 
+            "teeth_on_length": 60,
+            "total_iter_time": 400,
             "initial_shift": 0,
         },
+        {
+            "jobid": 3,
+            "color": "green",
+            "teeth_count": 1,
+            "tooth_period": 60, 
+            "teeth_on_length": 60,
+            "total_iter_time": 500,
+            "initial_shift": 0,
+        },
+        # {
+        #     "jobid": 4,
+        #     "color": "black",
+        #     "teeth_count": 1,
+        #     "tooth_period": 20, 
+        #     "teeth_on_length": 20,
+        #     "total_iter_time": 700,
+        #     "initial_shift": 0,
+        # },
     ]
     
     # compat = find_compatible_regions(jobs[0], jobs[1], plot=True)
     # arg_max_compat = max(range(len(compat)), key=compat.__getitem__) 
     # print("Most compatible region is at shift: ", arg_max_compat)
     # print("Compatibility at max: ", compat[arg_max_compat])
+
+
+    # pack the jobs in the beginning
+    accumulated_time = 0
+    for i in range(len(jobs) - 1, -1, -1): 
+        print("Job {} initial shift: {}".format(i, accumulated_time))
+        jobs[i]["initial_shift"] = accumulated_time
+        accumulated_time += jobs[i]["tooth_period"]
     
-    arg_max_compat = jobs[1]["tooth_period"]
-    
-    jobs[0]["initial_shift"] = arg_max_compat
+    # jobs[0]["initial_shift"] = 200    
+
     create_signals_for_jobs(jobs=jobs, hyperperiod_multiplier=2)
     plot_signals(jobs, "signals.png")
     plot_signals_with_paths(jobs, "signals-paths.png")
