@@ -6,33 +6,18 @@ from tqdm import tqdm
 import math
 import random
 
-script_dir = os.path.dirname(__file__)
-NUM_PATHS = 2
+
 SIM_LIMIT = 10000 
-RANDOMNESS = 0.1
+RANDOMNESS = 0.01
 
 
-def get_the_array(a, b): 
-    curr = 0
-    iter = 0 
-    
-    x = [{"iter": iter, "offset": curr}]
-    
-    while True: 
-        curr = (curr + a) % b
-        iter += 1 
-        if curr == 0: 
-            break
-        
-        x.append({"iter": iter, "offset": curr})
-    
-    # sort by iter 
-    x.sort(key=lambda x: x["offset"])
-    iters = [x["iter"] for x in x]
-    return iters
-        
-        
-    
+script_dir = os.path.dirname(__file__)
+
+
+# this function will generate a signal for a single iteration of a job. 
+# the signal will be a list of 1s and 0s, where 1s represent the signal being
+# on, and 0s represent the signal being off.
+# doesn't change the job itself, just returns the signal.
 def get_base_signal(job_info, alpha=0.0):
     jobid = job_info["jobid"]
     teeth_count = job_info["teeth_count"]
@@ -64,25 +49,26 @@ def get_base_signal(job_info, alpha=0.0):
     return whole_signal
 
 # if the signals don't have the same length, add zeros to the end of the shorter signals
-def make_padded_signals_for_jobs(jobs, key, padded_key, list_index=-1):
+# def make_padded_signals_for_jobs(jobs, key, padded_key, list_index=-1):
     
-    if list_index == -1: 
-        max_signal_length = max([len(job[key]) for job in jobs])
-    else:
-        max_signal_length = max([len(job[key][list_index]) for job in jobs])
+#     if list_index == -1: 
+#         max_signal_length = max([len(job[key]) for job in jobs])
+#     else:
+#         max_signal_length = max([len(job[key][list_index]) for job in jobs])
         
         
-    for job in jobs:
-        if list_index == -1:
-            padding_signal = [0] * (max_signal_length - len(job[key]))
-            job[padded_key] = job[key] + padding_signal
+#     for job in jobs:
+#         if list_index == -1:
+#             padding_signal = [0] * (max_signal_length - len(job[key]))
+#             job[padded_key] = job[key] + padding_signal
 
-        else:
-            if padded_key not in job:
-                job[padded_key] = [[] for _ in range(NUM_PATHS)]
+#         else:
+#             if padded_key not in job:
+#                 job[padded_key] = [[] for _ in range(NUM_PATHS)]
                 
-            padding_signal = [0] * (max_signal_length - len(job[key][list_index]))    
-            job[padded_key][list_index] = job[key][list_index] + padding_signal
+#             padding_signal = [0] * (max_signal_length - len(job[key][list_index]))    
+#             job[padded_key][list_index] = job[key][list_index] + padding_signal
+
 
 def get_sum_padded_signals(jobs, padded_key): 
     s = [0] * len(jobs[0][padded_key])
@@ -123,14 +109,14 @@ def plot_signals(jobs, plot_path):
     plt.savefig("{}/{}".format(script_dir, plot_path), bbox_inches="tight", dpi=300)
     plt.clf()
 
-def plot_signals_with_paths(jobs, plot_path):
+def plot_signals_with_paths(jobs, plot_path, num_paths):
     
-    fig, ax = plt.subplots(NUM_PATHS + 1, 1, figsize=(6, 6), sharex=True) 
+    fig, ax = plt.subplots(num_paths + 1, 1, figsize=(6, 6), sharex=True) 
     
     plt.subplots_adjust(hspace=1)
     
     # draw a horizontal dashed line between the first plot and the rest 
-    for i in range(NUM_PATHS + 1): 
+    for i in range(num_paths + 1): 
         ax[i].set_ylim(0, 2.1)
         padded_signals = [] 
         
@@ -171,6 +157,9 @@ def plot_signals_with_paths(jobs, plot_path):
 
 
 def add_to_signal(signal1, signal2, shift):
+    if len(signal1) < len(signal2) + shift:
+        signal1.extend([0] * (len(signal2) + shift - len(signal1)))
+    
     for i in range(len(signal2)):
         signal1[i + shift] += signal2[i]
 
@@ -181,26 +170,18 @@ def does_path_have_capacity(path_signal, added_signal, shift):
     return True         
 
 
-# this function will route the signals to the paths, with the assumption that 
-# there's no randomness in the signal generation. the important thing that it 
-# returns in the end is a map, that maps each iteration of the jobs to one path. 
-# the map will be used to determine the path of the job in the simulation.
-# however the simulation will be done in a way that the signals are generated
-# with random noise, so the execution will differ from the routing that is done 
-# here. 
-# the goal will ultimately be to find the best routing strategy, and the best
-# timing schedule for the jobs, such that even with the random noise, the
-# signals will be routed to the paths in a way that the paths will not be congested. 
+# finds the paths that strictly have enough capacity for the job signal
+# selects one of those paths based on the argument. 
 
-def route_signals(jobs, path_num, padded_length):
-    
+# if no path with capacity is found, a random path is chosen.
+
+def x_fit_route_jobs(jobs, path_num, padded_length, fit_type):
     sum_path_signals = [[0] * padded_length for _ in range(path_num)] 
+    routing_decisions = {} 
+    clock_hand = 0
     
     for job in jobs:
-        job["decisions"] = {}
-
         curr_shift = job["initial_shift"]
-            
         for i in range(job["signal_rep_count"]):
             chosen_path = -1 
             available_paths = [] 
@@ -219,10 +200,24 @@ def route_signals(jobs, path_num, padded_length):
                 print("No path had capacity for rep {} of job {}".format(i, job["jobid"]))
                 chosen_path = random.randint(0, path_num - 1)
             else: 
-                chosen_path = random.choice(available_paths)                 
+                if fit_type == "first":
+                    chosen_path = available_paths[0]
+                elif fit_type == "random":
+                    chosen_path = random.choice(available_paths)
+                elif fit_type == "last":
+                    chosen_path = available_paths[-1]
+                elif fit_type == "clock":
+                    while clock_hand not in available_paths:
+                        clock_hand = (clock_hand + 1) % path_num
+                    chosen_path = clock_hand
+                    clock_hand = (clock_hand + 1) % path_num
+                    
+                elif fit_type == "best":
+                    print("Not implemented yet")
+                    exit(0)
             
-            job["decisions"][i] = chosen_path
-            
+            routing_decisions[(job["jobid"], i)] = chosen_path
+                        
             # add the signal to the chosen path, and add zeros to the other paths
             add_to_signal(sum_path_signals[chosen_path],
                           job["base_signal"],
@@ -230,11 +225,65 @@ def route_signals(jobs, path_num, padded_length):
                                     
             curr_shift += job["base_signal_length"]
     
+    return routing_decisions
 
+
+def random_route_jobs(jobs, path_num):
+    routing_decisions = {} 
+    
+    for job in jobs:
+        for i in range(job["signal_rep_count"]):
+            routing_decisions[(job["jobid"], i)] = random.randint(0, path_num - 1)
+    
+    return routing_decisions
+
+def rr_route_jobs(jobs, path_num):
+    routing_decisions = {} 
+    path_index = 0
+    
+    for job in jobs:
+        for i in range(job["signal_rep_count"]):
+            routing_decisions[(job["jobid"], i)] = path_index
+            path_index = (path_index + 1) % path_num
+    
+    return routing_decisions    
+
+
+# this function will route the signals to the paths, with the assumption that 
+# there's no randomness in the signal generation. the important thing that it 
+# returns in the end is a map, that maps each iteration of the jobs to one path. 
+# the map will be used to determine the path of the job in the simulation.
+# however the simulation will be done in a way that the signals are generated
+# with random noise, so the execution will differ from the routing that is done 
+# here. 
+# the goal will ultimately be to find the best routing strategy, and the best
+# timing schedule for the jobs, such that even with the random noise, the
+# signals will be routed to the paths in a way that the paths will not be congested. 
+def route_jobs(jobs, path_num, padded_length, protocol="random"):
+    
+    if protocol == "randomfit":
+        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "random")
+    elif protocol == "firstfit":
+        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "first")
+    elif protocol == "lastfit":
+        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "last")
+    elif protocol == "clockfit":
+        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "clock")
+    elif protocol == "bestfit":
+        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "best")
+    elif protocol == "random":
+        routing_decisions = random_route_jobs(jobs, path_num)
+    elif protocol == "round_robin":
+        routing_decisions = rr_route_jobs(jobs, path_num)
+    else:
+        raise ValueError("Invalid routing protocol")
+    
+    return routing_decisions
+    
                       
 # this function should be called after the initial shift is set for the 
 # jobs, i.e. the timing schedule should be done before. 
-def create_signals_for_jobs(jobs, hyperperiod_multiplier=1):   
+def do_the_stuff(jobs, hyperperiod_multiplier=1, rep_exp_count=1, num_paths=2, routing_protocol="random"):   
     signals_lengths = [] 
     
     for job in jobs: 
@@ -254,78 +303,72 @@ def create_signals_for_jobs(jobs, hyperperiod_multiplier=1):
     max_shift = max([job["initial_shift"] for job in jobs])
     padded_length = max_shift + hyperperiod
     
-    route_signals(jobs, NUM_PATHS, padded_length)
+    routing_decisions = route_jobs(jobs, path_num=num_paths, padded_length=padded_length, protocol=routing_protocol)
     
-    for job in jobs:
-        pprint(job["decisions"])
     
-    for job in jobs:
-        job["signal"] = [0] * job["initial_shift"] 
-        job["path_signals"] = [[0] * job["initial_shift"] for _ in range(NUM_PATHS)]
+    metrics = {
+        "all_path_max": [], 
+        "overflow_ratio": [], 
+    }
+    
+    results = [] 
+    
+    for rep in range(rep_exp_count):
         
-        for i in range(signal_rep_count):
-            noisy_signal = get_base_signal(job, alpha=RANDOMNESS)
-            
-            job["signal"].extend(noisy_signal)
-            
-            for j in range(NUM_PATHS):
-                if j == job["decisions"][i]: 
-                    job["path_signals"][j].extend(noisy_signal)
-                else: 
-                    job["path_signals"][j].extend([0] * len(noisy_signal))
-            
-    make_padded_signals_for_jobs(jobs, "signal", "padded_signal")
+        path_signals = [[0] * padded_length for _ in range(num_paths)] 
+         
+        for job in jobs:
+            job["signal"] = [0] * job["initial_shift"] 
+            job["path_signals"] = [[0] * job["initial_shift"] for _ in range(num_paths)]
 
-    for j in range(NUM_PATHS): 
-        make_padded_signals_for_jobs(jobs, "path_signals", "padded_path_signals", j)
+            current_shift = job["initial_shift"]
+            
+            for i in range(signal_rep_count):
+                noisy_signal = get_base_signal(job, alpha=RANDOMNESS)
 
+                # add this iteration's signal to the job's signal
+                job["signal"].extend(noisy_signal)
+
+                # add this iteration's signal only to the path that was chosen by the routing algorithm
+                this_routing_decision = routing_decisions[(job["jobid"], i)]             
+                for j in range(num_paths):
+                    if j == this_routing_decision: 
+                        job["path_signals"][j].extend(noisy_signal)
+                        add_to_signal(path_signals[j], noisy_signal, current_shift) 
+                    else: 
+                        job["path_signals"][j].extend([0] * len(noisy_signal))
+
+                current_shift += len(noisy_signal)
     
-# this function will make copies of the jobs, so nothing should be modified 
-# the arguments by the time this function is finished. 
-def find_compatible_regions(job1, job2, plot=False):
-    job1_len = len(get_base_signal(job1))
-    job2_len = len(get_base_signal(job2))
-    
-    print("Job 1 length: ", job1_len, " Job 2 length: ", job2_len)
-    H = lcm([job1_len, job2_len])
-    
-    min_len_job = 1 
-    min_len = job1_len
-    
-    if job1_len > job2_len:
-        min_len_job = 2
-        min_len = job2_len 
+        # make_padded_signals_for_jobs(jobs, "signal", "padded_signal")
+
+        # for j in range(NUM_PATHS): 
+        #     make_padded_signals_for_jobs(jobs, "path_signals", "padded_path_signals", j)
         
-    compat_scores = [] 
     
-    for i in tqdm(range(min_len)):
-        if min_len_job == 1:
-            jobs = [job1.copy(), job2.copy()]   
-        else:
-            jobs = [job2.copy(), job1.copy()]
+        all_paths_max = 0
+        overflow_ratio = 0
+        
+        overflow = 0
+        total_signal_length = 0
+        for j in range(num_paths):
+            path_max = max(path_signals[j]) 
+            all_paths_max = max(all_paths_max, path_max)
+        
             
-        jobs[1]["initial_shift"] = i 
-
-        create_signals_for_jobs(jobs, hyperperiod_multiplier=2)
-        s = get_sum_padded_signals(jobs, padded_key="padded_signal")
+            for i in range(len(path_signals[j])):
+                if path_signals[j][i] > 1:
+                    overflow += 1
+            total_signal_length += len(path_signals[j])            
+                    
+        overflow_ratio = overflow / total_signal_length
+            
+        metrics["all_path_max"].append(all_paths_max)
+        metrics["overflow_ratio"].append(overflow_ratio)
         
-        above_limit = 0
-        for j in range(i, i + H): 
-            if s[j] > 1: 
-                above_limit += 1 
-
-        compat_score = 1 - (above_limit / H) 
-        compat_scores.append(compat_score) 
-
-    if plot: 
-        plt.plot(compat_scores, color="green", label="Compatibility")
-        plt.xlabel("Shift")
-        plt.ylabel("Compatibility")
-        plt.savefig("{}/{}".format(script_dir, "compat.png"), 
-                    bbox_inches="tight", dpi=300)
-        plt.clf()
-        
-    return compat_scores 
+            
+    return metrics 
+            
     
 def main(): 
     jobs = [
@@ -417,11 +460,9 @@ def main():
         # },
     ]
     
-    # compat = find_compatible_regions(jobs[0], jobs[1], plot=True)
-    # arg_max_compat = max(range(len(compat)), key=compat.__getitem__) 
-    # print("Most compatible region is at shift: ", arg_max_compat)
-    # print("Compatibility at max: ", compat[arg_max_compat])
-
+    num_paths = 2 
+    rep_count = 1000
+    
     # pack the jobs in the beginning
     accumulated_time = 0
     for i in range(len(jobs) - 1, -1, -1): 
@@ -432,11 +473,34 @@ def main():
     # jobs[0]["initial_shift"] = 120
     # jobs[1]["initial_shift"] = 60    
 
-    create_signals_for_jobs(jobs=jobs, hyperperiod_multiplier=1)
-    plot_signals(jobs, "signals.png")
-    plot_signals_with_paths(jobs, "signals-paths.png")
+    routing_protocols = ["randomfit", "firstfit", "lastfit", "clockfit", "random", "round_robin"]
+    all_metrics = ["all_path_max", "overflow_ratio"]
+    fig, axes = plt.subplots(len(all_metrics), 1, figsize=(10, 6))
     
+    for protocol in routing_protocols:
+        print("Simulating Routing protocol: {}".format(protocol))
+        metrics = do_the_stuff(jobs=jobs, 
+                                hyperperiod_multiplier=1, 
+                                rep_exp_count=rep_count, 
+                                num_paths=num_paths, 
+                                routing_protocol=protocol)
         
+        # plot_signals(jobs, "signals.png")
+        # plot_signals_with_paths(jobs, "signals-paths.png", num_paths=2)
+        
+        # plot the CDF of the metris  
+        for key, metric_list in metrics.items(): 
+            metric_list.sort()
+            y = [i / len(metric_list) for i in range(len(metric_list))]
+            ax = axes[all_metrics.index(key)]
+            ax.plot(metric_list, y, label=protocol)
+        
+    for ax in axes: 
+        ax.legend(loc="upper left", bbox_to_anchor=(1.05, 1))
+                
+    plt.savefig("{}/{}-cdf.png".format(script_dir, key), bbox_inches="tight", dpi=300)
+    plt.clf()
+            
 if __name__ == "__main__": 
     main()
     
