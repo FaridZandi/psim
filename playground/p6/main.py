@@ -5,6 +5,7 @@ import os
 from tqdm import tqdm
 import math
 import random
+import copy 
 
 
 SIM_LIMIT = 100000
@@ -18,10 +19,6 @@ script_dir = os.path.dirname(__file__)
 # on, and 0s represent the signal being off.
 # doesn't change the job itself, just returns the signal.
 def get_base_signal(job_info, alpha=0.0):
-    jobid = job_info["jobid"]
-    teeth_count = job_info["teeth_count"]
-    teeth_on_length = job_info["teeth_on_length"]
-    
     whole_signal = []
 
     def rand(base_number):
@@ -30,16 +27,10 @@ def get_base_signal(job_info, alpha=0.0):
         else: 
             return int(base_number * (1 + random.uniform(-alpha, alpha)))
     
-    for i in range(teeth_count):
-        tooth_period = job_info["tooth_period"]
-        tooth_on_period = rand(teeth_on_length)
-        tooth_off_period = rand(tooth_period - teeth_on_length)
-        
-        tooth_signal = []
-        tooth_signal.extend([1] * tooth_on_period)
-        tooth_signal.extend([0] * tooth_off_period)
-        
-        whole_signal.extend(tooth_signal)
+    for chunk_period, chuck_rate in job_info["chunks"]:
+        chunk_length = rand(chunk_period)
+        chunk_signal = [chuck_rate] * chunk_length
+        whole_signal.extend(chunk_signal)
 
     # add whatever's remaining to the end of the signal
     wait_time = rand(job_info["total_iter_time"] - len(whole_signal))
@@ -90,13 +81,19 @@ def plot_signals_with_paths(jobs, plot_path, num_paths):
         
         if i == 0:         
             title = "Stackplot of all signals across all the paths"
-            padded_signals = [job["padded_signal"] for job in jobs]
+            padded_signals = [job["signal"].copy() for job in jobs]
+            max_length = max([len(signal) for signal in padded_signals])
+            for signal in padded_signals:
+                signal.extend([0] * (max_length - len(signal)))
             
         else: 
             title = "Stackplot of path {}".format((i - 1) + 1)
             path_num = i - 1
-            padded_signals = [job["padded_path_signals"][path_num] for job in jobs]
-            
+            padded_signals = [job["path_signals"][path_num].copy() for job in jobs]
+            max_length = max([len(job["path_signals"][path_num]) for job in jobs])
+            for signal in padded_signals:
+                signal.extend([0] * (max_length - len(signal)))
+                            
         stackplot_x = range(len(padded_signals[0]))
         
         ax[i].stackplot(stackplot_x, padded_signals,
@@ -123,7 +120,6 @@ def plot_signals_with_paths(jobs, plot_path, num_paths):
     plt.clf()
     
 
-
 def add_to_signal(signal1, signal2, shift):
     if len(signal1) < len(signal2) + shift:
         signal1.extend([0] * (len(signal2) + shift - len(signal1)))
@@ -131,10 +127,22 @@ def add_to_signal(signal1, signal2, shift):
     for i in range(len(signal2)):
         signal1[i + shift] += signal2[i]
 
+
 def does_path_have_capacity(path_signal, added_signal, shift):
+
     for i in range(len(added_signal)):
+        
+        # if the added signal lies outside the path signal, then it's free 
+        # from that point on. we can just return early here. 
+        if i + shift >= len(path_signal):
+            return True 
+        
+        # if the path signal is already at capacity, then the path doesn't have
+        # capacity for the added signal.
         if path_signal[i + shift] + added_signal[i] > 1:
             return False  
+        
+    # if we've reached this point, then the path has capacity for the signal
     return True         
 
 
@@ -143,8 +151,8 @@ def does_path_have_capacity(path_signal, added_signal, shift):
 
 # if no path with capacity is found, a random path is chosen.
 
-def x_fit_route_jobs(jobs, path_num, padded_length, fit_type):
-    sum_path_signals = [[0] * padded_length for _ in range(path_num)] 
+def x_fit_route_jobs(jobs, path_num, fit_type):
+    sum_path_signals = [[] for _ in range(path_num)] 
     routing_decisions = {} 
     clock_hand = 0
     
@@ -199,7 +207,7 @@ def x_fit_route_jobs(jobs, path_num, padded_length, fit_type):
                           job["base_signal"],
                           curr_shift)
                                     
-            curr_shift += job["base_signal_length"]
+            curr_shift += job["total_iter_time"]
     
     return routing_decisions
 
@@ -235,18 +243,18 @@ def rr_route_jobs(jobs, path_num):
 # the goal will ultimately be to find the best routing strategy, and the best
 # timing schedule for the jobs, such that even with the random noise, the
 # signals will be routed to the paths in a way that the paths will not be congested. 
-def route_jobs(jobs, path_num, padded_length, protocol="random"):
+def schedule_jobs(jobs, path_num, protocol="random"):
     
     if protocol == "randomfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "random")
+        routing_decisions = x_fit_route_jobs(jobs, path_num, "random")
     elif protocol == "firstfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "first")
+        routing_decisions = x_fit_route_jobs(jobs, path_num, "first")
     elif protocol == "stickyfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "sticky")
+        routing_decisions = x_fit_route_jobs(jobs, path_num, "sticky")
     elif protocol == "clockfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "clock")
+        routing_decisions = x_fit_route_jobs(jobs, path_num, "clock")
     elif protocol == "bestfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, padded_length, "best")
+        routing_decisions = x_fit_route_jobs(jobs, path_num, "best")
     elif protocol == "random":
         routing_decisions = random_route_jobs(jobs, path_num)
     elif protocol == "round_robin":
@@ -288,76 +296,112 @@ def get_metric_for_routing(jobs, routing_decisions, path_signals, path_num, metr
                     repath_count += 1               
                 
         return repath_count
-            
-# this function should be called after the initial shift is set for the 
-# jobs, i.e. the timing schedule should be done before. 
-def do_the_stuff(jobs,
-                 randomness=0.0, 
-                 hyperperiod_multiplier=1, 
-                 rep_exp_count=1,
-                 num_paths=2, 
-                 routing_protocol="random", 
-                 metrics=None):   
     
-    if metrics is None: 
-        return {} 
     
+# gets the LCM of the signals lengths, 
+# multiplies it by the hyperperiod_multiplier,
+# cap the result at SIM_LIMIT        
+def get_simulation_length(jobs, hyperperiod_multiplier=1):
     signals_lengths = [] 
-    
+
     for job in jobs: 
-        job["base_signal"] = get_base_signal(job)        
-        job["base_signal_length"] = len(job["base_signal"])
-        signals_lengths.append(len(job["base_signal"]))
+        signals_lengths.append(job["total_iter_time"])
 
     # go through enough iterations to get back to the initial state
     hyperperiod = lcm(signals_lengths) * hyperperiod_multiplier
     hyperperiod = min(hyperperiod, SIM_LIMIT)
+    
+    return hyperperiod
+    
 
+def simulate_jobs(jobs, schedule, num_paths, randomness=0.0):
+    
+    path_signals = [[] for _ in range(num_paths)] 
+         
+    for job in jobs:
+        job["signal"] = [0] * job["initial_shift"] 
+        job["path_signals"] = [[0] * job["initial_shift"] for _ in range(num_paths)]
+
+        current_shift = job["initial_shift"]
+        
+        for i in range(job["signal_rep_count"]):
+            noisy_signal = get_base_signal(job, alpha=randomness)
+
+            # add this iteration's signal to the job's signal
+            job["signal"].extend(noisy_signal)
+
+            # add this iteration's signal only to the path that was chosen by the routing algorithm
+            iter_route = schedule[(job["jobid"], i)] 
+                        
+            for j in range(num_paths):
+                if j == iter_route: 
+                    job["path_signals"][j].extend(noisy_signal)
+                    add_to_signal(path_signals[j], noisy_signal, current_shift) 
+                else: 
+                    job["path_signals"][j].extend([0] * len(noisy_signal))
+
+            current_shift += len(noisy_signal)
+            
+    return path_signals
+
+
+# this function should be called after the initial shift is set for the 
+# jobs, i.e. the timing schedule should be done before. 
+def run_experiment(jobs,
+                   randomness=0.0, 
+                   hyperperiod_multiplier=1, 
+                   rep_exp_count=1,
+                   num_paths=2, 
+                   routing_protocol="random", 
+                   metrics=None):   
+    
+    if metrics is None: 
+        return {} 
+    
+    for job in jobs:
+        job["base_signal"] = get_base_signal(job, alpha=randomness)
+        
+    # todo: so this is not the simulation length, since something will be 
+    # added to it later. What's the name of this thing then? 
+    simulation_length = get_simulation_length(jobs, hyperperiod_multiplier)
+    
+    
+    # todo: there's the possibility that the last iteration of the job will be
+    # cut off, if the simulation length is not a multiple of the job length.
+    # so there will be a period where some of the signals are not present, which 
+    # is not good. 
     for job in jobs: 
-        job["signal_rep_count"] = hyperperiod // job["base_signal_length"]
-    
-    max_shift = max([job["initial_shift"] for job in jobs])
-    padded_length = max_shift + hyperperiod
-    
-    
-    
-    
+        job["signal_rep_count"] = simulation_length // job["total_iter_time"]
+
     results = {metric: [] for metric in metrics}
     
     for rep in range(rep_exp_count):
-        routes = route_jobs(jobs, 
-                            path_num=num_paths, 
-                            padded_length=padded_length, 
-                            protocol=routing_protocol)
+
+        # we schedule the jobs here. So the routing decisions are made here, but 
+        # timing decisions can also be made here.
         
-        path_signals = [[0] * padded_length for _ in range(num_paths)] 
-         
-        for job in jobs:
-            job["signal"] = [0] * job["initial_shift"] 
-            job["path_signals"] = [[0] * job["initial_shift"] for _ in range(num_paths)]
-
-            current_shift = job["initial_shift"]
-            
-            for i in range(job["signal_rep_count"]):
-                noisy_signal = get_base_signal(job, alpha=randomness)
-
-                # add this iteration's signal to the job's signal
-                job["signal"].extend(noisy_signal)
-
-                # add this iteration's signal only to the path that was chosen by the routing algorithm
-                iter_route = routes[(job["jobid"], i)] 
-                            
-                for j in range(num_paths):
-                    if j == iter_route: 
-                        job["path_signals"][j].extend(noisy_signal)
-                        add_to_signal(path_signals[j], noisy_signal, current_shift) 
-                    else: 
-                        job["path_signals"][j].extend([0] * len(noisy_signal))
-
-                current_shift += len(noisy_signal)
+        # todo: the result of this should be a schedule. The schedule contains the 
+        # routing decisions that are made for the signals, and the timing decisions
+        # that are made for the signals. The timing decisions are the shifts that
+        # are made for the signals. more than one shift can be made for a signal. 
+        schedule = schedule_jobs(jobs, 
+                                 path_num=num_paths, 
+                                 protocol=routing_protocol)
+        
+        
+        # todo: at this point, we have a schedule for running the jobs, but now we
+        # want to simulate the signals being generated and routed to the paths.
+        # in the simulation part, there will be overutilization for the paths at 
+        # some points, and that will result in some signals being stretched out, 
+        
+        path_signals = simulate_jobs(jobs, 
+                                     schedule=schedule, 
+                                     num_paths=num_paths, 
+                                     randomness=randomness)
+        
     
         for metric in metrics: 
-            metric_results = get_metric_for_routing(jobs, routes, path_signals, num_paths, metric)
+            metric_results = get_metric_for_routing(jobs, schedule, path_signals, num_paths, metric)
             results[metric].append(metric_results)
             
     return results 
@@ -368,123 +412,54 @@ def main():
         {
             "jobid": 1,
             "color": "red",
-            "teeth_count": 1, 
-            "tooth_period": 60,
-            "teeth_on_length": 60,
+            "chunks": [(100, 1)],
             "total_iter_time": 300,
             "initial_shift": 0,
         }, 
         {
             "jobid": 2,
             "color": "blue",
-            "teeth_count": 1,
-            "tooth_period": 60, 
-            "teeth_on_length": 60,
-            "total_iter_time": 400,
+            "chunks": [(100, 1)],
+            "total_iter_time": 200,
             "initial_shift": 0,
         },
         {
             "jobid": 3,
             "color": "green",
-            "teeth_count": 1,
-            "tooth_period": 60, 
-            "teeth_on_length": 60,
-            "total_iter_time": 500,
+            "chunks": [(100, 1)],   
+            "total_iter_time": 300,
             "initial_shift": 0,
         },
-        
-        
-        # {
-        #     "jobid": 1,
-        #     "color": "red",
-        #     "teeth_count": 1, 
-        #     "tooth_period": 60,
-        #     "teeth_on_length": 60,
-        #     "total_iter_time": 200,
-        #     "initial_shift": 0,
-        # }, 
-        # {
-        #     "jobid": 2,
-        #     "color": "blue",
-        #     "teeth_count": 1,
-        #     "tooth_period": 60, 
-        #     "teeth_on_length": 60,
-        #     "total_iter_time": 300,
-        #     "initial_shift": 0,
-        # },
-        # {
-        #     "jobid": 3,
-        #     "color": "green",
-        #     "teeth_count": 1,
-        #     "tooth_period": 60, 
-        #     "teeth_on_length": 60,
-        #     "total_iter_time": 300,
-        #     "initial_shift": 0,
-        # },
-        
-        
-        # {
-        #     "jobid": 4,
-        #     "color": "black",
-        #     "teeth_count": 1,
-        #     "tooth_period": 20, 
-        #     "teeth_on_length": 20,
-        #     "total_iter_time": 700,
-        #     "initial_shift": 0,
-        # },
-        
-        # {
-        #     "jobid": 1,
-        #     "color": "red",
-        #     "teeth_count": 1, 
-        #     "tooth_period": 100,
-        #     "teeth_on_length": 100,
-        #     "total_iter_time": 600,
-        #     "initial_shift": 0,
-        # }, 
-        # {
-        #     "jobid": 2,
-        #     "color": "blue",
-        #     "teeth_count": 1,
-        #     "tooth_period": 100, 
-        #     "teeth_on_length": 100,
-        #     "total_iter_time": 400,
-        #     "initial_shift": 0,
-        # },
     ]
     
     num_paths = 2
     rep_count = 100
     randomness = 0.01
     
-    # pack the jobs in the beginning
-    accumulated_time = 0
-    for i in range(len(jobs) - 1, -1, -1): 
-        print("Job {} initial shift: {}".format(i, accumulated_time))
-        jobs[i]["initial_shift"] = accumulated_time
-        accumulated_time += jobs[i]["tooth_period"]
-    
-    # jobs[0]["initial_shift"] = 120
-    # jobs[1]["initial_shift"] = 60    
+    jobs[0]["initial_shift"] = 120
+    jobs[1]["initial_shift"] = 60    
 
     routing_protocols = ["randomfit", "firstfit", "stickyfit", "clockfit", "random", "round_robin"]
     all_metrics = ["max_path_util", "overflow_ratio", "repath_count"]
     
-    
     fig, axes = plt.subplots(len(all_metrics), 1, figsize=(10, 6))
+    plt.subplots_adjust(hspace=0.5)
     
     for protocol in routing_protocols:
         print("Simulating Routing protocol: {}".format(protocol))
-        metrics = do_the_stuff(jobs=jobs, 
-                               randomness=randomness,
-                               hyperperiod_multiplier=3, 
-                               rep_exp_count=rep_count, 
-                               num_paths=num_paths, 
-                               routing_protocol=protocol,
-                               metrics=all_metrics)
+        
+        metrics = run_experiment(jobs=jobs, 
+                                 randomness=randomness,
+                                 hyperperiod_multiplier=20, 
+                                 rep_exp_count=rep_count, 
+                                 num_paths=num_paths, 
+                                 routing_protocol=protocol,
+                                 metrics=all_metrics)
         
         # plot_signals(jobs, "signals.png")
-        # plot_signals_with_paths(jobs, "signals-paths.png", num_paths=2)
+        # plot_signals_with_paths(jobs, 
+        #                         "plots/{}-signals-paths.png".format(protocol), 
+        #                         num_paths=2)
         
         # plot the CDF of the metris  
         for key, metric_list in metrics.items(): 
