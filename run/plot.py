@@ -10,13 +10,16 @@ from pprint import pprint
 ############################################################################################
 
 # the params that might vary in the experiments     
-all_sweep_params = [
+all_sweep_params_default = [
+    "lb-scheme", 
+    
     "min-rate",
     "ft-core-count",
-    "ft-agg-core-link-capacity-mult",
+    "machine-count", 
+    # "ft-agg-core-link-capacity-mult",
     "shuffle-device-map",
     "priority-allocator",
-    "load-metric",
+    # "load-metric",
     "general-param-2", 
     "general-param-3", 
     "general-param-1", 
@@ -27,7 +30,8 @@ all_sweep_params = [
     "general-param-8",
     "general-param-9",
     "general-param-10",
-    "lb-scheme", 
+    "placement-mode",
+    
 ]
 
 colors = {
@@ -51,7 +55,15 @@ csv_path = sys.argv[1]
 results_dir = csv_path[:csv_path.rfind("/")] + "/"
 pd_frame = pd.read_csv(csv_path)
 
-# convert param columns to string
+
+if len(sys.argv) > 2:
+    all_sweep_params = sys.argv[2].split(",")
+else:
+    all_sweep_params = all_sweep_params_default
+
+# pad the numbers with zeros to make sure the sorting is correct
+# lexicographically, 10 will come before 2. 
+# but 02 will come before 10, which is what we want 
 for param in all_sweep_params:
     if param in pd_frame:
         is_number = pd_frame[param].dtype.kind in 'bifc'
@@ -60,6 +72,10 @@ for param in all_sweep_params:
             digits = len(str(max_value))
             # convert to string, pad with zeros to make sure the sorting is correct
             pd_frame[param] = pd_frame[param].astype(str).str.zfill(digits)
+
+
+# convert param columns to string
+################################
 
 sweep_params = []
 # find which of the params are constant in the csv. remove them from the list
@@ -74,6 +90,7 @@ for param in sweep_params:
     pd_frame["params"] += pd_frame[param] + ","
 pd_frame["params"] = pd_frame["params"].str.strip(",")
 pd_frame = pd_frame.sort_values(by=["protocol-file-name", "params"])
+################################
 
 
 # find the protocols and params
@@ -134,7 +151,7 @@ for i in range (all_params_count):
         # the label and its corresponding value to the grouping label.
         for k in range(1, len(param_combination)):
             value = params[i].split(",")[len(param_combination) - k - 1]
-            grouping_label += group_sizes_labels[k] + "  =  " + value + "\n"
+            grouping_label += group_sizes_labels[k] + " = " + value + ",    "
 
         grouping_label = grouping_label.strip("\n")
 
@@ -160,12 +177,28 @@ pprint(tick_labels)
 ############################################################################################
 ############################################################################################
 
-def get_color(mech):
-    for color in colors:
-        if color in mech:
-            return colors[color]
+colorings = {}
+color_bank = ["red", "green", "orange", "yellow", "blue", "purple", "black", "gray", "pink", "wheat"]
+coloring_bank_index = 0
+
+ 
+def get_color(color_specifier):
+    global coloring_bank_index
+    
+    if color_specifier in colorings:
+        return colorings[color_specifier]
     else:
-        return None
+        colorings[color_specifier] = color_bank[coloring_bank_index]
+        coloring_bank_index += 1
+        
+        return colorings[color_specifier]
+
+    # print("mech:", mech)
+    # for color in colors:
+    #     if color in mech:
+    #         return colors[color]
+    # else:
+    #     return None
 
 # for each protocol, normalize the times, the max max_time is 1, and everything else is relative to that
 pd_frame["rel_max_psim_time"] = 0
@@ -208,11 +241,12 @@ for i, param in enumerate(params):
 
     param_data = pd_frame[pd_frame["params"] == param]
     x_offset = x + (param_offset[i] - group_width / 2)
-
+    coloring_basis = param.split(",")[-1]
+    
     if "futureload" in param:
         plt.bar(x_offset, param_data["rel_last_psim_time"],
                 width=1, label=param,
-                color=get_color(param), edgecolor="black")
+                color=get_color(coloring_basis), edgecolor="black")
 
     else:
         # plt.bar(x_offset, param_data["rel_max_psim_time"],
@@ -230,10 +264,8 @@ for i, param in enumerate(params):
         plt.bar(x_offset, param_data["rel_max_psim_time"] - param_data["rel_min_psim_time"],
                 bottom=param_data["rel_min_psim_time"],
                 width=1, label=param,
-                color=get_color(param), edgecolor="black")
+                color=get_color(coloring_basis), edgecolor="black")
         
-                
-
 
 # xticks on the top of the plot
 plt.xticks(x, protocols)

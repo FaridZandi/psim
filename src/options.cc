@@ -60,6 +60,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("adaptive-step-size", po::value<int>()->implicit_value(1), "enable adaptive step size setting")
         ("adaptive-step-size-min", po::value<double>(), "min adaptive step size")
         ("adaptive-step-size-max", po::value<double>(), "max adaptive step size")
+        ("print-flow-progress-history", po::value<int>()->implicit_value(1), "print flow progress history")
         ("general-param-1", po::value<int>(), "general param 1")
         ("general-param-2", po::value<int>(), "general param 2")
         ("general-param-3", po::value<int>(), "general param 3")
@@ -368,6 +369,9 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("adaptive-step-size-max")) {
         GConf::inst().adaptive_step_size_max = vm["adaptive-step-size-max"].as<double>();
     }
+    if (vm.count("print-flow-progress-history")) {
+        GConf::inst().print_flow_progress_history = true;
+    }
 }
 
 void psim::log_config() {
@@ -418,6 +422,7 @@ void psim::log_config() {
     spdlog::info("==== adaptive_step_size: {}", GConf::inst().adaptive_step_size);
     spdlog::info("==== adaptive_step_size_min: {}", GConf::inst().adaptive_step_size_min);
     spdlog::info("==== adaptive_step_size_max: {}", GConf::inst().adaptive_step_size_max);
+    spdlog::info("==== print_flow_progress_history: {}", GConf::inst().print_flow_progress_history);
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

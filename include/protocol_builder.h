@@ -11,6 +11,7 @@ Protocol* ring_allreduce(int num_replicas, double comm_size, double aggregate_ti
 Protocol* build_all_to_all(int num_replicas, double comm_size, int chunk_count); 
 Protocol* build_periodic_data_parallelism(); 
 Protocol* build_periodic_simple();
+Protocol* build_nethint_test(); 
 } // namespace psim
 
 #endif

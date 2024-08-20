@@ -92,6 +92,8 @@ public:
     int core_status_profiling_interval = 10;
     std::string log_file_name = "log.txt";
 
+    bool print_flow_progress_history = false; 
+    
     // int machine_count = 16;
     // int ft_server_per_rack = 4;
     // int ft_rack_per_pod = 2;

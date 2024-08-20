@@ -63,6 +63,7 @@ public:
     void log_results(); 
     void measure_regret();
     void log_lb_decisions();  
+    void log_flow_info();  
     
     Network *network;
 

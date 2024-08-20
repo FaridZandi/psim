@@ -200,7 +200,8 @@ def x_fit_route_jobs(jobs, path_num, fit_type):
                     print("Not implemented yet")
                     exit(0)
             
-            routing_decisions[(job["jobid"], i)] = chosen_path
+            routing_decisions[(job["jobid"], i)] = {"path": chosen_path, 
+                                                    "time": curr_shift}
                         
             # add the signal to the chosen path, and add zeros to the other paths
             add_to_signal(sum_path_signals[chosen_path],
@@ -216,16 +217,23 @@ def random_route_jobs(jobs, path_num):
     routing_decisions = {} 
     
     for job in jobs:
+        current_shift = job["initial_shift"]
+        
         for i in range(job["signal_rep_count"]):
-            routing_decisions[(job["jobid"], i)] = random.randint(0, path_num - 1)
-    
+            path = random.randint(0, path_num - 1)
+
+            routing_decisions[(job["jobid"], i)] = {"path": path,  
+                                                    "time": current_shift}
+
+            current_shift += job["total_iter_time"] 
+            
     return routing_decisions
 
 def rr_route_jobs(jobs, path_num):
     routing_decisions = {} 
     path_index = 0
     
-    for job in jobs:
+    for job in jobs:    
         for i in range(job["signal_rep_count"]):
             routing_decisions[(job["jobid"], i)] = path_index
             path_index = (path_index + 1) % path_num
@@ -244,25 +252,24 @@ def rr_route_jobs(jobs, path_num):
 # timing schedule for the jobs, such that even with the random noise, the
 # signals will be routed to the paths in a way that the paths will not be congested. 
 def schedule_jobs(jobs, path_num, protocol="random"):
-    
     if protocol == "randomfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, "random")
+        schedule = x_fit_route_jobs(jobs, path_num, "random")
     elif protocol == "firstfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, "first")
+        schedule = x_fit_route_jobs(jobs, path_num, "first")
     elif protocol == "stickyfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, "sticky")
+        schedule = x_fit_route_jobs(jobs, path_num, "sticky")
     elif protocol == "clockfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, "clock")
+        schedule = x_fit_route_jobs(jobs, path_num, "clock")
     elif protocol == "bestfit":
-        routing_decisions = x_fit_route_jobs(jobs, path_num, "best")
+        schedule = x_fit_route_jobs(jobs, path_num, "best")
     elif protocol == "random":
-        routing_decisions = random_route_jobs(jobs, path_num)
+        schedule = random_route_jobs(jobs, path_num)
     elif protocol == "round_robin":
-        routing_decisions = rr_route_jobs(jobs, path_num)
+        schedule = rr_route_jobs(jobs, path_num)
     else:
         raise ValueError("Invalid routing protocol")
     
-    return routing_decisions
+    return schedule
     
 
 def get_metric_for_routing(jobs, routing_decisions, path_signals, path_num, metric):
@@ -331,7 +338,8 @@ def simulate_jobs(jobs, schedule, num_paths, randomness=0.0):
             job["signal"].extend(noisy_signal)
 
             # add this iteration's signal only to the path that was chosen by the routing algorithm
-            iter_route = schedule[(job["jobid"], i)] 
+            iter_route = schedule[(job["jobid"], i)]["path"]
+            
                         
             for j in range(num_paths):
                 if j == iter_route: 
@@ -365,7 +373,6 @@ def run_experiment(jobs,
     # added to it later. What's the name of this thing then? 
     simulation_length = get_simulation_length(jobs, hyperperiod_multiplier)
     
-    
     # todo: there's the possibility that the last iteration of the job will be
     # cut off, if the simulation length is not a multiple of the job length.
     # so there will be a period where some of the signals are not present, which 
@@ -384,22 +391,28 @@ def run_experiment(jobs,
         # routing decisions that are made for the signals, and the timing decisions
         # that are made for the signals. The timing decisions are the shifts that
         # are made for the signals. more than one shift can be made for a signal. 
+        
+        # some schedules have a random component, so to be safe, we should make the 
+        # schedule every time. However, we could also make the schedule once, and
+        # then use it for all the experiments. I assume making it every time gives us a
+        # better view of the distribution of the metrics.
         schedule = schedule_jobs(jobs, 
                                  path_num=num_paths, 
                                  protocol=routing_protocol)
         
-        
+
+        if rep == 0: 
+            pprint(schedule)
+            
         # todo: at this point, we have a schedule for running the jobs, but now we
         # want to simulate the signals being generated and routed to the paths.
         # in the simulation part, there will be overutilization for the paths at 
         # some points, and that will result in some signals being stretched out, 
-        
         path_signals = simulate_jobs(jobs, 
                                      schedule=schedule, 
                                      num_paths=num_paths, 
                                      randomness=randomness)
         
-    
         for metric in metrics: 
             metric_results = get_metric_for_routing(jobs, schedule, path_signals, num_paths, metric)
             results[metric].append(metric_results)

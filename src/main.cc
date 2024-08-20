@@ -59,6 +59,9 @@ int main(int argc, char** argv) {
         change_log_path(worker_dir + "run-" + std::to_string(rep), "regrets.txt");
         psim->measure_regret(); 
 
+        change_log_path(worker_dir + "run-" + std::to_string(rep), "flow-info.txt");
+        psim->log_flow_info();
+
         if (rep == 1){
             GContext::inst().cut_off_time = psim_time;
             GContext::inst().cut_off_decrease_step = psim_time / GConf::inst().rep_count;

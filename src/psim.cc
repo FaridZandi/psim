@@ -70,6 +70,8 @@ void PSim::add_protocols_from_input(){
             proto = build_periodic_data_parallelism(); 
         } else if (protocol_file_name == "periodic-test-simple") {
             proto = build_periodic_simple(); 
+        } else if (protocol_file_name == "nethint-test"){
+            proto = build_nethint_test();
         } else {
             std::string path = GConf::inst().protocol_file_dir + "/" + protocol_file_name;
             proto = load_protocol_from_file(path);
@@ -329,37 +331,40 @@ double PSim::simulate() {
         timer += this_step_step_size;
     }
 
-    for (Flow* flow: finished_flows){
-        if (flow->lb_decision == -1) {
-            continue; 
-        }
-
-        bool outgoing = false; 
-        if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
-            outgoing = true; 
-        }
-
-        std::string progress_history = "";
-
-        for (double ph: flow->progress_history){
-            // 2 digits after the decimal point.
-            std::string item = fmt::format("{:.2f}", ph);
-            progress_history += item + " ";
-        }
-
-        spdlog::critical("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
-                         flow->id, flow->jobid,
-                         outgoing ? "outgoing" : "incoming", 
-                         flow->start_time, flow->end_time, 
-                         flow->end_time - flow->start_time + step_size, flow->lb_decision, 
-                         step_size, flow->label_for_progress_graph, progress_history);
-    }
-
     mark_critical_path(); 
-
     save_run_results();
 
     return timer;
+}
+
+void PSim::log_flow_info(){
+    if (GConf::inst().print_flow_progress_history) {
+        for (Flow* flow: finished_flows){
+            if (flow->lb_decision == -1) {
+                continue; 
+            }
+
+            bool outgoing = false; 
+            if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
+                outgoing = true; 
+            }
+
+            std::string progress_history = "";
+
+            for (double ph: flow->progress_history){
+                // 2 digits after the decimal point.
+                std::string item = fmt::format("{:.2f}", ph);
+                progress_history += item + " ";
+            }
+
+            spdlog::warn("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
+                flow->id, flow->jobid,
+                outgoing ? "outgoing" : "incoming", 
+                flow->start_time, flow->end_time, 
+                flow->end_time - flow->start_time + step_size, flow->lb_decision, 
+                step_size, flow->label_for_progress_graph, progress_history);
+        }
+    }
 }
 
 void PSim::mark_critical_path(){

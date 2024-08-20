@@ -86,9 +86,10 @@ def make_cmd(executable, options, use_gdb=False, print_cmd=False):
     return cmd
 
 
-def build_exec(executable, base_executable, build_path, run_path):
+def build_exec(executable, base_executable, build_path, run_dir):
     # build the executable, exit if build fails
     os.chdir(build_path)
+    
     # run the make -j command, get the exit code
     exit_code = os.system("make -j")
     
@@ -96,7 +97,7 @@ def build_exec(executable, base_executable, build_path, run_path):
         print("make failed, exiting")
         sys.exit(1)
         
-    os.chdir(run_path)
+    os.chdir(run_dir)
     os.system("cp {} {}".format(base_executable, executable))
     
     
@@ -147,3 +148,18 @@ def get_psim_time(job_output, print_output=False):
         } 
     
     return result
+
+
+default_load_metric_map = {
+    "futureload": "utilization",
+    "leastloaded": "flowsize",
+    "powerof2": "flowsize",
+    "powerof3": "flowsize",
+    "powerof4": "flowsize",
+    "random": "flowcount",
+    "robinhood": "utilization",
+    "roundrobin": "flowsize",
+    "sita-e": "utilization",
+    "ecmp": "flowsize",
+    "zero": "flowsize", 
+}

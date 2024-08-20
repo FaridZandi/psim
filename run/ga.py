@@ -23,7 +23,7 @@ workers_dir = run_path + "/workers/"
 # run-specific paths
 run_id = str(get_incremented_number())
 executable = build_path + "/psim-" + run_id
-ga_run_dir = run_path + "ga/{}/".format(run_id)
+ga_run_dir = run_path + "results/ga/{}/".format(run_id)
 os.system("mkdir -p {}".format(ga_run_dir))
 shuffle_path  = ga_run_dir + "shuffle.txt"
 ga_rounds_dir = ga_run_dir + "rounds/"
