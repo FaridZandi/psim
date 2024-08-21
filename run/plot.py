@@ -55,12 +55,22 @@ csv_path = sys.argv[1]
 results_dir = csv_path[:csv_path.rfind("/")] + "/"
 pd_frame = pd.read_csv(csv_path)
 
+print(pd_frame.columns)
 
 if len(sys.argv) > 2:
     all_sweep_params = sys.argv[2].split(",")
 else:
     all_sweep_params = all_sweep_params_default
 
+
+if len(sys.argv) > 4:
+    plotted_key_min = sys.argv[3]
+    plotted_key_max = sys.argv[4]
+else:
+    plotted_key_min = "rel_max_psim_time"
+    plotted_key_max = "rel_min_psim_time"
+    input("warning: no plotted key specified, press enter to continue. rel_max_psim_time is going to be used, which will probably lead to errors.")
+    
 # pad the numbers with zeros to make sure the sorting is correct
 # lexicographically, 10 will come before 2. 
 # but 02 will come before 10, which is what we want 
@@ -201,27 +211,29 @@ def get_color(color_specifier):
     #     return None
 
 # for each protocol, normalize the times, the max max_time is 1, and everything else is relative to that
-pd_frame["rel_max_psim_time"] = 0
-pd_frame["rel_min_psim_time"] = 0
-pd_frame["rel_last_psim_time"] = 0
-pd_frame["rel_avg_psim_time"] = 0
+# pd_frame["rel_max_psim_time"] = 0
+# pd_frame["rel_min_psim_time"] = 0
+# pd_frame["rel_last_psim_time"] = 0
+# pd_frame["rel_avg_psim_time"] = 0
 
-for protocol in protocols:
-    protocol_data = pd_frame[pd_frame["protocol-file-name"] == protocol]
-    max_max_time = protocol_data["max_psim_time"].max()
+# for protocol in protocols:
+#     protocol_data = pd_frame[pd_frame["protocol-file-name"] == protocol]
+#     max_max_time = protocol_data["max_psim_time"].max()
 
-    for index, row in protocol_data.iterrows():
-        pd_frame.loc[index, "rel_max_psim_time"] = row["max_psim_time"] / max_max_time
-        pd_frame.loc[index, "rel_min_psim_time"] = row["min_psim_time"] / max_max_time
-        pd_frame.loc[index, "rel_last_psim_time"] = row["last_psim_time"] / max_max_time
-        pd_frame.loc[index, "rel_avg_psim_time"] = row["avg_psim_time"] / max_max_time
+#     for index, row in protocol_data.iterrows():
+#         pd_frame.loc[index, "rel_max_psim_time"] = row["max_psim_time"] / max_max_time
+#         pd_frame.loc[index, "rel_min_psim_time"] = row["min_psim_time"] / max_max_time
+#         pd_frame.loc[index, "rel_last_psim_time"] = row["last_psim_time"] / max_max_time
+#         pd_frame.loc[index, "rel_avg_psim_time"] = row["avg_psim_time"] / max_max_time
 
-        if row["rel_last_psim_time"] > 1:
-            print("error: rel_last_psim_time > 1")
-            print(row)
+#         if row["rel_last_psim_time"] > 1:
+#             print("error: rel_last_psim_time > 1")
+#             print(row)
             
-plot_ylim_min = pd_frame["rel_min_psim_time"].min()
+# plot_ylim_min = pd_frame["rel_min_psim_time"].min()
 # plot_ylim_min = 0
+plot_ylim_min = pd_frame[plotted_key_min].min()
+plot_ylim_max = pd_frame[plotted_key_max].max()
 
 inner_grouping_size = group_sizes[0]
 sub_group_width = inner_grouping_size
@@ -243,35 +255,17 @@ for i, param in enumerate(params):
     x_offset = x + (param_offset[i] - group_width / 2)
     coloring_basis = param.split(",")[-1]
     
-    if "futureload" in param:
-        plt.bar(x_offset, param_data["rel_last_psim_time"],
-                width=1, label=param,
-                color=get_color(coloring_basis), edgecolor="black")
-
-    else:
-        # plt.bar(x_offset, param_data["rel_max_psim_time"],
-        #         width=1, color="white",
-        #         edgecolor="black", hatch="///")
-
-        # plt.bar(x_offset, param_data["rel_min_psim_time"],
-        #         width=1, label=param,
-        #         color=get_color(param), edgecolor="black")
-
-        # plt.bar(x_offset, param_data["rel_min_psim_time"],
-        #         width=1, label=param,
-        #         color=get_color(param), edgecolor="black")
-    
-        plt.bar(x_offset, param_data["rel_max_psim_time"] - param_data["rel_min_psim_time"],
-                bottom=param_data["rel_min_psim_time"],
-                width=1, label=param,
-                color=get_color(coloring_basis), edgecolor="black")
+    plt.bar(x_offset, param_data[plotted_key_max] - param_data[plotted_key_min],
+            bottom=param_data[plotted_key_min],
+            width=1, label=param,
+            color=get_color(coloring_basis), edgecolor="black")
         
 
 # xticks on the top of the plot
 plt.xticks(x, protocols)
 plt.tick_params(axis='x', which='both', bottom=False, top=True, labelbottom=False, labeltop=True)
 plt.xticks(rotation=90)
-plt.ylim(plot_ylim_min * 0.99, 1.01)
+plt.ylim(plot_ylim_min * 0.9, plot_ylim_max * 1.1)
 
 # the labels
 plt.xlabel("Protocol")
@@ -298,5 +292,6 @@ for i, protocol in enumerate(protocols):
 
 plot_name_pdf = results_dir + "plot.pdf"
 plot_name_png = results_dir + "plot.png"
-plt.savefig(plot_name_pdf, bbox_inches="tight", dpi=300)
+
+# plt.savefig(plot_name_pdf, bbox_inches="tight", dpi=300)
 plt.savefig(plot_name_png, bbox_inches="tight", dpi=300)

@@ -61,6 +61,8 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("adaptive-step-size-min", po::value<double>(), "min adaptive step size")
         ("adaptive-step-size-max", po::value<double>(), "max adaptive step size")
         ("print-flow-progress-history", po::value<int>()->implicit_value(1), "print flow progress history")
+        ("placement-seed", po::value<int>(), "placement seed")
+        ("simulation-seed", po::value<int>(), "simulation seed")    
         ("general-param-1", po::value<int>(), "general param 1")
         ("general-param-2", po::value<int>(), "general param 2")
         ("general-param-3", po::value<int>(), "general param 3")
@@ -372,6 +374,12 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("print-flow-progress-history")) {
         GConf::inst().print_flow_progress_history = true;
     }
+    if (vm.count("placement-seed")) {
+        GConf::inst().placement_seed = vm["placement-seed"].as<int>();
+    }
+    if (vm.count("simulation-seed")) {
+        GConf::inst().simulation_seed = vm["simulation-seed"].as<int>();
+    }   
 }
 
 void psim::log_config() {

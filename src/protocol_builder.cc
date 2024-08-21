@@ -895,41 +895,93 @@ int get_config_or_default(int value, int default_value) {
     return value;
 }
 
+
 Protocol* 
 psim::build_nethint_test() {
+
+    // set the placement seed to config placement_seed 
+    int placement_seed = GConf::inst().placement_seed;
+    if (placement_seed != 0) {
+        srand(placement_seed);
+    } else {
+        srand(time(0));
+    }
+
+
     Protocol *protocol = new Protocol();
 
-    int machines_per_job = get_config_or_default(GConf::inst().general_param_1, 32);
-    int placement_protocol = get_config_or_default(GConf::inst().general_param_2, 1); // 1 for compact, 2 for random 
+    int machines_per_job_low = get_config_or_default(GConf::inst().general_param_1, 32);
+    int machines_per_job_high = get_config_or_default(GConf::inst().general_param_3, 32);
 
-    int job_count = GConf::inst().machine_count / machines_per_job; 
+    // for the placement protocol: 
+    // 1: compact placement with optimal ring. 
+    // 2: random placement with optimal ring.
+    // 3: compact placement with random ring.
+    // 4: random placement with random ring.
+    int placement_protocol = get_config_or_default(GConf::inst().general_param_2, 1); 
 
-    std::vector<int> available_machines; 
+    int machines_left = GConf::inst().machine_count; 
+    int job_count = 0; 
+    std::vector<int> job_machine_counts;
+
+    // deciding the number of machines for each job, and therefore the number of jobs.
+    while(machines_left > 0){
+        int random_choice = rand() % 2;
+        int machines_per_job = std::min(machines_per_job_low, machines_left);
+        if (random_choice == 1) {
+            machines_per_job = std::min(machines_per_job_high, machines_left);
+        }
+
+        job_machine_counts.push_back(machines_per_job);
+        machines_left -= machines_per_job;
+        job_count += 1;
+    }
+
+    // get a list of the machines. If the placement protocol is random, shuffle the list. 
+    std::vector<int> all_machines; 
+
     for (int i = 0; i < GConf::inst().machine_count; i++) {
-        available_machines.push_back(i);
+        all_machines.push_back(i);
     }
-    if (placement_protocol == 2) {
-        std::random_shuffle(available_machines.begin(), available_machines.end());
+    if (placement_protocol == 2 or placement_protocol == 4) {
+        for (int i = 0; i < GConf::inst().machine_count; i++) {
+            // shuffle the machines with the shuffle function 
+            std::random_shuffle(all_machines.begin(), all_machines.end());
+        }
     }
 
+    int current_job_start_index = 0; 
 
     for (int i = 0; i < job_count; i++) {
         std::vector<int> job_machines;
 
-        int start_index = i * machines_per_job;
-        int end_index = start_index + machines_per_job;
+        int start_index = current_job_start_index;
+        int end_index = current_job_start_index + job_machine_counts[i]; // exclusive
 
         for (int j = start_index; j < end_index; j++) {
-            job_machines.push_back(available_machines[j]);
+            job_machines.push_back(all_machines[j]);
         }
 
-        int this_job_initial_wait = i * 100;
+        if (placement_protocol == 1 or placement_protocol == 2) {
+            std::sort(job_machines.begin(), job_machines.end());
+        } else if (placement_protocol == 3 or placement_protocol == 4) {
+            std::random_shuffle(job_machines.begin(), job_machines.end());
+        }
+
+        // convert the job_machines to a string and print it.
+        std::string job_machines_str = "";
+        for (int j = 0; j < job_machines.size(); j++) {
+            job_machines_str += std::to_string(job_machines[j]) + " ";
+        }
+        spdlog::critical("PLACEMENT: job {} machines: {}", i + 1, job_machines_str);
+
+        int this_job_initial_wait = 0; // i * 100;
         int this_job_comp_length = 100;
         int this_job_comm_length = 4000;
         int this_job_reps_multiplier = 1;
         int this_job_long_pc_length = 1000;
         int this_job_id = i + 1;
-        int layer_count = 4;
+        int layer_count = 1;
 
         insert_simple_data_parallelism(protocol, this_job_id, 
                                        job_machines, layer_count, 
@@ -937,6 +989,8 @@ psim::build_nethint_test() {
                                        this_job_comp_length, 
                                        this_job_comm_length, 
                                        this_job_initial_wait, false);
+
+        current_job_start_index = end_index;
     }
     return protocol; 
 }

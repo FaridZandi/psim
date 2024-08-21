@@ -45,6 +45,9 @@ int main(int argc, char** argv) {
         psim->add_protocols_from_input();
         psim->inform_network_of_protocols();
 
+        // set the seed to simulation_seed + rep 
+        srand(GConf::inst().simulation_seed + rep);
+
         double psim_time = psim->simulate();
         GContext::this_run().psim_time = psim_time;
         psim_time_list.push_back(psim_time);
@@ -80,7 +83,7 @@ int main(int argc, char** argv) {
 
 
 void init(int argc, char** argv){
-    srand(time(NULL));
+    // srand(time(NULL));
 
     po::variables_map vm = parse_arguments(argc, argv);
     process_arguments(vm);

@@ -8,7 +8,6 @@ def make_shuffle(count, path):
     dir = os.path.dirname(path)
     if not os.path.exists(dir):
         os.makedirs(dir)
-        
     
     numbers = list(range(count))
     random.shuffle(numbers)
@@ -150,13 +149,17 @@ def get_psim_time(job_output, print_output=False):
     return result
 
 
+def get_random_string(length):
+    letters = "abcdefghijklmnopqrstuvwxyz"
+    return ''.join(random.choice(letters) for i in range(length))
+
 default_load_metric_map = {
     "futureload": "utilization",
-    "leastloaded": "flowsize",
+    "leastloaded": "utilization",
     "powerof2": "flowsize",
     "powerof3": "flowsize",
     "powerof4": "flowsize",
-    "random": "flowcount",
+    "random": "utilization",
     "robinhood": "utilization",
     "roundrobin": "flowsize",
     "sita-e": "utilization",
