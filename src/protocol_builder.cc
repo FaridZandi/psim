@@ -898,20 +898,51 @@ int get_config_or_default(int value, int default_value) {
 
 Protocol* 
 psim::build_nethint_test() {
-
-    // set the placement seed to config placement_seed 
-    int placement_seed = GConf::inst().placement_seed;
-    if (placement_seed != 0) {
-        srand(placement_seed);
-    } else {
-        srand(time(0));
-    }
-
-
+    srand(GConf::inst().placement_seed);
     Protocol *protocol = new Protocol();
+
+
+    ////////////////////////////////////////////////////////////////////////////////
+    ////// all the job-description randomness should be done here. 
+    ////// stuff like the number of machines per job, the number of jobs,
+    ////// the number of layers, the number of iterations, the communication size,
+    ////// if they need to randomized, they should be randomized here.
+    ////// The number of times the random values are drawn should be the same 
+    ////// for the same seed. 
+    ////// MORE DETAILS: the placement randomness is called differently for 
+    ////// different placement modes. some modes call random_shuffle once, other 
+    ////// modes call random_shuffle multiple times. Therefore, if some job-related
+    ////// random values are drawn after the placement randomness, the results will
+    ////// be different for different placement modes, which is something we want to 
+    ////// avoid.
+    ////////////////////////////////////////////////////////////////////////////////
 
     int machines_per_job_low = get_config_or_default(GConf::inst().general_param_1, 32);
     int machines_per_job_high = get_config_or_default(GConf::inst().general_param_3, 32);
+
+    int machines_left = GConf::inst().machine_count; 
+    std::vector<int> job_machine_counts;
+    int job_count = 0; 
+
+    // deciding the number of machines for each job, and therefore the number of jobs.
+    while(machines_left > 0){
+        int machines_for_job = rand() % (machines_per_job_high - machines_per_job_low + 1) + machines_per_job_low;
+        if (machines_for_job > machines_left) {
+            machines_for_job = machines_left;
+        }
+
+        job_machine_counts.push_back(machines_for_job);
+        machines_left -= machines_for_job;
+        job_count += 1;
+    }
+
+    ////////////////////////////////////////////////////////////////////////////////
+    ////// all the placement randomness should be done here. 
+    ////// which machines are assigned to which job, and the order of the machines
+    ////// NO JOB DESCRIPTION RANDOMNESS SHOULD BE DONE BEYOND THIS POINT.
+    ////// OTHERWISE, the results will not be reproducible.
+    ////////////////////////////////////////////////////////////////////////////////
+
 
     // for the placement protocol: 
     // 1: compact placement with optimal ring. 
@@ -919,23 +950,6 @@ psim::build_nethint_test() {
     // 3: compact placement with random ring.
     // 4: random placement with random ring.
     int placement_protocol = get_config_or_default(GConf::inst().general_param_2, 1); 
-
-    int machines_left = GConf::inst().machine_count; 
-    int job_count = 0; 
-    std::vector<int> job_machine_counts;
-
-    // deciding the number of machines for each job, and therefore the number of jobs.
-    while(machines_left > 0){
-        int random_choice = rand() % 2;
-        int machines_per_job = std::min(machines_per_job_low, machines_left);
-        if (random_choice == 1) {
-            machines_per_job = std::min(machines_per_job_high, machines_left);
-        }
-
-        job_machine_counts.push_back(machines_per_job);
-        machines_left -= machines_per_job;
-        job_count += 1;
-    }
 
     // get a list of the machines. If the placement protocol is random, shuffle the list. 
     std::vector<int> all_machines; 
@@ -976,12 +990,12 @@ psim::build_nethint_test() {
         spdlog::critical("PLACEMENT: job {} machines: {}", i + 1, job_machines_str);
 
         int this_job_initial_wait = 0; // i * 100;
-        int this_job_comp_length = 100;
+        int this_job_comp_length = 500;
         int this_job_comm_length = 4000;
-        int this_job_reps_multiplier = 1;
-        int this_job_long_pc_length = 1000;
+        int this_job_reps_multiplier = 5;
+        int this_job_long_pc_length = 3000;
         int this_job_id = i + 1;
-        int layer_count = 1;
+        int layer_count = 3;
 
         insert_simple_data_parallelism(protocol, this_job_id, 
                                        job_machines, layer_count, 

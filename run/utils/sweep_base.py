@@ -12,6 +12,7 @@ import datetime
 from utils.util import *
 import resource
 from processing.itertimes import get_convergence_info, get_first_iter_info
+import copy 
 
 # pd.set_option('display.max_rows', 500)
 # pd.set_option('display.max_columns', 500)
@@ -24,6 +25,7 @@ class ConfigSweeper:
                  run_command_options_modifier=None,
                  run_results_modifier=None,
                  global_results_modifier=None,
+                 result_extractor_function=None,
                  worker_thread_count=DEFAULT_WORKER_THREAD_COUNT):
         
         # arguments
@@ -45,6 +47,7 @@ class ConfigSweeper:
         self.run_results_modifier = run_results_modifier
         self.worker_thread_count = worker_thread_count
         self.global_results_modifier = global_results_modifier
+        self.result_extractor_function = result_extractor_function
         
         # paths
         self.run_id = str(get_incremented_number())
@@ -64,9 +67,6 @@ class ConfigSweeper:
 
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.shuffle_dir))
-
-
-
 
     def sweep(self):
         with open(self.results_dir + "sweep-config.txt", "w") as f:
@@ -92,6 +92,7 @@ class ConfigSweeper:
         self.run_all_experiments()
 
         print ("number of jobs that didn't converge:", self.non_converged_jobs)
+        
         os.system("rm {}".format(self.run_executable))
 
         all_pd_frame = pd.DataFrame(self.exp_results)
@@ -164,48 +165,63 @@ class ConfigSweeper:
                 changed_keys = self.run_command_options_modifier(options, self)
                 saved_keys.update(changed_keys)
                     
-        # create the command
+                    
         cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
-
-        try:
+        
+        
+        try: 
             output = subprocess.check_output(cmd, shell=True)
             output = output.decode("utf-8")
-
+            
             end_time = datetime.datetime.now()
             duration = end_time - start_time
-
-            last_psim_time = 0
-            min_psim_time = 1e12
-            max_psim_time = 0
-            all_times = []
-
-            for line in output.splitlines():
-                if "psim time" in line:
-                    psim_time = float(line.strip().split(" ")[-1])
-                    all_times.append(psim_time)
-                    if psim_time > max_psim_time:
-                        max_psim_time = psim_time
-                    if psim_time < min_psim_time:
-                        min_psim_time = psim_time
-                    last_psim_time = psim_time
+            
+            this_exp_results = self.result_extractor_function(output, options)
             
         except subprocess.CalledProcessError as e:
-            min_psim_time = 0
-            max_psim_time = 0
-            last_psim_time = 0
-            all_times = []
-            duration = datetime.timedelta(0)
+            print("error in running the command")
+            print("I don't know what to do here")
+            exit(0)
+            
+        # try:
+        #     output = subprocess.check_output(cmd, shell=True)
+        #     output = output.decode("utf-8")
 
-        this_exp_results = {
-            "min_psim_time": min_psim_time,
-            "max_psim_time": max_psim_time,
-            "last_psim_time": last_psim_time,
-            "avg_psim_time": np.mean(all_times),
-            "all_times": all_times,
-            "exp_duration": duration.microseconds,
-            "run_id": self.run_id,
-        }
-        
+        #     end_time = datetime.datetime.now()
+        #     duration = end_time - start_time
+
+        #     last_psim_time = 0
+        #     min_psim_time = 1e12
+        #     max_psim_time = 0
+        #     all_times = []
+
+        #     for line in output.splitlines():
+        #         if "psim time" in line:
+        #             psim_time = float(line.strip().split(" ")[-1])
+        #             all_times.append(psim_time)
+        #             if psim_time > max_psim_time:
+        #                 max_psim_time = psim_time
+        #             if psim_time < min_psim_time:
+        #                 min_psim_time = psim_time
+        #             last_psim_time = psim_time
+            
+        # except subprocess.CalledProcessError as e:
+        #     min_psim_time = 0
+        #     max_psim_time = 0
+        #     last_psim_time = 0
+        #     all_times = []
+        #     duration = datetime.timedelta(0)
+
+        # this_exp_results = {
+        #     "min_psim_time": min_psim_time,
+        #     "max_psim_time": max_psim_time,
+        #     "last_psim_time": last_psim_time,
+        #     "avg_psim_time": np.mean(all_times),
+        #     "all_times": all_times,
+        #     "exp_duration": duration.microseconds,
+        #     "run_id": self.run_id,
+        # }
+            
         # TODO: maybe add them under a different key? 
         # m = {options: options = {}, results: results = {}}
         for key in saved_keys:
@@ -228,6 +244,7 @@ class ConfigSweeper:
     def plot_results(self, interesting_keys, plotted_key_min, plotted_key_max): 
         keys_arg = ",".join(interesting_keys)
         os.system("python plot.py {} {} {} {}".format(self.csv_path, keys_arg, plotted_key_min, plotted_key_max))
+        
         
     def plot_cdfs(self, csv_path, separating_params, same_plot_param, cdf_params):
         separating_params_str = ",".join(separating_params)

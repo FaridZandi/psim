@@ -66,12 +66,9 @@ sweep_config = {
     ], 
     "placement-seed": list(range(1, 11)), # this is a dummy parameter. basically repeat the experiment 10 times
     "lb-scheme": ["random", COMPARED_LB],
+    "timing-scheme": ["realistic"],
 } 
 
-
-# I want to have a shuffle map file for each experiment, that is shared between the different 
-# lb schemes. So the different experiments that only differ in the lb scheme will use the same shuffle map file.
-shuffle_map_cache = {}
 
 
 def run_command_options_modifier(options, config_sweeper):
@@ -83,9 +80,7 @@ def run_command_options_modifier(options, config_sweeper):
         options["rep-count"] = RANDOM_REP_COUNT
         if options["ft-core-count"] == 1:
             options["rep-count"] = 1
-            
         options["ft-agg-core-link-capacity-mult"] = (total_capacity / options["link-bandwidth"]) / options["ft-core-count"] 
-        
         options["general-param-10"] = 0 
     
     if options["lb-scheme"] == "perfect":
@@ -106,23 +101,25 @@ def run_command_options_modifier(options, config_sweeper):
                  
     return ["load-metric", "ft-agg-core-link-capacity-mult", "simulation-seed", "general-param-10", "general-param-9"]
 
+
+def result_extractor_function(output, options):
+    
+    
+
 def run_results_modifier(results, output):
     # rename the field: general-param-2 -> placement-mode
     results["placement-mode"] = results.pop("general-param-2")
     results["placement-mode"] = placement_mode_map[results["placement-mode"]] 
-    
     
     if results["general-param-10"] == 1234:
         # this is a perfect lb scheme, so we need to change the lb-scheme to "perfect"
         results["lb-scheme"] = "perfect"
         results["ft-core-count"] = results["general-param-9"]
         
-        
     # go through the output, print all the lines that have "PLACEMENT" in them
     # for line in output.split("\n"):
     #     if "PLACEMENT" in line:
     #         print(line)
-            
     
     
 # compute the speedup of the "roundrobin" over the "random" lb scheme
@@ -142,26 +139,30 @@ def global_results_modifier(exp_results_df, config_sweeper):
     # reduce the dataframe on "placement-seed"
     group_on = merge_on.copy()
     group_on.remove("placement-seed")
-    grouped_df = merged_df.groupby(by=group_on).agg({"speedup": ["min", "max", lambda x: sorted(list(x))]})
-    grouped_df.columns = ['_'.join(col).strip() for col in grouped_df.columns.values]
 
-    # rename the values column to speedup_values
-    grouped_df = grouped_df.rename(columns={"speedup_<lambda_0>": "speedup_values"})
-    
+    grouped_df = merged_df.groupby(by=group_on).agg(
+        speedup_min=("speedup", "min"),
+        speedup_max=("speedup", "max"),
+        speedup_values=("speedup", lambda x: sorted(list(x))),
+    )
     return grouped_df
             
+if __name__ == "__main__":
+    random.seed(experiment_seed)
     
-random.seed(experiment_seed)
+    cs = ConfigSweeper(options, sweep_config, 
+                       run_command_options_modifier, 
+                       run_results_modifier, 
+                       global_results_modifier, 
+                       result_extractor_function)
+    
+    results_dir, csv_path, exp_results = cs.sweep()
 
-cs = ConfigSweeper(options, sweep_config, run_command_options_modifier, run_results_modifier, global_results_modifier) 
-results_dir, csv_path, exp_results = cs.sweep()
+    cs.plot_results(interesting_keys=["machine-count", "ft-core-count", "placement-mode"], 
+                    plotted_key_min="speedup_min", 
+                    plotted_key_max="speedup_max")
 
-
-cs.plot_results(interesting_keys=["machine-count", "ft-core-count", "placement-mode"], 
-                plotted_key_min="speedup_min", 
-                plotted_key_max="speedup_max")
-
-cs.plot_cdfs(csv_path, 
-             separating_params=["machine-count", "ft-core-count"], 
-             same_plot_param="placement-mode", 
-             cdf_params=["speedup_values"])
+    # cs.plot_cdfs(csv_path, 
+    #              separating_params=["machine-count", "ft-core-count"], 
+    #              same_plot_param="placement-mode", 
+    #              cdf_params=["speedup_values"])
