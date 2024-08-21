@@ -14,6 +14,8 @@ placement_mode_map = {1: "compact placement+optimal ring",
 
 total_capacity = 800
 
+experiment_seed = 45 
+
 options = {
     "step-size": 1,
     "core-status-profiling-interval": 100000,
@@ -32,7 +34,7 @@ options = {
 
     "network-type": "leafspine",    
     "link-bandwidth": 100,
-    "ft-server-per-rack": 32,
+    "ft-server-per-rack": 8,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
     # "ft-core-count": 4,
@@ -48,13 +50,13 @@ options = {
     "shuffle-device-map": False,
     "regret-mode": "none",
     
-    "general-param-1": 16, # number of machines for each job, low 
-    "general-param-3": 32, # number of machines for each job, high 
+    "general-param-1": 4, # number of machines for each job, low 
+    "general-param-3": 8, # number of machines for each job, high 
 }
 
 sweep_config = {
     "protocol-file-name": ["nethint-test"],
-    "machine-count": [128, 256, 512],
+    "machine-count": [32, 64, 128],
     "ft-core-count": [1, 2, 4, 8],
     "general-param-2": [ # placement mode
         1, # "compact placement+optimal ring",
@@ -62,7 +64,7 @@ sweep_config = {
         3, # "compact placement+random ring",
         4, # "random placement+random ring"                    
     ], 
-    "placement-seed": list(range(1, 101)), # this is a dummy parameter. basically repeat the experiment 10 times
+    "placement-seed": list(range(1, 11)), # this is a dummy parameter. basically repeat the experiment 10 times
     "lb-scheme": ["random", COMPARED_LB],
 } 
 
@@ -73,7 +75,7 @@ shuffle_map_cache = {}
 
 
 def run_command_options_modifier(options, config_sweeper):
-    options["simulation-seed"] = random.randint(0, 1000000)
+    options["simulation-seed"] = experiment_seed
      
     options["general-param-9"] = 0 
     
@@ -140,14 +142,26 @@ def global_results_modifier(exp_results_df, config_sweeper):
     # reduce the dataframe on "placement-seed"
     group_on = merge_on.copy()
     group_on.remove("placement-seed")
-    grouped_df = merged_df.groupby(by=group_on).agg({"speedup": ["min", "max", lambda x: list(x)]})
+    grouped_df = merged_df.groupby(by=group_on).agg({"speedup": ["min", "max", lambda x: sorted(list(x))]})
     grouped_df.columns = ['_'.join(col).strip() for col in grouped_df.columns.values]
 
+    # rename the values column to speedup_values
+    grouped_df = grouped_df.rename(columns={"speedup_<lambda_0>": "speedup_values"})
+    
     return grouped_df
             
-        
+    
+random.seed(experiment_seed)
+
 cs = ConfigSweeper(options, sweep_config, run_command_options_modifier, run_results_modifier, global_results_modifier) 
 results_dir, csv_path, exp_results = cs.sweep()
+
+
 cs.plot_results(interesting_keys=["machine-count", "ft-core-count", "placement-mode"], 
                 plotted_key_min="speedup_min", 
                 plotted_key_max="speedup_max")
+
+cs.plot_cdfs(csv_path, 
+             separating_params=["machine-count", "ft-core-count"], 
+             same_plot_param="placement-mode", 
+             cdf_params=["speedup_values"])

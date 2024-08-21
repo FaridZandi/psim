@@ -228,3 +228,9 @@ class ConfigSweeper:
     def plot_results(self, interesting_keys, plotted_key_min, plotted_key_max): 
         keys_arg = ",".join(interesting_keys)
         os.system("python plot.py {} {} {} {}".format(self.csv_path, keys_arg, plotted_key_min, plotted_key_max))
+        
+    def plot_cdfs(self, csv_path, separating_params, same_plot_param, cdf_params):
+        separating_params_str = ",".join(separating_params)
+        cdf_params_str = ",".join(cdf_params)
+        os.system("python plot_cdf.py {} {} {} {}".format(csv_path, separating_params_str, same_plot_param, cdf_params_str))
+        

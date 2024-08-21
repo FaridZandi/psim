@@ -84,6 +84,7 @@ int main(int argc, char** argv) {
 
 void init(int argc, char** argv){
     // srand(time(NULL));
+    srand(0); 
 
     po::variables_map vm = parse_arguments(argc, argv);
     process_arguments(vm);
