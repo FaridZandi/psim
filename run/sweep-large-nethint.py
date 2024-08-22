@@ -3,6 +3,8 @@ from utils.sweep_base import ConfigSweeper
 from utils.util import default_load_metric_map
 import pandas as pd 
 import numpy as np  
+from processing.itertimes_multirep import get_all_rep_iter_lengths
+from pprint import pprint 
 
 RANDOM_REP_COUNT = 5 
 COMPARED_LB = "perfect"
@@ -16,7 +18,9 @@ total_capacity = 800
 
 experiment_seed = 45 
 
-options = {
+PERFECT_LB_MAGIC = 1234 
+
+base_options = {
     "step-size": 1,
     "core-status-profiling-interval": 100000,
     "rep-count": 1, 
@@ -56,7 +60,7 @@ options = {
 
 sweep_config = {
     "protocol-file-name": ["nethint-test"],
-    "machine-count": [32, 64, 128],
+    "machine-count": [16],
     "ft-core-count": [1, 2, 4, 8],
     "general-param-2": [ # placement mode
         1, # "compact placement+optimal ring",
@@ -64,58 +68,94 @@ sweep_config = {
         3, # "compact placement+random ring",
         4, # "random placement+random ring"                    
     ], 
-    "placement-seed": list(range(1, 11)), # this is a dummy parameter. basically repeat the experiment 10 times
+    "placement-seed": list(range(1, 50)), # this is a dummy parameter. basically repeat the experiment 10 times
     "lb-scheme": ["random", COMPARED_LB],
-    "timing-scheme": ["realistic"],
 } 
 
 
-
 def run_command_options_modifier(options, config_sweeper):
-    options["simulation-seed"] = experiment_seed
+    options["simulation-seed"] = experiment_seed 
+    
+    # regardless of the other stuff that we do, this is what we want: 
+    per_link_capacity = total_capacity / options["ft-core-count"]
+    options["ft-agg-core-link-capacity-mult"] = per_link_capacity / options["link-bandwidth"]
      
-    options["general-param-9"] = 0 
-    
-    if options["lb-scheme"] == "random":
-        options["rep-count"] = RANDOM_REP_COUNT
-        if options["ft-core-count"] == 1:
-            options["rep-count"] = 1
-        options["ft-agg-core-link-capacity-mult"] = (total_capacity / options["link-bandwidth"]) / options["ft-core-count"] 
-        options["general-param-10"] = 0 
-    
-    if options["lb-scheme"] == "perfect":
-        options["lb-scheme"] = "random"
-        options["general-param-9"] = options["ft-core-count"]
-        options["ft-agg-core-link-capacity-mult"] = (total_capacity / options["link-bandwidth"])
-        options["ft-core-count"] = 1
-        options["rep-count"] = 1
-        options["general-param-10"] = 1234 
-    
-    options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
-    
     # I want to have a fixed amount of capacity to the core layer. 
     # If there are more cores, then the capacity per link should be divided.
     # e.g. 1 * 800, 2 * 400, 4 * 200, 8 * 100
-    # max_core_count = max(sweep_config["ft-core-count"])
-    # options["ft-agg-core-link-capacity-mult"] = max_core_count / options["ft-core-count"]
-                 
-    return ["load-metric", "ft-agg-core-link-capacity-mult", "simulation-seed", "general-param-10", "general-param-9"]
+    
+    run_context = {
+        "perfect_lb": False,
+        "original_mult": options["ft-agg-core-link-capacity-mult"],
+        "original_core_count": options["ft-core-count"],
+    }        
+
+    if options["lb-scheme"] == "random":
+        # there's no point in running more than one rep for random if there's only one core. 
+        if options["ft-core-count"] > 1:
+            options["rep-count"] = RANDOM_REP_COUNT
+    
+    if options["lb-scheme"] == "leastloaded":
+        pass 
+    
+    
+    if options["lb-scheme"] == "perfect":
+        run_context["perfect_lb"] = True
+        
+        # perfect lb is actually a random lb with with the combined capacity in one link. 
+        options["lb-scheme"] = "random"
+        options["ft-agg-core-link-capacity-mult"] = (total_capacity / options["link-bandwidth"])
+        options["ft-core-count"] = 1
+        options["rep-count"] = 1
+    
+    
+    options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
+       
+    changed_keys = ["ft-agg-core-link-capacity-mult", "ft-core-count", "rep-count", "load-metric"]
+              
+    return changed_keys, run_context 
 
 
-def result_extractor_function(output, options):
+def result_extractor_function(output, options, this_exp_results):
+    
+    iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"])
+    avg_iter_lengths = [] 
+    
+    for rep in iter_lengths:
+        sum_iter_lengths = 0 
+        iter_count = 0  
+        for job, iters in rep.items():
+            sum_iter_lengths += sum(iters) 
+            iter_count += len(iters)    
+            
+        avg_iter_lengths.append(sum_iter_lengths / iter_count)    
+    
+    this_exp_results.update({
+        "min_avg_iter_length": min(avg_iter_lengths),
+        "max_avg_iter_length": max(avg_iter_lengths),
+        "last_avg_iter_length": avg_iter_lengths[-1],
+        "avg_avg_iter_length": np.mean(avg_iter_lengths),
+        "all_iter_lengths": avg_iter_lengths,
+    })
     
     
 
-def run_results_modifier(results, output):
+def run_results_modifier(results, options, output, run_context):
     # rename the field: general-param-2 -> placement-mode
     results["placement-mode"] = results.pop("general-param-2")
     results["placement-mode"] = placement_mode_map[results["placement-mode"]] 
-    
-    if results["general-param-10"] == 1234:
-        # this is a perfect lb scheme, so we need to change the lb-scheme to "perfect"
+
+
+    # this is a perfect lb scheme, so we need to change the lb-scheme to "perfect"
+    # and change othe other fields back to the original values.
+    if run_context["perfect_lb"]:
         results["lb-scheme"] = "perfect"
-        results["ft-core-count"] = results["general-param-9"]
-        
+        results["ft-agg-core-link-capacity-mult"] = run_context["original_mult"]
+        results["ft-core-count"] = run_context["original_core_count"]
+    
+    results["cores"] = "{} x {} Gbps".format(results["ft-core-count"], 
+                                           int(options["link-bandwidth"] * results["ft-agg-core-link-capacity-mult"]))
+    
     # go through the output, print all the lines that have "PLACEMENT" in them
     # for line in output.split("\n"):
     #     if "PLACEMENT" in line:
@@ -129,11 +169,11 @@ def global_results_modifier(exp_results_df, config_sweeper):
     compared_lb_df = exp_results_df[exp_results_df["lb-scheme"] == COMPARED_LB]
     
     # merge the two dataframes
-    merge_on = ["protocol-file-name", "machine-count", "ft-core-count", "placement-mode", "placement-seed"]
+    merge_on = ["protocol-file-name", "machine-count", "cores", "placement-mode", "placement-seed"]
     merged_df = pd.merge(random_df, compared_lb_df, on=merge_on, suffixes=('_random', '_compared'))
-    merged_df["speedup"] = merged_df["avg_psim_time_random"] / merged_df["avg_psim_time_compared"] 
+    merged_df["speedup"] = merged_df["avg_avg_iter_length_random"] / merged_df["avg_avg_iter_length_compared"] 
     
-    saved_columns = merge_on + ["speedup"] + ["avg_psim_time_random", "avg_psim_time_compared"]
+    saved_columns = merge_on + ["speedup"] + ["avg_avg_iter_length_random", "avg_avg_iter_length_compared"]
     merged_df[saved_columns].to_csv(config_sweeper.merged_csv_path)
     
     # reduce the dataframe on "placement-seed"
@@ -150,7 +190,7 @@ def global_results_modifier(exp_results_df, config_sweeper):
 if __name__ == "__main__":
     random.seed(experiment_seed)
     
-    cs = ConfigSweeper(options, sweep_config, 
+    cs = ConfigSweeper(base_options, sweep_config, 
                        run_command_options_modifier, 
                        run_results_modifier, 
                        global_results_modifier, 
@@ -158,9 +198,10 @@ if __name__ == "__main__":
     
     results_dir, csv_path, exp_results = cs.sweep()
 
-    cs.plot_results(interesting_keys=["machine-count", "ft-core-count", "placement-mode"], 
+    cs.plot_results(interesting_keys=["cores", "machine-count" , "placement-mode"], 
                     plotted_key_min="speedup_min", 
-                    plotted_key_max="speedup_max")
+                    plotted_key_max="speedup_max", 
+                    title="Speedup of perfect over random, under {} Gbps total capacity".format(total_capacity))
 
     # cs.plot_cdfs(csv_path, 
     #              separating_params=["machine-count", "ft-core-count"], 

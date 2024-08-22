@@ -8,7 +8,7 @@ options = {
 
     "step-size": 1,
     "core-status-profiling-interval": 100000,
-    "rep-count": 2, 
+    "rep-count": 1, 
     "console-log-level": 4,
     "file-log-level": 3,
     
@@ -23,7 +23,7 @@ options = {
 
     "network-type": "leafspine",    
     "link-bandwidth": 100,
-    "machine-count": 16,
+    "machine-count": 512,
     "ft-server-per-rack": 4,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
@@ -43,10 +43,11 @@ options = {
     "shuffle-device-map": True,
     "regret-mode": "none",
     
-    "general-param-1": 8,
+    "general-param-1": 4,
     "general-param-3": 8,
     
-    "general-param-2": 1,
+    "general-param-2": 4,
+    
     "simulation-seed": 45, 
     "placement-seed": 12,
 }

@@ -65,6 +65,11 @@ class ConfigSweeper:
         self.merged_csv_path = self.results_dir + "merged_results.csv".format(self.run_id)
         self.workers_dir = self.run_path + "/workers/"
 
+        self.results_cache = {}
+        self.cache_lock = threading.Lock() 
+        self.cache_hits = 0 
+        
+        
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.shuffle_dir))
 
@@ -91,7 +96,8 @@ class ConfigSweeper:
         
         self.run_all_experiments()
 
-        print ("number of jobs that didn't converge:", self.non_converged_jobs)
+        print("number of jobs that didn't converge:", self.non_converged_jobs)
+        print("number of cache hits:", self.cache_hits)
         
         os.system("rm {}".format(self.run_executable))
 
@@ -142,112 +148,105 @@ class ConfigSweeper:
                 return
             self.run_experiment(exp, worker_id)   
 
-
             
             
     def run_experiment(self, exp, worker_id):
         start_time = datetime.datetime.now()
 
-        options = {
-            "worker-id": worker_id,
-        }
+        options = {}
         options.update(self.base_options)
         options.update(exp)
 
         # we don't to save every key in the options, so we keep track of the keys that we want to save.
         # TODO: why can't we just save all the keys? what's the limitation here? the csv file will be too big?
         saved_keys = set(list(self.sweep_config.keys())) 
+        run_context = {} 
         
         # a final chance for the user to modify the options before making the command. 
         # it should also return the keys that have been changed, so that we can save them in the results. 
         if self.run_command_options_modifier is not None:
             with self.thread_lock: 
-                changed_keys = self.run_command_options_modifier(options, self)
+                changed_keys, run_context = self.run_command_options_modifier(options, self)
                 saved_keys.update(changed_keys)
                     
+        
+        cache_hit = False 
+        cache_key = str(options)
+        print("cache key: ", cache_key)
+        
+        with self.cache_lock:
+            if cache_key in self.results_cache:
+                cache_hit = True
+                self.cache_hits += 1
+        
+        if cache_hit:
+            with self.cache_lock:
+                this_exp_results, output = self.results_cache[cache_key]
+                this_exp_results = copy.deepcopy(this_exp_results)
+                duration = 0 
+                
+        else:                         
+            options["worker-id"] = worker_id
+            cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
+            
+            try: 
+                output = subprocess.check_output(cmd, shell=True)
+                output = output.decode("utf-8").splitlines()
+                
+                end_time = datetime.datetime.now()
+                duration = end_time - start_time
+                
+                # get the basic results. 
+                this_exp_results = {
+                    "exp_duration": duration.microseconds,
+                    "run_id": self.run_id,
+                }
+                
+                # get the rest of the results from the user defined function.            
+                self.result_extractor_function(output, options, this_exp_results)
+                
+                # with self.cache_lock:
+                #     self.results_cache[cache_key] = (this_exp_results, output)
                     
-        cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
-        
-        
-        try: 
-            output = subprocess.check_output(cmd, shell=True)
-            output = output.decode("utf-8")
+            except subprocess.CalledProcessError as e:
+                print("error in running the command")
+                print("I don't know what to do here")
+                exit(0)
+                
             
-            end_time = datetime.datetime.now()
-            duration = end_time - start_time
-            
-            this_exp_results = self.result_extractor_function(output, options)
-            
-        except subprocess.CalledProcessError as e:
-            print("error in running the command")
-            print("I don't know what to do here")
-            exit(0)
-            
-        # try:
-        #     output = subprocess.check_output(cmd, shell=True)
-        #     output = output.decode("utf-8")
-
-        #     end_time = datetime.datetime.now()
-        #     duration = end_time - start_time
-
-        #     last_psim_time = 0
-        #     min_psim_time = 1e12
-        #     max_psim_time = 0
-        #     all_times = []
-
-        #     for line in output.splitlines():
-        #         if "psim time" in line:
-        #             psim_time = float(line.strip().split(" ")[-1])
-        #             all_times.append(psim_time)
-        #             if psim_time > max_psim_time:
-        #                 max_psim_time = psim_time
-        #             if psim_time < min_psim_time:
-        #                 min_psim_time = psim_time
-        #             last_psim_time = psim_time
-            
-        # except subprocess.CalledProcessError as e:
-        #     min_psim_time = 0
-        #     max_psim_time = 0
-        #     last_psim_time = 0
-        #     all_times = []
-        #     duration = datetime.timedelta(0)
-
-        # this_exp_results = {
-        #     "min_psim_time": min_psim_time,
-        #     "max_psim_time": max_psim_time,
-        #     "last_psim_time": last_psim_time,
-        #     "avg_psim_time": np.mean(all_times),
-        #     "all_times": all_times,
-        #     "exp_duration": duration.microseconds,
-        #     "run_id": self.run_id,
-        # }
-            
-        # TODO: maybe add them under a different key? 
-        # m = {options: options = {}, results: results = {}}
         for key in saved_keys:
             this_exp_results[key] = options[key]
 
         with self.thread_lock:
             if self.run_results_modifier is not None:
-                self.run_results_modifier(this_exp_results, output)
+                self.run_results_modifier(this_exp_results, options, output, run_context)
+                
             self.exp_results.append(this_exp_results)
             
             pprint(this_exp_results)
-            print("min time: {}, max time: {}, last time: {}".format(
-                min_psim_time, max_psim_time, last_psim_time))
             print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))
             print("duration: {}".format(duration))
             print("worker id: {}".format(worker_id))
             print("--------------------------------------------")
 
 
-    def plot_results(self, interesting_keys, plotted_key_min, plotted_key_max): 
+    def plot_results(self, interesting_keys, plotted_key_min, plotted_key_max, title): 
         keys_arg = ",".join(interesting_keys)
-        os.system("python plot.py {} {} {} {}".format(self.csv_path, keys_arg, plotted_key_min, plotted_key_max))
+        
+        plot_command = "python plot.py {} {} {} {}".format(self.csv_path, keys_arg, 
+                                                           plotted_key_min, plotted_key_max)
+        print("plot command for further reference: ")
+        print(plot_command)
+        os.system(plot_command)
         
         
     def plot_cdfs(self, csv_path, separating_params, same_plot_param, cdf_params):
         separating_params_str = ",".join(separating_params)
         cdf_params_str = ",".join(cdf_params)
-        os.system("python plot_cdf.py {} {} {} {}".format(csv_path, separating_params_str, same_plot_param, cdf_params_str))
+        
+        plot_command = "python plot_cdf.py {} {} {} {}".format(csv_path, separating_params_str, 
+                                                               same_plot_param, cdf_params_str)
+        print("plot command for further reference: ")
+        print(plot_command)
+        os.system(plot_command)
         

@@ -857,14 +857,14 @@ void PSim::save_run_results(){
         //     {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
         // });
 
-        // draw_plots({
-        //     {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
-        // });
+        draw_plots({
+            {"core-util", [](history_entry h){return h.total_core_bw_utilization / h.total_core_bw;}},
+        });
         
-        // draw_plots({
-        //     {"min-core-util", [](history_entry h){return h.min_core_link_bw_utilization;}},
-        //     {"max-core-util", [](history_entry h){return h.max_core_link_bw_utilization;}},
-        // });
+        draw_plots({
+            {"min-core-util", [](history_entry h){return h.min_core_link_bw_utilization;}},
+            {"max-core-util", [](history_entry h){return h.max_core_link_bw_utilization;}},
+        });
 
         // draw_plots({
         //     {"step_comp", [](history_entry h){return h.step_comm;}},

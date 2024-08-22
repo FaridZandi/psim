@@ -170,7 +170,7 @@ for i in range (all_params_count):
         if k == 0: 
             sub_group_width *= (group_sizes[k] + 3)
         else: 
-            sub_group_width *= (group_sizes[k] + 1) 
+            sub_group_width *= (group_sizes[k] + 2) 
             
     param_offset[i] = total_offset    
     print(i, param_combination, params[i], total_offset)
@@ -203,35 +203,6 @@ def get_color(color_specifier):
         
         return colorings[color_specifier]
 
-    # print("mech:", mech)
-    # for color in colors:
-    #     if color in mech:
-    #         return colors[color]
-    # else:
-    #     return None
-
-# for each protocol, normalize the times, the max max_time is 1, and everything else is relative to that
-# pd_frame["rel_max_psim_time"] = 0
-# pd_frame["rel_min_psim_time"] = 0
-# pd_frame["rel_last_psim_time"] = 0
-# pd_frame["rel_avg_psim_time"] = 0
-
-# for protocol in protocols:
-#     protocol_data = pd_frame[pd_frame["protocol-file-name"] == protocol]
-#     max_max_time = protocol_data["max_psim_time"].max()
-
-#     for index, row in protocol_data.iterrows():
-#         pd_frame.loc[index, "rel_max_psim_time"] = row["max_psim_time"] / max_max_time
-#         pd_frame.loc[index, "rel_min_psim_time"] = row["min_psim_time"] / max_max_time
-#         pd_frame.loc[index, "rel_last_psim_time"] = row["last_psim_time"] / max_max_time
-#         pd_frame.loc[index, "rel_avg_psim_time"] = row["avg_psim_time"] / max_max_time
-
-#         if row["rel_last_psim_time"] > 1:
-#             print("error: rel_last_psim_time > 1")
-#             print(row)
-            
-# plot_ylim_min = pd_frame["rel_min_psim_time"].min()
-# plot_ylim_min = 0
 plot_ylim_min = pd_frame[plotted_key_min].min()
 plot_ylim_max = pd_frame[plotted_key_max].max()
 
@@ -282,11 +253,19 @@ plt.legend(limited_handles, limited_labels, bbox_to_anchor=(1, 1), loc='upper le
 # annotate the tick_labels on the bottom of the plot
 start_offset = 0
 for i, protocol in enumerate(protocols):
+    
     for offset, text in tick_labels.items():
-        this_offset = start_offset + offset - group_width / 2 + sub_group_width / 2
-        plt.annotate(text, (this_offset, plot_ylim_min * 0.99), xytext=(0, -20), textcoords="offset points",
-                 rotation=45, ha='center', va='top')
         
+        this_offset = start_offset + offset - group_width / 2 + sub_group_width / 2
+        text = text.strip()
+        a = plt.annotate(text, xy=(this_offset, plot_ylim_min * 0.9), xytext=(0, -20), textcoords="offset points",
+                     rotation=45, ha='right', va='top') 
+    
+        # plot vertical lines to separate the groups on either sides of the tick_labels
+        # plt.axvline(x=this_offset - sub_group_width, color="black", linestyle="--")  
+        # plt.axvline(x=this_offset + sub_group_width, color="black", linestyle="--")  
+    
+            
     start_offset += (group_width + group_spacing)
 
 
