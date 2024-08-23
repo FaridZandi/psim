@@ -70,6 +70,8 @@ class ConfigSweeper:
         self.cache_hits = 0 
         self.cache_mistakes = 0 
         
+        self.last_df_save_time = datetime.datetime.now() 
+        self.df_save_interval_seconds = 10 
         
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.shuffle_dir))
@@ -231,12 +233,15 @@ class ConfigSweeper:
         with self.thread_lock:
             if self.run_results_modifier is not None:
                 self.run_results_modifier(this_exp_results, options, output, run_context)
-                
             self.exp_results.append(this_exp_results)
-            
-            # save the results to a csv file every 10 jobs.
-            # might be too much IO, but it's fine for now.
-            if len(self.exp_results) % 10 == 0:
+
+
+            # save the results to a csv file every 10 seconds
+            time_since_last_save = datetime.datetime.now() - self.last_df_save_time
+            if time_since_last_save.total_seconds() > self.df_save_interval_seconds:
+
+                self.last_df_save_time = datetime.datetime.now()
+                
                 df = pd.DataFrame(self.exp_results)
                 df.to_csv(self.raw_csv_path)
                 
@@ -259,9 +264,12 @@ class ConfigSweeper:
         
         plot_command = "python plot.py {} {} {} {}".format(self.csv_path, keys_arg, 
                                                            plotted_key_min, plotted_key_max)
-        print("plot command for further reference: ")
-        print(plot_command)
+
         os.system(plot_command)
+    
+        print("To redraw the plot, use the following command: ")
+        print(plot_command)
+        
         
         
     def plot_cdfs(self, csv_path, separating_params, same_plot_param, cdf_params):
@@ -270,7 +278,9 @@ class ConfigSweeper:
         
         plot_command = "python plot_cdf.py {} {} {} {}".format(csv_path, separating_params_str, 
                                                                same_plot_param, cdf_params_str)
-        print("plot command for further reference: ")
-        print(plot_command)
+
         os.system(plot_command)
+        
+        print("To redraw the plot, use the following command: ")
+        print(plot_command)
         

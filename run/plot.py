@@ -34,18 +34,6 @@ all_sweep_params_default = [
     
 ]
 
-colors = {
-    "random": "red",
-    "roundrobin": "orange",
-    "leastloaded": "yellow",
-    "powerof2": "gray",
-    "powerof3": "wheat",
-    "powerof4": "black",
-    "robinhood": "pink",
-    "futureload": "blue",
-    "sita-e": "green",
-}
-
 
 ############################################################################################
 ############################################################################################
@@ -188,18 +176,14 @@ pprint(tick_labels)
 ############################################################################################
 
 colorings = {}
-color_bank = ["red", "green", "orange", "yellow", "blue", "purple", "black", "gray", "pink", "wheat"]
-coloring_bank_index = 0
 
  
 def get_color(color_specifier):
-    global coloring_bank_index
-    
     if color_specifier in colorings:
         return colorings[color_specifier]
     else:
-        colorings[color_specifier] = color_bank[coloring_bank_index]
-        coloring_bank_index += 1
+        # get a random color
+        colorings[color_specifier] = np.random.rand(3,)
         
         return colorings[color_specifier]
 
@@ -230,7 +214,7 @@ for i, param in enumerate(params):
             bottom=param_data[plotted_key_min],
             width=1, label=param,
             color=get_color(coloring_basis), edgecolor="black")
-        
+    
 
 # xticks on the top of the plot
 plt.xticks(x, protocols)

@@ -14,7 +14,7 @@ placement_mode_map = {1: "compact placement+optimal ring",
                       3: "compact placement+random ring",
                       4: "random placement+random ring"}
 
-total_capacity = 800
+total_capacity = 400
 
 experiment_seed = 45 
 
@@ -60,15 +60,23 @@ base_options = {
 
 sweep_config = {
     "protocol-file-name": ["nethint-test"],
-    "machine-count": [128, 64, 32],
-    "ft-core-count": [1, 2, 4, 8],
+
+    # placement and workload parameters
+    "placement-seed": list(range(1, 10)), # this is a dummy parameter. basically repeat the experiment 10 times
+    "machine-count": [128],
+    "general-param-4": [4000, 8000, 16000], # comm_size
+    "general-param-5": [200, 400, 800], # comp size
+    "general-param-6": [1, 2, 4, 8], # layer_count
+    
     "general-param-2": [ # placement mode
         1, # "compact placement+optimal ring",
         2, # "random placement+optimal ring",
         3, # "compact placement+random ring",
         4, # "random placement+random ring"                    
     ], 
-    "placement-seed": list(range(1, 5)), # this is a dummy parameter. basically repeat the experiment 10 times
+
+    # load balancing parameters
+    "ft-core-count": [2, 4],
     "lb-scheme": ["random", COMPARED_LB],
 } 
 
@@ -146,7 +154,10 @@ def run_results_modifier(results, options, output, run_context):
     results["placement-mode"] = results.pop("general-param-2")
     results["placement-mode"] = placement_mode_map[results["placement-mode"]] 
 
-
+    results["job-info"] = "{} comm + {} comp + {} layers".format(results["general-param-4"], 
+                                                                 results["general-param-5"], 
+                                                                 results["general-param-6"])
+    
     # this is a perfect lb scheme, so we need to change the lb-scheme to "perfect"
     # and change othe other fields back to the original values.
     if run_context["perfect_lb"]:
@@ -170,7 +181,7 @@ def global_results_modifier(exp_results_df, config_sweeper):
     compared_lb_df = exp_results_df[exp_results_df["lb-scheme"] == COMPARED_LB]
     
     # merge the two dataframes
-    merge_on = ["protocol-file-name", "machine-count", "cores", "placement-mode", "placement-seed"]
+    merge_on = ["protocol-file-name", "machine-count", "cores", "placement-mode", "placement-seed", "job-info"]
     merged_df = pd.merge(random_df, compared_lb_df, on=merge_on, suffixes=('_random', '_compared'))
     merged_df["speedup"] = round(merged_df["avg_avg_iter_length_random"] / merged_df["avg_avg_iter_length_compared"], 2)  
     
@@ -199,7 +210,7 @@ if __name__ == "__main__":
     
     results_dir, csv_path, exp_results = cs.sweep()
 
-    cs.plot_results(interesting_keys=["machine-count" , "placement-mode", "cores"], 
+    cs.plot_results(interesting_keys=["machine-count" , "cores", "placement-mode", "job-info"], 
                     plotted_key_min="speedup_min", 
                     plotted_key_max="speedup_max", 
                     title="Speedup of perfect over random, under {} Gbps total capacity".format(total_capacity))

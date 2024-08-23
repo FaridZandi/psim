@@ -62,6 +62,7 @@ def simulate_workloads():
         event = event_queue.get()    
         current_time = event.ready_time
             
+            
         if event.data["type"] == "start":
             w_i = event.data["workload"]
             
@@ -86,6 +87,7 @@ def simulate_workloads():
                               data={"type": "finish", "workload": w_i, "processor": processor, "instance": event.data["instance"]})    
             
                 event_queue.put(event)
+        
                 
         elif event.data["type"] == "finish":
             w_i = event.data["workload"]
