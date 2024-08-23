@@ -38,7 +38,7 @@ base_options = {
 
     "network-type": "leafspine",    
     "link-bandwidth": 100,
-    "ft-server-per-rack": 8,
+    "ft-server-per-rack": 16,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
     # "ft-core-count": 4,
@@ -54,13 +54,13 @@ base_options = {
     "shuffle-device-map": False,
     "regret-mode": "none",
     
-    "general-param-1": 4, # number of machines for each job, low 
-    "general-param-3": 8, # number of machines for each job, high 
+    "general-param-1": 8,  # number of machines for each job, low 
+    "general-param-3": 16, # number of machines for each job, high 
 }
 
 sweep_config = {
     "protocol-file-name": ["nethint-test"],
-    "machine-count": [16],
+    "machine-count": [128, 64, 32],
     "ft-core-count": [1, 2, 4, 8],
     "general-param-2": [ # placement mode
         1, # "compact placement+optimal ring",
@@ -68,7 +68,7 @@ sweep_config = {
         3, # "compact placement+random ring",
         4, # "random placement+random ring"                    
     ], 
-    "placement-seed": list(range(1, 50)), # this is a dummy parameter. basically repeat the experiment 10 times
+    "placement-seed": list(range(1, 5)), # this is a dummy parameter. basically repeat the experiment 10 times
     "lb-scheme": ["random", COMPARED_LB],
 } 
 
@@ -128,13 +128,14 @@ def result_extractor_function(output, options, this_exp_results):
             sum_iter_lengths += sum(iters) 
             iter_count += len(iters)    
             
-        avg_iter_lengths.append(sum_iter_lengths / iter_count)    
+        avg_iter_length = round(sum_iter_lengths / iter_count, 2) 
+        avg_iter_lengths.append(avg_iter_length)    
     
     this_exp_results.update({
         "min_avg_iter_length": min(avg_iter_lengths),
         "max_avg_iter_length": max(avg_iter_lengths),
         "last_avg_iter_length": avg_iter_lengths[-1],
-        "avg_avg_iter_length": np.mean(avg_iter_lengths),
+        "avg_avg_iter_length": round(np.mean(avg_iter_lengths), 2),
         "all_iter_lengths": avg_iter_lengths,
     })
     
@@ -171,7 +172,7 @@ def global_results_modifier(exp_results_df, config_sweeper):
     # merge the two dataframes
     merge_on = ["protocol-file-name", "machine-count", "cores", "placement-mode", "placement-seed"]
     merged_df = pd.merge(random_df, compared_lb_df, on=merge_on, suffixes=('_random', '_compared'))
-    merged_df["speedup"] = merged_df["avg_avg_iter_length_random"] / merged_df["avg_avg_iter_length_compared"] 
+    merged_df["speedup"] = round(merged_df["avg_avg_iter_length_random"] / merged_df["avg_avg_iter_length_compared"], 2)  
     
     saved_columns = merge_on + ["speedup"] + ["avg_avg_iter_length_random", "avg_avg_iter_length_compared"]
     merged_df[saved_columns].to_csv(config_sweeper.merged_csv_path)
@@ -198,7 +199,7 @@ if __name__ == "__main__":
     
     results_dir, csv_path, exp_results = cs.sweep()
 
-    cs.plot_results(interesting_keys=["cores", "machine-count" , "placement-mode"], 
+    cs.plot_results(interesting_keys=["machine-count" , "placement-mode", "cores"], 
                     plotted_key_min="speedup_min", 
                     plotted_key_max="speedup_max", 
                     title="Speedup of perfect over random, under {} Gbps total capacity".format(total_capacity))

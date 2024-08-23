@@ -38,7 +38,7 @@ class ConfigSweeper:
         self.exp_results = []
         self.threads = []
         self.worker_id_counter = 0
-        
+
         self.exp_q = queue.Queue()
         self.thread_lock = threading.Lock()    
         
@@ -68,12 +68,14 @@ class ConfigSweeper:
         self.results_cache = {}
         self.cache_lock = threading.Lock() 
         self.cache_hits = 0 
+        self.cache_mistakes = 0 
         
         
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.shuffle_dir))
 
     def sweep(self):
+        # some basic logging and setup
         with open(self.results_dir + "sweep-config.txt", "w") as f:
             pprint("------------------------------------------", stream=f)
             pprint("sweep_config", stream=f)
@@ -88,31 +90,28 @@ class ConfigSweeper:
             pprint("self", stream=f)
             pprint(self, stream=f)
 
-        build_exec(self.run_executable, 
-                   self.base_executable, 
-                   self.build_path, 
-                   self.run_path)
         set_memory_limit(10 * 1e9)
-        
+
+
+        # run the experiments
+        build_exec(self.run_executable, self.base_executable, self.build_path, self.run_path)
         self.run_all_experiments()
 
         print("number of jobs that didn't converge:", self.non_converged_jobs)
         print("number of cache hits:", self.cache_hits)
-        
-        os.system("rm {}".format(self.run_executable))
+        print("number of cache mistakes:", self.cache_mistakes) 
 
-        all_pd_frame = pd.DataFrame(self.exp_results)
-        all_pd_frame.to_csv(self.raw_csv_path)
-        
+
+        # save the results to a csv file
         if self.global_results_modifier is not None:
+            all_pd_frame = pd.DataFrame(self.exp_results)
             final_df = self.global_results_modifier(all_pd_frame, self)
-        final_df.to_csv(self.csv_path)
+            final_df.to_csv(self.csv_path)
         
+
+
+        os.system("rm {}".format(self.run_executable))
         return  self.results_dir, self.csv_path, self.exp_results
-        # os.system("python plot.py {}".format(csv_path))
-        
-        
-        
         
         
     def run_all_experiments(self):
@@ -168,11 +167,9 @@ class ConfigSweeper:
             with self.thread_lock: 
                 changed_keys, run_context = self.run_command_options_modifier(options, self)
                 saved_keys.update(changed_keys)
-                    
         
         cache_hit = False 
         cache_key = str(options)
-        print("cache key: ", cache_key)
         
         with self.cache_lock:
             if cache_key in self.results_cache:
@@ -198,15 +195,29 @@ class ConfigSweeper:
                 
                 # get the basic results. 
                 this_exp_results = {
-                    "exp_duration": duration.microseconds,
                     "run_id": self.run_id,
                 }
                 
                 # get the rest of the results from the user defined function.            
                 self.result_extractor_function(output, options, this_exp_results)
                 
-                # with self.cache_lock:
-                #     self.results_cache[cache_key] = (this_exp_results, output)
+                with self.cache_lock:
+                    
+                    new_results_copy = copy.deepcopy(this_exp_results)
+                     
+                    # sanity check: 
+                    if cache_key in self.results_cache:
+                        # all keys should be the same. 
+                        for key in new_results_copy:
+                            if new_results_copy[key] != self.results_cache[cache_key][0][key]:
+                                print("error in cache")
+                                print("key: ", key)
+                                print("cache: ", self.results_cache[cache_key][0][key])
+                                print("cache_copy: ", new_results_copy[key])
+                                
+                                self.cache_mistakes += 1    
+                                                        
+                    self.results_cache[cache_key] = (new_results_copy, output)
                     
             except subprocess.CalledProcessError as e:
                 print("error in running the command")
@@ -222,6 +233,19 @@ class ConfigSweeper:
                 self.run_results_modifier(this_exp_results, options, output, run_context)
                 
             self.exp_results.append(this_exp_results)
+            
+            # save the results to a csv file every 10 jobs.
+            # might be too much IO, but it's fine for now.
+            if len(self.exp_results) % 10 == 0:
+                df = pd.DataFrame(self.exp_results)
+                df.to_csv(self.raw_csv_path)
+                
+                if self.global_results_modifier is not None:
+                    try: 
+                        final_df = self.global_results_modifier(df, self)
+                        final_df.to_csv(self.csv_path)
+                    except Exception as e:
+                        pass
             
             pprint(this_exp_results)
             print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))

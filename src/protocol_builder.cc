@@ -992,10 +992,10 @@ psim::build_nethint_test() {
         int this_job_initial_wait = 0; // i * 100;
         int this_job_comp_length = 500;
         int this_job_comm_length = 4000;
-        int this_job_reps_multiplier = 5;
-        int this_job_long_pc_length = 3000;
+        int this_job_reps_multiplier = 1;
+        int this_job_long_pc_length = 0;
         int this_job_id = i + 1;
-        int layer_count = 3;
+        int layer_count = 1;
 
         insert_simple_data_parallelism(protocol, this_job_id, 
                                        job_machines, layer_count, 
