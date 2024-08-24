@@ -38,7 +38,7 @@ base_options = {
 
     "network-type": "leafspine",    
     "link-bandwidth": 100,
-    "ft-server-per-rack": 16,
+    "ft-server-per-rack": 8,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
     # "ft-core-count": 4,
@@ -54,16 +54,16 @@ base_options = {
     "shuffle-device-map": False,
     "regret-mode": "none",
     
-    "general-param-1": 8,  # number of machines for each job, low 
-    "general-param-3": 16, # number of machines for each job, high 
+    "general-param-1": 4,  # number of machines for each job, low 
+    "general-param-3": 8, # number of machines for each job, high 
 }
 
 sweep_config = {
     "protocol-file-name": ["nethint-test"],
 
     # placement and workload parameters
-    "placement-seed": list(range(1, 10)), # this is a dummy parameter. basically repeat the experiment 10 times
-    "machine-count": [128],
+    "placement-seed": list(range(1, 3)), # this is a dummy parameter. basically repeat the experiment 10 times
+    "machine-count": [32],
     "general-param-4": [4000, 8000, 16000], # comm_size
     "general-param-5": [200, 400, 800], # comp size
     "general-param-6": [1, 2, 4, 8], # layer_count
@@ -206,7 +206,8 @@ if __name__ == "__main__":
                        run_command_options_modifier, 
                        run_results_modifier, 
                        global_results_modifier, 
-                       result_extractor_function)
+                       result_extractor_function,
+                       worker_thread_count=30)
     
     results_dir, csv_path, exp_results = cs.sweep()
 

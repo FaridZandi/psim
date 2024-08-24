@@ -605,7 +605,8 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             bool add_stage_barriers = false; 
 
             EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_ids, 
-                                                                            comm_size, jobid, last_all_reduce_finisher, add_stage_barriers, reverse_ring);
+                                                                             comm_size, jobid, last_all_reduce_finisher, 
+                                                                             add_stage_barriers, reverse_ring);
 
             all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
 

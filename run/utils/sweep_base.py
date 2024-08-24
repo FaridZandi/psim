@@ -19,6 +19,7 @@ import copy
 
 
 DEFAULT_WORKER_THREAD_COUNT = 40
+MEMORY_LIMIT = 60
 
 class ConfigSweeper: 
     def __init__(self, base_options, sweep_config, 
@@ -75,6 +76,11 @@ class ConfigSweeper:
         
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.shuffle_dir))
+        
+        # set up the watchdog. Run the "./ram_controller.sh 18 python3" in background,
+        # keep pid and kill it when the program ends.
+        self.watchdog_pid = subprocess.Popen(["./ram_controller.sh", str(MEMORY_LIMIT), "python3"]).pid
+        
 
     def sweep(self):
         # some basic logging and setup
@@ -92,9 +98,6 @@ class ConfigSweeper:
             pprint("self", stream=f)
             pprint(self, stream=f)
 
-        set_memory_limit(10 * 1e9)
-
-
         # run the experiments
         build_exec(self.run_executable, self.base_executable, self.build_path, self.run_path)
         self.run_all_experiments()
@@ -109,10 +112,12 @@ class ConfigSweeper:
             all_pd_frame = pd.DataFrame(self.exp_results)
             final_df = self.global_results_modifier(all_pd_frame, self)
             final_df.to_csv(self.csv_path)
-        
-
 
         os.system("rm {}".format(self.run_executable))
+        
+        # kill the watchdog
+        os.system("kill -9 {}".format(self.watchdog_pid))
+        
         return  self.results_dir, self.csv_path, self.exp_results
         
         
