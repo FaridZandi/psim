@@ -23,7 +23,7 @@ options = {
 
     "network-type": "leafspine",    
     "link-bandwidth": 100,
-    "machine-count": 512,
+    "machine-count": 32,
     "ft-server-per-rack": 4,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,

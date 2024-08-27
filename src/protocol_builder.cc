@@ -382,12 +382,17 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
 
 
 EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp*> last_layer_pcs, 
-                                           std::vector<int>& node_ids, int comm_size, int jobid, 
+                                           std::vector<int>& node_ids, int comm_size, 
                                            EmptyTask* last_all_reduce_finisher, bool add_stage_barriers,
-                                           bool reverse_ring) {
+                                           bool reverse_ring, int jobid, int iter_num, int layer_num) {
 
     EmptyTask* all_reduce_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
     all_reduce_finisher->name = "AllR";
+    all_reduce_finisher->print_on_exec = true;
+    all_reduce_finisher->print_message = "job " + std::to_string(jobid) +
+                                         " iter " + std::to_string(iter_num) +
+                                         " layer " + std::to_string(layer_num) +
+                                         " all-reduce finished";
 
     int num_replicas = node_ids.size();
     int node_count = last_layer_pcs.size();
@@ -604,9 +609,27 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             // bool add_stage_barriers = true; 
             bool add_stage_barriers = false; 
 
+            int iter_num = i; 
+            int layer_num = j;  
+
+            // the all_reduce starter will fire when all the backward pass processing is done.
+            EmptyTask* all_reduce_starter = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+            all_reduce_starter->name = "AllR";
+            all_reduce_starter->print_on_exec = true;
+            all_reduce_starter->print_message = "job " + std::to_string(jobid) +
+                                                " iter " + std::to_string(iter_num) +
+                                                " layer " + std::to_string(layer_num) +
+                                                " all-reduce started";
+            
+            for (int node_index = 0; node_index < job_node_count; node_index++) {
+                last_layer_pcs[node_index]->add_next_task_id(all_reduce_starter->id);
+            }
+
+
             EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_ids, 
-                                                                             comm_size, jobid, last_all_reduce_finisher, 
-                                                                             add_stage_barriers, reverse_ring);
+                                                                             comm_size, last_all_reduce_finisher, 
+                                                                             add_stage_barriers, reverse_ring, 
+                                                                             jobid, iter_num, layer_num);
 
             all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
 
@@ -927,7 +950,18 @@ psim::build_nethint_test() {
 
     // deciding the number of machines for each job, and therefore the number of jobs.
     while(machines_left > 0){
-        int machines_for_job = rand() % (machines_per_job_high - machines_per_job_low + 1) + machines_per_job_low;
+        // int machines_for_job = rand() % (machines_per_job_high - machines_per_job_low + 1) + machines_per_job_low;
+        // if (machines_for_job > machines_left) {
+        //     machines_for_job = machines_left;
+        // }
+        // if (machines_for_job == 1) {
+        //     break;
+        // }
+
+        int machines_for_job = machines_per_job_low;
+        if (rand() % 2 == 0) {
+            machines_for_job = machines_per_job_high;
+        }
         if (machines_for_job > machines_left) {
             machines_for_job = machines_left;
         }
@@ -990,19 +1024,19 @@ psim::build_nethint_test() {
         }
         spdlog::critical("PLACEMENT: job {} machines: {}", i + 1, job_machines_str);
 
-        int this_job_iterations = 10;
         int this_job_initial_wait = 0; // i * 100;
         int this_job_long_pc_length = 0;
         int this_job_id = i + 1;
 
         int this_job_comm_length = get_config_or_default(GConf::inst().general_param_4, 4000);
         int this_job_comp_length = get_config_or_default(GConf::inst().general_param_5, 500);
-        int layer_count = get_config_or_default(GConf::inst().general_param_6, 4);
+        int layer_count = get_config_or_default(GConf::inst().general_param_6, 2);
+        int iteration_count = get_config_or_default(GConf::inst().general_param_7, 30);
         
         
         insert_simple_data_parallelism(protocol, this_job_id, 
                                        job_machines, layer_count, 
-                                       this_job_iterations, 
+                                       iteration_count, 
                                        this_job_comp_length, 
                                        this_job_comm_length, 
                                        this_job_initial_wait, false);

@@ -19,13 +19,13 @@ import copy
 
 
 DEFAULT_WORKER_THREAD_COUNT = 40
-MEMORY_LIMIT = 60
+MEMORY_LIMIT = 55
 
 class ConfigSweeper: 
     def __init__(self, base_options, sweep_config, 
                  run_command_options_modifier=None,
                  run_results_modifier=None,
-                 global_results_modifier=None,
+                 custom_save_results_func=None,
                  result_extractor_function=None,
                  worker_thread_count=DEFAULT_WORKER_THREAD_COUNT):
         
@@ -47,7 +47,7 @@ class ConfigSweeper:
         self.run_command_options_modifier = run_command_options_modifier
         self.run_results_modifier = run_results_modifier
         self.worker_thread_count = worker_thread_count
-        self.global_results_modifier = global_results_modifier
+        self.custom_save_results_func = custom_save_results_func
         self.result_extractor_function = result_extractor_function
         
         # paths
@@ -61,9 +61,9 @@ class ConfigSweeper:
         self.run_executable = self.build_path + "/psim-" + self.run_id
         self.results_dir = "results/sweep/{}-run/".format(self.run_id)
         self.shuffle_dir = self.results_dir + "/shuffle/"
-        self.csv_path = self.results_dir + "results.csv".format(self.run_id)
-        self.raw_csv_path = self.results_dir + "raw_results.csv".format(self.run_id)
-        self.merged_csv_path = self.results_dir + "merged_results.csv".format(self.run_id)
+        self.csv_dir = self.results_dir + "/csv/"
+        self.raw_csv_path = self.csv_dir + "raw_results.csv"    
+        self.plots_dir = self.results_dir + "/plots/" 
         self.workers_dir = self.run_path + "/workers/"
 
         self.results_cache = {}
@@ -76,14 +76,19 @@ class ConfigSweeper:
         
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.shuffle_dir))
+        os.system("mkdir -p {}".format(self.csv_dir))
+        os.system("mkdir -p {}".format(self.plots_dir))
+        os.system("mkdir -p {}".format(self.workers_dir))
         
         # set up the watchdog. Run the "./ram_controller.sh 18 python3" in background,
         # keep pid and kill it when the program ends.
         self.watchdog_pid = subprocess.Popen(["./ram_controller.sh", str(MEMORY_LIMIT), "python3"]).pid
         
-
-    def sweep(self):
-        # some basic logging and setup
+    def __del__(self):
+        os.system("kill -9 {}".format(self.watchdog_pid))
+    
+    def log_config(self):
+         # some basic logging and setup
         with open(self.results_dir + "sweep-config.txt", "w") as f:
             pprint("------------------------------------------", stream=f)
             pprint("sweep_config", stream=f)
@@ -97,28 +102,45 @@ class ConfigSweeper:
             pprint("------------------------------------------", stream=f)
             pprint("self", stream=f)
             pprint(self, stream=f)
+            
+            
+    def sweep(self):
+        self.log_config()
 
         # run the experiments
-        build_exec(self.run_executable, self.base_executable, self.build_path, self.run_path)
-        self.run_all_experiments()
+        build_exec(self.run_executable, self.base_executable, 
+                   self.build_path, self.run_path)
 
-        print("number of jobs that didn't converge:", self.non_converged_jobs)
-        print("number of cache hits:", self.cache_hits)
-        print("number of cache mistakes:", self.cache_mistakes) 
+        try: 
+            self.run_all_experiments()
 
+            print("number of jobs that didn't converge:", self.non_converged_jobs)
+            print("number of cache hits:", self.cache_hits)
+            print("number of cache mistakes:", self.cache_mistakes) 
+            
+            if self.cache_mistakes > 0:
+                print("cache mistakes happened. This means that the results are not deterministic.")
+                print("The cache is only used to save time, not to change the results.")
+                input("Press Enter to continue...")
 
-        # save the results to a csv file
-        if self.global_results_modifier is not None:
+            # save the raw results to a csv file. 
             all_pd_frame = pd.DataFrame(self.exp_results)
-            final_df = self.global_results_modifier(all_pd_frame, self)
-            final_df.to_csv(self.csv_path)
+            all_pd_frame.to_csv(self.raw_csv_path)
+            
+            # call the custom func to do anything with the results.
+            if self.custom_save_results_func is not None: 
+                self.custom_save_results_func(all_pd_frame, self)
+                
+        except Exception as e:
+            print("error in running the experiments")
+            print(e)
+            
+        finally:   
+            print("cleaning up the run executable: ", self.run_executable)
+            os.system("rm {}".format(self.run_executable))
 
-        os.system("rm {}".format(self.run_executable))
-        
-        # kill the watchdog
-        os.system("kill -9 {}".format(self.watchdog_pid))
-        
-        return  self.results_dir, self.csv_path, self.exp_results
+            print("killing the watchdog with pid: ", self.watchdog_pid)
+            os.system("kill -9 {}".format(self.watchdog_pid))        
         
         
     def run_all_experiments(self):
@@ -206,12 +228,11 @@ class ConfigSweeper:
                 }
                 
                 # get the rest of the results from the user defined function.            
-                self.result_extractor_function(output, options, this_exp_results)
+                if self.result_extractor_function is not None:
+                    self.result_extractor_function(output, options, this_exp_results)
                 
                 with self.cache_lock:
-                    
                     new_results_copy = copy.deepcopy(this_exp_results)
-                     
                     # sanity check: 
                     if cache_key in self.results_cache:
                         # all keys should be the same. 
@@ -221,6 +242,12 @@ class ConfigSweeper:
                                 print("key: ", key)
                                 print("cache: ", self.results_cache[cache_key][0][key])
                                 print("cache_copy: ", new_results_copy[key])
+                                
+                                # a cache mistake happens when two experimenst have the same 
+                                # options, but the results are different. This means that the 
+                                # results are not deterministic, which is against our attempt 
+                                # to make the results deterministic. So not a cache mistake, 
+                                # per se, but a mistake in the simulation itself.
                                 
                                 self.cache_mistakes += 1    
                                                         
@@ -235,27 +262,28 @@ class ConfigSweeper:
         for key in saved_keys:
             this_exp_results[key] = options[key]
 
+
         with self.thread_lock:
+            # a final chance for the user to modify the results before saving them.
             if self.run_results_modifier is not None:
                 self.run_results_modifier(this_exp_results, options, output, run_context)
+        
             self.exp_results.append(this_exp_results)
-
 
             # save the results to a csv file every 10 seconds
             time_since_last_save = datetime.datetime.now() - self.last_df_save_time
             if time_since_last_save.total_seconds() > self.df_save_interval_seconds:
-
                 self.last_df_save_time = datetime.datetime.now()
                 
                 df = pd.DataFrame(self.exp_results)
                 df.to_csv(self.raw_csv_path)
                 
-                if self.global_results_modifier is not None:
+                if self.custom_save_results_func is not None:
                     try: 
-                        final_df = self.global_results_modifier(df, self)
-                        final_df.to_csv(self.csv_path)
+                        self.custom_save_results_func(df, self)
                     except Exception as e:
-                        pass
+                        print("error in custom_save_results_func")
+                        print(e)
             
             pprint(this_exp_results)
             print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))
@@ -264,28 +292,3 @@ class ConfigSweeper:
             print("--------------------------------------------")
 
 
-    def plot_results(self, interesting_keys, plotted_key_min, plotted_key_max, title): 
-        keys_arg = ",".join(interesting_keys)
-        
-        plot_command = "python plot.py {} {} {} {}".format(self.csv_path, keys_arg, 
-                                                           plotted_key_min, plotted_key_max)
-
-        os.system(plot_command)
-    
-        print("To redraw the plot, use the following command: ")
-        print(plot_command)
-        
-        
-        
-    def plot_cdfs(self, csv_path, separating_params, same_plot_param, cdf_params):
-        separating_params_str = ",".join(separating_params)
-        cdf_params_str = ",".join(cdf_params)
-        
-        plot_command = "python plot_cdf.py {} {} {} {}".format(csv_path, separating_params_str, 
-                                                               same_plot_param, cdf_params_str)
-
-        os.system(plot_command)
-        
-        print("To redraw the plot, use the following command: ")
-        print(plot_command)
-        

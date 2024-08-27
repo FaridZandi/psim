@@ -45,19 +45,39 @@ pd_frame = pd.read_csv(csv_path)
 
 print(pd_frame.columns)
 
+
 if len(sys.argv) > 2:
-    all_sweep_params = sys.argv[2].split(",")
+    plot_path = sys.argv[2]
+else:
+    plot_path = results_dir + "/plot.png" 
+    
+if len(sys.argv) > 3:
+    all_sweep_params = sys.argv[3].split(",")
 else:
     all_sweep_params = all_sweep_params_default
 
 
-if len(sys.argv) > 4:
-    plotted_key_min = sys.argv[3]
-    plotted_key_max = sys.argv[4]
+if len(sys.argv) > 5:
+    plotted_key_min = sys.argv[4]
+    plotted_key_max = sys.argv[5]
 else:
     plotted_key_min = "rel_max_psim_time"
     plotted_key_max = "rel_min_psim_time"
     input("warning: no plotted key specified, press enter to continue. rel_max_psim_time is going to be used, which will probably lead to errors.")
+
+if len(sys.argv) > 6:
+    title = sys.argv[6] 
+else:
+    title = "Comparison of Numbers"
+
+if len(sys.argv) > 7:
+    random_seed = int(sys.argv[7])
+else:
+    random_seed = 0
+    
+
+    
+np.random.seed(random_seed)    
     
 # pad the numbers with zeros to make sure the sorting is correct
 # lexicographically, 10 will come before 2. 
@@ -253,8 +273,4 @@ for i, protocol in enumerate(protocols):
     start_offset += (group_width + group_spacing)
 
 
-plot_name_pdf = results_dir + "plot.pdf"
-plot_name_png = results_dir + "plot.png"
-
-# plt.savefig(plot_name_pdf, bbox_inches="tight", dpi=300)
-plt.savefig(plot_name_png, bbox_inches="tight", dpi=300)
+plt.savefig(plot_path, bbox_inches="tight", dpi=300)
