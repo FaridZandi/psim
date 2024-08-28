@@ -155,7 +155,7 @@ def get_random_string(length):
 
 default_load_metric_map = {
     "futureload": "utilization",
-    "leastloaded": "utilization",
+    "leastloaded": "flowsize",
     "powerof2": "flowsize",
     "powerof3": "flowsize",
     "powerof4": "flowsize",

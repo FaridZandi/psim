@@ -950,21 +950,21 @@ psim::build_nethint_test() {
 
     // deciding the number of machines for each job, and therefore the number of jobs.
     while(machines_left > 0){
-        // int machines_for_job = rand() % (machines_per_job_high - machines_per_job_low + 1) + machines_per_job_low;
-        // if (machines_for_job > machines_left) {
-        //     machines_for_job = machines_left;
-        // }
-        // if (machines_for_job == 1) {
-        //     break;
-        // }
-
-        int machines_for_job = machines_per_job_low;
-        if (rand() % 2 == 0) {
-            machines_for_job = machines_per_job_high;
-        }
+        int machines_for_job = rand() % (machines_per_job_high - machines_per_job_low + 1) + machines_per_job_low;
         if (machines_for_job > machines_left) {
             machines_for_job = machines_left;
         }
+        if (machines_for_job == 1) {
+            break;
+        }
+
+        // int machines_for_job = machines_per_job_low;
+        // if (rand() % 2 == 0) {
+        //     machines_for_job = machines_per_job_high;
+        // }
+        // if (machines_for_job > machines_left) {
+        //     machines_for_job = machines_left;
+        // }
 
         job_machine_counts.push_back(machines_for_job);
         machines_left -= machines_for_job;
@@ -1032,14 +1032,17 @@ psim::build_nethint_test() {
         int this_job_comp_length = get_config_or_default(GConf::inst().general_param_5, 500);
         int layer_count = get_config_or_default(GConf::inst().general_param_6, 2);
         int iteration_count = get_config_or_default(GConf::inst().general_param_7, 30);
+        bool reverse_ring = false;
         
-        
-        insert_simple_data_parallelism(protocol, this_job_id, 
-                                       job_machines, layer_count, 
+        insert_simple_data_parallelism(protocol, 
+                                       this_job_id, 
+                                       job_machines, 
+                                       layer_count, 
                                        iteration_count, 
                                        this_job_comp_length, 
                                        this_job_comm_length, 
-                                       this_job_initial_wait, false);
+                                       this_job_initial_wait, 
+                                       reverse_ring);
 
         current_job_start_index = end_index;
     }

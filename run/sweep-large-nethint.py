@@ -32,7 +32,7 @@ base_options = {
 
     "network-type": "leafspine",    
     "link-bandwidth": 100,
-    "ft-server-per-rack": 32,
+    "ft-server-per-rack": 16,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
     # "ft-core-count": 4,
@@ -52,21 +52,28 @@ base_options = {
     "general-param-3": 16, # number of machines for each job, high 
 }
 
-total_capacity = 400
+# total_capacity = 800
 RANDOM_REP_COUNT = 2
-COMPARED_LB = "perfect"
-experiment_seed = 45 
+experiment_seed = 32 
+compared_lb_scheme = "" 
+base_lb_scheme = "random"
+
+# interesting_metrics = ["avg_ar_time", "avg_iter_time", "iter_minus_ar_time"]
+interesting_metrics = ["avg_ar_time", "avg_iter_time"] #"iter_minus_ar_time"]
+
+compared_lb_schemes = ["leastloaded", "roundrobin", "ecmp", "perfect", "powerof2"]
+# compared_lb_schemes = ["perfect", "leastloaded"]
 
 sweep_config = {
     "protocol-file-name": ["nethint-test"],
 
     # placement and workload parameters
-    "placement-seed": list(range(1, 5)), # this is a dummy parameter. basically repeat the experiment 10 times
-    "machine-count": [64],
+    "placement-seed": list(range(1, 51)), # this is a dummy parameter. basically repeat the experiment 10 times
+    "machine-count": [256],
     "general-param-4": [4000], # comm_size
     "general-param-5": [500], # comp size
-    "general-param-6": [1], # layer_count
-    "general-param-7": [1], # iterationcount
+    "general-param-6": [2], # layer count
+    "general-param-7": [20], # iteration count
     
     "general-param-2": [ # placement mode
         1, # "compact placement+optimal ring",
@@ -76,8 +83,8 @@ sweep_config = {
     ], 
 
     # load balancing parameters
-    "ft-core-count": [2, 4],
-    "lb-scheme": ["random", COMPARED_LB],
+    "ft-core-count": [8],
+    # "lb-scheme": ["random", COMPARED_LB],
 } 
 
 
@@ -98,15 +105,12 @@ def run_command_options_modifier(options, config_sweeper):
         "original_core_count": options["ft-core-count"],
     }        
 
-    if options["lb-scheme"] == "random":
+    if options["lb-scheme"] == "random" or options["lb-scheme"] == "ecmp":
         # there's no point in running more than one rep for random if there's only one core. 
         if options["ft-core-count"] > 1:
             options["rep-count"] = RANDOM_REP_COUNT
     
-    if options["lb-scheme"] == "leastloaded":
-        pass 
-    
-    
+
     if options["lb-scheme"] == "perfect":
         run_context["perfect_lb"] = True
         
@@ -114,7 +118,6 @@ def run_command_options_modifier(options, config_sweeper):
         options["lb-scheme"] = "random"
         options["ft-agg-core-link-capacity-mult"] = (total_capacity / options["link-bandwidth"])
         options["ft-core-count"] = 1
-        options["rep-count"] = 1
     
     
     options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
@@ -125,30 +128,61 @@ def run_command_options_modifier(options, config_sweeper):
 
 
 def result_extractor_function(output, options, this_exp_results):
-    job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"])
-    job_numbers = get_all_rep_iter_lengths(output, options["rep-count"])
     
-    avg_job_numbers = [] 
-    
-    for rep in job_numbers:
-        sum_job_numbers = 0 
-        number_count = 0
-          
-        for job, numbers in rep.items():
-            sum_job_numbers += sum(numbers) 
-            number_count += len(numbers)    
+    for metric in interesting_metrics:
+        
+        if metric == "avg_ar_time":
+            job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"])
+        elif metric == "avg_iter_time": 
+            job_numbers = get_all_rep_iter_lengths(output, options["rep-count"])
+        elif metric == "iter_minus_ar_time":
+            ar_times = get_all_rep_all_reduce_times(output, options["rep-count"])
+            iter_times = get_all_rep_iter_lengths(output, options["rep-count"])
+            job_numbers = [] 
             
-        avg_job_number = round(sum_job_numbers / number_count, 2) 
-        avg_job_numbers.append(avg_job_number)    
-    
-    this_exp_results.update({
-        "min_avg_job_number": min(avg_job_numbers),
-        "max_avg_job_number": max(avg_job_numbers),
-        "last_avg_job_number": avg_job_numbers[-1],
-        "avg_avg_job_number": round(np.mean(avg_job_numbers), 2),
-        "all_job_numbers": avg_job_numbers,
-    })
-    
+            for rep in range(options["rep-count"]):
+                ar_time = ar_times[rep]
+                iter_time = iter_times[rep]
+                
+                rep_numbers = {} 
+                
+                for job in ar_time.keys():
+                    rep_job_iter_times = iter_time[job]
+                    rep_job_ar_times = ar_time[job]
+                    rep_numbers[job] = []
+                    
+                    for i in range(len(rep_job_iter_times)):
+                        rep_job_iter_time = rep_job_iter_times[i]
+                        rep_job_ar_time = rep_job_ar_times[i]
+                        diff = rep_job_iter_time - rep_job_ar_time 
+                        rep_numbers[job].append(diff)
+                        
+                job_numbers.append(rep_numbers)
+        
+        else: 
+            print("Unknown metric: ", metric)
+            sys.exit(1)
+            
+        avg_job_numbers = [] 
+        for rep in job_numbers:
+            sum_job_numbers = 0 
+            number_count = 0
+            
+            for job, numbers in rep.items():
+                sum_job_numbers += sum(numbers) 
+                number_count += len(numbers)    
+                
+            avg_job_number = round(sum_job_numbers / number_count, 2) 
+            avg_job_numbers.append(avg_job_number)    
+        
+        
+        this_exp_results.update({
+            "min_{}".format(metric): min(avg_job_numbers),
+            "max_{}".format(metric): max(avg_job_numbers),
+            "last_{}".format(metric): avg_job_numbers[-1],
+            "avg_{}".format(metric): round(np.mean(avg_job_numbers), 2),
+            "all_{}".format(metric): avg_job_numbers,  
+        })
     
 
 def run_results_modifier(results, options, output, run_context):
@@ -199,14 +233,14 @@ def run_results_modifier(results, options, output, run_context):
 
 def plot_results(interesting_keys, plotted_key_min, plotted_key_max, 
                  title, random_seed, compact_csv_path, random_csv_path, 
-                 compact_plot_path, random_plot_path):
+                 compact_plot_path, random_plot_path, script_path):
      
     keys_arg = ",".join(interesting_keys)
     
     for csv_path, plot_path in [(compact_csv_path, compact_plot_path), 
                                 (random_csv_path, random_plot_path)]:
             
-        plot_command = "python plot.py {} {} {} {} {} {}".format(csv_path, plot_path, keys_arg, 
+        plot_command = "python3 plot.py {} {} {} {} {} {}".format(csv_path, plot_path, keys_arg, 
                                                                  plotted_key_min, plotted_key_max, 
                                                                  title, random_seed)
 
@@ -214,15 +248,19 @@ def plot_results(interesting_keys, plotted_key_min, plotted_key_max,
     
         print("To redraw the plot, use the following command: ")
         print(plot_command)
+        
+        with open(script_path, "a+") as f:
+            f.write(plot_command)
+            f.write("\n")
     
     
     
 def plot_cdfs(separating_params, cdf_params, 
-              compact_csv_path, random_csv_path, plots_dir):
+              compact_csv_path, random_csv_path, plots_dir, script_path):
     separating_params_str = ",".join(separating_params)
     cdf_params_str = ",".join(cdf_params)
         
-    plot_command = "python plot_cdf.py {} {} {} {} {}".format(compact_csv_path,
+    plot_command = "python3 plot_cdf.py {} {} {} {} {}".format(compact_csv_path,
                                                            random_csv_path,  
                                                            separating_params_str, 
                                                            cdf_params_str, plots_dir)
@@ -231,123 +269,162 @@ def plot_cdfs(separating_params, cdf_params,
     
     print("To redraw the plot, use the following command: ")
     print(plot_command)
-                
-            
-def custom_save_results_funch(exp_results_df, config_sweeper): 
-    compact_placement_df = exp_results_df[exp_results_df["node-placement"] == "compact"]
-    random_placement_df = exp_results_df[exp_results_df["node-placement"] == "random"]
     
-    merge_on = ["protocol-file-name", "machine-count", "cores", "placement-seed", "job-info"]
-
-    for placement, placement_df in [("compact", compact_placement_df), ("random", random_placement_df)]:
-        # base 
-        random_ring_random_lb = placement_df[(placement_df["ring-mode"] == "random") & (placement_df["lb-scheme"] == "random")] 
-
-        # compared
-        random_ring_compared_lb = placement_df[(placement_df["ring-mode"] == "random") & (placement_df["lb-scheme"] == COMPARED_LB)]
-        optimal_ring_random_lb = placement_df[(placement_df["ring-mode"] == "optimal") & (placement_df["lb-scheme"] == "random")]
-        optimal_ring_compared_lb = placement_df[(placement_df["ring-mode"] == "optimal") & (placement_df["lb-scheme"] == COMPARED_LB)]
+    with open(script_path, "a+") as f:
+        f.write(plot_command)
+        f.write("\n")   
+                
+            
+def custom_save_results_funch(exp_results_df, config_sweeper, final=False): 
+    
+    for metric in interesting_metrics:
+        metric_values_key = "all_{}".format(metric)
+        avg_metric_key = "avg_{}".format(metric)
+        metric_csv_dir = config_sweeper.csv_dir + metric + "/" 
+        metric_plots_dir = config_sweeper.plots_dir + metric + "/" 
         
-        comparisions = [
-            ("OR", optimal_ring_random_lb), 
-            ("LB", random_ring_compared_lb),
-            ("OR + LB", optimal_ring_compared_lb),
-        ]
-                
-        for comparision_name, compared_df in comparisions:
-            merged_df = pd.merge(random_ring_random_lb, compared_df, on=merge_on, suffixes=('_random', '_compared'))
-            merged_df["speedup"] = round(merged_df["avg_avg_job_number_random"] / merged_df["avg_avg_job_number_compared"], 2)
+        os.makedirs(metric_csv_dir, exist_ok=True)
+        os.makedirs(metric_plots_dir, exist_ok=True)
+        
+        compact_placement_df = exp_results_df[exp_results_df["node-placement"] == "compact"]
+        random_placement_df = exp_results_df[exp_results_df["node-placement"] == "random"]
+        
+        merge_on = ["protocol-file-name", "machine-count", "cores", "placement-seed", "job-info"]
+
+        for placement, placement_df in [("compact", compact_placement_df), 
+                                        ("random", random_placement_df)]:
+            # base 
+            random_ring_base_lb = placement_df[(placement_df["ring-mode"] == "random") & 
+                                                 (placement_df["lb-scheme"] == base_lb_scheme)] 
+
+            # compared
+            random_ring_compared_lb = placement_df[(placement_df["ring-mode"] == "random") & 
+                                                   (placement_df["lb-scheme"] == compared_lb_scheme)]
+            optimal_ring_base_lb = placement_df[(placement_df["ring-mode"] == "optimal") & 
+                                                (placement_df["lb-scheme"] == base_lb_scheme)]
+            optimal_ring_compared_lb = placement_df[(placement_df["ring-mode"] == "optimal") & 
+                                                    (placement_df["lb-scheme"] == compared_lb_scheme)]
             
-            saved_columns = merge_on + ["speedup"]
-            
-            if comparision_name == "OR":
-                or_speedup_df = merged_df[saved_columns]
-                csv_path = config_sweeper.csv_dir + f"speedup_{placement}_or.csv"
-                or_speedup_df.to_csv(csv_path, index=False)
-            
-            elif comparision_name == "LB":
-                lb_speedup_df = merged_df[saved_columns]
-                csv_path = config_sweeper.csv_dir + f"speedup_{placement}_lb.csv" 
-                lb_speedup_df.to_csv(csv_path, index=False)
-                
-            elif comparision_name == "OR + LB":
-                or_lb_speedup_df = merged_df[saved_columns]
-                csv_path = config_sweeper.csv_dir + f"speedup_{placement}_or_lb.csv"
-                or_lb_speedup_df.to_csv(csv_path, index=False)
+            comparisions = [
+                ("OR", optimal_ring_base_lb), 
+                ("LB", random_ring_compared_lb),
+                ("OR + LB", optimal_ring_compared_lb),
+            ]
                     
-        super_merged = pd.merge(or_speedup_df, lb_speedup_df, on=merge_on, suffixes=('_or', '_lb')).merge(or_lb_speedup_df, on=merge_on)
-        super_merged.rename(columns={"speedup": "speedup_or_lb"}, inplace=True)
-        
-        
-        # reduce the dataframe on "placement-seed"
-        group_on = merge_on.copy()
-        group_on.remove("placement-seed")
-
-        grouped_df = super_merged.groupby(by=group_on).agg(
-            speedup_or_min=("speedup_or", "min"),
-            speedup_or_max=("speedup_or", "max"),  
-            speedup_or_values=("speedup_or", lambda x: sorted(list(x))),
+            for comparision_name, compared_df in comparisions:
+                merged_df = pd.merge(random_ring_base_lb, compared_df, 
+                                     on=merge_on, suffixes=('_base', '_compared'))
+                base_avg_metric_key = "{}_base".format(avg_metric_key)
+                compared_avg_metric_key = "{}_compared".format(avg_metric_key)
+                
+                merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], 2)
+                
+                saved_columns = merge_on + ["speedup"]
+                
+                if comparision_name == "OR":
+                    or_speedup_df = merged_df[saved_columns]
+                    csv_path = metric_csv_dir + f"speedup_{placement}_or.csv"
+                    or_speedup_df.to_csv(csv_path, index=False)
+                
+                elif comparision_name == "LB":
+                    lb_speedup_df = merged_df[saved_columns]
+                    csv_path = metric_csv_dir + f"speedup_{placement}_lb.csv" 
+                    lb_speedup_df.to_csv(csv_path, index=False)
+                    
+                elif comparision_name == "OR + LB":
+                    or_lb_speedup_df = merged_df[saved_columns]
+                    csv_path = metric_csv_dir + f"speedup_{placement}_or_lb.csv"
+                    or_lb_speedup_df.to_csv(csv_path, index=False)
+                        
+            super_merged = pd.merge(or_speedup_df, lb_speedup_df, 
+                                    on=merge_on, suffixes=('_or', '_lb'))
+            super_merged = super_merged.merge(or_lb_speedup_df, on=merge_on)
             
-            speedup_lb_min=("speedup_lb", "min"),
-            speedup_lb_max=("speedup_lb", "max"),  
-            speedup_lb_values=("speedup_lb", lambda x: sorted(list(x))),
+            super_merged.rename(columns={"speedup": "speedup_or_lb"}, inplace=True)
             
-            speedup_or_lb_min=("speedup_or_lb", "min"),
-            speedup_or_lb_max=("speedup_or_lb", "max"),  
-            speedup_or_lb_values=("speedup_or_lb", lambda x: sorted(list(x)))
-        )
-        
-        if placement == "compact":
-            compact_grouped_df = grouped_df
-        else:
-            random_grouped_df = grouped_df
+            # reduce the dataframe on "placement-seed"
+            group_on = merge_on.copy()
+            group_on.remove("placement-seed")
+
+            grouped_df = super_merged.groupby(by=group_on).agg(
+                speedup_or_min=("speedup_or", "min"),
+                speedup_or_max=("speedup_or", "max"),  
+                speedup_or_values=("speedup_or", lambda x: sorted(list(x))),
+                
+                speedup_lb_min=("speedup_lb", "min"),
+                speedup_lb_max=("speedup_lb", "max"),  
+                speedup_lb_values=("speedup_lb", lambda x: sorted(list(x))),
+                
+                speedup_or_lb_min=("speedup_or_lb", "min"),
+                speedup_or_lb_max=("speedup_or_lb", "max"),  
+                speedup_or_lb_values=("speedup_or_lb", lambda x: sorted(list(x)))
+            )
             
-    # compact_grouped_df, random_grouped_df
+            if placement == "compact":
+                compact_grouped_df = grouped_df
+            else:
+                random_grouped_df = grouped_df
+                
 
-    compact_csv_path = config_sweeper.csv_dir + "compact_results.csv"
-    random_csv_path = config_sweeper.csv_dir + "random_results.csv"
-    compact_plot_path = config_sweeper.plots_dir + "compact_plot.png"
-    random_plot_path = config_sweeper.plots_dir + "random_plot.png"
-        
-    compact_grouped_df.reset_index().to_csv(compact_csv_path, index=False)
-    random_grouped_df.reset_index().to_csv(random_csv_path, index=False)
+        compact_csv_path = metric_csv_dir + "compact_results.csv"
+        random_csv_path  = metric_csv_dir + "random_results.csv"
+        compact_plot_path = metric_plots_dir + "compact_plot.png"
+        random_plot_path  = metric_plots_dir + "random_plot.png"
             
-    title = "Speedup of perfect over random, under {} Gbps total capacity".format(total_capacity)
-    title = title.replace(" ", "$")
+        compact_grouped_df.reset_index().to_csv(compact_csv_path, index=False)
+        random_grouped_df.reset_index().to_csv(random_csv_path, index=False)
     
-    plot_results(interesting_keys=["machine-count" , "cores", "placement-mode", "job-info"], 
-                 plotted_key_min="speedup_or_lb_min", 
-                 plotted_key_max="speedup_or_lb_max", 
-                 title=title, 
-                 random_seed=experiment_seed,
-                 compact_csv_path=compact_csv_path,
-                 random_csv_path=random_csv_path,
-                 compact_plot_path=compact_plot_path,
-                 random_plot_path=random_plot_path)
+        if final:
+            title = "Speedup in {} of {} over {}, {} Gbps".format(
+                metric, 
+                compared_lb_scheme,
+                base_lb_scheme,
+                total_capacity
+            )
+            title = title.replace(" ", "$")
+            
+            plot_results(interesting_keys=["machine-count" , "cores", "job-info"], 
+                         plotted_key_min="speedup_or_lb_min", 
+                         plotted_key_max="speedup_or_lb_max", 
+                         title=title, 
+                         random_seed=experiment_seed,
+                         compact_csv_path=compact_csv_path,
+                         random_csv_path=random_csv_path,
+                         compact_plot_path=compact_plot_path,
+                         random_plot_path=random_plot_path, 
+                         script_path=config_sweeper.plot_commands_script)
 
-    plot_cdfs(separating_params=["machine-count", "cores", "job-info"], 
-              cdf_params=["speedup_or_values", "speedup_lb_values", "speedup_or_lb_values"], 
-              compact_csv_path=compact_csv_path,
-              random_csv_path=random_csv_path, 
-              plots_dir=config_sweeper.plots_dir)
-    
-    
-    
-
-
-
-    
+            plot_cdfs(separating_params=["machine-count", "cores"], 
+                      cdf_params=["speedup_or_values", "speedup_lb_values", "speedup_or_lb_values"], 
+                      compact_csv_path=compact_csv_path,
+                      random_csv_path=random_csv_path, 
+                      plots_dir=metric_plots_dir, 
+                      script_path=config_sweeper.plot_commands_script)
     
         
 if __name__ == "__main__":
     random.seed(experiment_seed)
     
-    cs = ConfigSweeper(base_options, sweep_config, 
-                       run_command_options_modifier, 
-                       run_results_modifier, 
-                       custom_save_results_funch, 
-                       result_extractor_function,
-                       worker_thread_count=40)
-    
-    cs.sweep()
+    for total_capacity in [800, 1600]:
+        for lb_scheme in compared_lb_schemes: 
+            compared_lb_scheme = lb_scheme 
+        
+            exp_sweep_config = sweep_config.copy()
+            exp_sweep_config["lb-scheme"] = [base_lb_scheme, compared_lb_scheme]
+            
+            if total_capacity == 800:
+                exp_sweep_config["ft-core-count"] = [8]
+            else:
+                exp_sweep_config["ft-core-count"] = [16]
+                
+            cs = ConfigSweeper(base_options, exp_sweep_config, 
+                            run_command_options_modifier, 
+                            run_results_modifier, 
+                            custom_save_results_funch, 
+                            result_extractor_function,
+                            exp_name="nethint_{}_{}_{}".format(compared_lb_scheme, total_capacity, experiment_seed),
+                            worker_thread_count=40, 
+                            )
+            
+            cs.sweep()
 

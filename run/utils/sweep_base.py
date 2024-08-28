@@ -27,6 +27,7 @@ class ConfigSweeper:
                  run_results_modifier=None,
                  custom_save_results_func=None,
                  result_extractor_function=None,
+                 exp_name="exp",
                  worker_thread_count=DEFAULT_WORKER_THREAD_COUNT):
         
         # arguments
@@ -59,30 +60,37 @@ class ConfigSweeper:
         self.run_path = self.base_dir + "/run"
         self.base_executable = self.build_path + "/psim"
         self.run_executable = self.build_path + "/psim-" + self.run_id
-        self.results_dir = "results/sweep/{}-run/".format(self.run_id)
-        self.shuffle_dir = self.results_dir + "/shuffle/"
+        self.results_dir = "results/sweep/{}-{}/".format(self.run_id, exp_name)
         self.csv_dir = self.results_dir + "/csv/"
         self.raw_csv_path = self.csv_dir + "raw_results.csv"    
         self.plots_dir = self.results_dir + "/plots/" 
         self.workers_dir = self.run_path + "/workers/"
-
+        self.plot_commands_script = self.results_dir + "plot_commands.sh"
+        
         self.results_cache = {}
         self.cache_lock = threading.Lock() 
         self.cache_hits = 0 
         self.cache_mistakes = 0 
+        self.cache_recalculations = 0 
         
         self.last_df_save_time = datetime.datetime.now() 
         self.df_save_interval_seconds = 10 
         
         os.system("mkdir -p {}".format(self.results_dir))
-        os.system("mkdir -p {}".format(self.shuffle_dir))
         os.system("mkdir -p {}".format(self.csv_dir))
         os.system("mkdir -p {}".format(self.plots_dir))
         os.system("mkdir -p {}".format(self.workers_dir))
         
+        os.system("touch {}".format(self.plot_commands_script))
+        os.system("chmod +x {}".format(self.plot_commands_script))
+        
         # set up the watchdog. Run the "./ram_controller.sh 18 python3" in background,
         # keep pid and kill it when the program ends.
-        self.watchdog_pid = subprocess.Popen(["./ram_controller.sh", str(MEMORY_LIMIT), "python3"]).pid
+        self.watchdog_pid = subprocess.Popen([
+                                "./ram_controller.sh", 
+                                str(MEMORY_LIMIT), 
+                                "python3"
+                            ]).pid
         
     def __del__(self):
         os.system("kill -9 {}".format(self.watchdog_pid))
@@ -117,6 +125,7 @@ class ConfigSweeper:
             print("number of jobs that didn't converge:", self.non_converged_jobs)
             print("number of cache hits:", self.cache_hits)
             print("number of cache mistakes:", self.cache_mistakes) 
+            print("number of cache recalculations:", self.cache_recalculations) 
             
             if self.cache_mistakes > 0:
                 print("cache mistakes happened. This means that the results are not deterministic.")
@@ -129,7 +138,7 @@ class ConfigSweeper:
             
             # call the custom func to do anything with the results.
             if self.custom_save_results_func is not None: 
-                self.custom_save_results_func(all_pd_frame, self)
+                self.custom_save_results_func(all_pd_frame, self, final=True)
                 
         except Exception as e:
             print("error in running the experiments")
@@ -235,6 +244,9 @@ class ConfigSweeper:
                     new_results_copy = copy.deepcopy(this_exp_results)
                     # sanity check: 
                     if cache_key in self.results_cache:
+                        
+                        self.cache_recalculations += 1
+                        
                         # all keys should be the same. 
                         for key in new_results_copy:
                             if new_results_copy[key] != self.results_cache[cache_key][0][key]:
@@ -280,7 +292,7 @@ class ConfigSweeper:
                 
                 if self.custom_save_results_func is not None:
                     try: 
-                        self.custom_save_results_func(df, self)
+                        self.custom_save_results_func(df, self, final=False)
                     except Exception as e:
                         print("error in custom_save_results_func")
                         print(e)

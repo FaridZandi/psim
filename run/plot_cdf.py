@@ -29,13 +29,30 @@ random_df["combined"] = random_df.apply(lambda row: ",".join([f"{param}={row[par
 # unique values of the combined column
 unique_combined = compact_df["combined"].unique()
 
+marker_cache = {} 
+marker_options = ["o", "s", "D", "v", "^", "<", ">", "p", "P", "*", "h", "H", "+", "x", "X", "|", "_"]
+def get_marker(param):
+    global marker_cache
+    if param not in marker_cache:
+        marker_cache[param] = marker_options.pop(0)
+    return marker_cache[param]
+
+style_cache = {}
+style_options = ["-", "--", "-.", ":", ".", ",", "o", "v", "^", "<", ">", "1", "2", "3", "4", "s", "p", "*", "h", "H", "+", "x", "X", "D", "d", "|", "_"]
+def get_style(param):
+    global style_cache
+    if param not in style_cache:
+        style_cache[param] = style_options.pop(0)
+    return style_cache[param]
+
+    
 # for each unique value, plot the cdf
 for combined in unique_combined:
     # filter the data
     compact_filtered_df = compact_df[compact_df["combined"] == combined]
     random_filtered_df = random_df[random_df["combined"] == combined]
     
-    fig, axes = plt.subplots(1, 2, figsize=(9, 3), sharex=True, sharey=True)
+    fig, axes = plt.subplots(1, 2, figsize=(9, 3), sharey=True)
     
     for i, exp in enumerate([("Random Placement", random_filtered_df), ("Compact Placement", compact_filtered_df)]): 
         placement_type, placement_df = exp
@@ -48,6 +65,9 @@ for combined in unique_combined:
         # get the first line 
         first_line = placement_df.iloc[0]
         
+        max_value = 3
+        min_value = 1
+        
         # plot the cdf
         for cdf_param in cdf_params:
             values = first_line[cdf_param]
@@ -57,13 +77,22 @@ for combined in unique_combined:
             values = sorted(values)
             yvals = np.arange(len(values))/float(len(values) - 1)
             
-            this_ax.plot(values, yvals, label=cdf_param)
+            max_value = max(max_value, max(values)) 
+            min_value = min(min_value, min(values)) 
+                    
+            this_ax.plot(values, yvals, 
+                         label=cdf_param, 
+                         marker=get_marker(cdf_param),
+                         markersize=3,
+                         linestyle=get_style(cdf_param))     
         
         
         # tick vertical line at x = 1 
         this_ax.axvline(x=1, color="black", linestyle="-")
         
         this_ax.set_ylim(0, 1)
+        this_ax.set_xlim(min_value * 0.9, max_value * 1.1)
+        
         this_ax.set_title(placement_type)
         this_ax.set_xlabel("Value")
         this_ax.set_ylabel("CDF")
