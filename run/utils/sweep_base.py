@@ -138,7 +138,7 @@ class ConfigSweeper:
             
             # call the custom func to do anything with the results.
             if self.custom_save_results_func is not None: 
-                self.custom_save_results_func(all_pd_frame, self, final=True)
+                self.custom_save_results_func(all_pd_frame, self, plot=True)
                 
         except Exception as e:
             print("error in running the experiments")
@@ -268,6 +268,7 @@ class ConfigSweeper:
             except subprocess.CalledProcessError as e:
                 print("error in running the command")
                 print("I don't know what to do here")
+                print(e)
                 exit(0)
                 
             
@@ -292,7 +293,7 @@ class ConfigSweeper:
                 
                 if self.custom_save_results_func is not None:
                     try: 
-                        self.custom_save_results_func(df, self, final=False)
+                        self.custom_save_results_func(df, self, plot=False)
                     except Exception as e:
                         print("error in custom_save_results_func")
                         print(e)

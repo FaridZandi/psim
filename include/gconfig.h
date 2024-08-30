@@ -44,6 +44,11 @@ enum class RegretMode {
     NONE,
 };
 
+enum class TimingScheme {
+    None, 
+    Random, 
+    Incremental,
+};
 
 class GConf {
 public:
@@ -139,6 +144,8 @@ public:
     int placement_seed = 0; // used for placement of the nodes and related things. 
     int simulation_seed = 0; // set at the beginning of the simulation. 
                              // for the cosecutive runs (reps) the seed will be incremented by 1. 
+
+    TimingScheme timing_scheme = TimingScheme::None; 
 
     GConf() {}
 };

@@ -946,6 +946,8 @@ psim::build_nethint_test() {
 
     int machines_left = GConf::inst().machine_count; 
     std::vector<int> job_machine_counts;
+    std::vector<int> initial_job_wait_times; 
+
     int job_count = 0; 
 
     // deciding the number of machines for each job, and therefore the number of jobs.
@@ -969,6 +971,23 @@ psim::build_nethint_test() {
         job_machine_counts.push_back(machines_for_job);
         machines_left -= machines_for_job;
         job_count += 1;
+
+        // get the random number regardless of the timing scheme. If calling rand()
+        // depends on the timing scheme, the random seed will be different for different
+        // timing schemes.
+        // My GOD, this thing is causing so many issues. 
+
+        int timing_rand = rand(); 
+
+        if (GConf::inst().timing_scheme == TimingScheme::Random) {
+            int initial_wait = timing_rand % 2000;
+            initial_job_wait_times.push_back(initial_wait);
+        } else if (GConf::inst().timing_scheme == TimingScheme::Incremental) {
+            int initial_wait = (job_count - 1) * 400; 
+            initial_job_wait_times.push_back(initial_wait);
+        } else {
+            initial_job_wait_times.push_back(0);
+        }
     }
 
     ////////////////////////////////////////////////////////////////////////////////
@@ -1022,13 +1041,15 @@ psim::build_nethint_test() {
         for (int j = 0; j < job_machines.size(); j++) {
             job_machines_str += std::to_string(job_machines[j]) + " ";
         }
-        spdlog::critical("PLACEMENT: job {} machines: {}", i + 1, job_machines_str);
+        spdlog::critical("PLACEMENT: job {} machines: {}, starting at {}", i + 1, job_machines_str, initial_job_wait_times[i]);
 
-        int this_job_initial_wait = 0; // i * 100;
+        int this_job_initial_wait = initial_job_wait_times[i];
         int this_job_long_pc_length = 0;
         int this_job_id = i + 1;
 
         int this_job_comm_length = get_config_or_default(GConf::inst().general_param_4, 4000);
+        this_job_comm_length = (int)(this_job_comm_length / (job_machines.size())); 
+
         int this_job_comp_length = get_config_or_default(GConf::inst().general_param_5, 500);
         int layer_count = get_config_or_default(GConf::inst().general_param_6, 2);
         int iteration_count = get_config_or_default(GConf::inst().general_param_7, 30);

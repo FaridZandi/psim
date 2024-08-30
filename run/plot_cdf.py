@@ -38,11 +38,27 @@ def get_marker(param):
     return marker_cache[param]
 
 style_cache = {}
-style_options = ["-", "--", "-.", ":", ".", ",", "o", "v", "^", "<", ">", "1", "2", "3", "4", "s", "p", "*", "h", "H", "+", "x", "X", "D", "d", "|", "_"]
+linestyle_tuple = [
+     ('loosely dotted',        (0, (1, 10))),
+     ('dotted',                (0, (1, 1))),
+     ('densely dotted',        (0, (1, 1))),
+     ('long dash with offset', (5, (10, 3))),
+     ('loosely dashed',        (0, (5, 10))),
+     ('dashed',                (0, (5, 5))),
+     ('densely dashed',        (0, (5, 1))),
+
+     ('loosely dashdotted',    (0, (3, 10, 1, 10))),
+     ('dashdotted',            (0, (3, 5, 1, 5))),
+     ('densely dashdotted',    (0, (3, 1, 1, 1))),
+
+     ('dashdotdotted',         (0, (3, 5, 1, 5, 1, 5))),
+     ('loosely dashdotdotted', (0, (3, 10, 1, 10, 1, 10))),
+     ('densely dashdotdotted', (0, (3, 1, 1, 1, 1, 1)))]
+# style_options = ['-', '--', '-.', ':', 'solid', 'dashed', 'dashdot', 'dotted']
 def get_style(param):
     global style_cache
     if param not in style_cache:
-        style_cache[param] = style_options.pop(0)
+        style_cache[param] = linestyle_tuple.pop(0)[1]
     return style_cache[param]
 
     
@@ -68,6 +84,8 @@ for combined in unique_combined:
         max_value = 3
         min_value = 1
         
+        avg_values = {} 
+        
         # plot the cdf
         for cdf_param in cdf_params:
             values = first_line[cdf_param]
@@ -77,12 +95,24 @@ for combined in unique_combined:
             values = sorted(values)
             yvals = np.arange(len(values))/float(len(values) - 1)
             
+            avg_value = np.mean(values)
+            
             max_value = max(max_value, max(values)) 
             min_value = min(min_value, min(values)) 
                     
+            label = cdf_param 
+            if cdf_param.endswith("_values"):
+                # remove the _values suffix
+                label = cdf_param[:-7]
+            
+            label = f"{label} ({avg_value:.2f} X)"
+            
+            avg_values[label] = avg_value
+                
             this_ax.plot(values, yvals, 
-                         label=cdf_param, 
+                         label=label, 
                          marker=get_marker(cdf_param),
+                         markevery=0.1,
                          markersize=3,
                          linestyle=get_style(cdf_param))     
         
@@ -98,8 +128,11 @@ for combined in unique_combined:
         this_ax.set_ylabel("CDF")
         
         
-        if i == 1: 
-            this_ax.legend(loc="lower right")
+        # sort the legend iterms based on the average value (that was calculated above with an X mark)
+        handles, labels = this_ax.get_legend_handles_labels()
+        labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: avg_values[t[0]]))
+        this_ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.25))
+        
         
     plt.suptitle(combined, y=1.05)
         

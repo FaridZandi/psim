@@ -50,20 +50,54 @@ def parse_line_all_reduce(line):
         else:
             return None
     
-def get_iter_lengths(output_lines):
+def get_iter_lengths(output_lines, all_jobs_running=False): 
+    
+    iteration_times = {} 
     
     job_start_times = {}
-    job_iteration_times = {}
-    job_iteration_starts = {}
+    job_finish_times = {} 
+    
+    # job_iteration_times = {}
+    # job_iteration_starts = {}
 
     for line in output_lines:
         line = line.strip()
         
-        if "done with rep" in line: 
-            yield job_iteration_times, job_iteration_starts, job_start_times
+        if "done with rep" in line:
+            job_iteration_lengths = {}
+
+            latest_job_start = max(job_start_times.values())
+            earliest_job_finish = min(job_finish_times.values())
+            
+            
+            for job_id in iteration_times:
+                for iter_id in iteration_times[job_id]:
+                    if "finish" not in iteration_times[job_id][iter_id]:
+                        # this must be the last iteration that doesn't have a finish time
+                        continue 
+                    else: 
+                        start_time = iteration_times[job_id][iter_id]["start"]
+                        finish_time = iteration_times[job_id][iter_id]["finish"]
+                        iteration_length = round(finish_time - start_time, 2)
+                        
+                        if job_id not in job_iteration_lengths:
+                            job_iteration_lengths[job_id] = []
+                        
+                        if all_jobs_running:
+                            if start_time >= latest_job_start and finish_time <= earliest_job_finish:
+                                job_iteration_lengths[job_id].append(iteration_length)
+                                iteration_times[job_id][iter_id]["accepted"] = "Yes"
+                            else: 
+                                iteration_times[job_id][iter_id]["accepted"] = "No"
+                        else: 
+                            job_iteration_lengths[job_id].append(iteration_length)
+                            iteration_times[job_id][iter_id]["accepted"] = "X"
+
+            yield job_iteration_lengths, iteration_times 
+            
+            iteration_times = {}            
             job_start_times = {}
-            job_iteration_times = {}
-            job_iteration_starts = {}
+            job_finish_times = {}
             
             continue
         
@@ -74,42 +108,92 @@ def get_iter_lengths(output_lines):
             
             if type == "jobstart":
                 job_start_times[job_id] = sim_time
-                job_iteration_times[job_id] = []
-                job_iteration_starts[job_id] = [sim_time]
+                iteration_times[job_id] = {1 : {"start": sim_time}}
+                                
             
             elif type == "iterfinish":
-                if iter_id == 1: 
-                    iteration_length = sim_time - job_start_times[job_id]
-                    iteration_length = round(iteration_length, 2)
-                else:
-                    iteration_length = sim_time - (sum(job_iteration_times[job_id]) + job_start_times[job_id])
-                    iteration_length = round(iteration_length, 2)
+                # if iter_id == 1: 
+                #     iteration_length = sim_time - job_start_times[job_id]
+                #     iteration_length = round(iteration_length, 2)
+                # else:
+                #     iteration_length = sim_time - (sum(job_iteration_times[job_id]) + job_start_times[job_id])
+                #     iteration_length = round(iteration_length, 2)
                     
-                job_iteration_starts[job_id].append(sim_time)
-                job_iteration_times[job_id].append(iteration_length)
-    
-    
+                # job_iteration_starts[job_id].append(sim_time)
+                # job_iteration_times[job_id].append(iteration_length)
+                
+                if job_id not in iteration_times: 
+                    print("job_id {} not found in iteration_times".format(job_id))
+                if iter_id not in iteration_times[job_id]:
+                    print("iter_id {} not found in iteration_times[{}]".format(iter_id, job_id))
+                
+                iteration_times[job_id][iter_id]["finish"] = sim_time 
+                next_iter_id = iter_id + 1 
+                
+                if next_iter_id not in iteration_times[job_id]:
+                    # the last iteration will also create one more entry in the dictionary
+                    # which has to be considered later. There will always be one entry at the end 
+                    # that doesn't have a finish time.
+                    iteration_times[job_id][next_iter_id] = {"start": sim_time}
+                
+                
+                # handle the job_finish_times 
+                if job_id not in job_finish_times:
+                    job_finish_times[job_id] = sim_time
+                else:
+                    job_finish_times[job_id] = max(job_finish_times[job_id], sim_time)
+                    
     print("we shouldn't get here!")
-    yield job_iteration_times, job_iteration_starts, job_start_times
-
-def get_all_reduce_times(output_lines):
+    exit(0)
     
-    all_reduce_times = {} 
-    all_reduce_lengths = {} 
 
+def get_all_reduce_times(output_lines, all_jobs_running=False):
+    all_reduce_times = {} 
+    job_start_times = {} 
+    job_finish_times = {} 
+    
     current_rep = 1 
         
     for line in output_lines:
         line = line.strip()
         
         if "done with rep" in line: 
+            
+            all_reduce_lengths = {} 
+            
+            latest_job_start = max(job_start_times.values())
+            earliest_job_finish = min(job_finish_times.values())
+
+
+            for job_id in all_reduce_times:
+                for iter_id in all_reduce_times[job_id]:
+                    for layer_id in all_reduce_times[job_id][iter_id]:
+                        
+                        start_time = all_reduce_times[job_id][iter_id][layer_id]["start"]
+                        finish_time = all_reduce_times[job_id][iter_id][layer_id]["finish"]
+                        
+                        duration = round(finish_time - start_time, 2)
+                        
+                        if job_id not in all_reduce_lengths:
+                            all_reduce_lengths[job_id] = []
+                        
+                        if all_jobs_running:
+                            if start_time >= latest_job_start and finish_time <= earliest_job_finish:
+                                all_reduce_lengths[job_id].append(duration)
+                                all_reduce_times[job_id][iter_id][layer_id]["accepted"] = "Yes"
+                            else: 
+                                all_reduce_times[job_id][iter_id][layer_id]["accepted"] = "No"
+                        else: 
+                            all_reduce_lengths[job_id].append(duration)
+                            all_reduce_times[job_id][iter_id][layer_id]["accepted"] = "X"
+
             yield all_reduce_lengths, all_reduce_times
             
-            all_reduce_lengths = {}
             all_reduce_times = {}
-                    
-            current_rep += 1    
-            
+            job_start_times = {}
+            job_finish_times = {}        
+
+            current_rep += 1 
             continue
         
         parsed_data = parse_line_all_reduce(line)
@@ -139,51 +223,74 @@ def get_all_reduce_times(output_lines):
                 if "start" not in all_reduce_times[job_id][iter_id][layer_id]:
                     print("start not found in all_reduce_times[{}][{}][{}] for rep {}".format(job_id, iter_id, layer_id, current_rep))                   
                     
-                start_time = all_reduce_times[job_id][iter_id][layer_id]["start"]
                 all_reduce_times[job_id][iter_id][layer_id]["finish"] = sim_time
                 
-                duration = round(sim_time - start_time, 2)
+        
+        iter_parse_data = parse_line_iteration(line)    
+        
+        if iter_parse_data: 
+            sim_time, job_id, iter_id, type = iter_parse_data
+            
+            if type == "jobstart":
+                job_start_times[job_id] = sim_time
+            
+            if type == "iterfinish":
+                if job_id not in job_finish_times:
+                    job_finish_times[job_id] = sim_time 
+                else:
+                    job_finish_times[job_id] = max(job_finish_times[job_id], sim_time)
 
-                if job_id not in all_reduce_lengths:
-                    all_reduce_lengths[job_id] = []
-                    
-                all_reduce_lengths[job_id].append(duration)
-                 
 
     print("we shouldn't get here!")
-    yield all_reduce_times
+    exit(0)    
+
     
     
-def get_all_rep_iter_lengths(output_lines, rep_count):
-    # TODO: I should somehow only count the iterations that are happening when all the jobs are running. 
-    # I could have 5 jobs, but after the first one finishes, the other 4 will be running. the numbers 
-    # will not repreresent the actual iteration lengths. However, the other counting methods also has 
-    # its own merits. 
+def get_all_rep_iter_lengths(output_lines, rep_count, all_jobs_running=False, verbose=False):
     rep = 0
     results = [] 
 
-    for rep_result in get_iter_lengths(output_lines): 
-        iteration_lengths, iteration_starts, job_start_times = rep_result
+    for rep_result in get_iter_lengths(output_lines, all_jobs_running): 
+
+        iteration_lengths, iteration_times = rep_result
+        
+        if verbose:
+            print("iteration_lengths: ")        
+            pprint(iteration_lengths)
+            
+            print("iteration_times: ")
+            pprint(iteration_times)
+        
         results.append(iteration_lengths)
         
         rep += 1
         if rep == rep_count:
             break
-    
+        
     return results
 
-def get_all_rep_all_reduce_times(output_lines, rep_count):
+def get_all_rep_all_reduce_times(output_lines, rep_count, all_jobs_running=False, verbose=False):
     rep = 0
     results = [] 
 
-    for rep_result in get_all_reduce_times(output_lines): 
+    for rep_result in get_all_reduce_times(output_lines, all_jobs_running): 
+        
         all_reduce_lengths, all_reduce_times = rep_result
+        
+        if verbose:
+            print("all_reduce_lengths: ")        
+            pprint(all_reduce_lengths)
+            
+            print("all_reduce_times: ")
+            pprint(all_reduce_times)
+        
         results.append(all_reduce_lengths)
+        
         
         rep += 1
         if rep == rep_count:
             break
-    
+        
     return results
 
 if __name__ == "__main__":
@@ -196,8 +303,8 @@ if __name__ == "__main__":
     with open(path, "r") as f:
         output_lines = f.readlines()
         
-    iter_lengths = get_all_rep_iter_lengths(output_lines, 1)
-    all_reduce_lengths = get_all_rep_all_reduce_times(output_lines, 1)
+    get_all_rep_iter_lengths(output_lines, 1, 
+                             all_jobs_running=True, verbose=True)
     
-    pprint(iter_lengths)
-    pprint(all_reduce_lengths)
+    get_all_rep_all_reduce_times(output_lines, 1, 
+                                 all_jobs_running=True, verbose=True)

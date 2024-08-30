@@ -27,11 +27,11 @@ options = {
     "ft-server-per-rack": 4,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
-    "ft-core-count": 8,
+    "ft-core-count": 1,
     "ft-pod-count": -1,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
-    "ft-agg-core-link-capacity-mult": 1,
+    "ft-agg-core-link-capacity-mult": 1000,
     
     # "lb-scheme": "random",
     "lb-scheme": "random",
@@ -44,7 +44,7 @@ options = {
     "regret-mode": "none",
     
     "general-param-1": 4,
-    "general-param-3": 8,
+    "general-param-3": 16,
     
     "general-param-2": 4,
     

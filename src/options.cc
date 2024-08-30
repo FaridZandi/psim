@@ -62,7 +62,8 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("adaptive-step-size-max", po::value<double>(), "max adaptive step size")
         ("print-flow-progress-history", po::value<int>()->implicit_value(1), "print flow progress history")
         ("placement-seed", po::value<int>(), "placement seed")
-        ("simulation-seed", po::value<int>(), "simulation seed")    
+        ("simulation-seed", po::value<int>(), "simulation seed")  
+        ("timing-scheme", po::value<std::string>(), "timing scheme")    
         ("general-param-1", po::value<int>(), "general param 1")
         ("general-param-2", po::value<int>(), "general param 2")
         ("general-param-3", po::value<int>(), "general param 3")
@@ -380,6 +381,20 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("simulation-seed")) {
         GConf::inst().simulation_seed = vm["simulation-seed"].as<int>();
     }   
+    if (vm.count("timing-scheme")) {
+        std::string timing_scheme_str = vm["timing-scheme"].as<std::string>();
+
+        if (timing_scheme_str == "random") {
+            GConf::inst().timing_scheme = TimingScheme::Random;
+        } else if (timing_scheme_str == "none") {
+            GConf::inst().timing_scheme = TimingScheme::None;
+        } else if (timing_scheme_str == "inc") {
+            GConf::inst().timing_scheme = TimingScheme::Incremental;
+        } else {
+            spdlog::error("Invalid timing scheme: {}", timing_scheme_str);
+            exit(1);
+        }
+    }
 }
 
 void psim::log_config() {
