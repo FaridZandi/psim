@@ -63,7 +63,7 @@ total_capacities = [800, 400]
 
 interesting_metrics = ["avg_ar_time", "avg_iter_time"] #"iter_minus_ar_time"]
 
-compared_lb_schemes = ["roundrobin", "roundrobin", "ecmp", "perfect", "powerof2", "ideal"]
+compared_lb_schemes = ["roundrobin", "roundrobin", "ecmp", "perfect", "powerof2"]
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
 
 compared_timing_schemes = ["inc", "random"]
@@ -317,6 +317,9 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
         compact_placement_df = exp_results_df[exp_results_df["node-placement"] == "compact"]
         random_placement_df = exp_results_df[exp_results_df["node-placement"] == "random"]
         
+        base_ring_mode = "random" 
+        compared_ring_mode = "optimal"  
+        
         merge_on = ["protocol-file-name", "machine-count", "cores", "placement-seed", "job-info"]
 
         for placement, placement_df in [("compact", compact_placement_df), 
@@ -325,18 +328,17 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
             base = {"ring-mode": "random", "lb-scheme": base_lb_scheme, "timing-scheme": base_timing_scheme}
             
             comparisons = [
-                ("OR", {"ring-mode": "optimal", "lb-scheme": compared_lb_scheme, "timing-scheme": base_timing_scheme}), 
-                ("LB", {"ring-mode": "random", "lb-scheme": compared_lb_scheme, "timing-scheme": base_timing_scheme}),
-                ("TS", {"ring-mode": "random", "lb-scheme": base_lb_scheme, "timing-scheme": compared_timing_scheme}),
+                ("OR", {"ring-mode": compared_ring_mode, "lb-scheme": base_lb_scheme, "timing-scheme": base_timing_scheme}), 
+                ("LB", {"ring-mode": base_ring_mode, "lb-scheme": compared_lb_scheme, "timing-scheme": base_timing_scheme}),
+                ("TS", {"ring-mode": base_ring_mode, "lb-scheme": base_lb_scheme, "timing-scheme": compared_timing_scheme}),
                 
-                ("OR+LB", {"ring-mode": "optimal", "lb-scheme": compared_lb_scheme, "timing-scheme": base_timing_scheme}),
-                ("OR+TS", {"ring-mode": "optimal", "lb-scheme": base_lb_scheme, "timing-scheme": compared_timing_scheme}),
-                ("LB+TS", {"ring-mode": "random", "lb-scheme": compared_lb_scheme, "timing-scheme": compared_timing_scheme}),
+                ("OR+LB", {"ring-mode": compared_ring_mode, "lb-scheme": compared_lb_scheme, "timing-scheme": base_timing_scheme}),
+                ("OR+TS", {"ring-mode": compared_ring_mode, "lb-scheme": base_lb_scheme, "timing-scheme": compared_timing_scheme}),
+                ("LB+TS", {"ring-mode": base_ring_mode, "lb-scheme": compared_lb_scheme, "timing-scheme": compared_timing_scheme}),
                 
-                ("OR+LB+TS", {"ring-mode": "optimal", "lb-scheme": compared_lb_scheme, "timing-scheme": compared_timing_scheme}),
+                ("OR+LB+TS", {"ring-mode": compared_ring_mode, "lb-scheme": compared_lb_scheme, "timing-scheme": compared_timing_scheme}),
                     
-                ("Ideal", {"ring-mode": "optimal", "lb-scheme": "ideal", "timing-scheme": base_timing_scheme}),    
-                # ("Ideal+TS", {"ring-mode": "optimal", "lb-scheme": "ideal", "timing-scheme": compared_timing_scheme}),
+                ("Ideal", {"ring-mode": base_ring_mode, "lb-scheme": "ideal", "timing-scheme": base_timing_scheme}),    
             ]
             
             # base_df = placement_df[(placement_df["ring-mode"] == base["ring-mode"]) & 
