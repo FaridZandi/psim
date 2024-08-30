@@ -6,12 +6,7 @@ import numpy as np
 from processing.itertimes_multirep import get_all_rep_iter_lengths, get_all_rep_all_reduce_times
 from pprint import pprint 
 import copy
-    
-placement_mode_map = {1: "compact placement+optimal ring",
-                      2: "random placement+optimal ring",
-                      3: "compact placement+random ring",
-                      4: "random placement+random ring"}
-
+import json
 
 base_options = {
     "step-size": 1,
@@ -25,71 +20,64 @@ base_options = {
     "drop-chance-multiplier": 0, 
     "rate-increase": 1, 
     
-    # "priority-allocator": "fairshare",
-    "priority-allocator": "maxmin",
-    # "priority-allocator": "priorityqueue", 
+    "priority-allocator": "maxmin", # "fairshare",
 
     "network-type": "leafspine",    
     "link-bandwidth": 100,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
-    # "ft-core-count": 4,
     "ft-pod-count": -1,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
     "ft-agg-core-link-capacity-mult": 1,
     
-    # "lb-scheme": "random",
-    # "lb-scheme": "roundrobin",
-    # "lb-scheme": "roundrobin",
-    
     "shuffle-device-map": False,
     "regret-mode": "none",
-    
 }
 
 # total_capacity = 800
 RANDOM_REP_COUNT = 5
-experiment_seed = 54
+experiment_seed = 55
 oversub = 1
+
+
+
+base_lb_scheme = "random"
+base_timing_scheme = "zero"
+base_ring_mode = "random" 
 
 compared_lb_scheme = "" 
 compared_timing_scheme = "" 
+compared_ring_mode = "optimal"  
 
-base_lb_scheme = "random"
-base_timing_scheme = "none"
-
-total_capacities = [800, 400]
-
+total_capacities = [400]#, 800, 1600]
 interesting_metrics = ["avg_ar_time", "avg_iter_time"] #"iter_minus_ar_time"]
-
-compared_lb_schemes = ["roundrobin", "roundrobin", "ecmp", "perfect", "powerof2"]
+compared_lb_schemes = ["leastloaded"]#, "roundrobin", "ecmp", "perfect", "powerof2"]
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
-
-compared_timing_schemes = ["inc", "random"]
+compared_timing_schemes = ["inc"]#, "random"]
 
 sweep_config = {
     "protocol-file-name": ["nethint-test"],
 
     # placement and workload parameters
-    "placement-seed": list(range(1, 20)), # this is a dummy parameter. basically repeat the experiment 10 times
+    "placement-seed": list(range(1, 10)), # this is a dummy parameter. basically repeat the experiment 10 times
     
-    "machine-count": [128],
-    "ft-server-per-rack": [16],
+    "machine-count": [32],
+    "ft-server-per-rack": [8],
     
-    "general-param-1": [8],  # number of machines for each job, low 
-    "general-param-3": [16], # number of machines for each job, high 
+    "general-param-1": [4],  # number of machines for each job, low 
+    "general-param-3": [8], # number of machines for each job, high 
     "general-param-4": [20000], # comm_size, to be divided by the number of machines in a job
     "general-param-5": [1000], # comp size
     "general-param-6": [1], # layer count
-    "general-param-7": [30], # iteration count
+    "general-param-7": [20], # iteration count
     
-    "general-param-2": [ # placement mode
-        1, # "compact placement+optimal ring",
-        2, # "random placement+optimal ring",
-        3, # "compact placement+random ring",
-        4, # "random placement+random ring"                    
-    ], 
+    "placement-mode": ["random", "compact"], 
+    "ring-mode": ["optimal", "random"],
+
+    "ft-core-count": [], # will be set later
+    "lb-scheme": [], # will be set later
+    "timing-scheme": [], # will be set later
 } 
 
 # the all-reduce time is technically comm_size / machine_count * 2 * (machine_count - 1) / link_bandwidth
@@ -97,7 +85,74 @@ sweep_config = {
 # comm_size = 20000, and link_bandwidth = 100 -> ar_time = 20000 / 100 * 2 = 400
 
 
-def run_command_options_modifier(options, config_sweeper):
+
+def generate_placement_file(placement_path, placement_seed,   
+                            options, run_context):
+    # the seed will be set at this point everything from here on will be deterministic.
+    # for the same experiment seed and placement seed. 
+    random.seed(experiment_seed + placement_seed)
+    
+    machine_count = options["machine-count"]
+
+    placement_mode = options["placement-mode"]
+    ring_mode = options["ring-mode"]    
+    
+    jobs_machine_count_high = options["general-param-3"] 
+    jobs_machine_count_low = options["general-param-1"]
+    
+    jobs = [] 
+    
+    machines_left = machine_count 
+    current_job_id = 1 
+    
+    
+    random_mode = "either_or"
+    # random_mode = "range"
+    
+    while machines_left > 0:
+        
+        if random_mode == "either_or":
+            this_job_machine_count = random.choice([jobs_machine_count_low, jobs_machine_count_high])  
+        elif random_mode == "range":
+            this_job_machine_count = random.randint(jobs_machine_count_low, jobs_machine_count_high)
+            
+        if this_job_machine_count > machines_left:
+            this_job_machine_count = machines_left    
+            
+        jobs.append({
+            "job_id": current_job_id,   
+            "machine_count": this_job_machine_count, 
+            "machines": []
+        })
+        
+        machines_left -= this_job_machine_count     
+        current_job_id += 1
+        
+    all_machines = list(range(1, machine_count + 1))
+    
+    if placement_mode == "random":
+        for job in jobs:
+            job["machines"] = random.sample(all_machines, job["machine_count"])
+            for machine in job["machines"]:
+                all_machines.remove(machine)
+    elif placement_mode == "compact":   
+        for job in jobs:
+            job["machines"] = all_machines[:job["machine_count"]]
+            all_machines = all_machines[job["machine_count"]:]
+                
+    if ring_mode == "random":
+        for job in jobs:
+            random.shuffle(job["machines"]) 
+    else:
+        for job in jobs:
+            job["machines"] = sorted(job["machines"])   
+    
+    json.dump(jobs, open(placement_path, "w"))
+
+    
+placement_files_state = {} 
+
+def run_command_options_modifier(options, config_sweeper, run_context):
     options["simulation-seed"] = experiment_seed 
     
     # regardless of the other stuff that we do, this is what we want: 
@@ -108,20 +163,18 @@ def run_command_options_modifier(options, config_sweeper):
     # If there are more cores, then the capacity per link should be divided.
     # e.g. 1 * 800, 2 * 400, 4 * 200, 8 * 100
     
-    run_context = {
+    run_context.update({
         "perfect_lb": False,
         "ideal_network": False,
         "original_mult": options["ft-agg-core-link-capacity-mult"],
         "original_core_count": options["ft-core-count"],
-    }        
-
+    })
 
     # if the lb scheme involves making random decisions, then we need to run multiple reps.    
     if options["lb-scheme"] in lbs_involving_randomness:
         # there's no point in running more than one rep for random if there's only one core. 
         if options["ft-core-count"] > 1:
             options["rep-count"] = RANDOM_REP_COUNT
-    
 
     # perfect lb will create a network where the core layer does perfect load balancing.
     # probably something that could be achieved with a perfect packet spraying mechanism.
@@ -144,14 +197,41 @@ def run_command_options_modifier(options, config_sweeper):
         options["ft-core-count"] = 1
     
     options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
-       
-    changed_keys = ["ft-agg-core-link-capacity-mult", "ft-core-count", "rep-count", "load-metric"]
-              
-    return changed_keys, run_context 
+    
+    ### based on the placement seed, we need to generate the placements. 
+    global placement_files_state
+    
+    placements_dir = "{}/placements/".format(config_sweeper.custom_files_dir) 
+    os.makedirs(placements_dir, exist_ok=True)
+    
+    placement_seed = options["placement-seed"] 
+    placement_mode = options["placement-mode"] 
+    ring_mode = options["ring-mode"]
+    
+    placement_path = "{}/{}-{}-{}.txt".format(placements_dir, placement_seed, 
+                                              placement_mode, ring_mode)
+         
+    if placement_path not in placement_files_state:
+        generate_placement_file(placement_path, placement_seed,   
+                                options, run_context)
+        
+        placement_files_state[placement_path] = True
+        
+    options["placement-file"] = placement_path
 
+    # move the placement-related stuff out of the options, into the run_context.
+    # The simulator should not be concerned with these things. the placement file 
+    # should be enough for the simulator to know what to do.
+    run_context.update({
+        "placement-mode": options["placement-mode"],
+        "ring-mode": options["ring-mode"],
+        "placement-seed": options["placement-seed"],    
+    })
+    options.pop("placement-mode")   
+    options.pop("ring-mode")
+    options.pop("placement-seed")   
 
 def result_extractor_function(output, options, this_exp_results):
-    
     for metric in interesting_metrics:
         
         if metric == "avg_ar_time":
@@ -210,55 +290,31 @@ def result_extractor_function(output, options, this_exp_results):
         })
     
 
-def run_results_modifier(results, options, output, run_context):
-    # rename the field: general-param-2 -> placement-mode
-    node_placement = -1 
-    ring_mode = -1
-     
-    general_param_2 = results["general-param-2"] 
+def run_results_modifier(results):
     
-    if general_param_2 == 1:
-        node_placement = "compact"
-        ring_mode = "optimal"
-    elif general_param_2 == 2:
-        node_placement = "random"
-        ring_mode = "optimal"
-    elif general_param_2 == 3:
-        node_placement = "compact"
-        ring_mode = "random"
-    elif general_param_2 == 4:
-        node_placement = "random"
-        ring_mode = "random"
-        
-    results["node-placement"] = node_placement
-    results["ring-mode"] = ring_mode
+    # the results will have everything inside. 
+    print("Run results modifier")
+    print("Results: ") 
+    pprint(results)
     
-    # results["placement-mode"] = results.pop("general-param-2")
-    # results["placement-mode"] = placement_mode_map[results["placement-mode"]] 
-
     results["job-info"] = "{} comm + {} comp + {} layers".format(results["general-param-4"], 
                                                                  results["general-param-5"], 
                                                                  results["general-param-6"])
     
     # this is a perfect lb scheme, so we need to change the lb-scheme to "perfect"
     # and change othe other fields back to the original values.
-    if run_context["perfect_lb"]:
+    if results["perfect_lb"]:
         results["lb-scheme"] = "perfect"
-        results["ft-agg-core-link-capacity-mult"] = run_context["original_mult"]
-        results["ft-core-count"] = run_context["original_core_count"]
+        results["ft-agg-core-link-capacity-mult"] = results["original_mult"]
+        results["ft-core-count"] = results["original_core_count"]
     
-    if run_context["ideal_network"]:
+    if results["ideal_network"]:
         results["lb-scheme"] = "ideal"
-        results["ft-agg-core-link-capacity-mult"] = run_context["original_mult"]
-        results["ft-core-count"] = run_context["original_core_count"]
+        results["ft-agg-core-link-capacity-mult"] = results["original_mult"]
+        results["ft-core-count"] = results["original_core_count"]
         
     results["cores"] = "{} x {} Gbps".format(results["ft-core-count"], 
-                                           int(options["link-bandwidth"] * results["ft-agg-core-link-capacity-mult"]))
-    
-    # go through the output, print all the lines that have "PLACEMENT" in them
-    # for line in output.split("\n"):
-    #     if "PLACEMENT" in line:
-    #         print(line)
+                                             int(results["link-bandwidth"] * results["ft-agg-core-link-capacity-mult"]))
     
 
 def plot_results(interesting_keys, plotted_key_min, plotted_key_max, 
@@ -314,11 +370,10 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
         os.makedirs(metric_csv_dir, exist_ok=True)
         os.makedirs(metric_plots_dir, exist_ok=True)
         
-        compact_placement_df = exp_results_df[exp_results_df["node-placement"] == "compact"]
-        random_placement_df = exp_results_df[exp_results_df["node-placement"] == "random"]
+        compact_placement_df = exp_results_df[exp_results_df["placement-mode"] == "compact"]
+        random_placement_df = exp_results_df[exp_results_df["placement-mode"] == "random"]
         
-        base_ring_mode = "random" 
-        compared_ring_mode = "optimal"  
+
         
         merge_on = ["protocol-file-name", "machine-count", "cores", "placement-seed", "job-info"]
 
@@ -341,10 +396,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
                 ("Ideal", {"ring-mode": base_ring_mode, "lb-scheme": "ideal", "timing-scheme": base_timing_scheme}),    
             ]
             
-            # base_df = placement_df[(placement_df["ring-mode"] == base["ring-mode"]) & 
-            #                        (placement_df["lb-scheme"] == base["lb-scheme"]) &
-            #                        (placement_df["timing-scheme"] == base["timing-scheme"])]
-            
             base_df = placement_df 
             for key, value in base.items():
                 base_df = base_df[base_df[key] == value]    
@@ -352,11 +403,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
             comparison_results = [] 
                                 
             for comparison_name, compared_df_setting in comparisons:
-                
-                # compared_df = placement_df[(placement_df["ring-mode"] == compared_df_setting["ring-mode"]) &
-                #                            (placement_df["lb-scheme"] == compared_df_setting["lb-scheme"]) &
-                #                            (placement_df["timing-scheme"] == compared_df_setting["timing-scheme"])]
-                
                 compared_df = placement_df
                 for key, value in compared_df_setting.items():
                     compared_df = compared_df[compared_df[key] == value]

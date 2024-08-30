@@ -66,6 +66,8 @@ class ConfigSweeper:
         self.plots_dir = self.results_dir + "/plots/" 
         self.workers_dir = self.run_path + "/workers/"
         self.plot_commands_script = self.results_dir + "plot_commands.sh"
+        self.custom_files_dir = self.results_dir + "custom_files/"  
+        self.exp_outputs_dir = self.results_dir + "exp_outputs/"
         
         self.results_cache = {}
         self.cache_lock = threading.Lock() 
@@ -80,7 +82,8 @@ class ConfigSweeper:
         os.system("mkdir -p {}".format(self.csv_dir))
         os.system("mkdir -p {}".format(self.plots_dir))
         os.system("mkdir -p {}".format(self.workers_dir))
-        
+        os.system("mkdir -p {}".format(self.custom_files_dir))
+        os.system("mkdir -p {}".format(self.exp_outputs_dir))   
         os.system("touch {}".format(self.plot_commands_script))
         os.system("chmod +x {}".format(self.plot_commands_script))
         
@@ -190,21 +193,22 @@ class ConfigSweeper:
     def run_experiment(self, exp, worker_id):
         start_time = datetime.datetime.now()
 
+        # everything about the experiment is stored in the options and context. 
+        # the options are the parameters that are passed to the executable.
+        # the context is the rest of the information that is needed to save the results, 
+        # but is not passed to the executable.
         options = {}
+        run_context = {} 
+        
+        # options will have the base options, and the current combination of the 
+        # sweep config parameters.
         options.update(self.base_options)
         options.update(exp)
 
-        # we don't to save every key in the options, so we keep track of the keys that we want to save.
-        # TODO: why can't we just save all the keys? what's the limitation here? the csv file will be too big?
-        saved_keys = set(list(self.sweep_config.keys())) 
-        run_context = {} 
-        
         # a final chance for the user to modify the options before making the command. 
-        # it should also return the keys that have been changed, so that we can save them in the results. 
         if self.run_command_options_modifier is not None:
             with self.thread_lock: 
-                changed_keys, run_context = self.run_command_options_modifier(options, self)
-                saved_keys.update(changed_keys)
+                self.run_command_options_modifier(options, self, run_context)
         
         cache_hit = False 
         cache_key = str(options)
@@ -228,18 +232,30 @@ class ConfigSweeper:
                 output = subprocess.check_output(cmd, shell=True)
                 output = output.decode("utf-8").splitlines()
                 
+                # store the output in a file.
+                random_name = get_random_string(10) 
+                output_file_path = self.exp_outputs_dir + "output-{}.txt".format(random_name)
+                with open(output_file_path, "w+") as f:
+                    pprint(options, stream=f)
+                    f.write("\n" + "-"*50 + "\n")
+                    f.writelines("\n".join(output))
+                # store the absolute path to the output file in the run_context.
+                run_context["output-file"] = os.path.abspath(output_file_path)
+                
+                
+                # get the duration of the experiment.
                 end_time = datetime.datetime.now()
                 duration = end_time - start_time
+                run_context["duration"] = duration.total_seconds()
                 
-                # get the basic results. 
+                # get the basic results from the output with the custom function.
                 this_exp_results = {
                     "run_id": self.run_id,
                 }
-                
-                # get the rest of the results from the user defined function.            
                 if self.result_extractor_function is not None:
                     self.result_extractor_function(output, options, this_exp_results)
                 
+                # save the results to the cache to avoid recalculating them.
                 with self.cache_lock:
                     new_results_copy = copy.deepcopy(this_exp_results)
                     # sanity check: 
@@ -270,18 +286,41 @@ class ConfigSweeper:
                 print("I don't know what to do here")
                 print(e)
                 exit(0)
-                
-            
-        for key in saved_keys:
-            this_exp_results[key] = options[key]
-
+        
+        # everything will be combined in this dictionary. 
+        # the results from the executable, the options, and the context. 
+        this_exp_results_keys = list(this_exp_results.keys()) 
+        run_context_keys = list(run_context.keys())
+        options_keys = list(options.keys())
+        
+        # check for duplicate keys between the results and the options.
+        duplicate_keys = set(this_exp_results_keys) & set(options_keys)
+        if len(duplicate_keys) > 0:
+            print("duplicate keys between the results and the options")
+            print(duplicate_keys)
+            exit(0)
+        duplicate_keys = set(this_exp_results_keys) & set(run_context_keys)
+        if len(duplicate_keys) > 0:
+            print("duplicate keys between the results and the run_context")
+            print(duplicate_keys)
+            exit(0)
+        duplicate_keys = set(run_context_keys) & set(options_keys)
+        if len(duplicate_keys) > 0:
+            print("duplicate keys between the run_context and the options")
+            print(duplicate_keys)
+            exit(0)
+               
+        results = {} 
+        results.update(this_exp_results)
+        results.update(run_context)
+        results.update(options)
 
         with self.thread_lock:
             # a final chance for the user to modify the results before saving them.
             if self.run_results_modifier is not None:
-                self.run_results_modifier(this_exp_results, options, output, run_context)
+                self.run_results_modifier(results)
         
-            self.exp_results.append(this_exp_results)
+            self.exp_results.append(results)
 
             # save the results to a csv file every 10 seconds
             time_since_last_save = datetime.datetime.now() - self.last_df_save_time
@@ -298,7 +337,7 @@ class ConfigSweeper:
                         print("error in custom_save_results_func")
                         print(e)
             
-            pprint(this_exp_results)
+            pprint(results)
             print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))
             print("duration: {}".format(duration))
             print("worker id: {}".format(worker_id))

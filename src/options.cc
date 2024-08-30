@@ -63,6 +63,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("print-flow-progress-history", po::value<int>()->implicit_value(1), "print flow progress history")
         ("placement-seed", po::value<int>(), "placement seed")
         ("simulation-seed", po::value<int>(), "simulation seed")  
+        ("placement-file", po::value<std::string>(), "placement file")
         ("timing-scheme", po::value<std::string>(), "timing scheme")    
         ("general-param-1", po::value<int>(), "general param 1")
         ("general-param-2", po::value<int>(), "general param 2")
@@ -386,14 +387,17 @@ void psim::process_arguments(po::variables_map vm){
 
         if (timing_scheme_str == "random") {
             GConf::inst().timing_scheme = TimingScheme::Random;
-        } else if (timing_scheme_str == "none") {
-            GConf::inst().timing_scheme = TimingScheme::None;
+        } else if (timing_scheme_str == "zero") {
+            GConf::inst().timing_scheme = TimingScheme::Zero;
         } else if (timing_scheme_str == "inc") {
             GConf::inst().timing_scheme = TimingScheme::Incremental;
         } else {
             spdlog::error("Invalid timing scheme: {}", timing_scheme_str);
             exit(1);
         }
+    }
+    if (vm.count("placement-file")) {
+        GConf::inst().placement_file = vm["placement-file"].as<std::string>();
     }
 }
 
@@ -446,6 +450,21 @@ void psim::log_config() {
     spdlog::info("==== adaptive_step_size_min: {}", GConf::inst().adaptive_step_size_min);
     spdlog::info("==== adaptive_step_size_max: {}", GConf::inst().adaptive_step_size_max);
     spdlog::info("==== print_flow_progress_history: {}", GConf::inst().print_flow_progress_history);
+    spdlog::info("==== placement_seed: {}", GConf::inst().placement_seed);
+    spdlog::info("==== simulation_seed: {}", GConf::inst().simulation_seed);
+    spdlog::info("==== placement_file: {}", GConf::inst().placement_file);
+    spdlog::info("==== timing_scheme: {}", int(GConf::inst().timing_scheme));
+    spdlog::info("==== general_param_1: {}", GConf::inst().general_param_1);
+    spdlog::info("==== general_param_2: {}", GConf::inst().general_param_2);
+    spdlog::info("==== general_param_3: {}", GConf::inst().general_param_3);
+    spdlog::info("==== general_param_4: {}", GConf::inst().general_param_4);
+    spdlog::info("==== general_param_5: {}", GConf::inst().general_param_5);
+    spdlog::info("==== general_param_6: {}", GConf::inst().general_param_6);
+    spdlog::info("==== general_param_7: {}", GConf::inst().general_param_7);
+    spdlog::info("==== general_param_8: {}", GConf::inst().general_param_8);
+    spdlog::info("==== general_param_9: {}", GConf::inst().general_param_9);
+    spdlog::info("==== general_param_10: {}", GConf::inst().general_param_10);
+    
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

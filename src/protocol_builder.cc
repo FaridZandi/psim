@@ -982,10 +982,12 @@ psim::build_nethint_test() {
         if (GConf::inst().timing_scheme == TimingScheme::Random) {
             int initial_wait = timing_rand % 2000;
             initial_job_wait_times.push_back(initial_wait);
+        
         } else if (GConf::inst().timing_scheme == TimingScheme::Incremental) {
             int initial_wait = (job_count - 1) * 400; 
             initial_job_wait_times.push_back(initial_wait);
-        } else {
+
+        } else if (GConf::inst().timing_scheme == TimingScheme::Zero) {
             initial_job_wait_times.push_back(0);
         }
     }

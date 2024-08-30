@@ -45,7 +45,7 @@ enum class RegretMode {
 };
 
 enum class TimingScheme {
-    None, 
+    Zero, 
     Random, 
     Incremental,
 };
@@ -145,7 +145,9 @@ public:
     int simulation_seed = 0; // set at the beginning of the simulation. 
                              // for the cosecutive runs (reps) the seed will be incremented by 1. 
 
-    TimingScheme timing_scheme = TimingScheme::None; 
+    std::string placement_file = ""; 
+
+    TimingScheme timing_scheme = TimingScheme::Zero; 
 
     GConf() {}
 };
