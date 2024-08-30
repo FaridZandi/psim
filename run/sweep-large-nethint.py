@@ -43,7 +43,7 @@ oversub = 1
 
 
 base_lb_scheme = "random"
-base_timing_scheme = "zero"
+base_timing_scheme = "random"
 base_ring_mode = "random" 
 
 compared_lb_scheme = "" 
@@ -62,11 +62,11 @@ sweep_config = {
     # placement and workload parameters
     "placement-seed": list(range(1, 10)), # this is a dummy parameter. basically repeat the experiment 10 times
     
-    "machine-count": [32],
-    "ft-server-per-rack": [8],
+    "machine-count": [128],
+    "ft-server-per-rack": [16],
     
-    "general-param-1": [4],  # number of machines for each job, low 
-    "general-param-3": [8], # number of machines for each job, high 
+    "general-param-1": [8],  # number of machines for each job, low 
+    "general-param-3": [16], # number of machines for each job, high 
     "general-param-4": [20000], # comm_size, to be divided by the number of machines in a job
     "general-param-5": [1000], # comp size
     "general-param-6": [1], # layer count
@@ -84,8 +84,31 @@ sweep_config = {
 # roughly equal to comm_size / link_bandwidth * 2
 # comm_size = 20000, and link_bandwidth = 100 -> ar_time = 20000 / 100 * 2 = 400
 
+def generate_timing_file(timing_file_path, jobs, options):
 
-
+    job_timings = [] 
+    
+    for job in jobs:
+        job_timing = 0 
+        
+        timing_scheme = options["timing-scheme"]
+        
+        if timing_scheme == "inc":
+            job_timing = 400 * (job["job_id"] - 1)
+        elif timing_scheme == "random":
+            job_timing = random.randint(0, 2000)
+        elif timing_scheme == "zero":
+            job_timing = 0
+        
+        job_timings.append({
+            "initial_wait": job_timing,
+            "job_id": job["job_id"]
+        })    
+        
+    json.dump(job_timings, open(timing_file_path, "w"))
+    
+    return job_timings
+    
 def generate_placement_file(placement_path, placement_seed,   
                             options, run_context):
     # the seed will be set at this point everything from here on will be deterministic.
@@ -106,10 +129,12 @@ def generate_placement_file(placement_path, placement_seed,
     current_job_id = 1 
     
     
-    random_mode = "either_or"
-    # random_mode = "range"
-    
-    while machines_left > 0:
+    # random_mode = "either_or"
+    random_mode = "range"
+
+    # assigning 1 machine to a job would be bad, beceasse there would be no communication. 
+    # so if just one machine is left, then we skip it.    
+    while machines_left > 1:
         
         if random_mode == "either_or":
             this_job_machine_count = random.choice([jobs_machine_count_low, jobs_machine_count_high])  
@@ -149,6 +174,7 @@ def generate_placement_file(placement_path, placement_seed,
     
     json.dump(jobs, open(placement_path, "w"))
 
+    return jobs
     
 placement_files_state = {} 
 
@@ -201,6 +227,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     ### based on the placement seed, we need to generate the placements. 
     global placement_files_state
     
+    # handle the placement
     placements_dir = "{}/placements/".format(config_sweeper.custom_files_dir) 
     os.makedirs(placements_dir, exist_ok=True)
     
@@ -208,28 +235,41 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     placement_mode = options["placement-mode"] 
     ring_mode = options["ring-mode"]
     
-    placement_path = "{}/{}-{}-{}.txt".format(placements_dir, placement_seed, 
-                                              placement_mode, ring_mode)
-         
-    if placement_path not in placement_files_state:
-        generate_placement_file(placement_path, placement_seed,   
-                                options, run_context)
+    placement_file_path = "{}/{}-{}-{}.txt".format(placements_dir, placement_seed, 
+                                                   placement_mode, ring_mode)
+    
+    if placement_file_path not in placement_files_state:
+        jobs = generate_placement_file(placement_file_path, placement_seed,   
+                                       options, run_context)
         
-        placement_files_state[placement_path] = True
+        placement_files_state[placement_file_path] = jobs
+    
+    options["placement-file"] = placement_file_path
+    
+    # handle the timing
+    timings_dir = "{}/timings/".format(config_sweeper.custom_files_dir)
+    os.makedirs(timings_dir, exist_ok=True)
+    
+    jobs = placement_files_state[placement_file_path]
+    timing_file_path = "{}/timings-{}.txt".format(timings_dir, get_random_string(10))
+    job_timings = generate_timing_file(timing_file_path, jobs, options)
+    
+    options["timing-file"] = timing_file_path
         
-    options["placement-file"] = placement_path
-
     # move the placement-related stuff out of the options, into the run_context.
     # The simulator should not be concerned with these things. the placement file 
     # should be enough for the simulator to know what to do.
     run_context.update({
         "placement-mode": options["placement-mode"],
         "ring-mode": options["ring-mode"],
-        "placement-seed": options["placement-seed"],    
+        "placement-seed": options["placement-seed"], 
+        "timing-scheme": options["timing-scheme"],  
     })
+    
     options.pop("placement-mode")   
     options.pop("ring-mode")
     options.pop("placement-seed")   
+    options.pop("timing-scheme")
 
 def result_extractor_function(output, options, this_exp_results):
     for metric in interesting_metrics:

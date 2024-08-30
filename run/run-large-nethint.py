@@ -50,6 +50,8 @@ options = {
     
     "simulation-seed": 45, 
     "placement-seed": 12,
+    
+    "placement-file": "/home/faridzandi/git/psim/run/results/sweep/896-nethint_leastloaded_inc_400_55/custom_files/placements/1-random-optimal.txt",
 }
 
 run_exp(options, sys.argv)

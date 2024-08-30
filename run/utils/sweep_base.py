@@ -252,9 +252,17 @@ class ConfigSweeper:
                 this_exp_results = {
                     "run_id": self.run_id,
                 }
-                if self.result_extractor_function is not None:
-                    self.result_extractor_function(output, options, this_exp_results)
                 
+                try: 
+                    if self.result_extractor_function is not None:
+                        self.result_extractor_function(output, options, this_exp_results)
+                except Exception as e:
+                    print("error in result_extractor_function")
+                    print("options: ", options) 
+                    print("run_context: ", run_context)
+                    print(e)
+                    exit(0) 
+                    
                 # save the results to the cache to avoid recalculating them.
                 with self.cache_lock:
                     new_results_copy = copy.deepcopy(this_exp_results)

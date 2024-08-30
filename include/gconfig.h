@@ -141,13 +141,11 @@ public:
     int general_param_10 = 0;
 
 
-    int placement_seed = 0; // used for placement of the nodes and related things. 
     int simulation_seed = 0; // set at the beginning of the simulation. 
                              // for the cosecutive runs (reps) the seed will be incremented by 1. 
 
     std::string placement_file = ""; 
-
-    TimingScheme timing_scheme = TimingScheme::Zero; 
+    std::string timing_file = ""; 
 
     GConf() {}
 };

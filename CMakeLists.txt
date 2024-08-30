@@ -17,14 +17,15 @@ set(Boost_USE_STATIC_RUNTIME OFF)
 find_package(Boost 1.71.0 COMPONENTS program_options) 
 
 add_subdirectory(deps/spdlog)
+add_subdirectory(deps/json)
 
 include_directories(include)
 
 # any python version
 find_package(PythonLibs REQUIRED)
-
 include_directories(${PYTHON_INCLUDE_DIRS})
 message(STATUS "PYTHON_INCLUDE_DIRS = ${PYTHON_INCLUDE_DIRS}")
+
 
 set(SOURCES src/psim.cc
             src/loadbalancer.cc
@@ -42,6 +43,7 @@ set(SOURCES src/psim.cc
 add_executable(psim ${SOURCES})
 
 target_link_libraries(psim ${PYTHON_LIBRARIES} spdlog::spdlog)
+target_link_libraries(psim nlohmann_json::nlohmann_json)
 
 if (Boost_FOUND)
   include_directories(${Boost_INCLUDE_DIRS}) 

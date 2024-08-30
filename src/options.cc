@@ -61,10 +61,9 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("adaptive-step-size-min", po::value<double>(), "min adaptive step size")
         ("adaptive-step-size-max", po::value<double>(), "max adaptive step size")
         ("print-flow-progress-history", po::value<int>()->implicit_value(1), "print flow progress history")
-        ("placement-seed", po::value<int>(), "placement seed")
         ("simulation-seed", po::value<int>(), "simulation seed")  
         ("placement-file", po::value<std::string>(), "placement file")
-        ("timing-scheme", po::value<std::string>(), "timing scheme")    
+        ("timing-file", po::value<std::string>(), "timing file")
         ("general-param-1", po::value<int>(), "general param 1")
         ("general-param-2", po::value<int>(), "general param 2")
         ("general-param-3", po::value<int>(), "general param 3")
@@ -75,6 +74,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("general-param-8", po::value<int>(), "general param 8")
         ("general-param-9", po::value<int>(), "general param 9")
         ("general-param-10", po::value<int>(), "general param 10")
+
     ;
 
     po::variables_map vm;
@@ -376,28 +376,14 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("print-flow-progress-history")) {
         GConf::inst().print_flow_progress_history = true;
     }
-    if (vm.count("placement-seed")) {
-        GConf::inst().placement_seed = vm["placement-seed"].as<int>();
-    }
     if (vm.count("simulation-seed")) {
         GConf::inst().simulation_seed = vm["simulation-seed"].as<int>();
     }   
-    if (vm.count("timing-scheme")) {
-        std::string timing_scheme_str = vm["timing-scheme"].as<std::string>();
-
-        if (timing_scheme_str == "random") {
-            GConf::inst().timing_scheme = TimingScheme::Random;
-        } else if (timing_scheme_str == "zero") {
-            GConf::inst().timing_scheme = TimingScheme::Zero;
-        } else if (timing_scheme_str == "inc") {
-            GConf::inst().timing_scheme = TimingScheme::Incremental;
-        } else {
-            spdlog::error("Invalid timing scheme: {}", timing_scheme_str);
-            exit(1);
-        }
-    }
     if (vm.count("placement-file")) {
         GConf::inst().placement_file = vm["placement-file"].as<std::string>();
+    }
+    if (vm.count("timing-file")) {
+        GConf::inst().timing_file = vm["timing-file"].as<std::string>();
     }
 }
 
@@ -450,10 +436,9 @@ void psim::log_config() {
     spdlog::info("==== adaptive_step_size_min: {}", GConf::inst().adaptive_step_size_min);
     spdlog::info("==== adaptive_step_size_max: {}", GConf::inst().adaptive_step_size_max);
     spdlog::info("==== print_flow_progress_history: {}", GConf::inst().print_flow_progress_history);
-    spdlog::info("==== placement_seed: {}", GConf::inst().placement_seed);
     spdlog::info("==== simulation_seed: {}", GConf::inst().simulation_seed);
     spdlog::info("==== placement_file: {}", GConf::inst().placement_file);
-    spdlog::info("==== timing_scheme: {}", int(GConf::inst().timing_scheme));
+    spdlog::info("==== timing_file: {}", GConf::inst().timing_file);
     spdlog::info("==== general_param_1: {}", GConf::inst().general_param_1);
     spdlog::info("==== general_param_2: {}", GConf::inst().general_param_2);
     spdlog::info("==== general_param_3: {}", GConf::inst().general_param_3);
@@ -464,7 +449,7 @@ void psim::log_config() {
     spdlog::info("==== general_param_8: {}", GConf::inst().general_param_8);
     spdlog::info("==== general_param_9: {}", GConf::inst().general_param_9);
     spdlog::info("==== general_param_10: {}", GConf::inst().general_param_10);
-    
+
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

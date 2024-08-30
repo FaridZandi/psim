@@ -10,6 +10,7 @@
 #include <sstream>
 #include "gcontext.h"
 #include "spdlog/spdlog.h"
+#include "nlohmann/json.hpp"
 
 using namespace psim;
 
@@ -922,132 +923,44 @@ int get_config_or_default(int value, int default_value) {
 
 Protocol* 
 psim::build_nethint_test() {
-    srand(GConf::inst().placement_seed);
     Protocol *protocol = new Protocol();
 
+    std::string placement_file = GConf::inst().placement_file;   
+    spdlog::critical("placement file: {}", placement_file);
+    std::ifstream placement_stream(placement_file);
+    nlohmann::json jobs;
+    placement_stream >> jobs;
 
-    ////////////////////////////////////////////////////////////////////////////////
-    ////// all the job-description randomness should be done here. 
-    ////// stuff like the number of machines per job, the number of jobs,
-    ////// the number of layers, the number of iterations, the communication size,
-    ////// if they need to randomized, they should be randomized here.
-    ////// The number of times the random values are drawn should be the same 
-    ////// for the same seed. 
-    ////// MORE DETAILS: the placement randomness is called differently for 
-    ////// different placement modes. some modes call random_shuffle once, other 
-    ////// modes call random_shuffle multiple times. Therefore, if some job-related
-    ////// random values are drawn after the placement randomness, the results will
-    ////// be different for different placement modes, which is something we want to 
-    ////// avoid.
-    ////////////////////////////////////////////////////////////////////////////////
 
-    int machines_per_job_low = get_config_or_default(GConf::inst().general_param_1, 32);
-    int machines_per_job_high = get_config_or_default(GConf::inst().general_param_3, 32);
+    std::string timing_file = GConf::inst().timing_file;    
+    spdlog::critical("timing file: {}", timing_file);
+    std::ifstream timing_stream(timing_file);
+    nlohmann::json timings;
+    timing_stream >> timings;
 
-    int machines_left = GConf::inst().machine_count; 
-    std::vector<int> job_machine_counts;
-    std::vector<int> initial_job_wait_times; 
+    int job_index = 0; 
+    for (auto& job : jobs) {
+        int job_id = job["job_id"];
+        int machine_count = job["machine_count"];
+        std::vector<int> job_machines = job["machines"];
 
-    int job_count = 0; 
+        auto& job_timing = timings[job_index];
+        int initial_wait = job_timing["initial_wait"];
 
-    // deciding the number of machines for each job, and therefore the number of jobs.
-    while(machines_left > 0){
-        int machines_for_job = rand() % (machines_per_job_high - machines_per_job_low + 1) + machines_per_job_low;
-        if (machines_for_job > machines_left) {
-            machines_for_job = machines_left;
+        // print the information    
+        spdlog::critical("job_id: {}", job_id);
+        spdlog::critical("machine_count: {}", machine_count);
+        spdlog::critical("timing: {}", initial_wait); 
+        std::string machines_str = "";
+        for (auto& machine : job_machines) {
+            machines_str += std::to_string(machine) + " ";
         }
-        if (machines_for_job == 1) {
-            break;
-        }
-
-        // int machines_for_job = machines_per_job_low;
-        // if (rand() % 2 == 0) {
-        //     machines_for_job = machines_per_job_high;
-        // }
-        // if (machines_for_job > machines_left) {
-        //     machines_for_job = machines_left;
-        // }
-
-        job_machine_counts.push_back(machines_for_job);
-        machines_left -= machines_for_job;
-        job_count += 1;
-
-        // get the random number regardless of the timing scheme. If calling rand()
-        // depends on the timing scheme, the random seed will be different for different
-        // timing schemes.
-        // My GOD, this thing is causing so many issues. 
-
-        int timing_rand = rand(); 
-
-        if (GConf::inst().timing_scheme == TimingScheme::Random) {
-            int initial_wait = timing_rand % 2000;
-            initial_job_wait_times.push_back(initial_wait);
-        
-        } else if (GConf::inst().timing_scheme == TimingScheme::Incremental) {
-            int initial_wait = (job_count - 1) * 400; 
-            initial_job_wait_times.push_back(initial_wait);
-
-        } else if (GConf::inst().timing_scheme == TimingScheme::Zero) {
-            initial_job_wait_times.push_back(0);
-        }
-    }
-
-    ////////////////////////////////////////////////////////////////////////////////
-    ////// all the placement randomness should be done here. 
-    ////// which machines are assigned to which job, and the order of the machines
-    ////// NO JOB DESCRIPTION RANDOMNESS SHOULD BE DONE BEYOND THIS POINT.
-    ////// OTHERWISE, the results will not be reproducible.
-    ////////////////////////////////////////////////////////////////////////////////
+        spdlog::critical("machines: {}", machines_str);
 
 
-    // for the placement protocol: 
-    // 1: compact placement with optimal ring. 
-    // 2: random placement with optimal ring.
-    // 3: compact placement with random ring.
-    // 4: random placement with random ring.
-    int placement_protocol = get_config_or_default(GConf::inst().general_param_2, 1); 
-
-    // get a list of the machines. If the placement protocol is random, shuffle the list. 
-    std::vector<int> all_machines; 
-
-    for (int i = 0; i < GConf::inst().machine_count; i++) {
-        all_machines.push_back(i);
-    }
-    if (placement_protocol == 2 or placement_protocol == 4) {
-        for (int i = 0; i < GConf::inst().machine_count; i++) {
-            // shuffle the machines with the shuffle function 
-            std::random_shuffle(all_machines.begin(), all_machines.end());
-        }
-    }
-
-    int current_job_start_index = 0; 
-
-    for (int i = 0; i < job_count; i++) {
-        std::vector<int> job_machines;
-
-        int start_index = current_job_start_index;
-        int end_index = current_job_start_index + job_machine_counts[i]; // exclusive
-
-        for (int j = start_index; j < end_index; j++) {
-            job_machines.push_back(all_machines[j]);
-        }
-
-        if (placement_protocol == 1 or placement_protocol == 2) {
-            std::sort(job_machines.begin(), job_machines.end());
-        } else if (placement_protocol == 3 or placement_protocol == 4) {
-            std::random_shuffle(job_machines.begin(), job_machines.end());
-        }
-
-        // convert the job_machines to a string and print it.
-        std::string job_machines_str = "";
-        for (int j = 0; j < job_machines.size(); j++) {
-            job_machines_str += std::to_string(job_machines[j]) + " ";
-        }
-        spdlog::critical("PLACEMENT: job {} machines: {}, starting at {}", i + 1, job_machines_str, initial_job_wait_times[i]);
-
-        int this_job_initial_wait = initial_job_wait_times[i];
+        int this_job_initial_wait = initial_wait; 
         int this_job_long_pc_length = 0;
-        int this_job_id = i + 1;
+        int this_job_id = job_id;
 
         int this_job_comm_length = get_config_or_default(GConf::inst().general_param_4, 4000);
         this_job_comm_length = (int)(this_job_comm_length / (job_machines.size())); 
@@ -1067,7 +980,7 @@ psim::build_nethint_test() {
                                        this_job_initial_wait, 
                                        reverse_ring);
 
-        current_job_start_index = end_index;
+        job_index += 1;
     }
     return protocol; 
 }
