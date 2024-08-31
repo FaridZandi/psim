@@ -70,6 +70,7 @@ for combined in unique_combined:
     
     fig, axes = plt.subplots(1, 2, figsize=(9, 3), sharey=True)
     
+
     for i, exp in enumerate([("Random Placement", random_filtered_df), ("Compact Placement", compact_filtered_df)]): 
         placement_type, placement_df = exp
         this_ax = axes[i]
@@ -80,8 +81,8 @@ for combined in unique_combined:
         
         # get the first line 
         first_line = placement_df.iloc[0]
-        
-        max_value = 3
+            
+        max_value = 1
         min_value = 1
         
         avg_values = {} 
@@ -112,16 +113,18 @@ for combined in unique_combined:
             this_ax.plot(values, yvals, 
                          label=label, 
                          marker=get_marker(cdf_param),
-                         markevery=0.1,
+                         markevery=len(values) // 10,
                          markersize=3,
-                         linestyle=get_style(cdf_param))     
+                         linewidth=1,
+                        #  linestyle=get_style(cdf_param)
+                         )     
         
         
         # tick vertical line at x = 1 
         this_ax.axvline(x=1, color="black", linestyle="-")
         
         this_ax.set_ylim(0, 1)
-        this_ax.set_xlim(min_value * 0.9, max_value * 1.1)
+        this_ax.set_xlim(min_value - 0.1, max_value + 0.1)
         
         this_ax.set_title(placement_type)
         this_ax.set_xlabel("Value")

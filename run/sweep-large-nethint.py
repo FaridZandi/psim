@@ -50,27 +50,28 @@ compared_lb_scheme = ""
 compared_timing_scheme = "" 
 compared_ring_mode = "optimal"  
 
-total_capacities = [400]#, 800, 1600]
-interesting_metrics = ["avg_ar_time", "avg_iter_time"] #"iter_minus_ar_time"]
-compared_lb_schemes = ["leastloaded"]#, "roundrobin", "ecmp", "perfect", "powerof2"]
-lbs_involving_randomness = ["random", "ecmp", "powerof2"]
+total_capacities = [800, 1600] #  
+interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
+compared_lb_schemes = ["leastloaded", "powerof2"] # "roundrobin", "ecmp", "perfect",
+lbs_involving_randomness = ["random", "ecmp", "powerof2"
+                            ]
 compared_timing_schemes = ["inc"]#, "random"]
 
 sweep_config = {
     "protocol-file-name": ["nethint-test"],
 
     # placement and workload parameters
-    "placement-seed": list(range(1, 10)), # this is a dummy parameter. basically repeat the experiment 10 times
+    "placement-seed": list(range(1, 101)), # this is a dummy parameter. basically repeat the experiment 10 times
     
-    "machine-count": [128],
+    "machine-count": [256],
     "ft-server-per-rack": [16],
     
     "general-param-1": [8],  # number of machines for each job, low 
     "general-param-3": [16], # number of machines for each job, high 
     "general-param-4": [20000], # comm_size, to be divided by the number of machines in a job
     "general-param-5": [1000], # comp size
-    "general-param-6": [1], # layer count
-    "general-param-7": [20], # iteration count
+    "general-param-6": [3], # layer count
+    "general-param-7": [30], # iteration count
     
     "placement-mode": ["random", "compact"], 
     "ring-mode": ["optimal", "random"],
@@ -85,7 +86,6 @@ sweep_config = {
 # comm_size = 20000, and link_bandwidth = 100 -> ar_time = 20000 / 100 * 2 = 400
 
 def generate_timing_file(timing_file_path, jobs, options):
-
     job_timings = [] 
     
     for job in jobs:
@@ -359,7 +359,8 @@ def run_results_modifier(results):
 
 def plot_results(interesting_keys, plotted_key_min, plotted_key_max, 
                  title, random_seed, compact_csv_path, random_csv_path, 
-                 compact_plot_path, random_plot_path, script_path):
+                 compact_plot_path, random_plot_path, script_path, 
+                 actually_plot=True):
      
     keys_arg = ",".join(interesting_keys)
     
@@ -370,7 +371,8 @@ def plot_results(interesting_keys, plotted_key_min, plotted_key_max,
                                                                  plotted_key_min, plotted_key_max, 
                                                                  title, random_seed)
 
-        os.system(plot_command)
+        if actually_plot:
+            os.system(plot_command)
     
         print("To redraw the plot, use the following command: ")
         print(plot_command)
@@ -381,7 +383,10 @@ def plot_results(interesting_keys, plotted_key_min, plotted_key_max,
     
     
 def plot_cdfs(separating_params, cdf_params, 
-              compact_csv_path, random_csv_path, plots_dir, script_path):
+              compact_csv_path, random_csv_path, plots_dir, script_path,
+              actually_plot=True):
+    
+    
     separating_params_str = ",".join(separating_params)
     cdf_params_str = ",".join(cdf_params)
         
@@ -390,7 +395,8 @@ def plot_cdfs(separating_params, cdf_params,
                                                            separating_params_str, 
                                                            cdf_params_str, plots_dir)
 
-    os.system(plot_command)
+    if actually_plot:
+        os.system(plot_command)
     
     print("To redraw the plot, use the following command: ")
     print(plot_command)
@@ -412,8 +418,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
         
         compact_placement_df = exp_results_df[exp_results_df["placement-mode"] == "compact"]
         random_placement_df = exp_results_df[exp_results_df["placement-mode"] == "random"]
-        
-
         
         merge_on = ["protocol-file-name", "machine-count", "cores", "placement-seed", "job-info"]
 
@@ -501,32 +505,33 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
         compact_grouped_df.reset_index().to_csv(compact_csv_path, index=False)
         random_grouped_df.reset_index().to_csv(random_csv_path, index=False)
     
-        if plot:
-            title = "Speedup in {} of {} over {}, {} Gbps".format(
-                metric, 
-                compared_lb_scheme,
-                base_lb_scheme,
-                total_capacity
-            )
-            title = title.replace(" ", "$")
-            
-            # plot_results(interesting_keys=["machine-count" , "cores", "job-info"], 
-            #              plotted_key_min="speedup_or_lb_min", 
-            #              plotted_key_max="speedup_or_lb_max", 
-            #              title=title, 
-            #              random_seed=experiment_seed,
-            #              compact_csv_path=compact_csv_path,
-            #              random_csv_path=random_csv_path,
-            #              compact_plot_path=compact_plot_path,
-            #              random_plot_path=random_plot_path, 
-            #              script_path=config_sweeper.plot_commands_script)
+        title = "Speedup in {} of {} over {}, {} Gbps".format(
+            metric, 
+            compared_lb_scheme,
+            base_lb_scheme,
+            total_capacity
+        )
+        title = title.replace(" ", "$")
+        
+        # plot_results(interesting_keys=["machine-count" , "cores", "job-info"], 
+        #              plotted_key_min="speedup_or_lb_min", 
+        #              plotted_key_max="speedup_or_lb_max", 
+        #              title=title, 
+        #              random_seed=experiment_seed,
+        #              compact_csv_path=compact_csv_path,
+        #              random_csv_path=random_csv_path,
+        #              compact_plot_path=compact_plot_path,
+        #              random_plot_path=random_plot_path, 
+        #              script_path=config_sweeper.plot_commands_script, 
+        #              actually_plot=plot)
 
-            plot_cdfs(separating_params=["machine-count", "cores"], 
-                      cdf_params=cdf_params, 
-                      compact_csv_path=compact_csv_path,
-                      random_csv_path=random_csv_path, 
-                      plots_dir=metric_plots_dir, 
-                      script_path=config_sweeper.plot_commands_script)
+        plot_cdfs(separating_params=["machine-count", "cores"], 
+                    cdf_params=cdf_params, 
+                    compact_csv_path=compact_csv_path,
+                    random_csv_path=random_csv_path, 
+                    plots_dir=metric_plots_dir, 
+                    script_path=config_sweeper.plot_commands_script, 
+                    actually_plot=plot)
     
         
 if __name__ == "__main__":
@@ -556,7 +561,7 @@ if __name__ == "__main__":
                                                           compared_timing_scheme, 
                                                           total_capacity, 
                                                           experiment_seed),
-                    worker_thread_count=40, 
+                    worker_thread_count=30, 
                 )
                 
                 cs.sweep()
