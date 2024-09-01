@@ -17,7 +17,6 @@ import copy
 # pd.set_option('display.max_rows', 500)
 # pd.set_option('display.max_columns', 500)
 
-
 DEFAULT_WORKER_THREAD_COUNT = 40
 MEMORY_LIMIT = 55
 
@@ -68,6 +67,7 @@ class ConfigSweeper:
         self.plot_commands_script = self.results_dir + "plot_commands.sh"
         self.custom_files_dir = self.results_dir + "custom_files/"  
         self.exp_outputs_dir = self.results_dir + "exp_outputs/"
+        self.commands_log_path = self.results_dir + "commands_log.txt"
         
         self.results_cache = {}
         self.cache_lock = threading.Lock() 
@@ -77,6 +77,8 @@ class ConfigSweeper:
         
         self.last_df_save_time = datetime.datetime.now() 
         self.df_save_interval_seconds = 10 
+        
+        self.do_store_outputs = False
         
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.csv_dir))
@@ -229,19 +231,24 @@ class ConfigSweeper:
             cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
             
             try: 
+                
+                with open(self.commands_log_path, "a+") as f:
+                    f.write(cmd + "\n")
+                    f.write("-"*50 + "\n")
+                    
                 output = subprocess.check_output(cmd, shell=True)
                 output = output.decode("utf-8").splitlines()
                 
-                # store the output in a file.
-                random_name = get_random_string(10) 
-                output_file_path = self.exp_outputs_dir + "output-{}.txt".format(random_name)
-                with open(output_file_path, "w+") as f:
-                    pprint(options, stream=f)
-                    f.write("\n" + "-"*50 + "\n")
-                    f.writelines("\n".join(output))
-                # store the absolute path to the output file in the run_context.
-                run_context["output-file"] = os.path.abspath(output_file_path)
-                
+                if self.do_store_outputs:
+                    # store the output in a file.
+                    random_name = get_random_string(10) 
+                    output_file_path = self.exp_outputs_dir + "output-{}.txt".format(random_name)
+                    with open(output_file_path, "w+") as f:
+                        pprint(options, stream=f)
+                        f.write("\n" + "-"*50 + "\n")
+                        f.writelines("\n".join(output))
+                    # store the absolute path to the output file in the run_context.
+                    run_context["output-file"] = os.path.abspath(output_file_path)
                 
                 # get the duration of the experiment.
                 end_time = datetime.datetime.now()

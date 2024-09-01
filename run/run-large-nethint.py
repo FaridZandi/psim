@@ -34,7 +34,7 @@ options = {
     "ft-agg-core-link-capacity-mult": 1000,
     
     # "lb-scheme": "random",
-    "lb-scheme": "random",
+    "lb-scheme": "leastloaded",
     # "lb-scheme": "roundrobin",
     
     # "lb-scheme": "leastloaded",
@@ -43,15 +43,16 @@ options = {
     "shuffle-device-map": True,
     "regret-mode": "none",
     
-    "general-param-1": 4,
-    "general-param-3": 16,
-    
-    "general-param-2": 4,
-    
     "simulation-seed": 45, 
-    "placement-seed": 12,
     
-    "placement-file": "/home/faridzandi/git/psim/run/results/sweep/896-nethint_leastloaded_inc_400_55/custom_files/placements/1-random-optimal.txt",
+    "general-param-4": 20000, # comm size
+    "general-param-5": 500, # comp size
+    "general-param-6": 1, # layer count
+    "general-param-7": 10, # iteration count
+    
+    "placement-file": "/home/faridzandi/git/psim/run/sampleinput/1-random-optimal.txt",
+    # "timing-file": "/home/faridzandi/git/psim/run/sampleinput/timings-aaeubohvcl.txt",
+    "timing-file": "/home/faridzandi/git/psim/run/sampleinput/timings-aafmpbxgsc.txt",
 }
 
 run_exp(options, sys.argv)

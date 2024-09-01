@@ -109,11 +109,15 @@ for combined in unique_combined:
             label = f"{label} ({avg_value:.2f} X)"
             
             avg_values[label] = avg_value
+            
+            markevery = len(values) // 10 
+            if markevery == 0:
+                markevery = 1
                 
             this_ax.plot(values, yvals, 
                          label=label, 
                          marker=get_marker(cdf_param),
-                         markevery=len(values) // 10,
+                         markevery=markevery,
                          markersize=3,
                          linewidth=1,
                         #  linestyle=get_style(cdf_param)

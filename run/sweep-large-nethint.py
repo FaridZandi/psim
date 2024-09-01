@@ -8,6 +8,34 @@ from pprint import pprint
 import copy
 import json
 
+settings = [
+    { # big settings
+        "machine-count": 256,
+        "ft-server-per-rack": 16,
+        "machine-count-low": 8,
+        "machine-count-high": 16,
+        "placement-seed-range": 100,
+        "comm-size": 20000,
+        "comp-size": 1000,
+        "layer-count": 3, # layer count
+        "iter-count": 30, # iteration count
+    }, 
+    {
+        "machine-count": 64,
+        "ft-server-per-rack": 8,
+        "machine-count-low": 4,
+        "machine-count-high": 8,
+        "placement-seed-range": 10,
+        "comm-size": 20000,
+        "comp-size": 1000,
+        "layer-count": 2, # layer count
+        "iter-count": 10, # iteration count
+    }
+]
+
+# selected_settings = settings[0]
+selected_setting = settings[1]
+
 base_options = {
     "step-size": 1,
     "core-status-profiling-interval": 100000,
@@ -33,14 +61,15 @@ base_options = {
     
     "shuffle-device-map": False,
     "regret-mode": "none",
+    
+    "machine-count": selected_setting["machine-count"],
+    "ft-server-per-rack": selected_setting["ft-server-per-rack"],
+    "general-param-1": selected_setting["machine-count-low"],  
+    "general-param-3": selected_setting["machine-count-high"],
 }
 
-# total_capacity = 800
 RANDOM_REP_COUNT = 5
 experiment_seed = 55
-oversub = 1
-
-
 
 base_lb_scheme = "random"
 base_timing_scheme = "random"
@@ -50,28 +79,23 @@ compared_lb_scheme = ""
 compared_timing_scheme = "" 
 compared_ring_mode = "optimal"  
 
-total_capacities = [800, 1600] #  
+oversubs = [1, 2, 4]
 interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-compared_lb_schemes = ["leastloaded", "powerof2"] # "roundrobin", "ecmp", "perfect",
-lbs_involving_randomness = ["random", "ecmp", "powerof2"
-                            ]
+compared_lb_schemes = ["leastloaded"] # "powerof2", "roundrobin", "ecmp", "perfect",
+lbs_involving_randomness = ["random", "ecmp", "powerof2"]
 compared_timing_schemes = ["inc"]#, "random"]
 
 sweep_config = {
     "protocol-file-name": ["nethint-test"],
 
     # placement and workload parameters
-    "placement-seed": list(range(1, 101)), # this is a dummy parameter. basically repeat the experiment 10 times
+    "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)), # this is a dummy parameter. basically repeat the experiment 10 times
     
-    "machine-count": [256],
-    "ft-server-per-rack": [16],
-    
-    "general-param-1": [8],  # number of machines for each job, low 
-    "general-param-3": [16], # number of machines for each job, high 
-    "general-param-4": [20000], # comm_size, to be divided by the number of machines in a job
-    "general-param-5": [1000], # comp size
-    "general-param-6": [3], # layer count
-    "general-param-7": [30], # iteration count
+
+    "general-param-4": [selected_setting["comm-size"]], # comm size
+    "general-param-5": [selected_setting["comp-size"]], # comp size
+    "general-param-6": [selected_setting["layer-count"]], # layer count
+    "general-param-7": [selected_setting["iter-count"]], # iteration count
     
     "placement-mode": ["random", "compact"], 
     "ring-mode": ["optimal", "random"],
@@ -96,7 +120,7 @@ def generate_timing_file(timing_file_path, jobs, options):
         if timing_scheme == "inc":
             job_timing = 400 * (job["job_id"] - 1)
         elif timing_scheme == "random":
-            job_timing = random.randint(0, 2000)
+            job_timing = random.randint(0, 8400)
         elif timing_scheme == "zero":
             job_timing = 0
         
@@ -111,6 +135,7 @@ def generate_timing_file(timing_file_path, jobs, options):
     
 def generate_placement_file(placement_path, placement_seed,   
                             options, run_context):
+    
     # the seed will be set at this point everything from here on will be deterministic.
     # for the same experiment seed and placement seed. 
     random.seed(experiment_seed + placement_seed)
@@ -181,14 +206,9 @@ placement_files_state = {}
 def run_command_options_modifier(options, config_sweeper, run_context):
     options["simulation-seed"] = experiment_seed 
     
-    # regardless of the other stuff that we do, this is what we want: 
-    per_link_capacity = total_capacity / options["ft-core-count"]
-    options["ft-agg-core-link-capacity-mult"] = per_link_capacity / options["link-bandwidth"]
-     
     # I want to have a fixed amount of capacity to the core layer. 
     # If there are more cores, then the capacity per link should be divided.
     # e.g. 1 * 800, 2 * 400, 4 * 200, 8 * 100
-    
     run_context.update({
         "perfect_lb": False,
         "ideal_network": False,
@@ -205,19 +225,18 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     # perfect lb will create a network where the core layer does perfect load balancing.
     # probably something that could be achieved with a perfect packet spraying mechanism.
     # technically, it's just a random lb with with the combined capacity in one link. 
-
     if options["lb-scheme"] == "perfect":
         run_context["perfect_lb"] = True
         
         options["lb-scheme"] = "random"
-        options["ft-agg-core-link-capacity-mult"] = (total_capacity / options["link-bandwidth"])
+        options["ft-agg-core-link-capacity-mult"] = run_context["original_core_count"]
         options["ft-core-count"] = 1
     
     
     # ideal network will create a network where the core layer has infinite capacity.
     if options["lb-scheme"] == "ideal":
         run_context["ideal_network"] = True 
-        
+
         options["lb-scheme"] = "random"
         options["ft-agg-core-link-capacity-mult"] = 1000
         options["ft-core-count"] = 1
@@ -374,9 +393,6 @@ def plot_results(interesting_keys, plotted_key_min, plotted_key_max,
         if actually_plot:
             os.system(plot_command)
     
-        print("To redraw the plot, use the following command: ")
-        print(plot_command)
-        
         with open(script_path, "a+") as f:
             f.write(plot_command)
             f.write("\n")
@@ -397,9 +413,6 @@ def plot_cdfs(separating_params, cdf_params,
 
     if actually_plot:
         os.system(plot_command)
-    
-    print("To redraw the plot, use the following command: ")
-    print(plot_command)
     
     with open(script_path, "a+") as f:
         f.write(plot_command)
@@ -496,21 +509,28 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
             else:
                 random_grouped_df = grouped_df
                 
-
+        # store the final output
         compact_csv_path = metric_csv_dir + "compact_results.csv"
         random_csv_path  = metric_csv_dir + "random_results.csv"
-        compact_plot_path = metric_plots_dir + "compact_plot.png"
-        random_plot_path  = metric_plots_dir + "random_plot.png"
             
         compact_grouped_df.reset_index().to_csv(compact_csv_path, index=False)
         random_grouped_df.reset_index().to_csv(random_csv_path, index=False)
+
+        
+        # refresh the plot commands script
+        with open(config_sweeper.plot_commands_script, "w") as f:
+            f.write("#!/bin/bash\n")
+                
+        # do the plotting, or at least store the plotting commands
+        compact_plot_path = metric_plots_dir + "compact_plot.png"
+        random_plot_path  = metric_plots_dir + "random_plot.png"
     
-        title = "Speedup in {} of {} over {}, {} Gbps".format(
+        title = "Speedup in {} of {} over {}".format(
             metric, 
             compared_lb_scheme,
             base_lb_scheme,
-            total_capacity
         )
+        
         title = title.replace(" ", "$")
         
         # plot_results(interesting_keys=["machine-count" , "cores", "job-info"], 
@@ -526,18 +546,18 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
         #              actually_plot=plot)
 
         plot_cdfs(separating_params=["machine-count", "cores"], 
-                    cdf_params=cdf_params, 
-                    compact_csv_path=compact_csv_path,
-                    random_csv_path=random_csv_path, 
-                    plots_dir=metric_plots_dir, 
-                    script_path=config_sweeper.plot_commands_script, 
-                    actually_plot=plot)
+                  cdf_params=cdf_params, 
+                  compact_csv_path=compact_csv_path,
+                  random_csv_path=random_csv_path, 
+                  plots_dir=metric_plots_dir, 
+                  script_path=config_sweeper.plot_commands_script, 
+                  actually_plot=plot)
     
         
 if __name__ == "__main__":
     random.seed(experiment_seed)
     
-    for total_capacity in total_capacities: 
+    for oversub in oversubs: 
         for lb_scheme in compared_lb_schemes: 
             for timing_scheme in compared_timing_schemes:
                 compared_lb_scheme = lb_scheme 
@@ -548,8 +568,10 @@ if __name__ == "__main__":
                 exp_sweep_config["lb-scheme"] = [base_lb_scheme, compared_lb_scheme, "ideal"]
                 exp_sweep_config["timing-scheme"] = [base_timing_scheme, compared_timing_scheme] 
                 
-                core_count = int(total_capacity / base_options["link-bandwidth"] / oversub)
-                exp_sweep_config["ft-core-count"] = [core_count]
+                # with oversub=1, tor uplinks and downlinks are the same.
+                # with oversub=2, tor uplinks are half of the downlinks, and so on.
+                tor_uplink_links = base_options["ft-server-per-rack"] // oversub
+                exp_sweep_config["ft-core-count"] = [tor_uplink_links]
                     
                 cs = ConfigSweeper(
                     base_options, exp_sweep_config, 
@@ -559,7 +581,7 @@ if __name__ == "__main__":
                     result_extractor_function,
                     exp_name="nethint_{}_{}_{}_{}".format(compared_lb_scheme, 
                                                           compared_timing_scheme, 
-                                                          total_capacity, 
+                                                          oversub, 
                                                           experiment_seed),
                     worker_thread_count=30, 
                 )
