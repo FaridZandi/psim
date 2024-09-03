@@ -36,7 +36,7 @@ public:
     std::map<int, Machine *> machine_map;
     std::map<int, Bottleneck *> bottleneck_map;
 
-    Machine* get_machine(int name);
+    Machine* get_machine(int name, bool create = false);
 
     void reset_bottleneck_registers();
     void compute_bottleneck_allocations();

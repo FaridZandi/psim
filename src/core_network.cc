@@ -135,7 +135,7 @@ FatTreeNetwork::FatTreeNetwork() : CoreConnectedNetwork() {
         for (int j = 0; j < rack_per_pod; j++) {
             for (int k = 0; k < server_per_rack; k++) {
                 int machine_num = i * rack_per_pod * server_per_rack + j * server_per_rack + k;
-                Machine *machine = get_machine(machine_num);
+                Machine *machine = get_machine(machine_num, true);
                 server_loc_map[machine_num] = ft_loc{i, j, k, -1, -1};
 
                 Bottleneck *bn_up = create_bottleneck(server_tor_link_capacity);
@@ -212,6 +212,11 @@ void FatTreeNetwork::set_path(Flow* flow, double timer) {
     int src = flow->src_dev_id;
     int dst = flow->dst_dev_id;
 
+    if (server_loc_map.find(src) == server_loc_map.end() || server_loc_map.find(dst) == server_loc_map.end()) {
+        spdlog::error("src or dst not found in server_loc_map");
+        exit(1);
+    }
+
     ft_loc src_loc = server_loc_map[src];
     ft_loc dst_loc = server_loc_map[dst];
 
@@ -281,7 +286,7 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
     for (int i = 0; i < tor_count; i++) {
         for (int k = 0; k < server_per_rack; k++) {
             int machine_num = i * server_per_rack + k;
-            Machine *machine = get_machine(machine_num);
+            Machine *machine = get_machine(machine_num, true);
             server_loc_map[machine_num] = ft_loc{-1, i, k, -1, -1};
 
             Bottleneck *bn_up = create_bottleneck(server_tor_link_capacity);

@@ -7,6 +7,7 @@ from processing.itertimes_multirep import get_all_rep_iter_lengths, get_all_rep_
 from pprint import pprint 
 import copy
 import json
+from algo.timing import generate_timing_file
 
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
 random_rep_count = 1
@@ -21,7 +22,7 @@ settings = [
         "ft-server-per-rack": 16,
         "machine-count-low": 8,
         "machine-count-high": 16,
-        "placement-seed-range": 100,
+        "placement-seed-range": 10,
         "comm-size": [20000, 40000, 80000],
         "comp-size": [1000, 2000, 4000],
         "layer-count": [2, 3, 4],
@@ -39,7 +40,7 @@ settings = [
         "iter-count": [10], # iteration count
     },
     { # tiny settings
-        "machine-count": 64,
+        "machine-count": 32,
         "ft-server-per-rack": 8,
         "machine-count-low": 4,
         "machine-count-high": 8,
@@ -48,10 +49,20 @@ settings = [
         "comp-size": [1000],
         "layer-count": [1],
         "iter-count": [20], # iteration count
+    },
+    { # tiny settings
+        "machine-count": 256,
+        "ft-server-per-rack": 16,
+        "machine-count-low": 8,
+        "machine-count-high": 16,
+        "placement-seed-range": 10,
+        "comm-size": [20000],
+        "comp-size": [1000],
+        "layer-count": [1],
+        "iter-count": [20], # iteration count
     }
 ]
 
-# selected_settings = settings[0]
 selected_setting = settings[2]
     
 
@@ -59,31 +70,6 @@ selected_setting = settings[2]
 # roughly equal to comm_size / link_bandwidth * 2
 # comm_size = 20000, and link_bandwidth = 100 -> ar_time = 20000 / 100 * 2 = 400
 
-def generate_timing_file(timing_file_path, placement_seed, jobs, options, run_context):
-    random.seed(run_context["experiment-seed"] + placement_seed)
-    
-    job_timings = [] 
-    
-    for job in jobs:
-        job_timing = 0 
-        
-        timing_scheme = options["timing-scheme"]
-        
-        if timing_scheme == "inc":
-            job_timing = 400 * (job["job_id"] - 1)
-        elif timing_scheme == "random":
-            job_timing = random.randint(0, 8400)
-        elif timing_scheme == "zero":
-            job_timing = 0
-        
-        job_timings.append({
-            "initial_wait": job_timing,
-            "job_id": job["job_id"]
-        })    
-        
-    json.dump(job_timings, open(timing_file_path, "w"), indent=4)
-    
-    return job_timings
     
 def generate_placement_file(placement_path, placement_seed,   
                             options, run_context):
@@ -138,7 +124,7 @@ def generate_placement_file(placement_path, placement_seed,
         machines_left -= this_job_machine_count     
         current_job_id += 1
         
-    all_machines = list(range(1, machine_count + 1))
+    all_machines = list(range(0, machine_count))
     
     if placement_mode == "random":
         for job in jobs:
@@ -264,7 +250,8 @@ def result_extractor_function(output, options, this_exp_results, run_context):
         
         if metric == "avg_ar_time":
             job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], all_jobs_running=True, )
-        
+            
+                    
         elif metric == "avg_iter_time": 
             job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], all_jobs_running=True)
             
@@ -295,7 +282,14 @@ def result_extractor_function(output, options, this_exp_results, run_context):
         else: 
             print("Unknown metric: ", metric)
             sys.exit(1)
-            
+        
+        
+        if "output-file" in run_context: 
+            with open(run_context["output-file"], "a+") as f:
+                f.write("\nResults for {}:\n".format(metric))
+                f.write(json.dumps(job_numbers, indent=4))
+                f.write("\n")    
+                
         avg_job_numbers = [] 
         for rep in job_numbers:
             sum_job_numbers = 0 
@@ -574,10 +568,10 @@ def main():
 
     placement_modes = ["random", "compact"]
 
-    compared_lb_schemes = ["leastloaded"] # "powerof2", "roundrobin", "ecmp", "perfect",
-    compared_timing_schemes = ["inc"]#, "random"]
+    compared_lb_schemes = ["leastloaded",] #"powerof2", "roundrobin", "ecmp", "perfect",
+    compared_timing_schemes = ["cassini"] # "random" "inc"
     compared_ring_modes = ["optimal"]
-    oversubs = [2]# 1, 2, 4]
+    oversubs = [2]
 
     
     random.seed(experiment_seed)
@@ -594,9 +588,9 @@ def main():
                         "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)), 
 
                         "lb-scheme": [base_lb_scheme, lb_scheme, "ideal"],
-                        "timing-scheme": [base_timing_scheme, timing_scheme],
+                        "timing-scheme": [timing_scheme, base_timing_scheme],
                         "ring-mode": [base_ring_mode, ring_mode],
-                        "placement-mode": placement_modes,
+                        "placement-mode": placement_modes, 
                         
                         "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
                     } 
@@ -622,7 +616,6 @@ def main():
                         "experiment-seed": experiment_seed,
                         "oversub": oversub,
                     } 
-                    
 
                         
                     cs = ConfigSweeper(
@@ -636,7 +629,7 @@ def main():
                                                                          ring_mode,  
                                                                          oversub, 
                                                                          experiment_seed),
-                        worker_thread_count=30, 
+                        worker_thread_count=1, 
                     )
                     
                     cs.sweep()

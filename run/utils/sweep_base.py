@@ -13,6 +13,8 @@ from utils.util import *
 import resource
 from processing.itertimes import get_convergence_info, get_first_iter_info
 import copy 
+import traceback
+import time 
 
 # pd.set_option('display.max_rows', 500)
 # pd.set_option('display.max_columns', 500)
@@ -66,7 +68,8 @@ class ConfigSweeper:
         self.csv_dir = self.results_dir + "/csv/"
         self.raw_csv_path = self.csv_dir + "raw_results.csv"    
         self.plots_dir = self.results_dir + "/plots/" 
-        self.workers_dir = self.run_path + "/workers/"
+        # self.workers_dir = self.run_path + "/workers/"
+        self.workers_dir = "/tmp2/workers/"
         self.plot_commands_script = self.results_dir + "plot_commands.sh"
         self.custom_files_dir = self.results_dir + "custom_files/"  
         self.exp_outputs_dir = self.results_dir + "exp_outputs/"
@@ -81,7 +84,7 @@ class ConfigSweeper:
         self.last_df_save_time = datetime.datetime.now() 
         self.df_save_interval_seconds = 10 
         
-        self.do_store_outputs = False
+        self.do_store_outputs = True
         
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.csv_dir))
@@ -153,6 +156,7 @@ class ConfigSweeper:
                 
         except Exception as e:
             print("error in running the experiments")
+            traceback.print_exc()
             print(e)
             
         finally:   
@@ -195,11 +199,12 @@ class ConfigSweeper:
             except queue.Empty:
                 return
             self.run_experiment(exp, worker_id)   
-
+            
+            time.sleep(10)
+            
             
             
     def run_experiment(self, exp, worker_id):
-        
         with self.thread_lock:
             self.global_exp_id += 1 
             this_exp_uuid = self.global_exp_id
@@ -241,6 +246,7 @@ class ConfigSweeper:
                 
         else:                         
             options["worker-id"] = worker_id
+            options["workers-dir"] = self.workers_dir
             cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
             
             try: 
@@ -255,7 +261,7 @@ class ConfigSweeper:
                 if self.do_store_outputs:
                     # store the output in a file.
                     random_name = get_random_string(10) 
-                    output_file_path = self.exp_outputs_dir + "output-{}.txt".format(random_name)
+                    output_file_path = self.exp_outputs_dir + "output-{}.txt".format(run_context["exp-uuid"])
                     with open(output_file_path, "w+") as f:
                         pprint(options, stream=f)
                         f.write("\n" + "-"*50 + "\n")

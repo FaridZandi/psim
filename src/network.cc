@@ -78,8 +78,14 @@ Network::compute_bottleneck_allocations(){
 
 
 
-psim::Machine* Network::get_machine(int name){
+psim::Machine* Network::get_machine(int name, bool create){
+       
     if (this->machine_map.find(name) == this->machine_map.end()) {
+        if (not create) {
+            spdlog::critical("could not find machine with name {}", name);
+            exit(1);
+        }
+    
         Machine *machine = new Machine(name);
         this->machines.push_back(machine);
         this->machine_map[name] = machine;
@@ -215,7 +221,7 @@ BigSwitchNetwork::BigSwitchNetwork(): Network() {
     this->server_count = GConf::inst().machine_count;
 
     for (int i = 0; i < this->server_count; i++) {
-        Machine *machine = get_machine(i);
+        Machine *machine = get_machine(i, true);
     }
 
     for (int i = 0; i < this->server_count; i++) {
