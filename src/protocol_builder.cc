@@ -942,6 +942,10 @@ psim::build_nethint_test() {
     for (auto& job : jobs) {
         int job_id = job["job_id"];
         int machine_count = job["machine_count"];
+        int job_comm_size = job["comm_size"];
+        int job_comp_size = job["comp_size"];
+        int job_layer_count = job["layer_count"];
+        int job_iter_count = job["iter_count"]; 
         std::vector<int> job_machines = job["machines"];
 
         auto& job_timing = timings[job_index];
@@ -951,33 +955,27 @@ psim::build_nethint_test() {
         spdlog::critical("job_id: {}", job_id);
         spdlog::critical("machine_count: {}", machine_count);
         spdlog::critical("timing: {}", initial_wait); 
+        spdlog::critical("job_comm_size: {}", job_comm_size);
+        spdlog::critical("job_comp_size: {}", job_comp_size);
+        spdlog::critical("job_layer_count: {}", job_layer_count);
         std::string machines_str = "";
         for (auto& machine : job_machines) {
             machines_str += std::to_string(machine) + " ";
         }
         spdlog::critical("machines: {}", machines_str);
 
-
-        int this_job_initial_wait = initial_wait; 
         int this_job_long_pc_length = 0;
-        int this_job_id = job_id;
-
-        int this_job_comm_length = get_config_or_default(GConf::inst().general_param_4, 4000);
-        this_job_comm_length = (int)(this_job_comm_length / (job_machines.size())); 
-
-        int this_job_comp_length = get_config_or_default(GConf::inst().general_param_5, 500);
-        int layer_count = get_config_or_default(GConf::inst().general_param_6, 2);
-        int iteration_count = get_config_or_default(GConf::inst().general_param_7, 30);
         bool reverse_ring = false;
+        job_comm_size = (int)(job_comm_size / (job_machines.size())); 
         
         insert_simple_data_parallelism(protocol, 
-                                       this_job_id, 
+                                       job_id, 
                                        job_machines, 
-                                       layer_count, 
-                                       iteration_count, 
-                                       this_job_comp_length, 
-                                       this_job_comm_length, 
-                                       this_job_initial_wait, 
+                                       job_layer_count, 
+                                       job_iter_count, 
+                                       job_comp_size, 
+                                       job_comm_size, 
+                                       initial_wait, 
                                        reverse_ring);
 
         job_index += 1;

@@ -2,6 +2,7 @@ import re
 import sys 
 import matplotlib.pyplot as plt
 from pprint import pprint 
+from utils.util import * 
 
 def parse_line_iteration(line):
     """Parse a line to extract simulation time, job ID, and iteration ID."""
@@ -13,14 +14,14 @@ def parse_line_iteration(line):
     match = re.search(pattern, line)
     if match:
         time = float((match.group(1)))    
-        time = round(time, 2)
+        time = round(time, rounding_precision)
         return time, int(match.group(3)), int(match.group(4)), "iterfinish"
     else: 
         pattern = r'\[([+-]?(?:\d+(\.\d*)?|\.\d+))\]: job (\d+) started'
         match = re.search(pattern, line)
         if match:
             time = float((match.group(1)))
-            time = round(time, 2)           
+            time = round(time, rounding_precision)           
             return time, int(match.group(3)), 0, "jobstart"
         else:
             return None
@@ -32,7 +33,7 @@ def parse_line_all_reduce(line):
     match = re.search(start_pattern, line)
     if match:
         time = float((match.group(1)))    
-        time = round(time, 2)
+        time = round(time, rounding_precision)
         job_id = int(match.group(3))
         iter_id = int(match.group(4))
         layer_id = int(match.group(5))
@@ -42,7 +43,7 @@ def parse_line_all_reduce(line):
         match = re.search(finish_pattern, line)
         if match:
             time = float((match.group(1)))    
-            time = round(time, 2)
+            time = round(time, rounding_precision)
             job_id = int(match.group(3))
             iter_id = int(match.group(4))
             layer_id = int(match.group(5))
@@ -78,7 +79,7 @@ def get_iter_lengths(output_lines, all_jobs_running=False):
                     else: 
                         start_time = iteration_times[job_id][iter_id]["start"]
                         finish_time = iteration_times[job_id][iter_id]["finish"]
-                        iteration_length = round(finish_time - start_time, 2)
+                        iteration_length = round(finish_time - start_time, rounding_precision)
                         
                         if job_id not in job_iteration_lengths:
                             job_iteration_lengths[job_id] = []
@@ -114,10 +115,10 @@ def get_iter_lengths(output_lines, all_jobs_running=False):
             elif type == "iterfinish":
                 # if iter_id == 1: 
                 #     iteration_length = sim_time - job_start_times[job_id]
-                #     iteration_length = round(iteration_length, 2)
+                #     iteration_length = round(iteration_length, rounding_precision)
                 # else:
                 #     iteration_length = sim_time - (sum(job_iteration_times[job_id]) + job_start_times[job_id])
-                #     iteration_length = round(iteration_length, 2)
+                #     iteration_length = round(iteration_length, rounding_precision)
                     
                 # job_iteration_starts[job_id].append(sim_time)
                 # job_iteration_times[job_id].append(iteration_length)
@@ -172,7 +173,7 @@ def get_all_reduce_times(output_lines, all_jobs_running=False):
                         start_time = all_reduce_times[job_id][iter_id][layer_id]["start"]
                         finish_time = all_reduce_times[job_id][iter_id][layer_id]["finish"]
                         
-                        duration = round(finish_time - start_time, 2)
+                        duration = round(finish_time - start_time, rounding_precision)
                         
                         if job_id not in all_reduce_lengths:
                             all_reduce_lengths[job_id] = []
@@ -285,7 +286,6 @@ def get_all_rep_all_reduce_times(output_lines, rep_count, all_jobs_running=False
             pprint(all_reduce_times)
         
         results.append(all_reduce_lengths)
-        
         
         rep += 1
         if rep == rep_count:

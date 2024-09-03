@@ -166,3 +166,5 @@ default_load_metric_map = {
     "ecmp": "flowsize",
     "zero": "flowsize", 
 }
+
+rounding_precision = 3

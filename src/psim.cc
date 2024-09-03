@@ -77,7 +77,12 @@ void PSim::add_protocols_from_input(){
             proto = load_protocol_from_file(path);
         }
 
+
         proto->build_dependency_graph();
+
+        for (int i = 0; i < 1000; i ++) {
+            proto->build_dependency_graph(); 
+        }
         
         if (GConf::inst().export_dot){
             proto->export_dot(protocol_file_name);

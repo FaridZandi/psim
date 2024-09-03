@@ -104,6 +104,7 @@ void Protocol::build_dependency_graph() {
             this->initiators.push_back(task);
         }
         if (task->is_finisher) {
+            task->is_finisher = false;
             this->finishers.push_back(task);
         }
     }

@@ -21,7 +21,8 @@ DEFAULT_WORKER_THREAD_COUNT = 40
 MEMORY_LIMIT = 55
 
 class ConfigSweeper: 
-    def __init__(self, base_options, sweep_config, 
+    def __init__(self, 
+                 base_options, sweep_config, exp_context,
                  run_command_options_modifier=None,
                  run_results_modifier=None,
                  custom_save_results_func=None,
@@ -32,6 +33,7 @@ class ConfigSweeper:
         # arguments
         self.sweep_config = sweep_config
         self.base_options = base_options
+        self.exp_context = exp_context  
         
         # global stuff 
         self.total_jobs = 0
@@ -39,6 +41,7 @@ class ConfigSweeper:
         self.exp_results = []
         self.threads = []
         self.worker_id_counter = 0
+        self.global_exp_id = 0
 
         self.exp_q = queue.Queue()
         self.thread_lock = threading.Lock()    
@@ -115,6 +118,9 @@ class ConfigSweeper:
             pprint("------------------------------------------", stream=f)
             pprint("self", stream=f)
             pprint(self, stream=f)
+            pprint("------------------------------------------", stream=f)
+            pprint("exp_context", stream=f)
+            pprint(self.exp_context, stream=f)
             
             
     def sweep(self):
@@ -143,7 +149,7 @@ class ConfigSweeper:
             
             # call the custom func to do anything with the results.
             if self.custom_save_results_func is not None: 
-                self.custom_save_results_func(all_pd_frame, self, plot=True)
+                self.custom_save_results_func(all_pd_frame, self, self.exp_context, plot=True)
                 
         except Exception as e:
             print("error in running the experiments")
@@ -193,17 +199,24 @@ class ConfigSweeper:
             
             
     def run_experiment(self, exp, worker_id):
+        
+        with self.thread_lock:
+            self.global_exp_id += 1 
+            this_exp_uuid = self.global_exp_id
+                
         start_time = datetime.datetime.now()
 
         # everything about the experiment is stored in the options and context. 
         # the options are the parameters that are passed to the executable.
         # the context is the rest of the information that is needed to save the results, 
         # but is not passed to the executable.
-        options = {}
         run_context = {} 
+        run_context.update(self.exp_context)
+        run_context["exp-uuid"] = this_exp_uuid
         
         # options will have the base options, and the current combination of the 
         # sweep config parameters.
+        options = {}
         options.update(self.base_options)
         options.update(exp)
 
@@ -262,7 +275,8 @@ class ConfigSweeper:
                 
                 try: 
                     if self.result_extractor_function is not None:
-                        self.result_extractor_function(output, options, this_exp_results)
+                        self.result_extractor_function(output, options, this_exp_results, run_context)
+                        
                 except Exception as e:
                     print("error in result_extractor_function")
                     print("options: ", options) 
@@ -347,7 +361,7 @@ class ConfigSweeper:
                 
                 if self.custom_save_results_func is not None:
                     try: 
-                        self.custom_save_results_func(df, self, plot=False)
+                        self.custom_save_results_func(df, self, self.exp_context, plot=False)
                     except Exception as e:
                         print("error in custom_save_results_func")
                         print(e)

@@ -8,6 +8,13 @@ from pprint import pprint
 import copy
 import json
 
+lbs_involving_randomness = ["random", "ecmp", "powerof2"]
+random_rep_count = 1
+experiment_seed = 58
+placement_files_state = {} 
+timing_files_states = {} 
+
+
 settings = [
     { # big settings
         "machine-count": 256,
@@ -15,101 +22,46 @@ settings = [
         "machine-count-low": 8,
         "machine-count-high": 16,
         "placement-seed-range": 100,
-        "comm-size": 20000,
-        "comp-size": 1000,
-        "layer-count": 3, # layer count
-        "iter-count": 30, # iteration count
+        "comm-size": [20000, 40000, 80000],
+        "comp-size": [1000, 2000, 4000],
+        "layer-count": [2, 3, 4],
+        "iter-count": [30], # iteration count
     }, 
-    {
+    { # small settings
         "machine-count": 64,
         "ft-server-per-rack": 8,
         "machine-count-low": 4,
         "machine-count-high": 8,
         "placement-seed-range": 10,
-        "comm-size": 20000,
-        "comp-size": 1000,
-        "layer-count": 2, # layer count
-        "iter-count": 10, # iteration count
+        "comm-size": [20000, 40000, 80000],
+        "comp-size": [1000, 2000, 4000],
+        "layer-count": [2, 3, 4],
+        "iter-count": [10], # iteration count
+    },
+    { # tiny settings
+        "machine-count": 64,
+        "ft-server-per-rack": 8,
+        "machine-count-low": 4,
+        "machine-count-high": 8,
+        "placement-seed-range": 10,
+        "comm-size": [20000],
+        "comp-size": [1000],
+        "layer-count": [1],
+        "iter-count": [20], # iteration count
     }
 ]
 
 # selected_settings = settings[0]
-selected_setting = settings[1]
-
-base_options = {
-    "step-size": 1,
-    "core-status-profiling-interval": 100000,
-    "rep-count": 1, 
-    "console-log-level": 4,
-    "file-log-level": 3,
+selected_setting = settings[2]
     
-    "initial-rate": 100,
-    "min-rate": 100,
-    "drop-chance-multiplier": 0, 
-    "rate-increase": 1, 
-    
-    "priority-allocator": "maxmin", # "fairshare",
-
-    "network-type": "leafspine",    
-    "link-bandwidth": 100,
-    "ft-rack-per-pod": 1,
-    "ft-agg-per-pod": 1,
-    "ft-pod-count": -1,
-    "ft-server-tor-link-capacity-mult": 1,
-    "ft-tor-agg-link-capacity-mult": 1,
-    "ft-agg-core-link-capacity-mult": 1,
-    
-    "shuffle-device-map": False,
-    "regret-mode": "none",
-    
-    "machine-count": selected_setting["machine-count"],
-    "ft-server-per-rack": selected_setting["ft-server-per-rack"],
-    "general-param-1": selected_setting["machine-count-low"],  
-    "general-param-3": selected_setting["machine-count-high"],
-}
-
-RANDOM_REP_COUNT = 5
-experiment_seed = 55
-
-base_lb_scheme = "random"
-base_timing_scheme = "random"
-base_ring_mode = "random" 
-
-compared_lb_scheme = "" 
-compared_timing_scheme = "" 
-compared_ring_mode = "optimal"  
-
-oversubs = [1, 2, 4]
-interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-compared_lb_schemes = ["leastloaded"] # "powerof2", "roundrobin", "ecmp", "perfect",
-lbs_involving_randomness = ["random", "ecmp", "powerof2"]
-compared_timing_schemes = ["inc"]#, "random"]
-
-sweep_config = {
-    "protocol-file-name": ["nethint-test"],
-
-    # placement and workload parameters
-    "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)), # this is a dummy parameter. basically repeat the experiment 10 times
-    
-
-    "general-param-4": [selected_setting["comm-size"]], # comm size
-    "general-param-5": [selected_setting["comp-size"]], # comp size
-    "general-param-6": [selected_setting["layer-count"]], # layer count
-    "general-param-7": [selected_setting["iter-count"]], # iteration count
-    
-    "placement-mode": ["random", "compact"], 
-    "ring-mode": ["optimal", "random"],
-
-    "ft-core-count": [], # will be set later
-    "lb-scheme": [], # will be set later
-    "timing-scheme": [], # will be set later
-} 
 
 # the all-reduce time is technically comm_size / machine_count * 2 * (machine_count - 1) / link_bandwidth
 # roughly equal to comm_size / link_bandwidth * 2
 # comm_size = 20000, and link_bandwidth = 100 -> ar_time = 20000 / 100 * 2 = 400
 
-def generate_timing_file(timing_file_path, jobs, options):
+def generate_timing_file(timing_file_path, placement_seed, jobs, options, run_context):
+    random.seed(run_context["experiment-seed"] + placement_seed)
+    
     job_timings = [] 
     
     for job in jobs:
@@ -129,7 +81,7 @@ def generate_timing_file(timing_file_path, jobs, options):
             "job_id": job["job_id"]
         })    
         
-    json.dump(job_timings, open(timing_file_path, "w"))
+    json.dump(job_timings, open(timing_file_path, "w"), indent=4)
     
     return job_timings
     
@@ -138,7 +90,7 @@ def generate_placement_file(placement_path, placement_seed,
     
     # the seed will be set at this point everything from here on will be deterministic.
     # for the same experiment seed and placement seed. 
-    random.seed(experiment_seed + placement_seed)
+    random.seed(run_context["experiment-seed"] + placement_seed)
     
     machine_count = options["machine-count"]
 
@@ -160,7 +112,6 @@ def generate_placement_file(placement_path, placement_seed,
     # assigning 1 machine to a job would be bad, beceasse there would be no communication. 
     # so if just one machine is left, then we skip it.    
     while machines_left > 1:
-        
         if random_mode == "either_or":
             this_job_machine_count = random.choice([jobs_machine_count_low, jobs_machine_count_high])  
         elif random_mode == "range":
@@ -169,9 +120,18 @@ def generate_placement_file(placement_path, placement_seed,
         if this_job_machine_count > machines_left:
             this_job_machine_count = machines_left    
             
+        job_communication_size = random.choice(selected_setting["comm-size"])   
+        job_computation_size = random.choice(selected_setting["comp-size"])    
+        job_layer_count = random.choice(selected_setting["layer-count"])  
+        job_iter_count = random.choice(selected_setting["iter-count"])
+        
         jobs.append({
             "job_id": current_job_id,   
             "machine_count": this_job_machine_count, 
+            "comm_size": job_communication_size,
+            "comp_size": job_computation_size,
+            "layer_count": job_layer_count,
+            "iter_count": job_iter_count,
             "machines": []
         })
         
@@ -197,14 +157,12 @@ def generate_placement_file(placement_path, placement_seed,
         for job in jobs:
             job["machines"] = sorted(job["machines"])   
     
-    json.dump(jobs, open(placement_path, "w"))
+    json.dump(jobs, open(placement_path, "w"), indent=4)
 
     return jobs
     
-placement_files_state = {} 
 
 def run_command_options_modifier(options, config_sweeper, run_context):
-    options["simulation-seed"] = experiment_seed 
     
     # I want to have a fixed amount of capacity to the core layer. 
     # If there are more cores, then the capacity per link should be divided.
@@ -220,7 +178,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     if options["lb-scheme"] in lbs_involving_randomness:
         # there's no point in running more than one rep for random if there's only one core. 
         if options["ft-core-count"] > 1:
-            options["rep-count"] = RANDOM_REP_COUNT
+            options["rep-count"] = random_rep_count
 
     # perfect lb will create a network where the core layer does perfect load balancing.
     # probably something that could be achieved with a perfect packet spraying mechanism.
@@ -247,31 +205,42 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     global placement_files_state
     
     # handle the placement
-    placements_dir = "{}/placements/".format(config_sweeper.custom_files_dir) 
-    os.makedirs(placements_dir, exist_ok=True)
-    
-    placement_seed = options["placement-seed"] 
     placement_mode = options["placement-mode"] 
     ring_mode = options["ring-mode"]
+    placement_seed = options["placement-seed"] 
+    timing_scheme = options["timing-scheme"]    
     
-    placement_file_path = "{}/{}-{}-{}.txt".format(placements_dir, placement_seed, 
-                                                   placement_mode, ring_mode)
+    placements_dir = "{}/placements/{}-{}/".format(config_sweeper.custom_files_dir, 
+                                                   placement_mode, ring_mode) 
+    os.makedirs(placements_dir, exist_ok=True)
+    
+    placement_file_path = "{}/seed-{}.txt".format(placements_dir, placement_seed)
     
     if placement_file_path not in placement_files_state:
         jobs = generate_placement_file(placement_file_path, placement_seed,   
                                        options, run_context)
         
         placement_files_state[placement_file_path] = jobs
-    
+
+    else: 
+        jobs = placement_files_state[placement_file_path]
+
     options["placement-file"] = placement_file_path
     
     # handle the timing
-    timings_dir = "{}/timings/".format(config_sweeper.custom_files_dir)
+    timings_dir = "{}/timings/{}-{}/{}/".format(config_sweeper.custom_files_dir, 
+                                               placement_mode, ring_mode, placement_seed)
     os.makedirs(timings_dir, exist_ok=True)
     
-    jobs = placement_files_state[placement_file_path]
-    timing_file_path = "{}/timings-{}.txt".format(timings_dir, get_random_string(10))
-    job_timings = generate_timing_file(timing_file_path, jobs, options)
+    timing_file_path = "{}/{}.txt".format(timings_dir, timing_scheme)
+    
+    if timing_file_path not in timing_files_states:
+        job_timings = generate_timing_file(timing_file_path, placement_seed, jobs,
+                                           options, run_context)
+        
+        timing_files_states[timing_file_path] = job_timings
+    else:        
+        job_timings = timing_files_states[timing_file_path]
     
     options["timing-file"] = timing_file_path
         
@@ -290,11 +259,11 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     options.pop("placement-seed")   
     options.pop("timing-scheme")
 
-def result_extractor_function(output, options, this_exp_results):
-    for metric in interesting_metrics:
+def result_extractor_function(output, options, this_exp_results, run_context):
+    for metric in run_context["interesting-metrics"]:
         
         if metric == "avg_ar_time":
-            job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], all_jobs_running=True)
+            job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], all_jobs_running=True, )
         
         elif metric == "avg_iter_time": 
             job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], all_jobs_running=True)
@@ -336,7 +305,7 @@ def result_extractor_function(output, options, this_exp_results):
                 sum_job_numbers += sum(numbers) 
                 number_count += len(numbers)    
                 
-            avg_job_number = round(sum_job_numbers / number_count, 2) 
+            avg_job_number = round(sum_job_numbers / number_count, rounding_precision) 
             avg_job_numbers.append(avg_job_number)    
         
         
@@ -344,7 +313,7 @@ def result_extractor_function(output, options, this_exp_results):
             "min_{}".format(metric): min(avg_job_numbers),
             "max_{}".format(metric): max(avg_job_numbers),
             "last_{}".format(metric): avg_job_numbers[-1],
-            "avg_{}".format(metric): round(np.mean(avg_job_numbers), 2),
+            "avg_{}".format(metric): round(np.mean(avg_job_numbers), rounding_precision),
             "all_{}".format(metric): avg_job_numbers,  
         })
     
@@ -352,13 +321,9 @@ def result_extractor_function(output, options, this_exp_results):
 def run_results_modifier(results):
     
     # the results will have everything inside. 
-    print("Run results modifier")
-    print("Results: ") 
-    pprint(results)
-    
-    results["job-info"] = "{} comm + {} comp + {} layers".format(results["general-param-4"], 
-                                                                 results["general-param-5"], 
-                                                                 results["general-param-6"])
+    # results["job-info"] = "{} comm + {} comp + {} layers".format(results["general-param-4"], 
+    #                                                              results["general-param-5"], 
+    #                                                              results["general-param-6"])
     
     # this is a perfect lb scheme, so we need to change the lb-scheme to "perfect"
     # and change othe other fields back to the original values.
@@ -372,10 +337,12 @@ def run_results_modifier(results):
         results["ft-agg-core-link-capacity-mult"] = results["original_mult"]
         results["ft-core-count"] = results["original_core_count"]
         
-    results["cores"] = "{} x {} Gbps".format(results["ft-core-count"], 
-                                             int(results["link-bandwidth"] * results["ft-agg-core-link-capacity-mult"]))
+    upper_tier_link_capacity = int(results["link-bandwidth"] * results["ft-agg-core-link-capacity-mult"])
+    results["cores"] = "{} x {} Gbps".format(results["ft-core-count"], upper_tier_link_capacity)
     
-
+    rack_count = results["machine-count"] // results["ft-server-per-rack"]
+    results["machines"] = "{}M x {}R".format(results["ft-server-per-rack"], rack_count)
+    
 def plot_results(interesting_keys, plotted_key_min, plotted_key_max, 
                  title, random_seed, compact_csv_path, random_csv_path, 
                  compact_plot_path, random_plot_path, script_path, 
@@ -419,9 +386,12 @@ def plot_cdfs(separating_params, cdf_params,
         f.write("\n")   
                 
             
-def custom_save_results_func(exp_results_df, config_sweeper, plot=False): 
-    
-    for metric in interesting_metrics:
+def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=False): 
+    # refresh the plot commands script
+    with open(config_sweeper.plot_commands_script, "w") as f:
+        f.write("#!/bin/bash\n")
+        
+    for metric in exp_context["interesting-metrics"]:
         avg_metric_key = "avg_{}".format(metric)
         metric_csv_dir = config_sweeper.csv_dir + metric + "/" 
         metric_plots_dir = config_sweeper.plots_dir + metric + "/" 
@@ -432,8 +402,15 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
         compact_placement_df = exp_results_df[exp_results_df["placement-mode"] == "compact"]
         random_placement_df = exp_results_df[exp_results_df["placement-mode"] == "random"]
         
-        merge_on = ["protocol-file-name", "machine-count", "cores", "placement-seed", "job-info"]
+        merge_on = ["protocol-file-name", "machines", "cores", "placement-seed"]
 
+        compared_ring_mode = exp_context["compared-ring-mode"]  
+        compared_lb_scheme = exp_context["compared-lb-scheme"]
+        compared_timing_scheme = exp_context["compared-timing-scheme"]
+        base_ring_mode = exp_context["base-ring-mode"]
+        base_lb_scheme = exp_context["base-lb-scheme"]
+        base_timing_scheme = exp_context["base-timing-scheme"]
+        
         for placement, placement_df in [("compact", compact_placement_df), 
                                         ("random", random_placement_df)]:
 
@@ -470,7 +447,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
                 base_avg_metric_key = "{}_base".format(avg_metric_key)
                 compared_avg_metric_key = "{}_compared".format(avg_metric_key)
                 
-                merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], 2)
+                merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], rounding_precision)
                 
                 saved_columns = merge_on + ["speedup"]
 
@@ -517,9 +494,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
         random_grouped_df.reset_index().to_csv(random_csv_path, index=False)
 
         
-        # refresh the plot commands script
-        with open(config_sweeper.plot_commands_script, "w") as f:
-            f.write("#!/bin/bash\n")
+
                 
         # do the plotting, or at least store the plotting commands
         compact_plot_path = metric_plots_dir + "compact_plot.png"
@@ -533,7 +508,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
         
         title = title.replace(" ", "$")
         
-        # plot_results(interesting_keys=["machine-count" , "cores", "job-info"], 
+        # plot_results(interesting_keys=["machines" , "cores"], 
         #              plotted_key_min="speedup_or_lb_min", 
         #              plotted_key_max="speedup_or_lb_max", 
         #              title=title, 
@@ -545,7 +520,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
         #              script_path=config_sweeper.plot_commands_script, 
         #              actually_plot=plot)
 
-        plot_cdfs(separating_params=["machine-count", "cores"], 
+        plot_cdfs(separating_params=["machines", "cores"], 
                   cdf_params=cdf_params, 
                   compact_csv_path=compact_csv_path,
                   random_csv_path=random_csv_path, 
@@ -554,37 +529,119 @@ def custom_save_results_func(exp_results_df, config_sweeper, plot=False):
                   actually_plot=plot)
     
         
-if __name__ == "__main__":
+def main():
+
+
+    base_options = {
+        "step-size": 1,
+        "core-status-profiling-interval": 100000,
+        "rep-count": 1, 
+        "console-log-level": 4,
+        "file-log-level": 3,
+        
+        "initial-rate": 100,
+        "min-rate": 100,
+        "drop-chance-multiplier": 0, 
+        "rate-increase": 1, 
+        
+        "priority-allocator": "maxmin", # "fairshare",
+
+        "network-type": "leafspine",    
+        "link-bandwidth": 100,
+        "ft-rack-per-pod": 1,
+        "ft-agg-per-pod": 1,
+        "ft-pod-count": -1,
+        "ft-server-tor-link-capacity-mult": 1,
+        "ft-tor-agg-link-capacity-mult": 1,
+        "ft-agg-core-link-capacity-mult": 1,
+        
+        "shuffle-device-map": False,
+        "regret-mode": "none",
+        
+        "machine-count": selected_setting["machine-count"],
+        "ft-server-per-rack": selected_setting["ft-server-per-rack"],
+        "general-param-1": selected_setting["machine-count-low"],  
+        "general-param-3": selected_setting["machine-count-high"],
+
+        "simulation-seed": experiment_seed 
+    }
+
+    interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
+
+    base_lb_scheme = "random"
+    base_timing_scheme = "random"
+    base_ring_mode = "random" 
+
+    placement_modes = ["random", "compact"]
+
+    compared_lb_schemes = ["leastloaded"] # "powerof2", "roundrobin", "ecmp", "perfect",
+    compared_timing_schemes = ["inc"]#, "random"]
+    compared_ring_modes = ["optimal"]
+    oversubs = [2]# 1, 2, 4]
+
+    
     random.seed(experiment_seed)
     
     for oversub in oversubs: 
         for lb_scheme in compared_lb_schemes: 
             for timing_scheme in compared_timing_schemes:
-                compared_lb_scheme = lb_scheme 
-                compared_timing_scheme = timing_scheme
-            
-                exp_sweep_config = copy.deepcopy(sweep_config)  
-                
-                exp_sweep_config["lb-scheme"] = [base_lb_scheme, compared_lb_scheme, "ideal"]
-                exp_sweep_config["timing-scheme"] = [base_timing_scheme, compared_timing_scheme] 
-                
-                # with oversub=1, tor uplinks and downlinks are the same.
-                # with oversub=2, tor uplinks are half of the downlinks, and so on.
-                tor_uplink_links = base_options["ft-server-per-rack"] // oversub
-                exp_sweep_config["ft-core-count"] = [tor_uplink_links]
+                for ring_mode in compared_ring_modes:
                     
-                cs = ConfigSweeper(
-                    base_options, exp_sweep_config, 
-                    run_command_options_modifier, 
-                    run_results_modifier, 
-                    custom_save_results_func, 
-                    result_extractor_function,
-                    exp_name="nethint_{}_{}_{}_{}".format(compared_lb_scheme, 
-                                                          compared_timing_scheme, 
-                                                          oversub, 
-                                                          experiment_seed),
-                    worker_thread_count=30, 
-                )
-                
-                cs.sweep()
+                    exp_sweep_config = {
+                        "protocol-file-name": ["nethint-test"],
 
+                        # placement and workload parameters
+                        "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)), 
+
+                        "lb-scheme": [base_lb_scheme, lb_scheme, "ideal"],
+                        "timing-scheme": [base_timing_scheme, timing_scheme],
+                        "ring-mode": [base_ring_mode, ring_mode],
+                        "placement-mode": placement_modes,
+                        
+                        "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
+                    } 
+                    
+                    
+                    # to be give to the CS, which will be used to populate the run_context.
+                    # the run_context will be then handed back to the custom functions. 
+                    # am I making this too complicated? I think I am.
+                    exp_context = {
+                        # base options
+                        "base-lb-scheme": base_lb_scheme,
+                        "base-timing-scheme": base_timing_scheme,
+                        "base-ring-mode": base_ring_mode,
+                        
+                        # compared options
+                        "compared-lb-scheme": lb_scheme,
+                        "compared-timing-scheme": timing_scheme,
+                        "compared-ring-mode": ring_mode,
+                        
+                        # other stuff
+                        "random-rep-count": random_rep_count,
+                        "interesting-metrics": interesting_metrics,
+                        "experiment-seed": experiment_seed,
+                        "oversub": oversub,
+                    } 
+                    
+
+                        
+                    cs = ConfigSweeper(
+                        base_options, exp_sweep_config, exp_context,
+                        run_command_options_modifier, 
+                        run_results_modifier, 
+                        custom_save_results_func, 
+                        result_extractor_function,
+                        exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(lb_scheme, 
+                                                                         timing_scheme,
+                                                                         ring_mode,  
+                                                                         oversub, 
+                                                                         experiment_seed),
+                        worker_thread_count=30, 
+                    )
+                    
+                    cs.sweep()
+
+
+if __name__ == "__main__":
+    main() 
+    
