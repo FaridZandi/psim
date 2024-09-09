@@ -8,13 +8,25 @@ from pprint import pprint
 import copy
 import json
 from algo.timing import generate_timing_file
+from algo.placement import generate_placement_file
+import time
+
+#########################
+# TODO: 
+# 1. Add support for multiple placement modes. Dynamically handle any placement mode that is given,
+#    in the placement file generation. 
+
+# 2. Add another placement mode, something between the random and the compact. something like assigning
+#    chunks of servers in the same rack to a job. Then repeat this for all the jobs and the racks. 
+
+# 3. Improve the current version of the timing. Get some improvements from the other version.
+#########################
 
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
 random_rep_count = 1
 experiment_seed = 58
 placement_files_state = {} 
 timing_files_states = {} 
-
 
 settings = [
     { # big settings
@@ -23,9 +35,9 @@ settings = [
         "machine-count-low": 8,
         "machine-count-high": 16,
         "placement-seed-range": 10,
-        "comm-size": [20000, 40000, 80000],
-        "comp-size": [1000, 2000, 4000],
-        "layer-count": [2, 3, 4],
+        "comm-size": [20000, 40000],
+        "comp-size": [1000, 2000],
+        "layer-count": [2, 3],
         "iter-count": [30], # iteration count
     }, 
     { # small settings
@@ -34,13 +46,13 @@ settings = [
         "machine-count-low": 4,
         "machine-count-high": 8,
         "placement-seed-range": 10,
-        "comm-size": [20000, 40000, 80000],
-        "comp-size": [1000, 2000, 4000],
-        "layer-count": [2, 3, 4],
+        "comm-size": [20000, 10000],
+        "comp-size": [500, 1000],
+        "layer-count": [2, 3],
         "iter-count": [10], # iteration count
     },
     { # tiny settings
-        "machine-count": 32,
+        "machine-count": 16,
         "ft-server-per-rack": 8,
         "machine-count-low": 4,
         "machine-count-high": 8,
@@ -63,91 +75,14 @@ settings = [
     }
 ]
 
-selected_setting = settings[2]
+selected_setting = settings[0]
     
 
 # the all-reduce time is technically comm_size / machine_count * 2 * (machine_count - 1) / link_bandwidth
 # roughly equal to comm_size / link_bandwidth * 2
 # comm_size = 20000, and link_bandwidth = 100 -> ar_time = 20000 / 100 * 2 = 400
 
-    
-def generate_placement_file(placement_path, placement_seed,   
-                            options, run_context):
-    
-    # the seed will be set at this point everything from here on will be deterministic.
-    # for the same experiment seed and placement seed. 
-    random.seed(run_context["experiment-seed"] + placement_seed)
-    
-    machine_count = options["machine-count"]
-
-    placement_mode = options["placement-mode"]
-    ring_mode = options["ring-mode"]    
-    
-    jobs_machine_count_high = options["general-param-3"] 
-    jobs_machine_count_low = options["general-param-1"]
-    
-    jobs = [] 
-    
-    machines_left = machine_count 
-    current_job_id = 1 
-    
-    
-    # random_mode = "either_or"
-    random_mode = "range"
-
-    # assigning 1 machine to a job would be bad, beceasse there would be no communication. 
-    # so if just one machine is left, then we skip it.    
-    while machines_left > 1:
-        if random_mode == "either_or":
-            this_job_machine_count = random.choice([jobs_machine_count_low, jobs_machine_count_high])  
-        elif random_mode == "range":
-            this_job_machine_count = random.randint(jobs_machine_count_low, jobs_machine_count_high)
-            
-        if this_job_machine_count > machines_left:
-            this_job_machine_count = machines_left    
-            
-        job_communication_size = random.choice(selected_setting["comm-size"])   
-        job_computation_size = random.choice(selected_setting["comp-size"])    
-        job_layer_count = random.choice(selected_setting["layer-count"])  
-        job_iter_count = random.choice(selected_setting["iter-count"])
-        
-        jobs.append({
-            "job_id": current_job_id,   
-            "machine_count": this_job_machine_count, 
-            "comm_size": job_communication_size,
-            "comp_size": job_computation_size,
-            "layer_count": job_layer_count,
-            "iter_count": job_iter_count,
-            "machines": []
-        })
-        
-        machines_left -= this_job_machine_count     
-        current_job_id += 1
-        
-    all_machines = list(range(0, machine_count))
-    
-    if placement_mode == "random":
-        for job in jobs:
-            job["machines"] = random.sample(all_machines, job["machine_count"])
-            for machine in job["machines"]:
-                all_machines.remove(machine)
-    elif placement_mode == "compact":   
-        for job in jobs:
-            job["machines"] = all_machines[:job["machine_count"]]
-            all_machines = all_machines[job["machine_count"]:]
-                
-    if ring_mode == "random":
-        for job in jobs:
-            random.shuffle(job["machines"]) 
-    else:
-        for job in jobs:
-            job["machines"] = sorted(job["machines"])   
-    
-    json.dump(jobs, open(placement_path, "w"), indent=4)
-
-    return jobs
-    
-
+   
 def run_command_options_modifier(options, config_sweeper, run_context):
     
     # I want to have a fixed amount of capacity to the core layer. 
@@ -158,6 +93,9 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         "ideal_network": False,
         "original_mult": options["ft-agg-core-link-capacity-mult"],
         "original_core_count": options["ft-core-count"],
+
+        "original_ring_mode": options["ring-mode"],
+        "original_timing_scheme": options["timing-scheme"],
     })
 
     # if the lb scheme involves making random decisions, then we need to run multiple reps.    
@@ -184,6 +122,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         options["lb-scheme"] = "random"
         options["ft-agg-core-link-capacity-mult"] = 1000
         options["ft-core-count"] = 1
+        options["ring-mode"] = run_context["base-ring-mode"]
+        options["timing-scheme"] = run_context["base-timing-scheme"]
     
     options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
     
@@ -196,22 +136,27 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     placement_seed = options["placement-seed"] 
     timing_scheme = options["timing-scheme"]    
     
-    placements_dir = "{}/placements/{}-{}/".format(config_sweeper.custom_files_dir, 
-                                                   placement_mode, ring_mode) 
-    os.makedirs(placements_dir, exist_ok=True)
-    
-    placement_file_path = "{}/seed-{}.txt".format(placements_dir, placement_seed)
-    
-    if placement_file_path not in placement_files_state:
-        jobs = generate_placement_file(placement_file_path, placement_seed,   
-                                       options, run_context)
+    with config_sweeper.thread_lock:
+        placements_dir = "{}/placements/{}-{}/".format(config_sweeper.custom_files_dir, 
+                                                    placement_mode, ring_mode) 
+        os.makedirs(placements_dir, exist_ok=True)
         
-        placement_files_state[placement_file_path] = jobs
+        placement_file_path = "{}/seed-{}.txt".format(placements_dir, placement_seed)
+        
+        if placement_file_path not in placement_files_state:
+            jobs = generate_placement_file(placement_file_path, placement_seed,   
+                                           options, run_context, selected_setting)
+            
+            placement_files_state[placement_file_path] = jobs
 
-    else: 
-        jobs = placement_files_state[placement_file_path]
+        else: 
+            jobs = placement_files_state[placement_file_path]
 
-    options["placement-file"] = placement_file_path
+        options["placement-file"] = placement_file_path
+    
+    
+    
+    
     
     # handle the timing
     timings_dir = "{}/timings/{}-{}/{}/".format(config_sweeper.custom_files_dir, 
@@ -220,13 +165,42 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     timing_file_path = "{}/{}.txt".format(timings_dir, timing_scheme)
     
-    if timing_file_path not in timing_files_states:
+    # get the cache status. We don't have the lock at this point. 
+    
+    cache_status = None 
+    with config_sweeper.thread_lock:
+        if timing_file_path in timing_files_states:
+            cache_content = timing_files_states[timing_file_path]
+            if cache_content == "in progress":
+                cache_status = "in progress"
+            else:
+                cache_status = "ready"
+        else:
+            cache_status = "you generate it"
+            timing_files_states[timing_file_path] = "in progress"   
+    
+    if cache_status == "ready":
+        job_timings = timing_files_states[timing_file_path]    
+    
+    elif cache_status == "you generate it":
         job_timings = generate_timing_file(timing_file_path, placement_seed, jobs,
                                            options, run_context)
         
         timing_files_states[timing_file_path] = job_timings
-    else:        
+        
+    elif cache_status == "in progress":
+        with open(run_context["output-file"], "a+") as f:   
+            f.write("Waiting for the timing file to be ready.\n")
+            f.write(timing_file_path)
+            
+            
+        while timing_files_states[timing_file_path] == "in progress":
+            print("Waiting for the timing file to be ready.")
+            time.sleep(1)
+        
         job_timings = timing_files_states[timing_file_path]
+        
+    
     
     options["timing-file"] = timing_file_path
         
@@ -330,6 +304,8 @@ def run_results_modifier(results):
         results["lb-scheme"] = "ideal"
         results["ft-agg-core-link-capacity-mult"] = results["original_mult"]
         results["ft-core-count"] = results["original_core_count"]
+        results["ring-mode"] = results["original_ring_mode"]
+        results["timing-scheme"] = results["original_timing_scheme"]
         
     upper_tier_link_capacity = int(results["link-bandwidth"] * results["ft-agg-core-link-capacity-mult"])
     results["cores"] = "{} x {} Gbps".format(results["ft-core-count"], upper_tier_link_capacity)
@@ -460,7 +436,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
                 super_merged = super_merged.merge(comparison_df, on=merge_on)
                 super_merged.rename(columns={"speedup": "speedup_{}".format(comparison_name)}, inplace=True)
             
-            
             # reduce the dataframe on "placement-seed"
             group_on = merge_on.copy()
             group_on.remove("placement-seed")
@@ -500,7 +475,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
             base_lb_scheme,
         )
         
-        title = title.replace(" ", "$")
+        title = title.replace(" ", "$") # to feed it through the command line arguments.
         
         # plot_results(interesting_keys=["machines" , "cores"], 
         #              plotted_key_min="speedup_or_lb_min", 
@@ -524,8 +499,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
     
         
 def main():
-
-
     base_options = {
         "step-size": 1,
         "core-status-profiling-interval": 100000,
@@ -561,18 +534,16 @@ def main():
     }
 
     interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
+    placement_modes = ["compact", "random"]
 
     base_lb_scheme = "random"
     base_timing_scheme = "random"
     base_ring_mode = "random" 
 
-    placement_modes = ["random", "compact"]
-
     compared_lb_schemes = ["leastloaded",] #"powerof2", "roundrobin", "ecmp", "perfect",
-    compared_timing_schemes = ["cassini"] # "random" "inc"
+    compared_timing_schemes = ["cassini", "inc"] # "random" "inc"
     compared_ring_modes = ["optimal"]
     oversubs = [2]
-
     
     random.seed(experiment_seed)
     
@@ -585,14 +556,13 @@ def main():
                         "protocol-file-name": ["nethint-test"],
 
                         # placement and workload parameters
-                        "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)), 
-
                         "lb-scheme": [base_lb_scheme, lb_scheme, "ideal"],
                         "timing-scheme": [timing_scheme, base_timing_scheme],
                         "ring-mode": [base_ring_mode, ring_mode],
                         "placement-mode": placement_modes, 
                         
                         "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
+                        "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)), 
                     } 
                     
                     
@@ -629,7 +599,7 @@ def main():
                                                                          ring_mode,  
                                                                          oversub, 
                                                                          experiment_seed),
-                        worker_thread_count=1, 
+                        worker_thread_count=40, 
                     )
                     
                     cs.sweep()

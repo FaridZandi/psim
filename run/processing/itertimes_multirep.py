@@ -1,6 +1,5 @@
 import re
 import sys 
-import matplotlib.pyplot as plt
 from pprint import pprint 
 from utils.util import * 
 

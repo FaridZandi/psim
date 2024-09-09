@@ -3,18 +3,12 @@ from pprint import pprint
 import itertools
 import subprocess
 import pandas as pd
-import matplotlib.pyplot as plt
-import numpy as np
 import queue
 import threading
-import sys
 import datetime
 from utils.util import *
-import resource
-from processing.itertimes import get_convergence_info, get_first_iter_info
 import copy 
 import traceback
-import time 
 
 # pd.set_option('display.max_rows', 500)
 # pd.set_option('display.max_columns', 500)
@@ -200,9 +194,6 @@ class ConfigSweeper:
                 return
             self.run_experiment(exp, worker_id)   
             
-            time.sleep(10)
-            
-            
             
     def run_experiment(self, exp, worker_id):
         with self.thread_lock:
@@ -219,16 +210,30 @@ class ConfigSweeper:
         run_context.update(self.exp_context)
         run_context["exp-uuid"] = this_exp_uuid
         
+        output_file_path = self.exp_outputs_dir + "output-{}.txt".format(run_context["exp-uuid"])
+        with open(output_file_path, "w+") as f:
+            f.write("output file for experiment {}\n\n\n".format(run_context["exp-uuid"]))
+
+        run_context["output-file"] = output_file_path
+
+
         # options will have the base options, and the current combination of the 
         # sweep config parameters.
         options = {}
         options.update(self.base_options)
         options.update(exp)
 
+        with open(output_file_path, "a+") as f:
+            f.write("options: \n")
+            pprint(options, stream=f)
+            f.write("\n\n\n")
+            f.write("run_context: \n")
+            pprint(run_context, stream=f)
+            f.write("\n\n\n")   
+            
         # a final chance for the user to modify the options before making the command. 
         if self.run_command_options_modifier is not None:
-            with self.thread_lock: 
-                self.run_command_options_modifier(options, self, run_context)
+            self.run_command_options_modifier(options, self, run_context)
         
         cache_hit = False 
         cache_key = str(options)
@@ -260,14 +265,10 @@ class ConfigSweeper:
                 
                 if self.do_store_outputs:
                     # store the output in a file.
-                    random_name = get_random_string(10) 
-                    output_file_path = self.exp_outputs_dir + "output-{}.txt".format(run_context["exp-uuid"])
-                    with open(output_file_path, "w+") as f:
+                    with open(run_context["output-file"], "a+") as f:
                         pprint(options, stream=f)
                         f.write("\n" + "-"*50 + "\n")
                         f.writelines("\n".join(output))
-                    # store the absolute path to the output file in the run_context.
-                    run_context["output-file"] = os.path.abspath(output_file_path)
                 
                 # get the duration of the experiment.
                 end_time = datetime.datetime.now()
