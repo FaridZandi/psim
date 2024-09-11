@@ -78,10 +78,17 @@ def generate_compact_or_random_placement_file(options, run_context, selected_set
 
 def generate_semirandom_placement_file(options, run_context, selected_setting):
 
+
     machine_count = options["machine-count"]
     placement_mode = options["placement-mode"]
     ring_mode = options["ring-mode"]    
     
+    if "_" in placement_mode:
+        placement_mode, fragmentation_factor = placement_mode.split("_")
+        fragmentation_factor = int(fragmentation_factor)
+    else:
+        fragmentation_factor = 1    
+                
     jobs_machine_count_high = run_context["placement-parameters"]["jobs-machine-count-high"]
     jobs_machine_count_low = run_context["placement-parameters"]["jobs-machine-count-low"]
     
@@ -143,8 +150,10 @@ def generate_semirandom_placement_file(options, run_context, selected_setting):
         if job_machines_still_needed == 0:
             continue    
         
-        # let's allocate some more machine to this job. 
-        allocation_chunk = random.randint(max(1, job_machines_still_needed // 2), job_machines_still_needed)
+        # let's allocate some more machine to this job.
+        allocation_chunk_min = max(1, job_machines_still_needed // fragmentation_factor)
+        allocation_chunk_max = job_machines_still_needed
+        allocation_chunk = random.randint(allocation_chunk_min, allocation_chunk_max)
         
         # find the first availabel chunk of machines
         found_chunk = False         
@@ -189,7 +198,7 @@ def generate_placement_file(placement_path, placement_seed,
     
     if placement_mode == "compact" or placement_mode == "random":   
         jobs = generate_compact_or_random_placement_file(options, run_context, selected_setting)
-    elif placement_mode == "semirandom": 
+    elif placement_mode.startswith("semirandom"):   
         jobs = generate_semirandom_placement_file(options, run_context, selected_setting) 
     
     

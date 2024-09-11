@@ -16,7 +16,6 @@ def log_results(run_context, key, value):
     # print to stderr first  
     sys.stderr.write(f"KEY: {key}\n")
     sys.stderr.write(f"VALUE: {value}\n")   
-    
 
     with open(run_context["output-file"], "a+") as f:
         f.write("Results for: " + key + "\n\n")

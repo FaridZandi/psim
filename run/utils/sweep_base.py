@@ -76,7 +76,7 @@ class ConfigSweeper:
         self.cache_recalculations = 0 
         
         self.last_df_save_time = datetime.datetime.now() 
-        self.df_save_interval_seconds = 10 
+        self.df_save_interval_seconds = 300 
         
         self.do_store_outputs = False
         
@@ -199,6 +199,7 @@ class ConfigSweeper:
 
             except queue.Empty:
                 return
+            
             except Exception as e:
                 print("error in getting the experiment")
                 traceback.print_exc()
@@ -206,7 +207,13 @@ class ConfigSweeper:
                 exit(0)
                 
             
-            
+    def log_for_thread(self, run_context, message, data=None):
+        with open(run_context["output-file"], "a+") as f:
+            f.write(message + "\n")
+            if data is not None:
+                pprint(data, stream=f)
+                f.write("\n")
+        
     def run_experiment(self, exp, worker_id):
         with self.thread_lock:
             self.global_exp_id += 1 
@@ -250,11 +257,17 @@ class ConfigSweeper:
         cache_hit = False 
         cache_key = str(options)
         
+        self.log_for_thread(run_context, "Going to acquire the lock to check the cache")
+        
         with self.thread_lock:
+            self.log_for_thread(run_context, "Acquired the lock to check the cache")
+            
             if cache_key in self.results_cache:
                 cache_hit = True
                 self.cache_hits += 1
         
+        self.log_for_thread(run_context, "Done with the lock to check the cache")
+
         if cache_hit:
             with self.thread_lock:
                 this_exp_results, output = self.results_cache[cache_key]
@@ -304,7 +317,9 @@ class ConfigSweeper:
                     exit(0) 
                     
                 # save the results to the cache to avoid recalculating them.
+                self.log_for_thread(run_context, "Going to acquire the lock to save the results to the cache")
                 with self.thread_lock:
+                    self.log_for_thread(run_context, "Acquired the lock to save the results to the cache")
                     new_results_copy = copy.deepcopy(this_exp_results)
                     # sanity check: 
                     if cache_key in self.results_cache:
@@ -328,7 +343,9 @@ class ConfigSweeper:
                                 self.cache_mistakes += 1    
                                                         
                     self.results_cache[cache_key] = (new_results_copy, output)
-                    
+                
+                self.log_for_thread(run_context, "Done with the lock to save the results to the cache")
+                
             except subprocess.CalledProcessError as e:
                 print("error in running the command")
                 print("I don't know what to do here")
@@ -363,7 +380,11 @@ class ConfigSweeper:
         results.update(run_context)
         results.update(options)
 
+        self.log_for_thread(run_context, "Going to acquire the lock to save the results")
+        
         with self.thread_lock:
+            self.log_for_thread(run_context, "Acquired the lock to save the results")
+        
             # a final chance for the user to modify the results before saving them.
             if self.run_results_modifier is not None:
                 self.run_results_modifier(results)
@@ -391,4 +412,4 @@ class ConfigSweeper:
             print("worker id: {}".format(worker_id))
             print("--------------------------------------------")
 
-
+        self.log_for_thread(run_context, "Done with the lock to save the results")

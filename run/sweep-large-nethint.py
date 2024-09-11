@@ -69,7 +69,7 @@ settings = [
         "ft-server-per-rack": 16,
         "jobs-machine-count-low": 10,
         "jobs-machine-count-high": 10,
-        "placement-seed-range": 10,
+        "placement-seed-range": 20,
         "comm-size": [20000],
         "comp-size": [1000],
         "layer-count": [1],
@@ -150,7 +150,12 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     placement_seed = options["placement-seed"] 
     timing_scheme = options["timing-scheme"]    
     
+    
+    config_sweeper.log_for_thread(run_context, "Going to acquire the lock to generating the placement file ...")
     with config_sweeper.thread_lock:
+        
+        config_sweeper.log_for_thread(run_context, "Acquired the lock to generating the placement file ...")
+
         placements_dir = "{}/placements/{}-{}/".format(config_sweeper.custom_files_dir, 
                                                     placement_mode, ring_mode) 
         os.makedirs(placements_dir, exist_ok=True)
@@ -168,8 +173,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
 
         options["placement-file"] = placement_file_path
     
-    
-    
+    config_sweeper.log_for_thread(run_context, "Releasing the lock to generating the placement file ...")
     
     
     # handle the timing
@@ -182,7 +186,12 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     # get the cache status. We don't have the lock at this point. 
     
     cache_status = None 
+    config_sweeper.log_for_thread(run_context, "Going to acquire the lock to check the timing file ...")
+    
     with config_sweeper.thread_lock:
+        
+        config_sweeper.log_for_thread(run_context, "acquired the lock to check the timing file ...")
+        
         if timing_file_path in timing_files_states:
             cache_content = timing_files_states[timing_file_path]
             if cache_content == "in progress":
@@ -192,6 +201,9 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         else:
             cache_status = "you generate it"
             timing_files_states[timing_file_path] = "in progress"   
+    
+    config_sweeper.log_for_thread(run_context, "Releasing the lock to check the timing file ...")
+    config_sweeper.log_for_thread(run_context, "cache status: {}".format(cache_status))
     
     if cache_status == "ready":
         job_timings = timing_files_states[timing_file_path]    
@@ -223,7 +235,6 @@ def run_command_options_modifier(options, config_sweeper, run_context):
             stdout, stderr = process.communicate(input=input_data)
             job_timings = json.loads(stdout.decode("utf-8")) 
             
-            
         
         timing_files_states[timing_file_path] = job_timings
         
@@ -232,9 +243,10 @@ def run_command_options_modifier(options, config_sweeper, run_context):
             f.write("Waiting for the timing file to be ready.\n")
             f.write(timing_file_path)
             
-            
+        print("going to wait for the timing file to be ready ...")    
         while timing_files_states[timing_file_path] == "in progress":
             time.sleep(1)
+        print("timing file is ready ...")
         
         job_timings = timing_files_states[timing_file_path]
     
@@ -396,6 +408,9 @@ def plot_cdfs(separating_params, cdf_params,
                 
             
 def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=False): 
+    
+    print("Saving the results ...") 
+    
     # refresh the plot commands script
     with open(config_sweeper.plot_commands_script, "w") as f:
         f.write("#!/bin/bash\n")
@@ -531,7 +546,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
                   plots_dir=metric_plots_dir, 
                   script_path=config_sweeper.plot_commands_script, 
                   actually_plot=plot)
-    
+
+    print("Done with the metric: ", metric)
         
 def main():
     base_options = {
@@ -567,7 +583,7 @@ def main():
     }
 
     interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-    placement_modes = ["random", "semirandom", "compact"]
+    placement_modes = ["random", "semirandom_8", "semirandom_4", "semirandom_2", "semirandom_1", "compact"]
 
     base_lb_scheme = "random"
     base_timing_scheme = "random"
@@ -576,10 +592,10 @@ def main():
     compared_lb_schemes = ["powerof2"] #"powerof2", "roundrobin", "ecmp", "perfect",
     compared_timing_schemes = ["cassini"] # "random" "inc"
     compared_ring_modes = ["optimal"]
-    oversubs = [4]
+    oversubs = [8]
     
     cassini_parameters = {  
-        "sim-length": 100000,
+        "sim-length": 1000000,
         "link-solution-candidate-count": 10,
         "link-solution-random-quantum": 10,
         "link-solution-top-candidates": 10,    
