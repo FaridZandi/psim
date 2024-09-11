@@ -78,7 +78,7 @@ class ConfigSweeper:
         self.last_df_save_time = datetime.datetime.now() 
         self.df_save_interval_seconds = 10 
         
-        self.do_store_outputs = True
+        self.do_store_outputs = False
         
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.csv_dir))
@@ -98,6 +98,7 @@ class ConfigSweeper:
                             ]).pid
         
     def __del__(self):
+        print("running the destructor ... ")
         os.system("kill -9 {}".format(self.watchdog_pid))
     
     def log_config(self):
@@ -165,6 +166,10 @@ class ConfigSweeper:
         # get all the permutations of the sweep config
         keys, values = zip(*self.sweep_config.items())
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
+        
+        # shuffle the permutations: 
+        random.shuffle(permutations_dicts)
+        
         for exp in permutations_dicts:
             self.exp_q.put(exp)
 
@@ -190,9 +195,16 @@ class ConfigSweeper:
         while True:
             try:
                 exp = self.exp_q.get(block = 0)
+                self.run_experiment(exp, worker_id)   
+
             except queue.Empty:
                 return
-            self.run_experiment(exp, worker_id)   
+            except Exception as e:
+                print("error in getting the experiment")
+                traceback.print_exc()
+                print(e)
+                exit(0)
+                
             
             
     def run_experiment(self, exp, worker_id):
@@ -238,13 +250,13 @@ class ConfigSweeper:
         cache_hit = False 
         cache_key = str(options)
         
-        with self.cache_lock:
+        with self.thread_lock:
             if cache_key in self.results_cache:
                 cache_hit = True
                 self.cache_hits += 1
         
         if cache_hit:
-            with self.cache_lock:
+            with self.thread_lock:
                 this_exp_results, output = self.results_cache[cache_key]
                 this_exp_results = copy.deepcopy(this_exp_results)
                 duration = 0 
@@ -292,7 +304,7 @@ class ConfigSweeper:
                     exit(0) 
                     
                 # save the results to the cache to avoid recalculating them.
-                with self.cache_lock:
+                with self.thread_lock:
                     new_results_copy = copy.deepcopy(this_exp_results)
                     # sanity check: 
                     if cache_key in self.results_cache:

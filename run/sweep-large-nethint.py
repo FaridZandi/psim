@@ -7,9 +7,12 @@ from processing.itertimes_multirep import get_all_rep_iter_lengths, get_all_rep_
 from pprint import pprint 
 import copy
 import json
-from algo.timing import generate_timing_file
+
+# from algo.timing import generate_timing_file
+from algo import timing
 from algo.placement import generate_placement_file
 import time
+import subprocess
 
 #########################
 # TODO: 
@@ -20,31 +23,41 @@ import time
 #    chunks of servers in the same rack to a job. Then repeat this for all the jobs and the racks. 
 
 # 3. Improve the current version of the timing. Get some improvements from the other version.
+
+# 4. Add support for more complex protocols to be recognized by the timing. Eventually, ideally, 
+#    There would be something like: running the simulator, only with one job, and acquire the loads 
+#    from the simulator. Then use these loads to generate the timing.
 #########################
 
+# get the current executable. like if this file was run with python3 or pypy3, for example.
+current_executable = sys.executable
+
+
+run_cassini_timing_in_subprocess = True
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
 random_rep_count = 1
 experiment_seed = 58
 placement_files_state = {} 
 timing_files_states = {} 
 
+
 settings = [
     { # big settings
         "machine-count": 256,
         "ft-server-per-rack": 16,
-        "machine-count-low": 8,
-        "machine-count-high": 16,
-        "placement-seed-range": 10,
+        "jobs-machine-count-low": 8,
+        "jobs-machine-count-high": 16,
+        "placement-seed-range": 5,
         "comm-size": [20000, 40000],
         "comp-size": [1000, 2000],
-        "layer-count": [2, 3],
+        "layer-count": [1],
         "iter-count": [30], # iteration count
     }, 
     { # small settings
         "machine-count": 64,
         "ft-server-per-rack": 8,
-        "machine-count-low": 4,
-        "machine-count-high": 8,
+        "jobs-machine-count-low": 4,
+        "jobs-machine-count-high": 8,
         "placement-seed-range": 10,
         "comm-size": [20000, 10000],
         "comp-size": [500, 1000],
@@ -52,10 +65,10 @@ settings = [
         "iter-count": [10], # iteration count
     },
     { # tiny settings
-        "machine-count": 16,
-        "ft-server-per-rack": 8,
-        "machine-count-low": 4,
-        "machine-count-high": 8,
+        "machine-count": 80,
+        "ft-server-per-rack": 16,
+        "jobs-machine-count-low": 10,
+        "jobs-machine-count-high": 10,
         "placement-seed-range": 10,
         "comm-size": [20000],
         "comp-size": [1000],
@@ -65,8 +78,8 @@ settings = [
     { # tiny settings
         "machine-count": 256,
         "ft-server-per-rack": 16,
-        "machine-count-low": 8,
-        "machine-count-high": 16,
+        "jobs-machine-count-low": 8,
+        "jobs-machine-count-high": 16,
         "placement-seed-range": 10,
         "comm-size": [20000],
         "comp-size": [1000],
@@ -75,7 +88,7 @@ settings = [
     }
 ]
 
-selected_setting = settings[0]
+selected_setting = settings[2]
     
 
 # the all-reduce time is technically comm_size / machine_count * 2 * (machine_count - 1) / link_bandwidth
@@ -129,6 +142,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     ### based on the placement seed, we need to generate the placements. 
     global placement_files_state
+    global timing_files_states
     
     # handle the placement
     placement_mode = options["placement-mode"] 
@@ -183,8 +197,33 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         job_timings = timing_files_states[timing_file_path]    
     
     elif cache_status == "you generate it":
-        job_timings = generate_timing_file(timing_file_path, placement_seed, jobs,
-                                           options, run_context)
+        
+        timing_scheme = options["timing-scheme"]
+        
+        if timing_scheme != "cassini" or not run_cassini_timing_in_subprocess: 
+            job_timings = timing.generate_timing_file(timing_file_path, placement_seed, jobs,
+                                                      options, run_context)
+        else: 
+            # create a subprocess to run the cassini timing. 
+            args = {
+                "timing_file_path": timing_file_path,
+                "placement_seed": placement_seed,
+                "jobs": jobs,   
+                "options": options, 
+                "run_context": run_context,
+            }
+
+            # create a python subprocess, feed the json dump of the args to the subprocess.
+            process = subprocess.Popen([current_executable, "algo/timing.py"], 
+                                        stdin=subprocess.PIPE, 
+                                        stdout=subprocess.PIPE, 
+                                        stderr=subprocess.PIPE)
+                                       
+            input_data = json.dumps(args).encode("utf-8")
+            stdout, stderr = process.communicate(input=input_data)
+            job_timings = json.loads(stdout.decode("utf-8")) 
+            
+            
         
         timing_files_states[timing_file_path] = job_timings
         
@@ -195,11 +234,9 @@ def run_command_options_modifier(options, config_sweeper, run_context):
             
             
         while timing_files_states[timing_file_path] == "in progress":
-            print("Waiting for the timing file to be ready.")
             time.sleep(1)
         
         job_timings = timing_files_states[timing_file_path]
-        
     
     
     options["timing-file"] = timing_file_path
@@ -314,41 +351,43 @@ def run_results_modifier(results):
     results["machines"] = "{}M x {}R".format(results["ft-server-per-rack"], rack_count)
     
 def plot_results(interesting_keys, plotted_key_min, plotted_key_max, 
-                 title, random_seed, compact_csv_path, random_csv_path, 
-                 compact_plot_path, random_plot_path, script_path, 
+                 title, random_seed, csv_path, plot_path, script_path, 
                  actually_plot=True):
      
     keys_arg = ",".join(interesting_keys)
     
-    for csv_path, plot_path in [(compact_csv_path, compact_plot_path), 
-                                (random_csv_path, random_plot_path)]:
-            
-        plot_command = "python3 plot.py {} {} {} {} {} {}".format(csv_path, plot_path, keys_arg, 
-                                                                 plotted_key_min, plotted_key_max, 
-                                                                 title, random_seed)
+    plot_command = "python3 plot.py {} {} {} {} {} {}".format(csv_path, plot_path, keys_arg, 
+                                                                plotted_key_min, plotted_key_max, 
+                                                                title, random_seed)
 
-        if actually_plot:
-            os.system(plot_command)
-    
-        with open(script_path, "a+") as f:
-            f.write(plot_command)
-            f.write("\n")
+    if actually_plot:
+        print("Running: ", plot_command)
+        os.system(plot_command)
+
+    with open(script_path, "a+") as f:
+        f.write(plot_command)
+        f.write("\n")
     
     
 def plot_cdfs(separating_params, cdf_params, 
-              compact_csv_path, random_csv_path, plots_dir, script_path,
+              placement_names, placement_csv_paths, 
+              plots_dir, script_path,
               actually_plot=True):
     
     
     separating_params_str = ",".join(separating_params)
     cdf_params_str = ",".join(cdf_params)
+    placement_names_str = ",".join(placement_names) 
+    placement_csv_paths_str = ",".join(placement_csv_paths)
         
-    plot_command = "python3 plot_cdf.py {} {} {} {} {}".format(compact_csv_path,
-                                                           random_csv_path,  
-                                                           separating_params_str, 
-                                                           cdf_params_str, plots_dir)
+    plot_command = "python3 plot_cdf.py {} {} {} {} {}".format(placement_names_str,
+                                                               placement_csv_paths_str,  
+                                                               separating_params_str, 
+                                                               cdf_params_str, 
+                                                               plots_dir)
 
     if actually_plot:
+        print("Running: ", plot_command)
         os.system(plot_command)
     
     with open(script_path, "a+") as f:
@@ -361,6 +400,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
     with open(config_sweeper.plot_commands_script, "w") as f:
         f.write("#!/bin/bash\n")
         
+    all_placement_modes = exp_context["all-placement-modes"]
+    
     for metric in exp_context["interesting-metrics"]:
         avg_metric_key = "avg_{}".format(metric)
         metric_csv_dir = config_sweeper.csv_dir + metric + "/" 
@@ -369,11 +410,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
         os.makedirs(metric_csv_dir, exist_ok=True)
         os.makedirs(metric_plots_dir, exist_ok=True)
         
-        compact_placement_df = exp_results_df[exp_results_df["placement-mode"] == "compact"]
-        random_placement_df = exp_results_df[exp_results_df["placement-mode"] == "random"]
         
-        merge_on = ["protocol-file-name", "machines", "cores", "placement-seed"]
-
         compared_ring_mode = exp_context["compared-ring-mode"]  
         compared_lb_scheme = exp_context["compared-lb-scheme"]
         compared_timing_scheme = exp_context["compared-timing-scheme"]
@@ -381,8 +418,16 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
         base_lb_scheme = exp_context["base-lb-scheme"]
         base_timing_scheme = exp_context["base-timing-scheme"]
         
-        for placement, placement_df in [("compact", compact_placement_df), 
-                                        ("random", random_placement_df)]:
+        merge_on = ["protocol-file-name", "machines", "cores", "placement-seed"]
+        
+        placement_results = []
+        
+        for placement in all_placement_modes:
+            placement_df = exp_results_df[exp_results_df["placement-mode"] == placement]
+            metric_placement_csv_dir = metric_csv_dir + placement + "/"
+            
+            os.makedirs(metric_placement_csv_dir, exist_ok=True)
+            
 
             base = {"ring-mode": "random", "lb-scheme": base_lb_scheme, "timing-scheme": base_timing_scheme}
             
@@ -421,7 +466,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
                 
                 saved_columns = merge_on + ["speedup"]
 
-                csv_path = metric_csv_dir + f"speedup_{placement}_{comparison_name}.csv"
+                csv_path = metric_placement_csv_dir + f"speedup_{comparison_name}.csv"
                 speedup_df = merged_df[saved_columns]
                 speedup_df.to_csv(csv_path, index=False)
 
@@ -449,50 +494,40 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
             cdf_params = ["speedup_{}_values".format(comparison_name) for comparison_name, _ in comparisons] 
             
             grouped_df = super_merged.groupby(by=group_on).agg(**agg_dict)
-            
-            if placement == "compact":
-                compact_grouped_df = grouped_df
-            else:
-                random_grouped_df = grouped_df
                 
+            # store the results for the current placement 
+            metric_placement_grouped_csv_path = "{}/{}_results.csv".format(metric_placement_csv_dir, placement)   
+            grouped_df.reset_index().to_csv(metric_placement_grouped_csv_path, index=False)
+
+
+            # do some plotting as well. 
+            # metric_placement_plot_path = metric_plots_dir + "{}.png".format(placement)
+
+            # title = "Speedup in {} of {} over {}".format(
+            #     metric, compared_lb_scheme, base_lb_scheme,
+            # ).replace(" ", "$") 
+            
+            # plot_results(interesting_keys=["machines" , "cores"], 
+            #              plotted_key_min="speedup_or_lb_min", 
+            #              plotted_key_max="speedup_or_lb_max", 
+            #              title=title, 
+            #              random_seed=experiment_seed,
+            #              csv_path=metric_placement_grouped_csv_path,
+            #              plot_path=metric_placement_plot_path,
+            #              script_path=config_sweeper.plot_commands_script, 
+            #              actually_plot=plot)
+            
+            placement_results.append((placement, metric_placement_grouped_csv_path))
+
+
+        placement_names = [placement for placement, _ in placement_results]
+        placement_csv_paths = [csv_path for _, csv_path in placement_results]
+        
         # store the final output
-        compact_csv_path = metric_csv_dir + "compact_results.csv"
-        random_csv_path  = metric_csv_dir + "random_results.csv"
-            
-        compact_grouped_df.reset_index().to_csv(compact_csv_path, index=False)
-        random_grouped_df.reset_index().to_csv(random_csv_path, index=False)
-
-        
-
-                
-        # do the plotting, or at least store the plotting commands
-        compact_plot_path = metric_plots_dir + "compact_plot.png"
-        random_plot_path  = metric_plots_dir + "random_plot.png"
-    
-        title = "Speedup in {} of {} over {}".format(
-            metric, 
-            compared_lb_scheme,
-            base_lb_scheme,
-        )
-        
-        title = title.replace(" ", "$") # to feed it through the command line arguments.
-        
-        # plot_results(interesting_keys=["machines" , "cores"], 
-        #              plotted_key_min="speedup_or_lb_min", 
-        #              plotted_key_max="speedup_or_lb_max", 
-        #              title=title, 
-        #              random_seed=experiment_seed,
-        #              compact_csv_path=compact_csv_path,
-        #              random_csv_path=random_csv_path,
-        #              compact_plot_path=compact_plot_path,
-        #              random_plot_path=random_plot_path, 
-        #              script_path=config_sweeper.plot_commands_script, 
-        #              actually_plot=plot)
-
         plot_cdfs(separating_params=["machines", "cores"], 
                   cdf_params=cdf_params, 
-                  compact_csv_path=compact_csv_path,
-                  random_csv_path=random_csv_path, 
+                  placement_names=placement_names,
+                  placement_csv_paths=placement_csv_paths,
                   plots_dir=metric_plots_dir, 
                   script_path=config_sweeper.plot_commands_script, 
                   actually_plot=plot)
@@ -527,23 +562,34 @@ def main():
         
         "machine-count": selected_setting["machine-count"],
         "ft-server-per-rack": selected_setting["ft-server-per-rack"],
-        "general-param-1": selected_setting["machine-count-low"],  
-        "general-param-3": selected_setting["machine-count-high"],
 
         "simulation-seed": experiment_seed 
     }
 
     interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-    placement_modes = ["compact", "random"]
+    placement_modes = ["random", "semirandom", "compact"]
 
     base_lb_scheme = "random"
     base_timing_scheme = "random"
     base_ring_mode = "random" 
 
-    compared_lb_schemes = ["leastloaded",] #"powerof2", "roundrobin", "ecmp", "perfect",
-    compared_timing_schemes = ["cassini", "inc"] # "random" "inc"
+    compared_lb_schemes = ["powerof2"] #"powerof2", "roundrobin", "ecmp", "perfect",
+    compared_timing_schemes = ["cassini"] # "random" "inc"
     compared_ring_modes = ["optimal"]
-    oversubs = [2]
+    oversubs = [4]
+    
+    cassini_parameters = {  
+        "sim-length": 100000,
+        "link-solution-candidate-count": 10,
+        "link-solution-random-quantum": 10,
+        "link-solution-top-candidates": 10,    
+        "overall-solution-candidate-count": 10,
+    }    
+    
+    placement_parameters = {
+        "jobs-machine-count-low": selected_setting["jobs-machine-count-low"], 
+        "jobs-machine-count-high": selected_setting["jobs-machine-count-high"],
+    }
     
     random.seed(experiment_seed)
     
@@ -583,8 +629,12 @@ def main():
                         # other stuff
                         "random-rep-count": random_rep_count,
                         "interesting-metrics": interesting_metrics,
+                        "all-placement-modes": placement_modes,
                         "experiment-seed": experiment_seed,
                         "oversub": oversub,
+                        
+                        "cassini-parameters": cassini_parameters,
+                        "placement-parameters": placement_parameters,   
                     } 
 
                         
