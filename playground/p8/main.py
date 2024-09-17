@@ -2,6 +2,14 @@ import random
 import matplotlib.pyplot as plt
 import os 
 import sys 
+import math 
+
+random.seed(45)
+
+sim_length = 1000000  
+rack_size = 10 
+rack_count = 50 
+machine_count = rack_size * rack_count   
 
 # this script path: 
 this_path = os.path.dirname(os.path.abspath(__file__))
@@ -15,11 +23,6 @@ def get_job_duration():
 
 def get_interarrival_time():
     return random.randint(1, 400) # mean 200
-
-sim_length = 3000000  
-rack_size = 10 
-rack_count = 50 
-machine_count = rack_size * rack_count   
 
 
 class Simulation():    
@@ -39,7 +42,8 @@ class Simulation():
         self.job_id_counter = 0
 
         self.entropies = []
-        self.utilizations = []         
+        self.utilizations = []     
+        self.overload = []     
     
     def mark_machine_as_busy(self, machine_id): 
         self.is_busy[machine_id] = True
@@ -88,38 +92,68 @@ class Simulation():
                             break                
                 
         if self.strategy == "bestfit":
-            best_fit_start_index = -1
-            best_fit_size = float('inf')
-            start_index = 0
+            # attempt to assign total racks to the job. 
+            available_racks = [] 
+            needed_rack_count = int(math.ceil(job_machine_count / rack_size))
+            
+            # i is the starting machine of each rack. 
+            for i in range(0, machine_count, rack_size):
+                rack_available = not any(self.is_busy[i: i + rack_size])
 
-            while start_index <= machine_count - job_machine_count:
-                # Find the next available block
-                while start_index <= machine_count - job_machine_count and any(self.is_busy[start_index : start_index + job_machine_count]):
-                    start_index += 1
-
-                # Measure the size of this available block
-                block_start = start_index
-                while start_index < machine_count and not self.is_busy[start_index]:
-                    start_index += 1
-                block_size = start_index - block_start
-
-                # Check if it's the smallest sufficient block
-                if block_size >= job_machine_count and block_size < best_fit_size:
-                    best_fit_start_index = block_start
-                    best_fit_size = block_size
-
-            # Allocate the best-fit chunk
-            if best_fit_start_index != -1:
-                machines = list(range(best_fit_start_index, best_fit_start_index + job_machine_count))
+                if rack_available:
+                    available_racks.append(i)
+                    
+                if len(available_racks) == needed_rack_count:
+                    break
+                
+            if len(available_racks) == needed_rack_count:
+                # we have enough racks to assign the job.
+                for i in range(len(available_racks)):
+                    start_machine = available_racks[i]  
+                    end_machine = start_machine + rack_size 
+                    
+                    machines.extend(list(range(start_machine, end_machine)))
+                    
+                # some machines in the last rack might be extra.
+                machines = machines[:job_machine_count]
+                
+            else:
+                # get all the machines that we can get from full racks. 
+                for i in range(len(available_racks)):
+                    start_machine = available_racks[i]  
+                    end_machine = start_machine + rack_size 
+                    
+                    machines.extend(list(range(start_machine, end_machine)))
+                    
+                machines_needed = job_machine_count - len(machines)
+                scattered_machines = [] 
+                
+                already_added_machines = set(machines) 
+                
+                for j in range(machine_count):
+                    if j not in already_added_machines and not self.is_busy[j]:
+                        scattered_machines.append(j)
+                        
+                        if len(scattered_machines) == machines_needed:
+                            break
+                        
+                machines.extend(scattered_machines)                        
+                
     
-        
-        # sanity check        
+        #####################################################################
+        # sanity check ######################################################        
+        #####################################################################
+
         if len(machines) != job_machine_count:
             return None
 
         for machine in machines:
             if self.is_busy[machine]:
                 return None 
+
+        #####################################################################
+        # sanity check ######################################################        
+        #####################################################################
         
         # the ring stuff. 
         if self.ring_mode == "random":
@@ -264,19 +298,23 @@ class Simulation():
             utilization = self.busy_machine_count / machine_count   
             self.utilizations.append(utilization)
                         
+            overload = sum([job["machine_count"] for job in self.waiting_jobs]) / machine_count
+            self.overload.append(overload)
+            
             self.current_time += 1 
             
         return self.entropies     
                     
 if __name__ == "__main__":
     
-    for strategy in ["firstfit"]:
+    for strategy in ["bestfit"]:
         for ring_mode in ["optimal"]:
             s = Simulation(strategy, ring_mode)
             s.simulate()    
             
             plt.plot(s.entropies, label="entropy")    
             plt.plot(s.utilizations, label="utilization")   
+            plt.plot(s.overload, label="overload")
             
             plt.ylabel("entropy/utilization")
             plt.xlabel("time")
