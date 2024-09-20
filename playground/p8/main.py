@@ -3,12 +3,14 @@ import matplotlib.pyplot as plt
 import os 
 import sys 
 import math 
+from pprint import pprint
 
-random.seed(45)
+base_seed = 44234
+random.seed(base_seed)
 
-sim_length = 1000000  
+sim_length = 10000000
 rack_size = 10 
-rack_count = 50 
+rack_count = 25 
 machine_count = rack_size * rack_count   
 
 # this script path: 
@@ -16,14 +18,26 @@ this_path = os.path.dirname(os.path.abspath(__file__))
 this_dir = os.path.dirname(this_path)    
 
 def get_job_machine_count():
-    return random.randint(2, 18) # mean 10
+    # return random.randint(2, 18) # mean 10
+
+    # a pareto distribution with with mean 10 
+    r = int(random.paretovariate(1.3)) + 4
+    if r > (machine_count // 2):
+        r = (machine_count // 2)
+        
+    return r 
 
 def get_job_duration():
-    return random.randint(1, 20000) # mean 10000
+    # return random.randint(1, 20000) # mean 10000
+
+    r = int(random.paretovariate(1.16)) * 1500 + 2000
+    return r
 
 def get_interarrival_time():
-    return random.randint(1, 400) # mean 200
+    # return random.randint(1, 240) # mean 200
 
+    r = int(random.paretovariate(1.16)) * 60 + 1
+    return r
 
 class Simulation():    
     
@@ -33,6 +47,7 @@ class Simulation():
         
         self.current_jobs = [] 
         self.waiting_jobs = []
+        self.completed_jobs = []
         
         self.is_busy = [False] * machine_count    
         self.busy_machine_count = 0 
@@ -42,9 +57,11 @@ class Simulation():
         self.job_id_counter = 0
 
         self.entropies = []
+        self.base_entropies = [] 
         self.utilizations = []     
-        self.overload = []     
-    
+        self.service_rates = []     
+        self.inter_arrival_times = [] 
+        
     def mark_machine_as_busy(self, machine_id): 
         self.is_busy[machine_id] = True
         self.busy_machine_count += 1
@@ -53,6 +70,64 @@ class Simulation():
         self.is_busy[machine_id] = False
         self.busy_machine_count -= 1    
 
+    def try_to_initiate_waiting_jobs(self):
+        # are there any waiting jobs?
+        waiting_jobs_copy = self.waiting_jobs.copy() 
+        self.waiting_jobs.clear()
+        waiting_jobs_count = len(waiting_jobs_copy) 
+        
+        started_jobs = 0        
+        for job in waiting_jobs_copy :
+            free_machines = machine_count - self.busy_machine_count 
+
+            if job["machine_count"] > free_machines:
+                could_start = False
+                self.waiting_jobs.append(job)
+            else:    
+                could_start = self.attempt_job_initiation(job["id"], job["duration"], job["machine_count"]) 
+            
+            if could_start:
+                started_jobs += 1
+                
+            
+        print(f"Started {started_jobs} jobs out of {waiting_jobs_count} waiting jobs")
+    
+    def defragment(self):   
+        initial_busy_machine_count = self.busy_machine_count    
+        
+        for job in self.current_jobs:
+            for machine_id in job["machines"]:
+                self.mark_machine_as_free(machine_id)
+            job["machines"] = []
+        
+        # assert all machines are free
+        assert self.busy_machine_count == 0
+        
+        
+        #sort the jobs by machine count
+        self.current_jobs.sort(key=lambda x: x["machine_count"], reverse=True)
+        
+        
+        current_machine = 0 
+        
+        
+        for job in self.current_jobs: 
+            machine_range = list(range(current_machine, current_machine + job["machine_count"]))
+            for machine_id in machine_range:
+                self.mark_machine_as_busy(machine_id)
+            job["machines"] = machine_range
+            current_machine += job["machine_count"]
+            
+        current_busy_machine_count = self.busy_machine_count
+        
+        assert current_busy_machine_count == initial_busy_machine_count
+        
+        # now we have defragmented the machines. Make another attempt to initiate the waiting jobs.
+        
+        # try to initiate the waiting jobs: 
+        self.try_to_initiate_waiting_jobs()
+        
+        
     def find_machines_for_job(self, job_machine_count):
         
         available_machine_count = machine_count - self.busy_machine_count 
@@ -118,6 +193,9 @@ class Simulation():
                 machines = machines[:job_machine_count]
                 
             else:
+                return None # this should technically keep the fragmentation at zero 
+
+            
                 # get all the machines that we can get from full racks. 
                 for i in range(len(available_racks)):
                     start_machine = available_racks[i]  
@@ -163,10 +241,17 @@ class Simulation():
             
         return machines     
     
-    def measure_entrorpy(self):
+    def measure_entrorpy(self, deduct_base_entropy = True):
+        
+        # what is deduct_base_entropy?
+        # even in the most ideal case, there is some entropy.
+        # this entropy is the entropy of the base case.
+        # specifically, the ring has to cross every rack_size machines.
+        # so if there's a job with 10 machines and racks are 8 machines each, 
+        # there will be 2 cross rack flows. So the base cross
 
         cross_rack_flows = 0
-        within_rack_flows = 0   
+        total_flows = 0   
         
         for job in self.current_jobs:
             machines = job["machines"] 
@@ -180,23 +265,41 @@ class Simulation():
 
                 if src_rack != dest_rack:   
                     cross_rack_flows += 1
+                    
+                total_flows += 1
+            
+            if deduct_base_entropy:
+                least_needed_racks = int(math.ceil(len(machines) / rack_size))
+                
+                if least_needed_racks == 1:
+                    min_possible_cross_rack_flows = 0
                 else:
-                    within_rack_flows += 1
+                    min_possible_cross_rack_flows = least_needed_racks
+                                                        
+                cross_rack_flows -= min_possible_cross_rack_flows            
             
-        return cross_rack_flows / (cross_rack_flows + within_rack_flows)
+        return cross_rack_flows / (total_flows)
     
+    
+    def send_to_waiting(self, job_id, duration, job_machines_count):
+        self.waiting_jobs.append({
+            "duration": duration,   
+            "machine_count": job_machines_count,
+            "id": job_id, 
+        })
+        
     def attempt_job_initiation(self, job_id, duration, job_machines_count): 
+        backlog_count = sum([job["machine_count"] for job in self.waiting_jobs]) 
+        if backlog_count > machine_count:
+            self.send_to_waiting(job_id, duration, job_machines_count)
+            return False 
+        
         job_machines = self.find_machines_for_job(job_machines_count) 
-            
         if job_machines is not None:
             self.initiate_job(job_id, duration, job_machines)            
             return True 
         else: 
-            self.waiting_jobs.append({
-                "duration": duration,   
-                "machine_count": job_machines_count,
-                "id": job_id, 
-            })
+            self.send_to_waiting(job_id, duration, job_machines_count)
             return False
             
             
@@ -207,6 +310,7 @@ class Simulation():
             "start_time": self.current_time, 
             "end_time": job_end_time,    
             "machines": job_machines, 
+            "machine_count": len(job_machines),
             "id": job_id 
         })
 
@@ -222,6 +326,7 @@ class Simulation():
     
     def terminate_job(self, job):
         self.current_jobs.remove(job)
+        self.completed_jobs.append(job)
         
         for machine_id in job["machines"]:
             self.mark_machine_as_free(machine_id)
@@ -243,11 +348,14 @@ class Simulation():
     def simulate(self): 
         next_job_arrival = 0 
         
-        
         # Run the simulation
         while self.current_time < sim_length:
             something_changed = False 
             
+            if self.current_time % 1000000 == 0:
+                something_changed = True
+                # self.defragment()
+
             if self.current_time == self.earliest_job_end:  # some jobs are ending now. maybe more than one.
                 something_changed = True 
                 # which jobs are ending now?     
@@ -260,23 +368,13 @@ class Simulation():
                 for job in ending_jobs:
                     self.terminate_job(job)
                                     
-                # are there any waiting jobs?
-                waiting_jobs_copy = self.waiting_jobs.copy() 
-                self.waiting_jobs.clear()
-                waiting_jobs_count = len(waiting_jobs_copy) 
-
-                started_jobs = 0        
-                for job in waiting_jobs_copy :
-                    could_start = self.attempt_job_initiation(job["id"], job["duration"], job["machine_count"]) 
-                    if could_start:
-                        started_jobs += 1
-                        
-                    
-                print(f"Started {started_jobs} jobs out of {waiting_jobs_count} waiting jobs")
+                self.try_to_initiate_waiting_jobs()
                     
             if self.current_time == next_job_arrival:  # next job is here  
                 something_changed = True 
                 self.job_id_counter += 1
+                
+                random.seed(base_seed + self.job_id_counter)    
                 
                 # non negotioable, these two numbers should be decided here 
                 job_machine_count = get_job_machine_count()
@@ -285,43 +383,111 @@ class Simulation():
                 
                 self.attempt_job_initiation(job_id, job_duration, job_machine_count)
                     
-                # regardless, the next job will arrive in a while,             
-                next_job_arrival = self.current_time + get_interarrival_time() 
+                # regardless, the next job will arrive in a while,
+                next_interarrival_time = get_interarrival_time()             
+                self.inter_arrival_times.append(next_interarrival_time)
+                next_job_arrival = self.current_time + next_interarrival_time 
             
             if something_changed:
-                new_entropy = self.measure_entrorpy() 
+                new_entropy = self.measure_entrorpy(deduct_base_entropy=True)
                 self.entropies.append(new_entropy)            
+
+                new_base_entropy = self.measure_entrorpy(deduct_base_entropy=False)
+                self.base_entropies.append(new_base_entropy)  
+
             else: 
                 last_entropy = self.entropies[-1] if len(self.entropies) > 0 else 0 
                 self.entropies.append(last_entropy)
+                
+                last_base_entropy = self.base_entropies[-1] if len(self.base_entropies) > 0 else 0
+                self.base_entropies.append(last_base_entropy)
                                 
             utilization = self.busy_machine_count / machine_count   
             self.utilizations.append(utilization)
                         
-            overload = sum([job["machine_count"] for job in self.waiting_jobs]) / machine_count
-            self.overload.append(overload)
+            backlog_machine_count = sum([job["machine_count"] for job in self.waiting_jobs])
+            servicing_machine_count = self.busy_machine_count
+            service_rate = servicing_machine_count / (servicing_machine_count + backlog_machine_count)
+            
+            self.service_rates.append(service_rate)
             
             self.current_time += 1 
             
         return self.entropies     
-                    
+                   
+def plot_cdf(data, title, xlabel, ylabel, filename):
+    data.sort()
+    yvals = [i / len(data) for i in range(len(data))]
+    plt.plot(data, yvals)
+    
+    
+    mean = sum(data) / len(data)
+    plt.axvline(x=mean, color='r', linestyle='--', label="mean" + str(xlabel))
+    # annotate the mean
+    plt.text(mean * 1.1, 0.5, int(mean), rotation=90)  
+                        
+                        
+    percentile_90 = data[int(len(data) * 0.9)]
+    plt.axvline(x=percentile_90, color='g', linestyle='--', label="90th percentile" + str(xlabel))
+    plt.text(percentile_90 * 1.1, 0.5, int(percentile_90), rotation=90)
+    
+    
+    max = data[-1] 
+    plt.axvline(x=max, color='b', linestyle='--', label="max" + str(xlabel))
+    plt.text(max * 1.1, 0.5, int(max), rotation=90)
+    
+                        
+    plt.ylabel(ylabel)
+    plt.xlabel(xlabel)
+    plt.title(title)
+    plt.xscale("log")   
+    
+    # legend outside the plot, top right
+    plt.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+    plt.savefig(filename, dpi = 300, bbox_inches = "tight") 
+    plt.clf()
+    
+def downsample(data, step=None):
+    if step is None: 
+        step = len(data) // 100
+    
+    def my_mean(arr):
+        return sum(arr) / len(arr)  
+    
+    return [my_mean(data[i:i + step]) for i in range(0, len(data), step)]
+
+
 if __name__ == "__main__":
     
-    for strategy in ["bestfit"]:
+    for strategy in ["firstfit"]:
         for ring_mode in ["optimal"]:
             s = Simulation(strategy, ring_mode)
             s.simulate()    
             
-            plt.plot(s.entropies, label="entropy")    
-            plt.plot(s.utilizations, label="utilization")   
-            plt.plot(s.overload, label="overload")
+            
+            #####################################################################
+            
+            plt.plot(downsample(s.entropies), label="entropy")    
+            plt.plot(downsample(s.utilizations), label="utilization")   
+            plt.plot(downsample(s.service_rates), label="service rate")
+            plt.plot(downsample(s.base_entropies), label="base entropy")
             
             plt.ylabel("entropy/utilization")
             plt.xlabel("time")
             plt.title("Strategy: {}, Ring Mode: {}".format(strategy, ring_mode))
             
-            plt.ylim(0, 1)
+            plt.ylim(-0.02, 1.02)
             
-            plt.legend()
+            plt.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
             plt.savefig("{}/{}_{}.png".format(this_dir, strategy, ring_mode))
             plt.clf()
+            
+            #####################################################################
+            
+            job_machine_count_all = [job["machine_count"] for job in s.completed_jobs]  
+            job_duration_all = [job["end_time"] - job["start_time"] for job in s.completed_jobs]
+        
+            
+            plot_cdf(job_machine_count_all, "Job Machine Count CDF", "job machine count", "CDF", "{}/{}_{}_machine_cdf.png".format(this_dir, strategy, ring_mode))
+            plot_cdf(job_duration_all, "Job Duration CDF", "job duration", "CDF", "{}/{}_{}_duration_cdf.png".format(this_dir, strategy, ring_mode))
+            plot_cdf(s.inter_arrival_times, "Interarrival Time CDF", "interarrival time", "CDF", "{}/{}_{}_interarrival_cdf.png".format(this_dir, strategy, ring_mode))
