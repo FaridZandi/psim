@@ -350,6 +350,21 @@ double Bottleneck::get_load(LoadMetric load_metric_arg) {
     }
 }
 
+void Bottleneck::flow_started(Flow* flow) {
+    current_flow_count += 1;
+    current_flow_size_sum += flow->size;
+    flows.push_back(flow);
+}
+
+void Bottleneck::flow_finished(Flow* flow) {
+    current_flow_count -= 1;
+    current_flow_size_sum -= flow->size;
+
+    // remove this flow from the bottleneck's flow list
+    flows.erase(std::remove(flows.begin(), flows.end(), flow),
+                flows.end());
+}
+
 
 Bottleneck::~Bottleneck() {
     delete bwalloc;

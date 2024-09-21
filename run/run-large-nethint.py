@@ -23,7 +23,7 @@ options = {
 
     "network-type": "leafspine",    
     "link-bandwidth": 100,
-    "machine-count": 32,
+    "machine-count": 80,
     "ft-server-per-rack": 4,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
@@ -45,14 +45,8 @@ options = {
     
     "simulation-seed": 45, 
     
-    "general-param-4": 20000, # comm size
-    "general-param-5": 500, # comp size
-    "general-param-6": 1, # layer count
-    "general-param-7": 10, # iteration count
-    
-    "placement-file": "/home/faridzandi/git/psim/run/sampleinput/1-random-optimal.txt",
-    # "timing-file": "/home/faridzandi/git/psim/run/sampleinput/timings-aaeubohvcl.txt",
-    "timing-file": "/home/faridzandi/git/psim/run/sampleinput/timings-aafmpbxgsc.txt",
+    "placement-file": "/home/faridzandi/git/psim/run/sampleinput/placement.txt",
+    "timing-file": "/home/faridzandi/git/psim/run/sampleinput/timing.txt",
 }
 
 run_exp(options, sys.argv)

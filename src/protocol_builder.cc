@@ -387,6 +387,8 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                                            EmptyTask* last_all_reduce_finisher, bool add_stage_barriers,
                                            bool reverse_ring, int jobid, int iter_num, int layer_num) {
 
+
+    // in the end, everything should lead to this. 
     EmptyTask* all_reduce_finisher = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
     all_reduce_finisher->name = "AllR";
     all_reduce_finisher->print_on_exec = true;
@@ -399,6 +401,17 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
     int node_count = last_layer_pcs.size();
     int num_chunks = num_replicas;
 
+
+    //////////////////////////////////////////////
+    // TODO: this is not a clean way to do this. Make it better.
+    //////////////////////////////////////////////
+    int sub_flow_count = 1; 
+    if (GConf::inst().general_param_1 != 0) {
+        sub_flow_count = GConf::inst().general_param_1;
+    }
+    //////////////////////////////////////////////
+    //////////////////////////////////////////////
+
     if(reverse_ring) {
         std::reverse(last_layer_pcs.begin(), last_layer_pcs.end());
     }
@@ -409,11 +422,17 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
     // each chuck would start rotating at its corresponding machine, 
     // going through all the machines, and then back to the original machine. 
 
-    Flow*** all_flows = new Flow**[num_chunks];
+    Flow**** all_flows = new Flow***[num_chunks];
+    
     for (int i = 0; i < num_chunks; i++) {
-        all_flows[i] = new Flow*[2 * num_replicas - 2];
+        all_flows[i] = new Flow**[2 * num_replicas - 2];
+        
         for (int j = 0; j < 2 * num_replicas - 2; j++) {
-            all_flows[i][j] = nullptr;
+            all_flows[i][j] = new Flow*[sub_flow_count];
+    
+            for (int k = 0; k < sub_flow_count; k++) {
+                all_flows[i][j][k] = nullptr;
+            }
         }
     }
 
@@ -446,34 +465,34 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         PTask* prev_task = nullptr; 
 
         for (int j = 0; j < num_replicas - 1; j++) {
-            Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
-            all_flows[i][j] = flow;
-            
-            flow->jobid = jobid;
-            flow->size = comm_size;
-            flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + 1);
-            int flow_src_index = (i + j) % num_replicas; 
-            int flow_dst_index = (i + j + 1) % num_replicas;
-            flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
-            flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
+            for (int k = 0; k < sub_flow_count; k++) {
+                Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+                all_flows[i][j][k] = flow;
+                
+                flow->jobid = jobid;
+                flow->size = comm_size / sub_flow_count;
+                flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + 1) + "_subflow_" + std::to_string(k + 1);
 
-            // if (flow->id == 44) {
-            //     flow->custom_maximum_rate = 200;
-            // }
-            // PComp* agg = (PComp*)protocol->create_task(PTaskType::COMPUTE);
-            // agg->size = aggregate_time; 
-            // int agg_index = (i + j + 1) % num_replicas;
-            // agg->dev_id = last_layer_pcs[agg_index]->dev_id;
+                int flow_src_index = (i + j) % num_replicas; 
+                int flow_dst_index = (i + j + 1) % num_replicas;
+                flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
+                flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
+            }
 
+            // An empty to show the aggregation. 
             EmptyTask* agg = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
             agg->name = "Agg"; 
-
-            flow->add_next_task_id(agg->id);
-
-            if (j != 0) {
-                prev_task->add_next_task_id(flow->id);
-            } else {
-                initial_barrier->add_next_task_id(flow->id);    
+            
+            // Linking all the dependencies 
+            for (int k = 0; k < sub_flow_count; k++) {
+                Flow* flow = all_flows[i][j][k];
+                flow->add_next_task_id(agg->id);
+            
+                if (j == 0) {
+                    initial_barrier->add_next_task_id(flow->id);
+                } else {
+                    prev_task->add_next_task_id(flow->id);
+                }
             }
 
             prev_task = agg;
@@ -486,25 +505,39 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         int starting = i + num_replicas - 1;
 
         for (int j = 0; j < num_replicas - 1; j++) {
-            Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
-            all_flows[i][num_replicas - 1 + j] = flow;
+            for (int k = 0; k < sub_flow_count; k++) {
+                Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+                all_flows[i][num_replicas - 1 + j][k] = flow;
 
-            flow->jobid = jobid;
-            flow->size = comm_size;
-            flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + num_replicas - 1 + 1);
+                flow->jobid = jobid;
+                flow->size = comm_size / sub_flow_count;    
+                flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + num_replicas - 1 + 1);
 
-            int flow_src_index = (starting + j) % num_replicas;
-            int flow_dst_index = (starting + j + 1) % num_replicas;
-
-            flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
-            flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
-
-            prev_task->add_next_task_id(flow->id);
-            prev_task = flow;
-
-            if (j == num_replicas - 2) {
-                flow->add_next_task_id(all_reduce_finisher->id);
+                int flow_src_index = (starting + j) % num_replicas;
+                int flow_dst_index = (starting + j + 1) % num_replicas;
+                flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
+                flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
             }
+            
+
+            EmptyTask* agg = nullptr;
+            if (j < num_replicas - 2) {
+                agg = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
+                agg->name = "Agg";  
+            }
+
+            for (int k = 0; k < sub_flow_count; k++) {
+                Flow* flow = all_flows[i][num_replicas - 1 + j][k];
+                prev_task->add_next_task_id(flow->id);
+
+                if (j == num_replicas - 2) { // the last one
+                    flow->add_next_task_id(all_reduce_finisher->id);
+                } else {
+                    flow->add_next_task_id(agg->id);
+                }
+            }
+
+            prev_task = agg;
         }
     }
 
@@ -512,10 +545,11 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         for (int j = 0; j < 2 * num_replicas - 3; j++) {
             EmptyTask* barrier = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
             barrier->name = "barrier";
-
             for (int i = 0; i < num_chunks; i++) {
-                all_flows[i][j]->add_next_task_id(barrier->id);
-                barrier->add_next_task_id(all_flows[i][j + 1]->id);
+                for (int k = 0; k < sub_flow_count; k++) {
+                    all_flows[i][j][k]->add_next_task_id(barrier->id);
+                    barrier->add_next_task_id(all_flows[i][j + 1][k]->id);
+                }
             }
         }
     }

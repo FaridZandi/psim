@@ -208,6 +208,10 @@ public:
 
     double get_load(LoadMetric load_metric_arg = LoadMetric::DEFAULT);
 
+
+    void flow_started(Flow* flow); 
+    void flow_finished(Flow* flow); 
+    
     // basic info
     int id;
     double bandwidth;

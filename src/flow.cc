@@ -30,24 +30,15 @@ void Flow::initiate(){
     }
 
     compute_priority();
-
+    
     for (Bottleneck* bottleneck : this->path) {
-        bottleneck->current_flow_count += 1;
-        bottleneck->current_flow_size_sum += this->size;
-        bottleneck->flows.push_back(this);
+        bottleneck->flow_started(this); 
     }
 }
 
 void Flow::finished() {
     for (Bottleneck* bottleneck : this->path) {
-        bottleneck->current_flow_count -= 1;
-        bottleneck->current_flow_size_sum -= this->size;
-
-        // remove this flow from the bottleneck's flow list
-        bottleneck->flows.erase(std::remove(bottleneck->flows.begin(),
-                                            bottleneck->flows.end(),
-                                            this),
-                                bottleneck->flows.end());
+        bottleneck->flow_finished(this);
     }
 
     auto& this_run = GContext::this_run();
@@ -76,9 +67,7 @@ void Flow::compute_priority(){
 }
 
 
-
 void Flow::register_rate_on_path(double step_size){
-
     // double completion_rate = (size - progress) / step_size;
     // registered_rate = std::min(completion_rate, current_rate);
     registered_rate = current_rate;
