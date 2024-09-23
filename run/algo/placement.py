@@ -4,14 +4,14 @@ import time
 
 
 
-def generate_compact_or_random_placement_file(options, run_context, selected_setting):
+def generate_compact_or_random_placement_file(options, run_context):
 
     machine_count = options["machine-count"]
     placement_mode = options["placement-mode"]
     ring_mode = options["ring-mode"]    
     
-    jobs_machine_count_high = run_context["placement-parameters"]["jobs-machine-count-high"]
-    jobs_machine_count_low = run_context["placement-parameters"]["jobs-machine-count-low"]
+    jobs_machine_count_high = run_context["selected-setting"]["jobs-machine-count-high"]
+    jobs_machine_count_low = run_context["selected-setting"]["jobs-machine-count-low"]
     
     jobs = [] 
     
@@ -33,10 +33,10 @@ def generate_compact_or_random_placement_file(options, run_context, selected_set
         if this_job_machine_count > machines_left:
             this_job_machine_count = machines_left    
             
-        job_communication_size = random.choice(selected_setting["comm-size"])   
-        job_computation_size = random.choice(selected_setting["comp-size"])    
-        job_layer_count = random.choice(selected_setting["layer-count"])  
-        job_iter_count = random.choice(selected_setting["iter-count"])
+        job_communication_size = random.choice(run_context["selected-setting"]["comm-size"])   
+        job_computation_size = random.choice(run_context["selected-setting"]["comp-size"])    
+        job_layer_count = random.choice(run_context["selected-setting"]["layer-count"])  
+        job_iter_count = random.choice(run_context["selected-setting"]["iter-count"])
         
         jobs.append({
             "job_id": current_job_id,   
@@ -76,7 +76,7 @@ def generate_compact_or_random_placement_file(options, run_context, selected_set
             
             
 
-def generate_semirandom_placement_file(options, run_context, selected_setting):
+def generate_semirandom_placement_file(options, run_context):
 
 
     machine_count = options["machine-count"]
@@ -89,8 +89,8 @@ def generate_semirandom_placement_file(options, run_context, selected_setting):
     else:
         fragmentation_factor = 1    
                 
-    jobs_machine_count_high = run_context["placement-parameters"]["jobs-machine-count-high"]
-    jobs_machine_count_low = run_context["placement-parameters"]["jobs-machine-count-low"]
+    jobs_machine_count_high = run_context["selected-setting"]["jobs-machine-count-high"]
+    jobs_machine_count_low = run_context["selected-setting"]["jobs-machine-count-low"]
     
     jobs = [] 
     
@@ -111,10 +111,10 @@ def generate_semirandom_placement_file(options, run_context, selected_setting):
         if this_job_machine_count > machines_left:
             this_job_machine_count = machines_left        
             
-        job_communication_size = random.choice(selected_setting["comm-size"])   
-        job_computation_size = random.choice(selected_setting["comp-size"])    
-        job_layer_count = random.choice(selected_setting["layer-count"])  
-        job_iter_count = random.choice(selected_setting["iter-count"])
+        job_communication_size = random.choice(run_context["selected-setting"]["comm-size"])   
+        job_computation_size = random.choice(run_context["selected-setting"]["comp-size"])    
+        job_layer_count = random.choice(run_context["selected-setting"]["layer-count"])  
+        job_iter_count = random.choice(run_context["selected-setting"]["iter-count"])
         
         jobs.append({
             "job_id": current_job_id,   
@@ -188,18 +188,19 @@ def generate_semirandom_placement_file(options, run_context, selected_setting):
                                               
                                               
 def generate_placement_file(placement_path, placement_seed,   
-                            options, run_context, selected_setting):
+                            options, run_context):
     
     # the seed will be set at this point everything from here on will be deterministic.
     # for the same experiment seed and placement seed. 
     random.seed(run_context["experiment-seed"] + placement_seed)
     
+    
     placement_mode = options["placement-mode"] 
     
     if placement_mode == "compact" or placement_mode == "random":   
-        jobs = generate_compact_or_random_placement_file(options, run_context, selected_setting)
+        jobs = generate_compact_or_random_placement_file(options, run_context)
     elif placement_mode.startswith("semirandom"):   
-        jobs = generate_semirandom_placement_file(options, run_context, selected_setting) 
+        jobs = generate_semirandom_placement_file(options, run_context) 
     
     
     with open(placement_path, "w") as f:

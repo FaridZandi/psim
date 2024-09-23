@@ -1,5 +1,4 @@
 from utils.util import *
-from utils.sweep_base import ConfigSweeper
 from utils.util import default_load_metric_map
 import pandas as pd 
 import numpy as np  
@@ -16,14 +15,6 @@ import subprocess
 
 #########################
 # TODO: 
-# 1. Add support for multiple placement modes. Dynamically handle any placement mode that is given,
-#    in the placement file generation. 
-
-# 2. Add another placement mode, something between the random and the compact. something like assigning
-#    chunks of servers in the same rack to a job. Then repeat this for all the jobs and the racks. 
-
-# 3. Improve the current version of the timing. Get some improvements from the other version.
-
 # 4. Add support for more complex protocols to be recognized by the timing. Eventually, ideally, 
 #    There would be something like: running the simulator, only with one job, and acquire the loads 
 #    from the simulator. Then use these loads to generate the timing.
@@ -32,16 +23,13 @@ import subprocess
 # get the current executable. like if this file was run with python3 or pypy3, for example.
 current_executable = sys.executable
 
-
 run_cassini_timing_in_subprocess = True
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
-random_rep_count = 1
-experiment_seed = 58
 placement_files_state = {} 
 timing_files_states = {} 
+    
 
-
-settings = [
+nethint_settings = [
     { # big settings
         "machine-count": 256,
         "ft-server-per-rack": 16,
@@ -95,12 +83,12 @@ settings = [
         "comm-size": [20000],
         "comp-size": [1000],
         "layer-count": [1],
-        "iter-count": [20], # iteration count
+        "iter-count": [30], # iteration count
     }
 ]
 
-selected_setting = settings[4]
-    
+
+
 
 # the all-reduce time is technically comm_size / machine_count * 2 * (machine_count - 1) / link_bandwidth
 # roughly equal to comm_size / link_bandwidth * 2
@@ -127,7 +115,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     if options["lb-scheme"] in lbs_involving_randomness:
         # there's no point in running more than one rep for random if there's only one core. 
         if options["ft-core-count"] > 1:
-            options["rep-count"] = random_rep_count
+            options["rep-count"] = run_context["random-rep-count"]
 
     # perfect lb will create a network where the core layer does perfect load balancing.
     # probably something that could be achieved with a perfect packet spraying mechanism.
@@ -147,11 +135,14 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         options["lb-scheme"] = "random"
         options["ft-agg-core-link-capacity-mult"] = 1000
         options["ft-core-count"] = 1
-        options["ring-mode"] = run_context["base-ring-mode"]
-        options["timing-scheme"] = run_context["base-timing-scheme"]
+        options["ring-mode"] = run_context["comparison-base"]["ring-mode"]
+        options["timing-scheme"] = run_context["comparison-base"]["timing-scheme"]
     
     options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
     
+    
+    # the subflows are fed to simulator as general-param-1
+    # TODO: I don't like this. 
     run_context["subflows"] = options["subflows"]
     options["general-param-1"] = options["subflows"]
     options.pop("subflows") 
@@ -180,7 +171,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         
         if placement_file_path not in placement_files_state:
             jobs = generate_placement_file(placement_file_path, placement_seed,   
-                                           options, run_context, selected_setting)
+                                           options, run_context)
             
             placement_files_state[placement_file_path] = jobs
 
@@ -441,16 +432,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
         os.makedirs(metric_csv_dir, exist_ok=True)
         os.makedirs(metric_plots_dir, exist_ok=True)
         
-        base_ring_mode = exp_context["base-ring-mode"]
-        base_lb_scheme = exp_context["base-lb-scheme"]
-        base_timing_scheme = exp_context["base-timing-scheme"]
-        base_subflow_count = exp_context["base_subflow_count"] 
-        
-        compared_ring_mode = exp_context["compared-ring-mode"]  
-        compared_lb_scheme = exp_context["compared-lb-scheme"]
-        compared_timing_scheme = exp_context["compared-timing-scheme"]
-        compared_subflow_count = exp_context["compared_subflow_count"]
-        
         merge_on = ["protocol-file-name", "machines", "cores", "placement-seed"]
         
         placement_results = []
@@ -461,32 +442,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
             
             os.makedirs(metric_placement_csv_dir, exist_ok=True)
 
-            base_setting = {"ring-mode": base_ring_mode, 
-                            "lb-scheme": base_lb_scheme, 
-                            "timing-scheme": base_timing_scheme,
-                            "subflows": base_subflow_count}  
-            
-            comparisons = [
-                ("OR", {"ring-mode": compared_ring_mode}), 
-                ("LB", {"lb-scheme": compared_lb_scheme}),
-                ("TS", {"timing-scheme": compared_timing_scheme}),
-                ("SUB", {"subflows": compared_subflow_count}),
-                                  
-                ("OR+LB", {"ring-mode": compared_ring_mode, "lb-scheme": compared_lb_scheme}),
-                ("OR+TS", {"ring-mode": compared_ring_mode, "timing-scheme": compared_timing_scheme}),
-                ("LB+TS", {"lb-scheme": compared_lb_scheme, "timing-scheme": compared_timing_scheme}),
-                
-                ("OR+LB+TS", {"ring-mode": compared_ring_mode, 
-                              "lb-scheme": compared_lb_scheme, 
-                              "timing-scheme": compared_timing_scheme}),
-                
-                ("OR+LB+TS+SUB", {"ring-mode": compared_ring_mode, 
-                                 "lb-scheme": compared_lb_scheme, 
-                                 "timing-scheme": compared_timing_scheme, 
-                                 "subflows": compared_subflow_count}),
-                    
-                ("Ideal", {"lb-scheme": "ideal"}),    
-            ]
+            base_setting = exp_context["comparison-base"]
+            comparisons = exp_context["comparisons"]
             
             base_df = placement_df 
             for key, value in base_setting.items():
@@ -546,7 +503,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
             metric_placement_grouped_csv_path = "{}/{}_results.csv".format(metric_placement_csv_dir, placement)   
             grouped_df.reset_index().to_csv(metric_placement_grouped_csv_path, index=False)
 
-
             # do some plotting as well. 
             # metric_placement_plot_path = metric_plots_dir + "{}.png".format(placement)
 
@@ -580,139 +536,5 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
                   actually_plot=plot)
 
     print("Done with the metric: ", metric)
-        
-def main():
-    base_options = {
-        "step-size": 1,
-        "core-status-profiling-interval": 100000,
-        "rep-count": 1, 
-        "console-log-level": 4,
-        "file-log-level": 3,
-        
-        "initial-rate": 100,
-        "min-rate": 100,
-        "drop-chance-multiplier": 0, 
-        "rate-increase": 1, 
-        
-        "priority-allocator": "maxmin", # "fairshare",
-
-        "network-type": "leafspine",    
-        "link-bandwidth": 100,
-        "ft-rack-per-pod": 1,
-        "ft-agg-per-pod": 1,
-        "ft-pod-count": -1,
-        "ft-server-tor-link-capacity-mult": 1,
-        "ft-tor-agg-link-capacity-mult": 1,
-        "ft-agg-core-link-capacity-mult": 1,
-        
-        "shuffle-device-map": False,
-        "regret-mode": "none",
-        
-        "machine-count": selected_setting["machine-count"],
-        "ft-server-per-rack": selected_setting["ft-server-per-rack"],
-
-        "simulation-seed": experiment_seed, 
-    }
-
-    interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-    # placement_modes = ["random", "semirandom_8", "semirandom_4", "semirandom_2", "semirandom_1", "compact"]
-    placement_modes = ["random", "compact"] 
     
-    base_lb_scheme = "random"
-    base_timing_scheme = "random"
-    base_ring_mode = "random" 
-    base_subflow_count = 1
-    
-    compared_lb_schemes = ["perfect"] #"powerof2", "roundrobin", "ecmp", "perfect",
-    compared_timing_schemes = ["inc"] # "random" "inc"
-    compared_ring_modes = ["optimal"]
-    compared_subflow_counts = [16]    
-    
-    oversubs = [4]
-    
-    cassini_parameters = {  
-        "sim-length": 1000000,
-        "link-solution-candidate-count": 10,
-        "link-solution-random-quantum": 10,
-        "link-solution-top-candidates": 10,    
-        "overall-solution-candidate-count": 10,
-    }    
-    
-    placement_parameters = {
-        "jobs-machine-count-low": selected_setting["jobs-machine-count-low"], 
-        "jobs-machine-count-high": selected_setting["jobs-machine-count-high"],
-    }
-    
-    random.seed(experiment_seed)
-    
-    for oversub in oversubs: 
-        for subflow_count in compared_subflow_counts:
-            for lb_scheme in compared_lb_schemes: 
-                for timing_scheme in compared_timing_schemes:
-                    for ring_mode in compared_ring_modes:
-                        
-                        exp_sweep_config = {
-                            "protocol-file-name": ["nethint-test"],
-
-                            # placement and workload parameters
-                            "lb-scheme": [base_lb_scheme, lb_scheme, "ideal"],
-                            "timing-scheme": [timing_scheme, base_timing_scheme],
-                            "ring-mode": [base_ring_mode, ring_mode],
-                            "subflows": [base_subflow_count, subflow_count],
-
-                            "placement-mode": placement_modes, 
-                            
-                            "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
-                            "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)), 
-                            
-                        } 
-                        
-                        
-                        # to be give to the CS, which will be used to populate the run_context.
-                        # the run_context will be then handed back to the custom functions. 
-                        # am I making this too complicated? I think I am.
-                        exp_context = {
-                            # base options
-                            "base-lb-scheme": base_lb_scheme,
-                            "base-timing-scheme": base_timing_scheme,
-                            "base-ring-mode": base_ring_mode,
-                            "base_subflow_count": base_subflow_count,
-                            
-                            # compared options
-                            "compared-lb-scheme": lb_scheme,
-                            "compared-timing-scheme": timing_scheme,
-                            "compared-ring-mode": ring_mode,
-                            "compared_subflow_count": subflow_count,
-                            
-                            # other stuff
-                            "random-rep-count": random_rep_count,
-                            "interesting-metrics": interesting_metrics,
-                            "all-placement-modes": placement_modes,
-                            "experiment-seed": experiment_seed,
-                            "oversub": oversub,
-                            
-                            "cassini-parameters": cassini_parameters,
-                            "placement-parameters": placement_parameters,   
-                        } 
-
-                            
-                        cs = ConfigSweeper(
-                            base_options, exp_sweep_config, exp_context,
-                            run_command_options_modifier, 
-                            run_results_modifier, 
-                            custom_save_results_func, 
-                            result_extractor_function,
-                            exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(lb_scheme, 
-                                                                            timing_scheme,
-                                                                            ring_mode,  
-                                                                            oversub, 
-                                                                            experiment_seed),
-                            worker_thread_count=40, 
-                        )
-                        
-                        cs.sweep()
-
-
-if __name__ == "__main__":
-    main() 
     

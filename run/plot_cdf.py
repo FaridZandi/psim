@@ -103,8 +103,12 @@ for combined in unique_combined:
             values = json.loads(first_line[cdf_param])
             
             values = sorted(values)
-            yvals = np.arange(len(values))/float(len(values) - 1)
             
+            if len(values) > 1:
+                yvals = np.arange(len(values)) / float(len(values) - 1)
+            else: 
+                yvals = [1]
+                
             avg_value = np.mean(values)
             max_value = max(max_value, max(values)) 
             min_value = min(min_value, min(values)) 
@@ -126,8 +130,8 @@ for combined in unique_combined:
                          markevery=markevery,
                          markersize=3,
                          linewidth=1,
-                        #  linestyle=get_style(cdf_param)
-                         )     
+                         #  linestyle=get_style(cdf_param)
+            )     
         
         
         # tick vertical line at x = 1 

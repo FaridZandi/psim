@@ -163,6 +163,12 @@ class ConfigSweeper:
         
         
     def run_all_experiments(self):
+        # each item in the sweep_config is a list of values for a parameter.
+        # only keep the unique values.
+        for key in self.sweep_config:
+            self.sweep_config[key] = list(set(self.sweep_config[key]))
+            
+        
         # get all the permutations of the sweep config
         keys, values = zip(*self.sweep_config.items())
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
