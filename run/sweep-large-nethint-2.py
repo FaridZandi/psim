@@ -42,7 +42,7 @@ def main():
     }
 
     interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-    placement_modes = ["random", "semirandom_4", "semirandom_2", "compact"]
+    placement_modes = ["sim_firstfit", "random", "compact"] #["random", "semirandom_4", "semirandom_2", "compact"]
     # placement_modes = ["random", "compact"] 
     
     oversub = 2
@@ -57,21 +57,18 @@ def main():
     
     random.seed(experiment_seed)
     
-    
-    
-    
     # iterating over the different settings. Each setting will create a different experiment. 
     # the results is one plot for each setting.
-    for a in ["random", "leastloaded"]:                
+    for lb in ["random", "leastloaded", "powerof2", "perfect", "roundrobin", "ecmp"]:                
         exp_sweep_config = {
             "protocol-file-name": ["nethint-test"],
 
             # placement and workload parameters.
             # these will be different lines in the cdf plot.
-            "lb-scheme": [a, "ideal"],
-            "timing-scheme": ["inc"],
+            "lb-scheme": [lb, "ideal"],
+            "timing-scheme": ["cassini", "inc"],
             "ring-mode": ["optimal"],
-            "subflows": [1, 2, 4, 8, 16],
+            "subflows": [1, 2, 4, 8],
 
             # each placement strategy will be a different plot, drawn next to each other.
             "placement-mode": placement_modes, 
@@ -97,7 +94,7 @@ def main():
             "selected-setting": selected_setting,
             
             "comparison-base": {"ring-mode": "optimal", 
-                                "lb-scheme": a, 
+                                "lb-scheme": lb, 
                                 "timing-scheme": "inc",
                                 "subflows": 1} ,  
             
@@ -105,8 +102,11 @@ def main():
                 ("SUB2", {"subflows": 2}),
                 ("SUB4", {"subflows": 4}),
                 ("SUB8", {"subflows": 8}),
-                ("SUB16", {"subflows": 16}),
-                    
+                
+                ("SUB2+TS", {"subflows": 2, "timing-scheme": "cassini"}),
+                ("SUB4+TS", {"subflows": 4, "timing-scheme": "cassini"}),
+                ("SUB8+TS", {"subflows": 8, "timing-scheme": "cassini"}),
+                                    
                 ("Ideal", {"lb-scheme": "ideal"}),    
             ]
         } 
@@ -118,7 +118,7 @@ def main():
             run_results_modifier, 
             custom_save_results_func, 
             result_extractor_function,
-            exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(a, "", "",  
+            exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(lb, "", "",  
                                                             oversub, 
                                                             experiment_seed),
             worker_thread_count=40, 

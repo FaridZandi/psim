@@ -4,8 +4,6 @@ import sys
 import math 
 from pprint import pprint
 
-base_seed = 44234
-random.seed(base_seed)
 
 
 # this script path: 
@@ -15,11 +13,17 @@ this_dir = os.path.dirname(this_path)
 
 class Simulation():    
     
-    def __init__(self, strategy, ring_mode, sim_length, rack_size, rack_count):
+    def __init__(self, strategy, 
+                       ring_mode, 
+                       rack_size, 
+                       total_machine_count, 
+                       sim_length, 
+                       keep_history=True): 
         
         self.rack_size = rack_size  
-        self.rack_count = rack_count            
-        self.total_machine_count = rack_size * rack_count   
+        self.total_machine_count = total_machine_count   
+        self.rack_count = total_machine_count // rack_size
+        self.keep_history = keep_history
           
         self.sim_length = sim_length    
         
@@ -48,7 +52,7 @@ class Simulation():
         # return random.randint(2, 18) # mean 10
 
         # a pareto distribution with with mean 10 
-        r = int(random.paretovariate(0.5)) // 8 + 1
+        r = int(random.paretovariate(1.3)) + 4
         if r > (self.total_machine_count // 2):
             r = (self.total_machine_count // 2)
             
@@ -93,8 +97,8 @@ class Simulation():
             if could_start:
                 started_jobs += 1
                 
-            
-        print(f"Started {started_jobs} jobs out of {waiting_jobs_count} waiting jobs")
+        if self.keep_history:
+            print(f"Started {started_jobs} jobs out of {waiting_jobs_count} waiting jobs")
     
     def defragment(self):   
         initial_busy_machine_count = self.busy_machine_count    
@@ -326,7 +330,8 @@ class Simulation():
         if job_end_time < self.earliest_job_end:
             self.earliest_job_end = job_end_time
 
-        print(f"Job {job_id} started at {self.current_time} and will end at {job_end_time}")
+        if self.keep_history:
+            print(f"Job {job_id} started at {self.current_time} and will end at {job_end_time}")
     
     def terminate_job(self, job):
         self.current_jobs.remove(job)
@@ -334,8 +339,9 @@ class Simulation():
         
         for machine_id in job["machines"]:
             self.mark_machine_as_free(machine_id)
-                    
-        print(f"Job {job['id']} ended at {self.current_time}")  
+                
+        if self.keep_history:
+            print(f"Job {job['id']} ended at {self.current_time}")  
         
         self.update_earliest_job_end()
         
@@ -378,8 +384,6 @@ class Simulation():
                 something_changed = True 
                 self.job_id_counter += 1
                 
-                random.seed(base_seed + self.job_id_counter)    
-                
                 # non negotioable, these two numbers should be decided here 
                 job_machine_count = self.get_job_machine_count()
                 job_duration = self.get_job_duration()
@@ -392,28 +396,29 @@ class Simulation():
                 self.inter_arrival_times.append(next_interarrival_time)
                 next_job_arrival = self.current_time + next_interarrival_time 
             
-            if something_changed:
-                new_entropy = self.measure_entrorpy(deduct_base_entropy=True)
-                self.entropies.append(new_entropy)            
 
-                new_base_entropy = self.measure_entrorpy(deduct_base_entropy=False)
-                self.base_entropies.append(new_base_entropy)  
+            if self.keep_history:
+                if something_changed:
+                    new_entropy = self.measure_entrorpy(deduct_base_entropy=True)
+                    self.entropies.append(new_entropy)            
 
-            else: 
-                last_entropy = self.entropies[-1] if len(self.entropies) > 0 else 0 
-                self.entropies.append(last_entropy)
-                
-                last_base_entropy = self.base_entropies[-1] if len(self.base_entropies) > 0 else 0
-                self.base_entropies.append(last_base_entropy)
-                                
-            utilization = self.busy_machine_count / self.total_machine_count   
-            self.utilizations.append(utilization)
-                        
-            backlog_machine_count = sum([job["machine_count"] for job in self.waiting_jobs])
-            servicing_machine_count = self.busy_machine_count
-            service_rate = servicing_machine_count / (servicing_machine_count + backlog_machine_count)
-            
-            self.service_rates.append(service_rate)
+                    new_base_entropy = self.measure_entrorpy(deduct_base_entropy=False)
+                    self.base_entropies.append(new_base_entropy)  
+
+                else: 
+                    last_entropy = self.entropies[-1] if len(self.entropies) > 0 else 0 
+                    self.entropies.append(last_entropy)
+                    
+                    last_base_entropy = self.base_entropies[-1] if len(self.base_entropies) > 0 else 0
+                    self.base_entropies.append(last_base_entropy)
+                                    
+                utilization = self.busy_machine_count / self.total_machine_count   
+                self.utilizations.append(utilization)
+                            
+                backlog_machine_count = sum([job["machine_count"] for job in self.waiting_jobs])
+                servicing_machine_count = self.busy_machine_count
+                service_rate = servicing_machine_count / (servicing_machine_count + backlog_machine_count)
+                self.service_rates.append(service_rate)
             
             self.current_time += 1 
             
@@ -463,43 +468,50 @@ def downsample(data, step=None):
     return [my_mean(data[i:i + step]) for i in range(0, len(data), step)]
 
 
-def get_job_placement_info(strategy, job_machine_count, rack_size, rack_count, simulation_len):
+def get_job_placement_info(strategy, ring_mode, rack_size, 
+                           total_machine_count, sim_length):
+    # the seed is supposed to have been set before calling this function.
     
     s = Simulation(strategy=strategy,
-                   job_machine_count=job_machine_count,
+                   ring_mode=ring_mode,
                    rack_size=rack_size,
-                   rack_count=rack_count,
-                   sim_length=simulation_len)
+                   total_machine_count=total_machine_count,
+                   sim_length=sim_length,
+                   keep_history=False)
+    s.simulate()    
     
     job_placement_info = [] 
-    
     i = 0 
     for job in s.current_jobs:
         job_placement_info.append({
             "job_id": i,
             "machines": job["machines"],
+            "machine_count": job["machine_count"], 
         })
         i += 1
         
-    pprint(job_placement_info)     
-    
     return job_placement_info                 
 
 def main():
     import matplotlib.pyplot as plt
     
+    base_seed = 58
+    
     for strategy in ["firstfit"]:
         for ring_mode in ["optimal"]:
+
+            random.seed(base_seed)
             
             sim_length = 1000000
             rack_size = 10 
-            rack_count = 25 
+            rack_count = 25
+            total_machine_count = rack_size * rack_count     
 
             s = Simulation(strategy=strategy, 
                            ring_mode=ring_mode, 
-                           sim_length=sim_length,
                            rack_size=rack_size, 
-                           rack_count=rack_count)
+                           total_machine_count=total_machine_count, 
+                           sim_length=sim_length)
             
             s.simulate()    
             

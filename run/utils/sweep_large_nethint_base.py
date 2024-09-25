@@ -75,15 +75,15 @@ nethint_settings = [
         "iter-count": [20], # iteration count
     },
     { # very small
-        "machine-count": 64,
+        "machine-count": 128,
         "ft-server-per-rack": 8,
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 8,
-        "placement-seed-range": 10,
+        "placement-seed-range": 30,
         "comm-size": [20000],
         "comp-size": [1000],
         "layer-count": [1],
-        "iter-count": [30], # iteration count
+        "iter-count": [50], # iteration count
     }
 ]
 
@@ -108,7 +108,6 @@ def run_command_options_modifier(options, config_sweeper, run_context):
 
         "original_ring_mode": options["ring-mode"],
         "original_timing_scheme": options["timing-scheme"],
-        
     })
 
     # if the lb scheme involves making random decisions, then we need to run multiple reps.    
