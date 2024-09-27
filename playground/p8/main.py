@@ -7,11 +7,8 @@ from pprint import pprint
 base_seed = 44234
 random.seed(base_seed)
 
-
 # this script path: 
-this_path = os.path.dirname(os.path.abspath(__file__))
-this_dir = os.path.dirname(this_path)    
-
+this_dir = os.path.dirname(os.path.abspath(__file__))
 
 class Simulation():    
     
@@ -48,9 +45,9 @@ class Simulation():
         # return random.randint(2, 18) # mean 10
 
         # a pareto distribution with with mean 10 
-        r = int(random.paretovariate(0.5)) // 8 + 1
-        if r > (self.total_machine_count // 2):
-            r = (self.total_machine_count // 2)
+        r = int(random.paretovariate(0.5)) // 16 + 2
+        if r > (self.total_machine_count // 4):
+            r = (self.total_machine_count // 4)
             
         return r 
 
@@ -63,7 +60,7 @@ class Simulation():
     def get_interarrival_time(self):
         # return random.randint(1, 240) # mean 200
 
-        r = int(random.paretovariate(1.16)) * 60 + 1
+        r = int(random.paretovariate(1.16)) * 80 + 1
         return r
 
     def mark_machine_as_busy(self, machine_id): 
@@ -131,7 +128,37 @@ class Simulation():
         # try to initiate the waiting jobs: 
         self.try_to_initiate_waiting_jobs()
         
-        
+    def find_free_extent(self, job_machine_count):
+        # Initialize variables
+        start_index = 0
+        current_free_count = 0
+
+        # Create a sliding window to count free machines in the initial window
+        for i in range(job_machine_count):
+            if not self.is_busy[i]:
+                current_free_count += 1
+
+        # Check if the initial window is free
+        if current_free_count == job_machine_count:
+            return list(range(start_index, start_index + job_machine_count))
+
+        # Slide the window across the entire list
+        for start_index in range(1, self.total_machine_count - job_machine_count + 1):
+            # Slide the window to the right
+            if not self.is_busy[start_index - 1]:
+                current_free_count -= 1
+            if not self.is_busy[start_index + job_machine_count - 1]:
+                current_free_count += 1
+
+            # Check if the new window is free
+            if current_free_count == job_machine_count:
+                return list(range(start_index, start_index + job_machine_count))
+
+        # Return an empty list if no free extent is found
+        return []
+    
+    
+    
     def find_machines_for_job(self, job_machine_count):
         
         available_machine_count = self.total_machine_count - self.busy_machine_count 
@@ -151,15 +178,17 @@ class Simulation():
 
 
         if self.strategy == "firstfit":
-            start_index = 0
+            # start_index = 0
     
-            while start_index <= self.total_machine_count - job_machine_count:
-                if not any(self.is_busy[start_index : start_index + job_machine_count]):
-                    machines = list(range(start_index, start_index + job_machine_count))
-                    break   
+            # while start_index <= self.total_machine_count - job_machine_count:
+            #     if not any(self.is_busy[start_index : start_index + job_machine_count]):
+            #         machines = list(range(start_index, start_index + job_machine_count))
+            #         break   
                 
-                start_index += 1
+            #     start_index += 1
                 
+            machines = self.find_free_extent(job_machine_count) 
+            
             if len(machines) == 0:
                 machines_needed = job_machine_count
                 
@@ -455,7 +484,7 @@ def plot_cdf(data, title, xlabel, ylabel, filename):
     
 def downsample(data, step=None):
     if step is None: 
-        step = len(data) // 100
+        step = len(data) // 500
     
     def my_mean(arr):
         return sum(arr) / len(arr)  
@@ -487,13 +516,13 @@ def get_job_placement_info(strategy, job_machine_count, rack_size, rack_count, s
 
 def main():
     import matplotlib.pyplot as plt
-    
+
     for strategy in ["firstfit"]:
         for ring_mode in ["optimal"]:
             
-            sim_length = 1000000
-            rack_size = 10 
-            rack_count = 25 
+            sim_length = 100000
+            rack_size = 16
+            rack_count = 8 
 
             s = Simulation(strategy=strategy, 
                            ring_mode=ring_mode, 
@@ -503,22 +532,25 @@ def main():
             
             s.simulate()    
             
-            
             #####################################################################
             
-            plt.plot(downsample(s.entropies), label="entropy")    
-            plt.plot(downsample(s.utilizations), label="utilization")   
-            plt.plot(downsample(s.service_rates), label="service rate")
-            plt.plot(downsample(s.base_entropies), label="base entropy")
+            fig, ax = plt.subplots(2, 1, figsize=(6, 3), sharex=True)    
+                
+            ax[0].plot(downsample(s.entropies), label="entropy")    
+            ax[0].plot(downsample(s.base_entropies), label="base entropy")
+            ax[0].set_ylabel("entropy")
+            ax[0].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+
+            ax[1].plot(downsample(s.service_rates), label="service rate")
+            ax[1].plot(downsample(s.utilizations), label="utilization")   
+            ax[1].set_ylabel("utilization")
+            ax[1].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
             
-            plt.ylabel("entropy/utilization")
-            plt.xlabel("time")
+            # plt.ylim(-0.02, 1.02)
             plt.title("Strategy: {}, Ring Mode: {}".format(strategy, ring_mode))
+            plt.xlabel("time")
             
-            plt.ylim(-0.02, 1.02)
-            
-            plt.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
-            plt.savefig("{}/{}_{}.png".format(this_dir, strategy, ring_mode))
+            plt.savefig("{}/{}_{}.png".format(this_dir, strategy, ring_mode), dpi = 300, bbox_inches = "tight")
             plt.clf()
             
             #####################################################################
