@@ -17,7 +17,7 @@ class Simulation():
         self.rack_size = rack_size  
         self.rack_count = rack_count            
         self.total_machine_count = rack_size * rack_count   
-          
+        
         self.sim_length = sim_length    
         
         self.strategy = strategy
@@ -26,8 +26,10 @@ class Simulation():
         self.current_jobs = [] 
         self.waiting_jobs = []
         self.completed_jobs = []
+        self.current_jobs_map = {}
         
         self.is_busy = [False] * self.total_machine_count    
+        self.machine_job_assignment = [None] * self.total_machine_count
         self.busy_machine_count = 0 
         
         self.current_time = 0
@@ -39,13 +41,13 @@ class Simulation():
         self.utilizations = []     
         self.service_rates = []     
         self.inter_arrival_times = [] 
-    
+        self.max_jobs_in_same_rack = []
     
     def get_job_machine_count(self):
         # return random.randint(2, 18) # mean 10
 
         # a pareto distribution with with mean 10 
-        r = int(random.paretovariate(0.5)) // 16 + 2
+        r = int(random.paretovariate(0.5)) + 2
         if r > (self.total_machine_count // 4):
             r = (self.total_machine_count // 4)
             
@@ -60,15 +62,21 @@ class Simulation():
     def get_interarrival_time(self):
         # return random.randint(1, 240) # mean 200
 
-        r = int(random.paretovariate(1.16)) * 80 + 1
+        r = int(random.paretovariate(1.16)) * 130 + 1
+        
+        if r > 10000:
+            r = 10000
+            
         return r
 
-    def mark_machine_as_busy(self, machine_id): 
+    def mark_machine_as_busy(self, machine_id, job_id): 
         self.is_busy[machine_id] = True
+        self.machine_job_assignment[machine_id] = job_id
         self.busy_machine_count += 1
 
     def mark_machine_as_free(self, machine_id): 
         self.is_busy[machine_id] = False
+        self.machine_job_assignment[machine_id] = None
         self.busy_machine_count -= 1    
 
     def try_to_initiate_waiting_jobs(self):
@@ -85,7 +93,7 @@ class Simulation():
                 could_start = False
                 self.waiting_jobs.append(job)
             else:    
-                could_start = self.attempt_job_initiation(job["id"], job["duration"], job["machine_count"]) 
+                could_start = self.attempt_job_initiation(job["id"], job["duration"], job["machine_count"], job["arrival_time"])
             
             if could_start:
                 started_jobs += 1
@@ -108,14 +116,12 @@ class Simulation():
         #sort the jobs by machine count
         self.current_jobs.sort(key=lambda x: x["machine_count"], reverse=True)
         
-        
         current_machine = 0 
-        
         
         for job in self.current_jobs: 
             machine_range = list(range(current_machine, current_machine + job["machine_count"]))
             for machine_id in machine_range:
-                self.mark_machine_as_busy(machine_id)
+                self.mark_machine_as_busy(machine_id, job["id"])
             job["machines"] = machine_range
             current_machine += job["machine_count"]
             
@@ -177,19 +183,13 @@ class Simulation():
                     machines.append(machine_id) 
 
 
-        if self.strategy == "firstfit":
-            # start_index = 0
-    
-            # while start_index <= self.total_machine_count - job_machine_count:
-            #     if not any(self.is_busy[start_index : start_index + job_machine_count]):
-            #         machines = list(range(start_index, start_index + job_machine_count))
-            #         break   
-                
-            #     start_index += 1
-                
+        if self.strategy == "firstfit" or self.strategy == "firstfit_strict":
             machines = self.find_free_extent(job_machine_count) 
             
             if len(machines) == 0:
+                if self.strategy == "firstfit_strict":
+                    return None
+                
                 machines_needed = job_machine_count
                 
                 for i in range(self.total_machine_count):
@@ -271,7 +271,7 @@ class Simulation():
             random.shuffle(machines)
         elif self.ring_mode == "optimal":
             machines.sort()
-            
+    
         return machines     
     
     def measure_entrorpy(self, deduct_base_entropy = True):
@@ -310,46 +310,176 @@ class Simulation():
                     min_possible_cross_rack_flows = least_needed_racks
                                                         
                 cross_rack_flows -= min_possible_cross_rack_flows            
+         
+         
+        if total_flows == 0:
+            return 0
+        else: 
+            return cross_rack_flows / (total_flows)
+    
+    def draw_rect(self, ax, bottom_left, width, height, color, label, text_color):
+        from matplotlib import patches  
+        
+        rect = patches.Rectangle(bottom_left, width, height, linewidth=1, edgecolor='black', facecolor=color)
+        ax.add_patch(rect)
+        
+        ax.text(bottom_left[0] + width/2, 
+                bottom_left[1] + height/2, 
+                label, 
+                horizontalalignment='center', 
+                verticalalignment='center', 
+                fontsize=15, 
+                color=text_color, 
+                # make it bold
+                fontweight='bold'
+                )
+        
+
+
+    def visualize_assignments(self):
+        import matplotlib.pyplot as plt
+        
+        fig, ax = plt.subplots(figsize=(self.rack_size, self.rack_count))
+        
+        color_list = ["red", "blue", "green", "yellow", "purple", "orange", "cyan", "magenta", "brown", "pink", "white"] 
+        color_list_index = 0    
+        
+        for rack_idx in range(self.rack_count):
+            for machine_idx in range(self.rack_size):
+                machine_id = rack_idx * self.rack_size + machine_idx
+                
+                if machine_id >= len(self.machine_job_assignment):
+                    break
+
+                job_id = self.machine_job_assignment[machine_id]
+                # generate a random color for the job
+                if job_id is None:
+                    color = "gray"
+                else: 
+                    job_info = self.current_jobs_map[job_id]
+                    if "color" in job_info:
+                        color = job_info["color"]
+                    else:
+                        color = color_list[color_list_index]
+                        color_list_index += 1 
+                        color_list_index %= len(color_list)
+                        job_info["color"] = color
+                                        
+                x_position = machine_idx
+                y_position = rack_idx
+                
+                
+                # translate the color from english name to hex
+                color = plt.cm.colors.to_hex(color)
+                
+                # if the color is dark, write the job id in white
+                if sum([int(color.lstrip("#")[i:i+2], 16) for i in (0, 2, 4)]) < 382:
+                    text_color = "white"
+                else:
+                    text_color = "black"
+                self.draw_rect(ax, (x_position, y_position), 1, 1, color, f'{job_id}', text_color)            
+                
+        ax.set_xlim(0, self.rack_size)
+        ax.set_ylim(0, self.rack_count)
+        
+        # ax.set_xticks(np.arange(self.rack_size) + 0.5)
+        # ax.set_yticks(np.arange(self.rack_count) + 0.5)
+        # do the same without numpy
+        ax.set_xticks([i + 0.5 for i in range(self.rack_size)])
+        ax.set_yticks([i + 0.5 for i in range(self.rack_count)])
+        
+        
+        ax.set_xticklabels([f'M {i+1}' for i in range(self.rack_size)])
+        ax.set_yticklabels([f'R {i+1}' for i in range(self.rack_count)])
+        
+        plt.title("Machine Job Assignments")
+        plt.xlabel("Machines")
+        plt.ylabel("Racks")
+        plt.savefig("{}/machine_job_assignments.png".format(this_dir), dpi = 300, bbox_inches = "tight")
+        
+    def calculated_max_jobs_in_same_rack(self):
+        max_jobs_in_same_rack = 0    
+        
+        for i in range(self.rack_count): 
+            rack_start_machine = i * self.rack_size 
+            rack_end_machine = rack_start_machine + self.rack_size
             
-        return cross_rack_flows / (total_flows)
+            rack_job_ids = [self.machine_job_assignment[j] for j in range(rack_start_machine, rack_end_machine)]
+            jobs_in_rack = {}
+
+            for job_id in rack_job_ids:
+                if job_id is not None:
+                    if job_id in jobs_in_rack:
+                        jobs_in_rack[job_id] += 1
+                    else:
+                        jobs_in_rack[job_id] = 1
+
+            rack_jobs_unique = list(jobs_in_rack.keys())
+            
+            inter_rack_jobs = [] 
+            for job_id in rack_jobs_unique:
+                total_job_machine_count = self.current_jobs_map[job_id]["machine_count"]
+                this_rack_job_machine_count = jobs_in_rack[job_id]
+                
+                if total_job_machine_count != this_rack_job_machine_count:
+                    inter_rack_jobs.append(job_id)
+            
+            rack_jobs_unique_count = len(inter_rack_jobs)
+            
+            
+            if self.current_time == 75000: 
+                print(f"Rack {i}")  
+                pprint(rack_job_ids)
+                pprint(rack_jobs_unique)    
+                pprint(inter_rack_jobs)    
+                pprint(rack_jobs_unique_count)
+                
+            if rack_jobs_unique_count > max_jobs_in_same_rack:
+                max_jobs_in_same_rack = rack_jobs_unique_count
+        
+        if self.current_time == 75000: 
+            pprint(max_jobs_in_same_rack)  
+            # self.visualize_assignments()
+            # input("Press Enter to continue...")  
+                
+        return max_jobs_in_same_rack / self.rack_size       
     
-    
-    def send_to_waiting(self, job_id, duration, job_machines_count):
+    def send_to_waiting(self, job_id, duration, job_machines_count, arrival_time):
         self.waiting_jobs.append({
+            "arrival_time": arrival_time,   
             "duration": duration,   
             "machine_count": job_machines_count,
             "id": job_id, 
         })
         
-    def attempt_job_initiation(self, job_id, duration, job_machines_count): 
-        backlog_count = sum([job["machine_count"] for job in self.waiting_jobs]) 
-        if backlog_count > self.total_machine_count:
-            self.send_to_waiting(job_id, duration, job_machines_count)
-            return False 
-        
+    def attempt_job_initiation(self, job_id, duration, job_machines_count, arrival_time): 
         job_machines = self.find_machines_for_job(job_machines_count) 
         if job_machines is not None:
-            self.initiate_job(job_id, duration, job_machines)            
+            self.initiate_job(job_id, duration, job_machines, arrival_time)            
             return True 
         else: 
-            self.send_to_waiting(job_id, duration, job_machines_count)
+            self.send_to_waiting(job_id, duration, job_machines_count, arrival_time)
             return False
             
             
-    def initiate_job(self, job_id, duration, job_machines):        
+    def initiate_job(self, job_id, duration, job_machines, arrival_time):        
         job_end_time = self.current_time + duration
         
-        self.current_jobs.append({
+        new_job = {
             "start_time": self.current_time, 
             "end_time": job_end_time,    
             "machines": job_machines, 
             "machine_count": len(job_machines),
+            "arrival_time": arrival_time,   
             "id": job_id 
-        })
+        }
+        
+        self.current_jobs.append(new_job)
+        self.current_jobs_map[job_id] = new_job
 
         # mark the machines as busy
         for machine_id in job_machines:
-            self.mark_machine_as_busy(machine_id)
+            self.mark_machine_as_busy(machine_id, job_id)
             
         # update the earliest job end time   
         if job_end_time < self.earliest_job_end:
@@ -407,16 +537,19 @@ class Simulation():
                 something_changed = True 
                 self.job_id_counter += 1
                 
-                random.seed(base_seed + self.job_id_counter)    
+                job_spec_magic = 392384
+                inter_arrival_magic = 234234
                 
-                # non negotioable, these two numbers should be decided here 
+                random.seed(base_seed + self.job_id_counter + job_spec_magic)
                 job_machine_count = self.get_job_machine_count()
                 job_duration = self.get_job_duration()
                 job_id = self.job_id_counter             
                 
-                self.attempt_job_initiation(job_id, job_duration, job_machine_count)
+                self.attempt_job_initiation(job_id, job_duration, job_machine_count, self.current_time)
                     
                 # regardless, the next job will arrive in a while,
+                
+                random.seed(base_seed + self.job_id_counter + inter_arrival_magic)
                 next_interarrival_time = self.get_interarrival_time()             
                 self.inter_arrival_times.append(next_interarrival_time)
                 next_job_arrival = self.current_time + next_interarrival_time 
@@ -440,9 +573,15 @@ class Simulation():
                         
             backlog_machine_count = sum([job["machine_count"] for job in self.waiting_jobs])
             servicing_machine_count = self.busy_machine_count
-            service_rate = servicing_machine_count / (servicing_machine_count + backlog_machine_count)
+            
+            if (servicing_machine_count + backlog_machine_count) == 0: 
+                service_rate = 0    
+            else:
+                service_rate = servicing_machine_count / (servicing_machine_count + backlog_machine_count)
             
             self.service_rates.append(service_rate)
+            
+            self.max_jobs_in_same_rack.append(self.calculated_max_jobs_in_same_rack())
             
             self.current_time += 1 
             
@@ -517,12 +656,12 @@ def get_job_placement_info(strategy, job_machine_count, rack_size, rack_count, s
 def main():
     import matplotlib.pyplot as plt
 
-    for strategy in ["firstfit"]:
+    for strategy in ["firstfit_strict", "firstfit"]:
         for ring_mode in ["optimal"]:
             
             sim_length = 100000
             rack_size = 16
-            rack_count = 8 
+            rack_count = 15
 
             s = Simulation(strategy=strategy, 
                            ring_mode=ring_mode, 
@@ -538,11 +677,13 @@ def main():
                 
             ax[0].plot(downsample(s.entropies), label="entropy")    
             ax[0].plot(downsample(s.base_entropies), label="base entropy")
+            ax[0].plot(downsample(s.max_jobs_in_same_rack), label="max jobs in same rack")
             ax[0].set_ylabel("entropy")
             ax[0].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
 
             ax[1].plot(downsample(s.service_rates), label="service rate")
-            ax[1].plot(downsample(s.utilizations), label="utilization")   
+            ax[1].plot(downsample(s.utilizations), label="utilization") 
+  
             ax[1].set_ylabel("utilization")
             ax[1].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
             
@@ -557,10 +698,22 @@ def main():
             
             job_machine_count_all = [job["machine_count"] for job in s.completed_jobs]  
             job_duration_all = [job["end_time"] - job["start_time"] for job in s.completed_jobs]
+            wait_times = [job["start_time"] - job["arrival_time"] for job in s.completed_jobs]
         
             plot_cdf(job_machine_count_all, "Job Machine Count CDF", "job machine count", "CDF", "{}/{}_{}_machine_cdf.png".format(this_dir, strategy, ring_mode))
             plot_cdf(job_duration_all, "Job Duration CDF", "job duration", "CDF", "{}/{}_{}_duration_cdf.png".format(this_dir, strategy, ring_mode))
             plot_cdf(s.inter_arrival_times, "Interarrival Time CDF", "interarrival time", "CDF", "{}/{}_{}_interarrival_cdf.png".format(this_dir, strategy, ring_mode))
-
+            plot_cdf(wait_times, "Wait Time CDF", "wait time", "CDF", "{}/{}_{}_wait_cdf.png".format(this_dir, strategy, ring_mode))
+            
+            #####################################################################
+            
+            with open("{}/{}_{}_job_info.csv".format(this_dir, strategy, ring_mode), "w+") as f:
+                
+                # sort completed jobs by start time
+                s.completed_jobs.sort(key=lambda x: x["id"])
+                
+                for job in s.completed_jobs:
+                    f.write(f"{job['id']},{job['start_time']},{job['arrival_time']},{job['end_time']},{job['machine_count']}\n")
+            
 if __name__ == "__main__":
     main()    
