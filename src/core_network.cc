@@ -107,6 +107,12 @@ std::vector<int> CoreConnectedNetwork::get_core_bottleneck_ids(){
 
 FatTreeNetwork::FatTreeNetwork() : CoreConnectedNetwork() {
 
+    if (GConf::inst().gpu_per_machine > 1) {
+        spdlog::error("FatTreeNetwork does not support multiple GPUs per machine");
+        // remove this check to basically ignore the multiple GPU per machine
+        exit(1);
+    }
+
     server_count = GConf::inst().machine_count;
     server_per_rack = GConf::inst().ft_server_per_rack;
     rack_per_pod = GConf::inst().ft_rack_per_pod;
@@ -279,9 +285,20 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
     server_per_rack = GConf::inst().ft_server_per_rack * GConf::inst().ft_rack_per_pod;
     tor_count = server_count / server_per_rack;
     core_count = GConf::inst().ft_core_count;
+    gpu_per_machine = GConf::inst().gpu_per_machine;
+
+    if (server_count % server_per_rack != 0) {
+        spdlog::error("server_count must be divisible by server_per_rack");
+        exit(1);
+    }
+    if (server_per_rack % gpu_per_machine != 0) {
+        spdlog::error("server_per_rack must be divisible by gpu_per_machine");
+        exit(1);
+    }
 
     server_tor_link_capacity = GConf::inst().ft_server_tor_link_capacity_mult * link_bandwidth;
     core_link_capacity = GConf::inst().ft_agg_core_link_capacity_mult * link_bandwidth;
+    gpu_gpu_link_capacity = GConf::inst().gpu_gpu_link_capacity_mult * link_bandwidth;  
 
     for (int i = 0; i < tor_count; i++) {
         for (int k = 0; k < server_per_rack; k++) {
@@ -294,6 +311,31 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
 
             Bottleneck *bn_down = create_bottleneck(server_tor_link_capacity);
             server_tor_bottlenecks[ft_loc{-1, i, k, 2, -1}] = bn_down;
+        }
+
+        if (gpu_per_machine > 1) {
+            int multi_gpu_machine_count = server_per_rack / gpu_per_machine;
+
+            for (int mgmu = 0; mgmu < multi_gpu_machine_count; mgmu++) {
+                // connect the GPUs in the same machine, all to all 
+                int first_gpu = mgmu * gpu_per_machine;   
+                int last_gpu = first_gpu + gpu_per_machine - 1;
+
+                for (int g1 = first_gpu; g1 <= last_gpu; g1++) {
+                    for (int g2 = first_gpu; g2 <= last_gpu; g2++) {
+                        if (g1 != g2) {
+                            Bottleneck *bn_dir1 = create_bottleneck(gpu_gpu_link_capacity);
+                            Bottleneck *bn_dir2 = create_bottleneck(gpu_gpu_link_capacity);
+
+                            ft_loc src_loc{-1, i, g1, -1, -1};
+                            ft_loc dst_loc{-1, i, g2, -1, -1};
+
+                            gpu_gpu_bottlenecks[std::make_pair(src_loc, dst_loc)] = bn_dir1; 
+                            gpu_gpu_bottlenecks[std::make_pair(dst_loc, src_loc)] = bn_dir2;
+                        }
+                    }
+                }
+            }
         }
 
         for (int c = 0; c < core_count; c++) {
@@ -333,9 +375,19 @@ void LeafSpineNetwork::set_path(Flow* flow, double timer) {
         return;
 
     } else if (same_rack) {
-        flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, src_loc.rack, src_loc.server, 1, -1}]);
-        flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, dst_loc.rack, dst_loc.server, 2, -1}]);
+        int src_mgmu = src_loc.server / gpu_per_machine;
+        int dst_mgmu = dst_loc.server / gpu_per_machine;
 
+        if (gpu_per_machine > 1 and src_mgmu == dst_mgmu) {
+            if (gpu_gpu_bottlenecks.find(std::make_pair(src_loc, dst_loc)) == gpu_gpu_bottlenecks.end()) {
+                spdlog::error("GPU to GPU link not found between {} and {}", src_loc.server, dst_loc.server);
+                exit(1);
+            }
+            flow->path.push_back(gpu_gpu_bottlenecks[std::make_pair(src_loc, dst_loc)]);
+        } else {
+            flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, src_loc.rack, src_loc.server, 1, -1}]);
+            flow->path.push_back(server_tor_bottlenecks[ft_loc{-1, dst_loc.rack, dst_loc.server, 2, -1}]);
+        }
     } else {
         int core_num = core_load_balancer->get_upper_item(src_loc.rack, dst_loc.rack, flow, timer);
         flow->lb_decision = core_num;

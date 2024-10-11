@@ -44,6 +44,8 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("ft-server-tor-link-capacity-mult", po::value<double>(), "set ft-server-tor-link-capacity-mult")
         ("ft-tor-agg-link-capacity-mult", po::value<double>(), "set ft-tor-agg-link-capacity-mult")
         ("ft-agg-core-link-capacity-mult", po::value<double>(), "set ft-agg-core-link-capacity-mult")
+        ("gpu-per-machine", po::value<int>(), "set gpu-per-machine")
+        ("gpu-gpu-link-capacity-mult", po::value<double>(), "set gpu-gpu-link-capacity-mult")
         ("rep-count", po::value<int>(), "set rep-count")
         ("lb-scheme", po::value<std::string>(), "set core selection mechanism")
         ("shuffle-device-map", po::value<int>()->implicit_value(1), "shuffle device map")
@@ -299,6 +301,12 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("ft-agg-core-link-capacity-mult")) {
         GConf::inst().ft_agg_core_link_capacity_mult = vm["ft-agg-core-link-capacity-mult"].as<double>();
     }
+    if (vm.count("gpu-per-machine")) {
+        GConf::inst().gpu_per_machine = vm["gpu-per-machine"].as<int>();
+    }
+    if (vm.count("gpu-gpu-link-capacity-mult")) {
+        GConf::inst().gpu_gpu_link_capacity_mult = vm["gpu-gpu-link-capacity-mult"].as<double>();
+    }
     if (vm.count("step-size")) {
         GConf::inst().step_size = vm["step-size"].as<double>();
     }
@@ -385,6 +393,7 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("timing-file")) {
         GConf::inst().timing_file = vm["timing-file"].as<std::string>();
     }
+
 }
 
 void psim::log_config() {

@@ -6,7 +6,7 @@ from utils.run_base import run_exp
 options = {
     "protocol-file-name": "nethint-test",
 
-    "step-size": 1,
+    "step-size": 0.01,
     "core-status-profiling-interval": 100000,
     "rep-count": 1, 
     "console-log-level": 4,
@@ -24,11 +24,13 @@ options = {
     "network-type": "leafspine",    
     "link-bandwidth": 100,
     "machine-count": 80,
-    "ft-server-per-rack": 4,
+    "ft-server-per-rack": 8,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
     "ft-core-count": 1,
     "ft-pod-count": -1,
+    "gpu-per-machine": 4,
+    "gpu-gpu-link-capacity-mult": 2,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
     "ft-agg-core-link-capacity-mult": 1000,

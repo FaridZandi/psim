@@ -120,6 +120,9 @@ public:
     double ft_agg_core_link_capacity_mult = 8;
 
 
+    int gpu_per_machine = 1;
+    double gpu_gpu_link_capacity_mult = 10;
+
     bool record_link_flow_loads = false;
 
     // experimental shit

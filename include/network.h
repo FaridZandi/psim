@@ -167,9 +167,14 @@ public:
 private:
     int server_per_rack;
     int tor_count;
+    int gpu_per_machine;
+    
     double server_tor_link_capacity;
+    double gpu_gpu_link_capacity;
+
 
     std::map<ft_loc, Bottleneck *> server_tor_bottlenecks;
+    std::map<std::pair<ft_loc, ft_loc>, Bottleneck *> gpu_gpu_bottlenecks;
 };
 
 

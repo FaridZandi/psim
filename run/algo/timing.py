@@ -47,7 +47,6 @@ def get_job_signal_info(jobs, options, run_context):
     return job_signal_infos
 
 
-
 def inc_timing(jobs, options, run_context):
     job_timings = [] 
     

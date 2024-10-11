@@ -79,11 +79,11 @@ nethint_settings = [
         "ft-server-per-rack": 8,
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 8,
-        "placement-seed-range": 30,
+        "placement-seed-range": 15,
         "comm-size": [20000],
         "comp-size": [1000],
         "layer-count": [1],
-        "iter-count": [50], # iteration count
+        "iter-count": [30], # iteration count
     }
 ]
 

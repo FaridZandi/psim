@@ -4,19 +4,48 @@ import sys
 import math 
 from pprint import pprint
 
-base_seed = 44234
+base_seed = 44233
 random.seed(base_seed)
 
 # this script path: 
 this_dir = os.path.dirname(os.path.abspath(__file__))
 
+
+
+def get_incremented_number():
+    filename = "{}/number.txt".format(this_dir)    
+    
+    # Step 1: Read the current number from a file
+    if os.path.exists(filename):
+        with open(filename, 'r') as file:
+            current_number = int(file.read().strip())
+    else:
+        current_number = 0  # Default to 0 if file doesn't exist
+
+    # Step 2: Increment the number
+    incremented_number = current_number + 1
+
+    # Step 3: Write the updated number back to the file
+    with open(filename, 'w') as file:
+        file.write(str(incremented_number))
+
+    # Step 4: Return the updated number
+    return incremented_number
+
+
 class Simulation():    
     
-    def __init__(self, strategy, ring_mode, sim_length, rack_size, rack_count):
+    def __init__(self, strategy, ring_mode, sim_length, 
+                 rack_size, rack_count, setting_dir, 
+                 verbose = False, alpha = 0):
         
         self.rack_size = rack_size  
         self.rack_count = rack_count            
         self.total_machine_count = rack_size * rack_count   
+        self.setting_dir = setting_dir  
+        self.alpha = alpha  
+        self.verbose = verbose  
+        
         
         self.sim_length = sim_length    
         
@@ -62,7 +91,7 @@ class Simulation():
     def get_interarrival_time(self):
         # return random.randint(1, 240) # mean 200
 
-        r = int(random.paretovariate(1.16)) * 130 + 1
+        r = int(random.paretovariate(1.16)) * 120 + 1
         
         if r > 10000:
             r = 10000
@@ -98,8 +127,8 @@ class Simulation():
             if could_start:
                 started_jobs += 1
                 
-            
-        print(f"Started {started_jobs} jobs out of {waiting_jobs_count} waiting jobs")
+        if self.verbose:
+            print(f"Started {started_jobs} jobs out of {waiting_jobs_count} waiting jobs")
     
     def defragment(self):   
         initial_busy_machine_count = self.busy_machine_count    
@@ -189,6 +218,12 @@ class Simulation():
             if len(machines) == 0:
                 if self.strategy == "firstfit_strict":
                     return None
+                
+                if self.strategy == "firstfit":
+                    # get the random number between 0 and 1 
+                    r = random.random()
+                    if r < self.alpha:
+                        return None
                 
                 machines_needed = job_machine_count
                 
@@ -395,7 +430,8 @@ class Simulation():
         plt.title("Machine Job Assignments")
         plt.xlabel("Machines")
         plt.ylabel("Racks")
-        plt.savefig("{}/machine_job_assignments.png".format(this_dir), dpi = 300, bbox_inches = "tight")
+        plt.savefig("{}/machine_job_assignments.png".format(self.setting_dir), 
+                    dpi = 300, bbox_inches = "tight")
         
     def calculated_max_jobs_in_same_rack(self):
         max_jobs_in_same_rack = 0    
@@ -427,7 +463,7 @@ class Simulation():
             rack_jobs_unique_count = len(inter_rack_jobs)
             
             
-            if self.current_time == 75000: 
+            if self.current_time == 75000 and self.verbose: 
                 print(f"Rack {i}")  
                 pprint(rack_job_ids)
                 pprint(rack_jobs_unique)    
@@ -437,7 +473,7 @@ class Simulation():
             if rack_jobs_unique_count > max_jobs_in_same_rack:
                 max_jobs_in_same_rack = rack_jobs_unique_count
         
-        if self.current_time == 75000: 
+        if self.current_time == 75000 and self.verbose: 
             pprint(max_jobs_in_same_rack)  
             # self.visualize_assignments()
             # input("Press Enter to continue...")  
@@ -485,7 +521,8 @@ class Simulation():
         if job_end_time < self.earliest_job_end:
             self.earliest_job_end = job_end_time
 
-        print(f"Job {job_id} started at {self.current_time} and will end at {job_end_time}")
+        if self.verbose:
+            print(f"Job {job_id} started at {self.current_time} and will end at {job_end_time}")
     
     def terminate_job(self, job):
         self.current_jobs.remove(job)
@@ -493,8 +530,9 @@ class Simulation():
         
         for machine_id in job["machines"]:
             self.mark_machine_as_free(machine_id)
-                    
-        print(f"Job {job['id']} ended at {self.current_time}")  
+        
+        if self.verbose:
+            print(f"Job {job['id']} ended at {self.current_time}")  
         
         self.update_earliest_job_end()
         
@@ -609,12 +647,11 @@ def plot_cdf(data, title, xlabel, ylabel, filename):
     max = data[-1] 
     plt.axvline(x=max, color='b', linestyle='--', label="max" + str(xlabel))
     plt.text(max * 1.1, 0.5, int(max), rotation=90)
-    
                         
     plt.ylabel(ylabel)
     plt.xlabel(xlabel)
     plt.title(title)
-    plt.xscale("log")   
+    plt.xscale("symlog")   
     
     # legend outside the plot, top right
     plt.legend(loc='upper left', bbox_to_anchor=(1.05, 1))
@@ -637,7 +674,8 @@ def get_job_placement_info(strategy, job_machine_count, rack_size, rack_count, s
                    job_machine_count=job_machine_count,
                    rack_size=rack_size,
                    rack_count=rack_count,
-                   sim_length=simulation_len)
+                   sim_length=simulation_len, 
+                   verbose=False)
     
     job_placement_info = [] 
     
@@ -656,64 +694,93 @@ def get_job_placement_info(strategy, job_machine_count, rack_size, rack_count, s
 def main():
     import matplotlib.pyplot as plt
 
-    for strategy in ["firstfit_strict", "firstfit"]:
-        for ring_mode in ["optimal"]:
-            
-            sim_length = 100000
-            rack_size = 16
-            rack_count = 15
+    exp_number = get_incremented_number()
+    exp_dir = "{}/out/{}/".format(this_dir, exp_number)  
+    os.makedirs(this_dir, exist_ok=True)
 
-            s = Simulation(strategy=strategy, 
-                           ring_mode=ring_mode, 
-                           sim_length=sim_length,
-                           rack_size=rack_size, 
-                           rack_count=rack_count)
-            
-            s.simulate()    
-            
-            #####################################################################
-            
-            fig, ax = plt.subplots(2, 1, figsize=(6, 3), sharex=True)    
+    for alpha in [0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]:
+        for strategy in ["firstfit"]:
+            for ring_mode in ["optimal"]:
                 
-            ax[0].plot(downsample(s.entropies), label="entropy")    
-            ax[0].plot(downsample(s.base_entropies), label="base entropy")
-            ax[0].plot(downsample(s.max_jobs_in_same_rack), label="max jobs in same rack")
-            ax[0].set_ylabel("entropy")
-            ax[0].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+                sim_length = 1000000
+                rack_size = 16
+                rack_count = 15
+                
+                setting_dir = "{}/{}_{}_{}/".format(exp_dir, strategy, ring_mode, alpha)
+                
+                os.makedirs(setting_dir)
+                
+                s = Simulation(strategy=strategy, 
+                            ring_mode=ring_mode, 
+                            sim_length=sim_length,
+                            rack_size=rack_size, 
+                            rack_count=rack_count, 
+                            setting_dir=setting_dir,
+                            verbose=False,  
+                            alpha=alpha)
+                
+                s.simulate()    
+                
+                #####################################################################
+                
+                
+                # history = { 
+                #     "entropies": downsample(s.entropies),
+                #     "base_entropies": downsample(s.base_entropies),
+                #     "utilizations": downsample(s.utilizations),
+                #     "service_rates": downsample(s.service_rates),
+                #     "max_jobs_in_same_rack": downsample(s.max_jobs_in_same_rack)
+                # } 
+                
+                # fig, ax = plt.subplots(2, 1, figsize=(6, 3), sharex=True)    
+                    
+                # ax[0].plot(downsample(s.entropies), label="entropy")    
+                # ax[0].plot(downsample(s.base_entropies), label="base entropy")
+                # ax[0].plot(downsample(s.max_jobs_in_same_rack), label="max jobs in same rack")
+                # ax[0].set_ylabel("entropy")
+                # ax[0].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
 
-            ax[1].plot(downsample(s.service_rates), label="service rate")
-            ax[1].plot(downsample(s.utilizations), label="utilization") 
-  
-            ax[1].set_ylabel("utilization")
-            ax[1].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
-            
-            # plt.ylim(-0.02, 1.02)
-            plt.title("Strategy: {}, Ring Mode: {}".format(strategy, ring_mode))
-            plt.xlabel("time")
-            
-            plt.savefig("{}/{}_{}.png".format(this_dir, strategy, ring_mode), dpi = 300, bbox_inches = "tight")
-            plt.clf()
-            
-            #####################################################################
-            
-            job_machine_count_all = [job["machine_count"] for job in s.completed_jobs]  
-            job_duration_all = [job["end_time"] - job["start_time"] for job in s.completed_jobs]
-            wait_times = [job["start_time"] - job["arrival_time"] for job in s.completed_jobs]
-        
-            plot_cdf(job_machine_count_all, "Job Machine Count CDF", "job machine count", "CDF", "{}/{}_{}_machine_cdf.png".format(this_dir, strategy, ring_mode))
-            plot_cdf(job_duration_all, "Job Duration CDF", "job duration", "CDF", "{}/{}_{}_duration_cdf.png".format(this_dir, strategy, ring_mode))
-            plot_cdf(s.inter_arrival_times, "Interarrival Time CDF", "interarrival time", "CDF", "{}/{}_{}_interarrival_cdf.png".format(this_dir, strategy, ring_mode))
-            plot_cdf(wait_times, "Wait Time CDF", "wait time", "CDF", "{}/{}_{}_wait_cdf.png".format(this_dir, strategy, ring_mode))
-            
-            #####################################################################
-            
-            with open("{}/{}_{}_job_info.csv".format(this_dir, strategy, ring_mode), "w+") as f:
+                # ax[1].plot(downsample(s.service_rates), label="service rate")
+                # ax[1].plot(downsample(s.utilizations), label="utilization") 
+    
+                # ax[1].set_ylabel("utilization")
+                # ax[1].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
                 
-                # sort completed jobs by start time
-                s.completed_jobs.sort(key=lambda x: x["id"])
+                # # plt.ylim(-0.02, 1.02)
+                # plt.title("Strategy: {}, Ring Mode: {}".format(strategy, ring_mode))
+                # plt.xlabel("time")
                 
-                for job in s.completed_jobs:
-                    f.write(f"{job['id']},{job['start_time']},{job['arrival_time']},{job['end_time']},{job['machine_count']}\n")
+                # plt.savefig("{}/output.png".format(setting_dir), dpi = 300, bbox_inches = "tight")
+                # plt.clf()
+                
+                # #####################################################################
+                
+                # job_machine_count_all = [job["machine_count"] for job in s.completed_jobs]  
+                # job_duration_all = [job["end_time"] - job["start_time"] for job in s.completed_jobs]
+                # wait_times = [job["start_time"] - job["arrival_time"] for job in s.completed_jobs]
             
+                # plot_cdf(job_machine_count_all, "Job Machine Count CDF", "job machine count", "CDF", "{}/machine_cdf.png".format(setting_dir))
+                # plot_cdf(job_duration_all, "Job Duration CDF", "job duration", "CDF", "{}/duration_cdf.png".format(setting_dir))
+                # plot_cdf(s.inter_arrival_times, "Interarrival Time CDF", "interarrival time", "CDF", "{}/interarrival_cdf.png".format(setting_dir))
+                # plot_cdf(wait_times, "Wait Time CDF", "wait time", "CDF", "{}/wait_cdf.png".format(setting_dir))
+                
+                # #####################################################################
+                
+                # with open("{}/job_info.csv".format(setting_dir), "w+") as f:
+                #     # sort completed jobs by start time
+                #     s.completed_jobs.sort(key=lambda x: x["id"])
+                    
+                #     for job in s.completed_jobs:
+                #         f.write(f"{job['id']},{job['start_time']},{job['arrival_time']},{job['end_time']},{job['machine_count']}\n")
+                        
+                        
+                avg_util = sum(s.utilizations) / len(s.utilizations)
+                avg_max_job_in_same_rack = sum(s.max_jobs_in_same_rack) / len(s.max_jobs_in_same_rack)  
+
+                print("Alpha: {}, avg_util: {}, avg_max_job_in_same_rack: {}".format(alpha,
+                                                                                   avg_util,
+                                                                                   avg_max_job_in_same_rack))
+                                                                                       
+                
 if __name__ == "__main__":
     main()    
