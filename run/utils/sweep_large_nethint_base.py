@@ -12,6 +12,7 @@ from algo import timing
 from algo.placement import generate_placement_file
 import time
 import subprocess
+from utils.cache import NonBlockingCache
 
 #########################
 # TODO: 
@@ -26,8 +27,11 @@ current_executable = sys.executable
 run_cassini_timing_in_subprocess = True
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
 placement_files_state = {} 
-timing_files_states = {} 
+# timing_files_states = {} 
     
+# self, lock, logger_func, run_context, cache_dir, calc_func
+timing_cache = NonBlockingCache("timing-cache")
+placement_cache = NonBlockingCache("placement-cache")    
 
 nethint_settings = [
     { # big settings
@@ -79,7 +83,7 @@ nethint_settings = [
         "ft-server-per-rack": 8,
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 8,
-        "placement-seed-range": 15,
+        "placement-seed-range": 5,
         "comm-size": [20000],
         "comp-size": [1000],
         "layer-count": [1],
@@ -90,10 +94,48 @@ nethint_settings = [
 
 
 
-# the all-reduce time is technically comm_size / machine_count * 2 * (machine_count - 1) / link_bandwidth
-# roughly equal to comm_size / link_bandwidth * 2
-# comm_size = 20000, and link_bandwidth = 100 -> ar_time = 20000 / 100 * 2 = 400
+def calc_timing(timing_file_path, placement_seed, 
+                jobs, options, run_context, run_cassini_timing_in_subprocess): 
+    import json 
+    
+    timing_scheme = options["timing-scheme"]
+    
+    if timing_scheme != "cassini" or not run_cassini_timing_in_subprocess: 
+        
+        job_timings = timing.generate_timing_file(timing_file_path, 
+                                                  placement_seed, 
+                                                  jobs,
+                                                  options, 
+                                                  run_context)
+    else: 
+        # create a subprocess to run the cassini timing. 
+        args = {
+            "timing_file_path": timing_file_path,
+            "placement_seed": placement_seed,
+            "jobs": jobs,   
+            "options": options, 
+            "run_context": run_context,
+        }
 
+        # create a python subprocess, feed the json dump of the args to the subprocess.
+        process = subprocess.Popen([current_executable, "algo/timing.py"], 
+                                    stdin=subprocess.PIPE, 
+                                    stdout=subprocess.PIPE, 
+                                    stderr=subprocess.PIPE)
+                                    
+        input_data = json.dumps(args).encode("utf-8")
+        stdout, _ = process.communicate(input=input_data)
+        job_timings = json.loads(stdout.decode("utf-8")) 
+        
+    return job_timings  
+   
+def calc_placement(placement_file_path, placement_seed, options, run_context):
+    jobs = generate_placement_file(placement_file_path, 
+                                   placement_seed,   
+                                   options, 
+                                   run_context)
+    
+    return jobs
    
 def run_command_options_modifier(options, config_sweeper, run_context):
     
@@ -142,9 +184,9 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     # the subflows are fed to simulator as general-param-1
     # TODO: I don't like this. 
-    run_context["subflows"] = options["subflows"]
-    options["general-param-1"] = options["subflows"]
-    options.pop("subflows") 
+    # run_context["subflows"] = options["subflows"]
+    # options["general-param-1"] = options["subflows"]
+    # options.pop("subflows") 
     
     ### based on the placement seed, we need to generate the placements. 
     global placement_files_state
@@ -157,105 +199,39 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     timing_scheme = options["timing-scheme"]    
     
     
-    config_sweeper.log_for_thread(run_context, "Going to acquire the lock to generating the placement file ...")
-    with config_sweeper.thread_lock:
-        
-        config_sweeper.log_for_thread(run_context, "Acquired the lock to generating the placement file ...")
-
-        placements_dir = "{}/placements/{}-{}/".format(config_sweeper.custom_files_dir, 
-                                                    placement_mode, ring_mode) 
-        os.makedirs(placements_dir, exist_ok=True)
-        
-        placement_file_path = "{}/seed-{}.txt".format(placements_dir, placement_seed)
-        
-        if placement_file_path not in placement_files_state:
-            jobs = generate_placement_file(placement_file_path, placement_seed,   
-                                           options, run_context)
-            
-            placement_files_state[placement_file_path] = jobs
-
-        else: 
-            jobs = placement_files_state[placement_file_path]
-
-        options["placement-file"] = placement_file_path
     
-    config_sweeper.log_for_thread(run_context, "Releasing the lock to generating the placement file ...")
+    # handle the placement  
+    placements_dir = "{}/placements/{}-{}/".format(config_sweeper.custom_files_dir, 
+                                                   placement_mode, ring_mode) 
+
+    placement_file_path = "{}/seed-{}.txt".format(placements_dir, placement_seed)
+
+    os.makedirs(placements_dir, exist_ok=True)
+        
+    jobs = placement_cache.get(key=placement_file_path, 
+                               lock=config_sweeper.thread_lock, 
+                               logger_func=config_sweeper.log_for_thread, 
+                               run_context=run_context, 
+                               calc_func=calc_placement, 
+                               calc_func_args=(placement_file_path, placement_seed, options, run_context))
+
+    options["placement-file"] = placement_file_path
     
     
     # handle the timing
     timings_dir = "{}/timings/{}-{}/{}/".format(config_sweeper.custom_files_dir, 
-                                               placement_mode, ring_mode, placement_seed)
+                                                placement_mode, ring_mode, placement_seed)
     os.makedirs(timings_dir, exist_ok=True)
     
     timing_file_path = "{}/{}.txt".format(timings_dir, timing_scheme)
     
-    # get the cache status. We don't have the lock at this point. 
-    
-    cache_status = None 
-    config_sweeper.log_for_thread(run_context, "Going to acquire the lock to check the timing file ...")
-    
-    with config_sweeper.thread_lock:
-        
-        config_sweeper.log_for_thread(run_context, "acquired the lock to check the timing file ...")
-        
-        if timing_file_path in timing_files_states:
-            cache_content = timing_files_states[timing_file_path]
-            if cache_content == "in progress":
-                cache_status = "in progress"
-            else:
-                cache_status = "ready"
-        else:
-            cache_status = "you generate it"
-            timing_files_states[timing_file_path] = "in progress"   
-    
-    config_sweeper.log_for_thread(run_context, "Releasing the lock to check the timing file ...")
-    config_sweeper.log_for_thread(run_context, "cache status: {}".format(cache_status))
-    
-    if cache_status == "ready":
-        job_timings = timing_files_states[timing_file_path]    
-    
-    elif cache_status == "you generate it":
-        
-        timing_scheme = options["timing-scheme"]
-        
-        if timing_scheme != "cassini" or not run_cassini_timing_in_subprocess: 
-            job_timings = timing.generate_timing_file(timing_file_path, placement_seed, jobs,
-                                                      options, run_context)
-        else: 
-            # create a subprocess to run the cassini timing. 
-            args = {
-                "timing_file_path": timing_file_path,
-                "placement_seed": placement_seed,
-                "jobs": jobs,   
-                "options": options, 
-                "run_context": run_context,
-            }
-
-            # create a python subprocess, feed the json dump of the args to the subprocess.
-            process = subprocess.Popen([current_executable, "algo/timing.py"], 
-                                        stdin=subprocess.PIPE, 
-                                        stdout=subprocess.PIPE, 
-                                        stderr=subprocess.PIPE)
-                                       
-            input_data = json.dumps(args).encode("utf-8")
-            stdout, stderr = process.communicate(input=input_data)
-            job_timings = json.loads(stdout.decode("utf-8")) 
-            
-        
-        timing_files_states[timing_file_path] = job_timings
-        
-    elif cache_status == "in progress":
-        with open(run_context["output-file"], "a+") as f:   
-            f.write("Waiting for the timing file to be ready.\n")
-            f.write(timing_file_path)
-            
-        print("going to wait for the timing file to be ready ...")    
-        while timing_files_states[timing_file_path] == "in progress":
-            time.sleep(1)
-        print("timing file is ready ...")
-        
-        job_timings = timing_files_states[timing_file_path]
-    
+    job_timings = timing_cache.get(key=timing_file_path, 
+                                   lock=config_sweeper.thread_lock, 
+                                   logger_func=config_sweeper.log_for_thread, 
+                                   run_context=run_context, 
+                                   calc_func=calc_timing, 
+                                   calc_func_args=(timing_file_path, placement_seed, jobs, 
+                                                   options, run_context, run_cassini_timing_in_subprocess))
     
     options["timing-file"] = timing_file_path
         

@@ -66,6 +66,9 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("simulation-seed", po::value<int>(), "simulation seed")  
         ("placement-file", po::value<std::string>(), "placement file")
         ("timing-file", po::value<std::string>(), "timing file")
+        ("subflows", po::value<int>(), "number of subflows")
+        ("ecmp-entropy-options",  po::value<int>(), "ECMP entropy options")
+        //////////////////////////////////////////////////////
         ("general-param-1", po::value<int>(), "general param 1")
         ("general-param-2", po::value<int>(), "general param 2")
         ("general-param-3", po::value<int>(), "general param 3")
@@ -76,7 +79,6 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("general-param-8", po::value<int>(), "general param 8")
         ("general-param-9", po::value<int>(), "general param 9")
         ("general-param-10", po::value<int>(), "general param 10")
-
     ;
 
     po::variables_map vm;
@@ -153,6 +155,12 @@ void psim::process_arguments(po::variables_map vm){
             spdlog::error("Invalid load metric: {}", load_metric_str);
             exit(1);
         }
+    }
+    if(vm.count("ecmp-entropy-options")){
+        GConf::inst().ecmp_entropy_options = vm["ecmp-entropy-options"].as<int>();
+    }   
+    if (vm.count("subflows")) {
+        GConf::inst().subflows = vm["subflows"].as<int>();
     }
     if (vm.count("general-param-1")) {
         GConf::inst().general_param_1 = vm["general-param-1"].as<int>();
@@ -448,6 +456,7 @@ void psim::log_config() {
     spdlog::info("==== simulation_seed: {}", GConf::inst().simulation_seed);
     spdlog::info("==== placement_file: {}", GConf::inst().placement_file);
     spdlog::info("==== timing_file: {}", GConf::inst().timing_file);
+    spdlog::info("==== subflows: {}", GConf::inst().subflows);
     spdlog::info("==== general_param_1: {}", GConf::inst().general_param_1);
     spdlog::info("==== general_param_2: {}", GConf::inst().general_param_2);
     spdlog::info("==== general_param_3: {}", GConf::inst().general_param_3);

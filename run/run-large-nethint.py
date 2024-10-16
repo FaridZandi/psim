@@ -6,7 +6,7 @@ from utils.run_base import run_exp
 options = {
     "protocol-file-name": "nethint-test",
 
-    "step-size": 0.01,
+    "step-size": 1,
     "core-status-profiling-interval": 100000,
     "rep-count": 1, 
     "console-log-level": 4,
@@ -27,16 +27,16 @@ options = {
     "ft-server-per-rack": 8,
     "ft-rack-per-pod": 1,
     "ft-agg-per-pod": 1,
-    "ft-core-count": 1,
+    "ft-core-count": 4,
     "ft-pod-count": -1,
-    "gpu-per-machine": 4,
+    "gpu-per-machine": 1,
     "gpu-gpu-link-capacity-mult": 2,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
-    "ft-agg-core-link-capacity-mult": 1000,
+    "ft-agg-core-link-capacity-mult": 1,
     
     # "lb-scheme": "random",
-    "lb-scheme": "leastloaded",
+    "lb-scheme": "ecmp",
     # "lb-scheme": "roundrobin",
     
     # "lb-scheme": "leastloaded",
@@ -45,7 +45,8 @@ options = {
     "shuffle-device-map": True,
     "regret-mode": "none",
     
-    "simulation-seed": 45, 
+    "simulation-seed": 46, 
+    "ecmp-entropy-options": 4, 
     
     "placement-file": "/home/faridzandi/git/psim/run/sampleinput/placement.txt",
     "timing-file": "/home/faridzandi/git/psim/run/sampleinput/timing.txt",

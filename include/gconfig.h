@@ -150,6 +150,10 @@ public:
     std::string placement_file = ""; 
     std::string timing_file = ""; 
 
+
+    int subflows = 1; 
+    int ecmp_entropy_options = 1; 
+
     GConf() {}
 };
 

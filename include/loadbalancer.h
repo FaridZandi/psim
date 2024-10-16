@@ -70,12 +70,27 @@ public:
 struct lb_x_tuple {  
     int src; 
     int dst;
-
+    int x; 
+    
     bool operator<(const lb_x_tuple& other) const {
+        // if (src < other.src) {
+        //     return true; 
+        // } else if (src == other.src) {
+        //     return dst < other.dst; 
+        // } else {
+        //     return false; 
+        // }
+
         if (src < other.src) {
             return true; 
         } else if (src == other.src) {
-            return dst < other.dst; 
+            if (dst < other.dst) {
+                return true; 
+            } else if (dst == other.dst) {
+                return x < other.x; 
+            } else {
+                return false; 
+            }
         } else {
             return false; 
         }

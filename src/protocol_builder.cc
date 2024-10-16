@@ -401,16 +401,10 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
     int node_count = last_layer_pcs.size();
     int num_chunks = num_replicas;
 
-
-    //////////////////////////////////////////////
-    // TODO: this is not a clean way to do this. Make it better.
-    //////////////////////////////////////////////
     int sub_flow_count = 1; 
-    if (GConf::inst().general_param_1 != 0) {
-        sub_flow_count = GConf::inst().general_param_1;
+    if (GConf::inst().subflows != 0) {
+        sub_flow_count = GConf::inst().subflows;
     }
-    //////////////////////////////////////////////
-    //////////////////////////////////////////////
 
     if(reverse_ring) {
         std::reverse(last_layer_pcs.begin(), last_layer_pcs.end());

@@ -112,12 +112,13 @@ ECMPLoadBalancer::ECMPLoadBalancer(int item_count) : LoadBalancer(item_count) {}
 
 int ECMPLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
 
-    lb_x_tuple key = {flow->src_dev_id, flow->dst_dev_id};
+    int random_x = rand() % GConf::inst().ecmp_entropy_options; 
+
+    lb_x_tuple key = {flow->src_dev_id, flow->dst_dev_id, random_x};
     
     if (lb_cache.find(key) == lb_cache.end()) {
         lb_cache[key] = rand() % item_count;
-        spdlog::critical("saving the decision for src: {}, dst: {}, core: {}", flow->src_dev_id, flow->dst_dev_id, lb_cache[key]);
-    }
+    } 
 
     return lb_cache[key];
 }
