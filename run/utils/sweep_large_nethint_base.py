@@ -24,7 +24,7 @@ from utils.cache import NonBlockingCache
 # get the current executable. like if this file was run with python3 or pypy3, for example.
 current_executable = sys.executable
 
-run_cassini_timing_in_subprocess = True
+run_cassini_timing_in_subprocess = False # don't turn this on. 
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
 placement_files_state = {} 
 # timing_files_states = {} 
@@ -81,8 +81,8 @@ nethint_settings = [
     { # very small
         "machine-count": 128,
         "ft-server-per-rack": 8,
-        "jobs-machine-count-low": 4,
-        "jobs-machine-count-high": 8,
+        "jobs-machine-count-low": 6,
+        "jobs-machine-count-high": 6,
         "placement-seed-range": 5,
         "comm-size": [20000],
         "comp-size": [1000],
@@ -92,21 +92,18 @@ nethint_settings = [
 ]
 
 
-
-
 def calc_timing(timing_file_path, placement_seed, 
-                jobs, options, run_context, run_cassini_timing_in_subprocess): 
+                jobs, options, run_context, config_sweeper, run_cassini_timing_in_subprocess): 
     import json 
     
-    timing_scheme = options["timing-scheme"]
-    
+    timing_scheme = run_context["timing-scheme"]
     if timing_scheme != "cassini" or not run_cassini_timing_in_subprocess: 
-        
         job_timings = timing.generate_timing_file(timing_file_path, 
                                                   placement_seed, 
                                                   jobs,
                                                   options, 
-                                                  run_context)
+                                                  run_context, 
+                                                  config_sweeper)
     else: 
         # create a subprocess to run the cassini timing. 
         args = {
@@ -115,6 +112,9 @@ def calc_timing(timing_file_path, placement_seed,
             "jobs": jobs,   
             "options": options, 
             "run_context": run_context,
+            # I would add the config_sweeper, but it's not serializable.
+            # so this path is not really working at the moment. 
+            "config_sweeper": config_sweeper,  # this should technically cause an error.
         }
 
         # create a python subprocess, feed the json dump of the args to the subprocess.
@@ -198,7 +198,18 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     placement_seed = options["placement-seed"] 
     timing_scheme = options["timing-scheme"]    
     
+    run_context.update({
+        "placement-mode": options["placement-mode"],
+        "ring-mode": options["ring-mode"],
+        "placement-seed": options["placement-seed"], 
+        "timing-scheme": options["timing-scheme"],  
+    })
     
+    options.pop("placement-mode")   
+    options.pop("ring-mode")
+    options.pop("placement-seed")   
+    options.pop("timing-scheme")
+
     
     # handle the placement  
     placements_dir = "{}/placements/{}-{}/".format(config_sweeper.custom_files_dir, 
@@ -231,30 +242,20 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                                    run_context=run_context, 
                                    calc_func=calc_timing, 
                                    calc_func_args=(timing_file_path, placement_seed, jobs, 
-                                                   options, run_context, run_cassini_timing_in_subprocess))
+                                                   options, run_context, config_sweeper, run_cassini_timing_in_subprocess))
     
     options["timing-file"] = timing_file_path
         
     # move the placement-related stuff out of the options, into the run_context.
     # The simulator should not be concerned with these things. the placement file 
     # should be enough for the simulator to know what to do.
-    run_context.update({
-        "placement-mode": options["placement-mode"],
-        "ring-mode": options["ring-mode"],
-        "placement-seed": options["placement-seed"], 
-        "timing-scheme": options["timing-scheme"],  
-    })
-    
-    options.pop("placement-mode")   
-    options.pop("ring-mode")
-    options.pop("placement-seed")   
-    options.pop("timing-scheme")
+
 
 def result_extractor_function(output, options, this_exp_results, run_context):
     for metric in run_context["interesting-metrics"]:
         
         if metric == "avg_ar_time":
-            job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], all_jobs_running=True, )
+            job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], all_jobs_running=True)
             
                     
         elif metric == "avg_iter_time": 
@@ -368,7 +369,6 @@ def plot_cdfs(separating_params, cdf_params,
               plots_dir, script_path,
               actually_plot=True):
     
-    
     separating_params_str = ",".join(separating_params)
     cdf_params_str = ",".join(cdf_params)
     placement_names_str = ",".join(placement_names) 
@@ -389,7 +389,7 @@ def plot_cdfs(separating_params, cdf_params,
         f.write("\n")   
                 
             
-def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=False): 
+def custom_save_results_func(exp_results_df, config_sweeper, global_context, plot=False): 
     
     print("Saving the results ...") 
     
@@ -397,9 +397,9 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
     with open(config_sweeper.plot_commands_script, "w") as f:
         f.write("#!/bin/bash\n")
         
-    all_placement_modes = exp_context["all-placement-modes"]
+    all_placement_modes = global_context["all-placement-modes"]
     
-    for metric in exp_context["interesting-metrics"]:
+    for metric in global_context["interesting-metrics"]:
         avg_metric_key = "avg_{}".format(metric)
         metric_csv_dir = config_sweeper.csv_dir + metric + "/" 
         metric_plots_dir = config_sweeper.plots_dir + metric + "/" 
@@ -417,8 +417,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, exp_context, plot=F
             
             os.makedirs(metric_placement_csv_dir, exist_ok=True)
 
-            base_setting = exp_context["comparison-base"]
-            comparisons = exp_context["comparisons"]
+            base_setting = global_context["comparison-base"]
+            comparisons = global_context["comparisons"]
             
             base_df = placement_df 
             for key, value in base_setting.items():

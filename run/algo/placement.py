@@ -150,7 +150,7 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
     
     placement_info = get_job_placement_info(
             strategy=placement_strategy,
-            ring_mode=options["ring-mode"], 
+            ring_mode=run_context["ring-mode"], 
             rack_size=options["ft-server-per-rack"],
             total_machine_count=options["machine-count"],
             sim_length=1000000)  
@@ -178,7 +178,7 @@ def generate_placement_file(placement_path, placement_seed,
     # for the same experiment seed and placement seed. 
     random.seed(run_context["experiment-seed"] + placement_seed + placement_magic)
     
-    placement_mode = options["placement-mode"] 
+    placement_mode = run_context["placement-mode"] 
     
     if placement_mode == "compact": 
         jobs = generate_compact_placement_file(options, run_context)
@@ -204,7 +204,7 @@ def generate_placement_file(placement_path, placement_seed,
         
     random.seed(run_context["experiment-seed"] + placement_seed + ring_magic)
         
-    ring_mode = options["ring-mode"]    
+    ring_mode = run_context["ring-mode"]    
     if ring_mode == "random":
         for job in jobs:
             random.shuffle(job["machines"]) 

@@ -30,13 +30,13 @@ options = {
     "ft-core-count": 4,
     "ft-pod-count": -1,
     "gpu-per-machine": 1,
-    "gpu-gpu-link-capacity-mult": 2,
+    "gpu-gpu-link-capacity-mult": 1,
     "ft-server-tor-link-capacity-mult": 1,
     "ft-tor-agg-link-capacity-mult": 1,
     "ft-agg-core-link-capacity-mult": 1,
     
     # "lb-scheme": "random",
-    "lb-scheme": "ecmp",
+    "lb-scheme": "random",
     # "lb-scheme": "roundrobin",
     
     # "lb-scheme": "leastloaded",
@@ -48,8 +48,12 @@ options = {
     "simulation-seed": 46, 
     "ecmp-entropy-options": 4, 
     
+    "isolate-job-id": 1, 
+    "print-flow-progress-history": True,
+    
     "placement-file": "/home/faridzandi/git/psim/run/sampleinput/placement.txt",
-    "timing-file": "/home/faridzandi/git/psim/run/sampleinput/timing.txt",
+    # "timing-file": "/home/faridzandi/git/psim/run/sampleinput/timing.txt",
+    "timing-file": "", 
 }
 
 run_exp(options, sys.argv)

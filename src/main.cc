@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
 
         change_log_path(worker_dir + "run-" + std::to_string(rep), "regrets.txt");
         psim->measure_regret(); 
-
+        
         change_log_path(worker_dir + "run-" + std::to_string(rep), "flow-info.txt");
         psim->log_flow_info();
 

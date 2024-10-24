@@ -6,7 +6,9 @@ from pprint import pprint
 import math 
 import time 
 import sys 
-
+import copy 
+from processing.flowprogress import get_job_profiles
+import subprocess
 
 ####################################################################################
 ##################  HELPER FUNCTIONS  ##############################################
@@ -47,7 +49,7 @@ def get_job_signal_info(jobs, options, run_context):
     return job_signal_infos
 
 
-def inc_timing(jobs, options, run_context):
+def inc_timing(jobs, options, run_context, config_sweeper):
     job_timings = [] 
     
     for job in jobs:
@@ -61,7 +63,7 @@ def inc_timing(jobs, options, run_context):
     return job_timings
 
 
-def random_timing(jobs, options, run_context):
+def random_timing(jobs, options, run_context, config_sweeper):
     job_timings = [] 
     job_infos = get_job_signal_info(jobs, options, run_context)
 
@@ -77,7 +79,7 @@ def random_timing(jobs, options, run_context):
     return job_timings
     
     
-def zero_timing(jobs, options, run_context):
+def zero_timing(jobs, options, run_context, config_sweeper):
     job_timings = [] 
     
     for job in jobs:
@@ -155,22 +157,22 @@ def evaluate_candidate(job_loads, deltas, run_context, link_logical_bandwidth):
     return (max_util_score, compat_score)
     
 def solve_for_link(job_loads, link_logical_bandwidth, run_context, fixed_prefs=None):
-    link_solution_candidate_count = run_context["cassini-parameters"]["link-solution-candidate-count"]
-    link_solution_random_quantum = run_context["cassini-parameters"]["link-solution-random-quantum"]
-    link_solution_top_candidates = run_context["cassini-parameters"]["link-solution-top-candidates"]    
+    ls_candidates = run_context["cassini-parameters"]["link-solution-candidate-count"]
+    ls_rand_quantum = run_context["cassini-parameters"]["link-solution-random-quantum"]
+    ls_top_candidates = run_context["cassini-parameters"]["link-solution-top-candidates"]    
     
     if len(job_loads) == 0: 
-        return [([], 0, 0)] * link_solution_top_candidates
+        return [([], 0, 0)] * ls_top_candidates
     
     delta_scores = [] 
     involved_jobs = set([job["job_id"] for job in job_loads])
     
-    for i in range(link_solution_candidate_count):
+    for i in range(ls_candidates):
         deltas = [] 
         
         for job in job_loads: 
-            rand_options = int(math.ceil(job["period"] / link_solution_random_quantum))
-            r = random.randint(0, rand_options) * link_solution_random_quantum        
+            rand_options = int(math.ceil(job["period"] / ls_rand_quantum))
+            r = random.randint(0, rand_options) * ls_rand_quantum        
             deltas.append((job["job_id"], r)) 
             
         min_delta = min([x[1] for x in deltas])
@@ -191,7 +193,7 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context, fixed_prefs=N
         return (x[2], x[1])
 
     good_deltas = sorted(delta_scores, key=this_sort, reverse=True)
-    results = good_deltas[:link_solution_top_candidates]
+    results = good_deltas[:ls_top_candidates]
 
     return results
 
@@ -268,7 +270,7 @@ def get_link_loads(jobs, options, job_signal_infos, run_context):
     return link_loads, cross_rack_jobs
 
 
-def cassini_timing_2(jobs, options, run_context):
+def cassini_timing_old(jobs, options, run_context, config_sweeper):
     overall_solution_candidate_count = run_context["cassini-parameters"]["overall-solution-candidate-count"]
     
     start_time = time.time()
@@ -408,7 +410,7 @@ def cassini_timing_2(jobs, options, run_context):
         
         
 
-def cassini_timing(jobs, options, run_context):
+def cassini_timing(jobs, options, run_context, config_sweeper): 
     overall_solution_candidate_count = run_context["cassini-parameters"]["overall-solution-candidate-count"]
 
     start_time = time.time()
@@ -512,38 +514,375 @@ def cassini_timing(jobs, options, run_context):
     return job_timings 
         
         
+################################################################################################
+################ Farid TIMING #################################################################
+################################################################################################
+
+
+def evaluate_candidate_cpp(job_loads, deltas, run_context, link_logical_bandwidth):
+    # Prepare JSON input
+    input_data = {
+        "job_loads": job_loads,
+        "deltas": deltas,
+    }
+        
+    # Convert the input data to JSON string
+    json_input = json.dumps(input_data)
+    sim_length = run_context["cassini-parameters"]["sim-length"] 
+
+    # Run the C++ executable using subprocess
+    process = subprocess.Popen(
+        ['./algo/evaluate/solve', str(sim_length), str(link_logical_bandwidth)],  # Path to your compiled C++ executable
+        stdin=subprocess.PIPE,       # Pipe the input
+        stdout=subprocess.PIPE,      # Capture the output
+        stderr=subprocess.PIPE,      # Capture errors
+        text=True                    # Use text mode for strings
+    )
+    
+    # Communicate with the process
+    stdout, stderr = process.communicate(input=json_input)
+    
+    # Check for errors
+    if process.returncode != 0:
+        print(f"Error running C++ evaluator: {stderr}")
+        return None
+    
+    # Parse and return the output
+    max_util_score, compat_score = map(float, stdout.split())
+    
+    print(f"max_util_score: {max_util_score}, compat_score: {compat_score}")
+    
+    return max_util_score, compat_score
+
+
+def evaluate_candidate_farid(job_loads, deltas, run_context, link_logical_bandwidth):
+    
+    sim_length = run_context["cassini-parameters"]["sim-length"] 
+    sum_signal = [0] * sim_length
+            
+    for job_load in job_loads:
+        job_id = job_load["job_id"]
+        current_time = get_delta_for_job_in_decisions(deltas, job_id)   
+
+        while current_time < sim_length:
+            for j in range(len(job_load["load"])):
+                sum_signal[current_time] += job_load["load"][j]
+
+                current_time += 1
+                if current_time >= sim_length:
+                    break
+
+    # max_util is the maximum utilization of the link.
+    # the higher the score, the better.
+    max_util = max(sum_signal) 
+    max_util_score = (link_logical_bandwidth - max_util) / link_logical_bandwidth
+    
+    # compat_score is the fraction of the time the link is not saturated.
+    # the higher the score, the better. 
+    compat_score = 0 
+    for i in range(sim_length): 
+        if sum_signal[i] < link_logical_bandwidth:
+            compat_score += 1
+    compat_score = compat_score / sim_length
+
+    print(f"max_util_score: {max_util_score}, compat_score: {compat_score}")
+    return (max_util_score, compat_score)
+    
+    
+def solve_for_link_farid(job_loads, link_logical_bandwidth, run_context, fixed_prefs=None):
+    ls_candidates = run_context["cassini-parameters"]["link-solution-candidate-count"]
+    ls_rand_quantum = run_context["cassini-parameters"]["link-solution-random-quantum"]
+    ls_top_candidates = run_context["cassini-parameters"]["link-solution-top-candidates"]    
+    
+    if len(job_loads) == 0: 
+        return [([], 0, 0)] * ls_top_candidates
+    
+    if len(job_loads) == 1:
+        return [([(job_loads[0]["job_id"], 0)], 0, 0)]
+        
+    delta_scores = [] 
+    involved_jobs = set([job["job_id"] for job in job_loads])
+    
+    for i in range(ls_candidates):
+        deltas = [] 
+        
+        for job in job_loads: 
+            rand_options = int(math.ceil(job["period"] / ls_rand_quantum))
+            r = random.randint(0, rand_options) * ls_rand_quantum        
+            deltas.append((job["job_id"], r)) 
+            
+        min_delta = min([x[1] for x in deltas])
+        deltas = [(x[0], x[1] - min_delta) for x in deltas]
+        
+        number_of_fixed_decisions = 0 
+        if fixed_prefs is not None:
+            for job_id, delta in fixed_prefs:
+                if job_id in involved_jobs:
+                    number_of_fixed_decisions += 1
+                    set_delta_for_job_in_decisions(deltas, job_id, delta)
+        
+        if number_of_fixed_decisions == len(involved_jobs):
+            print("All fixed decisions")
+            return [(deltas, 0, 0)]
+        
+        max_util_score, compat_score = evaluate_candidate_cpp(job_loads, deltas, 
+                                                              run_context, 
+                                                              link_logical_bandwidth)
+        
+        delta_scores.append((deltas, max_util_score, compat_score))
+
+    def this_sort(x):
+        # best compat score, among those, lowest max_util
+        return (x[2], x[1])
+
+    good_deltas = sorted(delta_scores, key=this_sort, reverse=True)
+    results = good_deltas[:ls_top_candidates]
+
+    pprint(results)
+    
+    return results
+
+def get_link_loads_farid(jobs, options, run_context, job_profiles):
+    
+    servers_per_rack = options["ft-server-per-rack"]
+    rack_count = options["machine-count"] // servers_per_rack   
+    link_bandwidth = options["link-bandwidth"]  
+    
+    link_loads = [] 
+    cross_rack_jobs_set = set() 
+    cross_rack_jobs = []    
+    
+    for i in range(rack_count):
+        this_rack = {"up": [], "down": []}
+        link_loads.append(this_rack)
+
+    for job in jobs:
+        job_id = job["job_id"]
+        if job_id not in job_profiles:
+            continue    
+        
+        job_profile = job_profiles[job_id]
+        job_period = job_profile["period"]  
+        
+        for flow in job_profile["flows"]:   
+            for i in range(len(flow["progress_history"])):
+                flow["progress_history"][i] /= link_bandwidth
+        
+        # this job will add some load to each of the links. 
+        # all the flows for this job will be added up. 
+        for i in range(rack_count):
+            for dir in ["up", "down"]:
+                def add_signal_to_sum(signal, sum_signal):
+                    for i in range(len(signal)):
+                        if i >= len(sum_signal):
+                            sum_signal.append(0)
+                        sum_signal[i] += signal[i]
+
+                link_job_load_combined = [] 
+                any_flow_added = False
+                
+                for flow in job_profile["flows"]:
+                    flow_src_rack = flow["srcrack"]
+                    flow_dst_rack = flow["dstrack"]
+                    flow_progress_history = flow["progress_history"]
+                    
+                    # print flow start and end and src and dst 
+                    if ((dir == "up" and flow_src_rack == i) or 
+                        (dir == "down" and flow_dst_rack == i)):    
+                        
+                        any_flow_added = True 
+                        if len(link_job_load_combined) > 0:
+                            assert len(link_job_load_combined) == len(flow_progress_history)
+                            
+                        # this is a flow that goes through this link
+                        add_signal_to_sum(flow_progress_history,
+                                          link_job_load_combined)
+                
+                if any_flow_added:
+                    cross_rack_jobs_set.add(job_id) 
+                    
+                    link_loads[i][dir].append({
+                        "job_id": job_id,
+                        "load": link_job_load_combined,
+                        "period": job_period
+                    })
+                    
+                    
+    cross_rack_jobs = list(cross_rack_jobs_set) 
+    return link_loads, cross_rack_jobs
+
+
+
+def farid_cassini_helper(jobs, options, run_context, config_sweeper, job_profiles): 
+    
+    start_time = time.time()    
+    
+    overall_solution_candidate_count = run_context["cassini-parameters"]["overall-solution-candidate-count"]
+    
+    servers_per_rack = options["ft-server-per-rack"]
+    rack_count = options["machine-count"] // servers_per_rack       
+    link_logical_bandwidth = options["ft-core-count"]
+    
+    log_results(run_context, "jobs", jobs)
+    
+    link_loads, cross_rack_jobs = get_link_loads_farid(jobs, options, run_context, job_profiles)   
+
+    best_candidate_score = -1e9 
+    best_candidate = None
+
+    link_loads_list = [] 
+    for rack in range(rack_count):
+        for direction in ["up", "down"]:
+            link_loads_list.append(link_loads[rack][direction])
+                
+    for i in range(overall_solution_candidate_count):
+        # shuffle the link_solutions. No real difference beetwen the links.
+        random.shuffle(link_loads_list)
+
+        # pick the top solution for the first link (which is an arbitrary choice)
+        first_link_loads = link_loads_list[0]
+        solutions = solve_for_link_farid(first_link_loads, link_logical_bandwidth, run_context)
+        r = random.randint(0, len(solutions) - 1)
+        top_solution = solutions[r]
+        current_decisions = top_solution[0]
+        
+        log_results(run_context, f"link_solutions_0_candidate_{i}", current_decisions)
+
+        # go through the rest of the links. 
+        for j in range(1, len(link_loads_list)):
+            this_link_loads = link_loads_list[j]
+            
+            link_solutions = solve_for_link_farid(this_link_loads, link_logical_bandwidth, run_context, 
+                                                  fixed_prefs=current_decisions)
+            
+            r = random.randint(0, len(link_solutions) - 1)
+            top_solution = link_solutions[r]
+            top_solution_timing = top_solution[0]
+            
+            # update the current decisions.
+            for job_id, delta in top_solution_timing:
+                set_delta_for_job_in_decisions(current_decisions, job_id, delta)
+
+            log_results(run_context, f"link_solutions_{j}_candidate_{i}", current_decisions)
+            
+            if len(current_decisions) == len(cross_rack_jobs):
+                break
+        
+        
+        # now we have a candidate solution. We should evaluate it. 
+        candidate_score = 0 
+        for rack in range(rack_count):
+            for direction in ["up", "down"]:
+                max_util_score, compat_score = evaluate_candidate_cpp(job_loads=link_loads[rack][direction], 
+                                                                      deltas=current_decisions, 
+                                                                      run_context=run_context,
+                                                                      link_logical_bandwidth=link_logical_bandwidth)
+
+                candidate_score += compat_score
+                candidate_score += max_util_score
+                
+        log_results(run_context, "candidate", (current_decisions, candidate_score))
+        
+        if candidate_score > best_candidate_score:
+            best_candidate_score = candidate_score
+            best_candidate = current_decisions
+
+    # some job timings are negative now. 
+    
+    job_timings = [] 
+    
+    log_results(run_context, "best_candidate", (best_candidate, best_candidate_score))
+    
+    for job in jobs:
+        job_id = job["job_id"]
+        
+        timing = get_delta_for_job_in_decisions(best_candidate, job_id)
+        
+        if timing is None:
+            # it could be that the job has no intra-rack communication.
+            # therefore, it's doesn't appear anywhere in the decisions. 
+            timing = 0
+            
+        job_timings.append({
+            "initial_wait": timing,
+            "job_id": job_id
+        })           
+    
+    
+    end_time = time.time() 
+    time_taken = end_time - start_time 
+    log_results(run_context, "time_taken", time_taken)  
+        
+    return job_timings 
+
+
+
+def farid_timing(jobs, options, run_context, config_sweeper):
+    # step 1: profile the jobs. Run them in isolation and get their flows and periods.
+    job_profiles = {}
+    
+    for job in jobs:
+        profiling_job_options = copy.deepcopy(options)  
+        profiling_job_options["isolate-job-id"] = job["job_id"]
+        profiling_job_options["print-flow-progress-history"] = True
+        profiling_job_options["timing-file"] = None  
+        profiling_job_options["ft-core-count"] = 1  
+        profiling_job_options["ft-agg-core-link-capacity-mult"] = 100
+
+        output = config_sweeper.only_run_command_with_options(profiling_job_options)
+        path = "{}/worker-{}/run-1/flow-info.txt".format(config_sweeper.workers_dir, 
+                                                         run_context["worker-id-for-profiling"]) 
+        job_prof, _, _ = get_job_profiles(path)
+        
+        # job_prof might be empty.
+        job_id = job["job_id"]
+        if job_id in job_prof:
+            print("job_prof period: ", job_prof[job_id]["period"])
+            job_profiles[job_id] = job_prof[job_id]
+            job["period"] = job_prof[job_id]["period"]
+            
+    # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
+    farid_cassini_helper(jobs, options, run_context, config_sweeper, job_profiles)
+    
+    # step 3: do the routing for the flows. 
+    
+    # step 4: return the full schedule.  
+    job_timings = [] 
+    return job_timings
+
 ############################################################################
 ################ MAIN FUCTION  #############################################
 ############################################################################
 
 def generate_timing_file(timing_file_path, placement_seed, 
-                         jobs, options, run_context):
+                         jobs, options, run_context, config_sweeper):
 
     random.seed(run_context["experiment-seed"] + placement_seed)
     
-    if "timing-scheme" not in options:
+    if "timing-scheme" not in run_context:
         raise ValueError("timing-scheme option is required")
 
-    timing_scheme = options["timing-scheme"]    
+    timing_scheme = run_context["timing-scheme"]    
     
     timing_funcions = {
         "inc": inc_timing,
         "random": random_timing,
         "zero": zero_timing, 
-        "cassini": cassini_timing
+        "cassini": cassini_timing, 
+        "farid": farid_timing, 
     }
     
     if timing_scheme not in timing_funcions:
         raise ValueError(f"Invalid timing-scheme: {timing_scheme}")
     
-    job_timings = timing_funcions[timing_scheme](jobs, options, run_context)
+    timing_func = timing_funcions[timing_scheme] 
+    job_timings = timing_func(jobs, options, run_context, config_sweeper)
     
     with open(timing_file_path, "w") as f:
         json.dump(job_timings, f, indent=4)
         f.flush() 
 
     return job_timings
-
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:

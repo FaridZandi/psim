@@ -154,6 +154,9 @@ public:
     int subflows = 1; 
     int ecmp_entropy_options = 1; 
 
+
+    int isolate_job_id = -1; 
+    
     GConf() {}
 };
 

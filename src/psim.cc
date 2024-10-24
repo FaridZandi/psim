@@ -351,10 +351,13 @@ void PSim::log_flow_info(){
                 continue; 
             }
 
-            bool outgoing = false; 
-            if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
-                outgoing = true; 
-            }
+            // bool outgoing = false; 
+            // if (flow->src_dev_id > 3 and flow->src_dev_id < 8){
+            //     outgoing = true; 
+            // }
+
+            int src_rack = ((CoreConnectedNetwork*)network)->server_loc_map[flow->src_dev_id].rack;
+            int dst_rack = ((CoreConnectedNetwork*)network)->server_loc_map[flow->dst_dev_id].rack;
 
             std::string progress_history = "";
 
@@ -364,9 +367,9 @@ void PSim::log_flow_info(){
                 progress_history += item + " ";
             }
 
-            spdlog::warn("flow: {} jobid: {} dir: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
+            spdlog::warn("flow: {} jobid: {} srcrack: {} dstrack: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
                 flow->id, flow->jobid,
-                outgoing ? "outgoing" : "incoming", 
+                src_rack, dst_rack, 
                 flow->start_time, flow->end_time, 
                 flow->end_time - flow->start_time + step_size, flow->lb_decision, 
                 step_size, flow->label_for_progress_graph, progress_history);

@@ -11,6 +11,9 @@
 #include "gcontext.h"
 #include "spdlog/spdlog.h"
 #include "nlohmann/json.hpp"
+#include <filesystem>
+#include <cstdint>
+#include <filesystem>
 
 using namespace psim;
 
@@ -952,19 +955,34 @@ int get_config_or_default(int value, int default_value) {
 Protocol* 
 psim::build_nethint_test() {
     Protocol *protocol = new Protocol();
+    nlohmann::json jobs;
+    nlohmann::json timings;
+
+
+    int iso = GConf::inst().isolate_job_id;
+    bool isolated_execution = false;  
+    if (iso != -1) {
+        isolated_execution = true;
+    }
 
     std::string placement_file = GConf::inst().placement_file;   
     spdlog::critical("placement file: {}", placement_file);
     std::ifstream placement_stream(placement_file);
-    nlohmann::json jobs;
     placement_stream >> jobs;
 
-
     std::string timing_file = GConf::inst().timing_file;    
-    spdlog::critical("timing file: {}", timing_file);
-    std::ifstream timing_stream(timing_file);
-    nlohmann::json timings;
-    timing_stream >> timings;
+    bool timing_file_exists = true; 
+
+    if (not std::filesystem::exists(timing_file)) {
+        timing_file_exists = false; 
+        spdlog::critical("timing file not found. all timings will be set to 0.");  
+    } else { 
+        timing_file_exists = true;
+        spdlog::critical("timing file: {}", timing_file);
+        std::ifstream timing_stream(timing_file);
+        timing_stream >> timings;  
+    }
+
 
     int job_index = 0; 
     for (auto& job : jobs) {
@@ -974,10 +992,19 @@ psim::build_nethint_test() {
         int job_comp_size = job["comp_size"];
         int job_layer_count = job["layer_count"];
         int job_iter_count = job["iter_count"]; 
+
+        if (isolated_execution) {
+            // if this an isolated execution, only one iteration would be enough.
+            job_iter_count = 1; 
+        }
+
         std::vector<int> job_machines = job["machines"];
 
-        auto& job_timing = timings[job_index];
-        int initial_wait = job_timing["initial_wait"];
+        int initial_wait = 0; 
+        if (timing_file_exists) {
+            auto& job_timing = timings[job_index];
+            initial_wait = job_timing["initial_wait"];
+        }
 
         // print the information    
         spdlog::critical("job_id: {}", job_id);
@@ -986,6 +1013,7 @@ psim::build_nethint_test() {
         spdlog::critical("job_comm_size: {}", job_comm_size);
         spdlog::critical("job_comp_size: {}", job_comp_size);
         spdlog::critical("job_layer_count: {}", job_layer_count);
+
         std::string machines_str = "";
         for (auto& machine : job_machines) {
             machines_str += std::to_string(machine) + " ";
@@ -995,16 +1023,18 @@ psim::build_nethint_test() {
         int this_job_long_pc_length = 0;
         bool reverse_ring = false;
         job_comm_size = (int)(job_comm_size / (job_machines.size())); 
-        
-        insert_simple_data_parallelism(protocol, 
-                                       job_id, 
-                                       job_machines, 
-                                       job_layer_count, 
-                                       job_iter_count, 
-                                       job_comp_size, 
-                                       job_comm_size, 
-                                       initial_wait, 
-                                       reverse_ring);
+
+        if (iso == -1 or iso == job_id) {
+            insert_simple_data_parallelism(protocol, 
+                                           job_id, 
+                                           job_machines, 
+                                           job_layer_count, 
+                                           job_iter_count, 
+                                           job_comp_size, 
+                                           job_comm_size, 
+                                           initial_wait, 
+                                           reverse_ring);
+        }
 
         job_index += 1;
     }

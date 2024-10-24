@@ -27,8 +27,8 @@ while true; do
 
     echo "All $WHAT_TO_KILL processes killed."
     exit 0
-  else
-    echo "Memory usage is $memory_usage GB, within limit of $MAX_MEMORY GB."
+  # else
+    # echo "Memory usage is $memory_usage GB, within limit of $MAX_MEMORY GB."
   fi
 
   # Wait for 10 seconds before checking again

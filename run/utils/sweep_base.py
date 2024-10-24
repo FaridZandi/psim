@@ -18,7 +18,7 @@ MEMORY_LIMIT = 55
 
 class ConfigSweeper: 
     def __init__(self, 
-                 base_options, sweep_config, exp_context,
+                 base_options, sweep_config, global_context,
                  run_command_options_modifier=None,
                  run_results_modifier=None,
                  custom_save_results_func=None,
@@ -29,7 +29,7 @@ class ConfigSweeper:
         # arguments
         self.sweep_config = sweep_config
         self.base_options = base_options
-        self.exp_context = exp_context  
+        self.global_context = global_context  
         
         # global stuff 
         self.total_jobs = 0
@@ -42,7 +42,7 @@ class ConfigSweeper:
         self.exp_q = queue.Queue()
         self.thread_lock = threading.Lock()    
         
-        # constanst
+        # constants
         self.run_command_options_modifier = run_command_options_modifier
         self.run_results_modifier = run_results_modifier
         self.worker_thread_count = worker_thread_count
@@ -117,8 +117,8 @@ class ConfigSweeper:
             pprint("self", stream=f)
             pprint(self, stream=f)
             pprint("------------------------------------------", stream=f)
-            pprint("exp_context", stream=f)
-            pprint(self.exp_context, stream=f)
+            pprint("global_context", stream=f)
+            pprint(self.global_context, stream=f)
             
             
     def sweep(self):
@@ -147,7 +147,7 @@ class ConfigSweeper:
             
             # call the custom func to do anything with the results.
             if self.custom_save_results_func is not None: 
-                self.custom_save_results_func(all_pd_frame, self, self.exp_context, plot=True)
+                self.custom_save_results_func(all_pd_frame, self, self.global_context, plot=True)
                 
         except Exception as e:
             print("error in running the experiments")
@@ -167,7 +167,6 @@ class ConfigSweeper:
         # only keep the unique values.
         for key in self.sweep_config:
             self.sweep_config[key] = list(set(self.sweep_config[key]))
-            
         
         # get all the permutations of the sweep config
         keys, values = zip(*self.sweep_config.items())
@@ -190,7 +189,6 @@ class ConfigSweeper:
 
         for t in self.threads:
             t.join()       
-            
             
             
     def worker_function(self):
@@ -219,8 +217,21 @@ class ConfigSweeper:
             if data is not None:
                 pprint(data, stream=f)
                 f.write("\n")
+    
+    def only_run_command_with_options(self, options):
+        cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
+
+        try: 
+            output = subprocess.check_output(cmd, shell=True)
+            output = output.decode("utf-8").splitlines()
+        except:
+            print("error in running the command")
+            print("I don't know what to do here")
+            exit(0)
         
-    def run_experiment(self, exp, worker_id):
+        return output
+                    
+    def run_experiment(self, exp, worker_id, add_to_results=True):
         with self.thread_lock:
             self.global_exp_id += 1 
             this_exp_uuid = self.global_exp_id
@@ -232,8 +243,9 @@ class ConfigSweeper:
         # the context is the rest of the information that is needed to save the results, 
         # but is not passed to the executable.
         run_context = {} 
-        run_context.update(self.exp_context)
+        run_context.update(self.global_context)
         run_context["exp-uuid"] = this_exp_uuid
+        run_context["worker-id-for-profiling"] = worker_id  
         
         output_file_path = self.exp_outputs_dir + "output-{}.txt".format(run_context["exp-uuid"])
         with open(output_file_path, "w+") as f:
@@ -241,12 +253,12 @@ class ConfigSweeper:
 
         run_context["output-file"] = output_file_path
 
-
         # options will have the base options, and the current combination of the 
         # sweep config parameters.
         options = {}
         options.update(self.base_options)
         options.update(exp)
+        options["workers-dir"] = self.workers_dir
 
         with open(output_file_path, "a+") as f:
             f.write("options: \n")
@@ -282,11 +294,9 @@ class ConfigSweeper:
                 
         else:                         
             options["worker-id"] = worker_id
-            options["workers-dir"] = self.workers_dir
             cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
             
             try: 
-                
                 with open(self.commands_log_path, "a+") as f:
                     f.write(cmd + "\n")
                     f.write("-"*50 + "\n")
@@ -365,6 +375,7 @@ class ConfigSweeper:
         options_keys = list(options.keys())
         
         # check for duplicate keys between the results and the options.
+        # if there are any, print them and exit. 
         duplicate_keys = set(this_exp_results_keys) & set(options_keys)
         if len(duplicate_keys) > 0:
             print("duplicate keys between the results and the options")
@@ -394,28 +405,35 @@ class ConfigSweeper:
             # a final chance for the user to modify the results before saving them.
             if self.run_results_modifier is not None:
                 self.run_results_modifier(results)
-        
-            self.exp_results.append(results)
-
-            # save the results to a csv file every 10 seconds
-            time_since_last_save = datetime.datetime.now() - self.last_df_save_time
-            if time_since_last_save.total_seconds() > self.df_save_interval_seconds:
-                self.last_df_save_time = datetime.datetime.now()
                 
-                df = pd.DataFrame(self.exp_results)
-                df.to_csv(self.raw_csv_path)
                 
-                if self.custom_save_results_func is not None:
-                    try: 
-                        self.custom_save_results_func(df, self, self.exp_context, plot=False)
-                    except Exception as e:
-                        print("error in custom_save_results_func")
-                        print(e)
+            if not add_to_results:
+                return results
             
-            pprint(results)
-            print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))
-            print("duration: {}".format(duration))
-            print("worker id: {}".format(worker_id))
-            print("--------------------------------------------")
+            else: 
+                self.exp_results.append(results)
+
+                # save the results to a csv file every 10 seconds
+                time_since_last_save = datetime.datetime.now() - self.last_df_save_time
+                if time_since_last_save.total_seconds() > self.df_save_interval_seconds:
+                    self.last_df_save_time = datetime.datetime.now()
+                    
+                    df = pd.DataFrame(self.exp_results)
+                    df.to_csv(self.raw_csv_path)
+                    
+                    if self.custom_save_results_func is not None:
+                        try: 
+                            self.custom_save_results_func(df, self, self.global_context, plot=False)
+                        except Exception as e:
+                            print("error in custom_save_results_func")
+                            print(e)
+                
+                pprint(results)
+                print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))
+                print("duration: {}".format(duration))
+                print("worker id: {}".format(worker_id))
+                print("--------------------------------------------")
 
         self.log_for_thread(run_context, "Done with the lock to save the results")
+
+        return results

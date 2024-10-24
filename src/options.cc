@@ -68,6 +68,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("timing-file", po::value<std::string>(), "timing file")
         ("subflows", po::value<int>(), "number of subflows")
         ("ecmp-entropy-options",  po::value<int>(), "ECMP entropy options")
+        ("isolate-job-id", po::value<int>(), "isolate job id") 
         //////////////////////////////////////////////////////
         ("general-param-1", po::value<int>(), "general param 1")
         ("general-param-2", po::value<int>(), "general param 2")
@@ -155,6 +156,9 @@ void psim::process_arguments(po::variables_map vm){
             spdlog::error("Invalid load metric: {}", load_metric_str);
             exit(1);
         }
+    }
+    if(vm.count("isolate-job-id")){
+        GConf::inst().isolate_job_id = vm["isolate-job-id"].as<int>();
     }
     if(vm.count("ecmp-entropy-options")){
         GConf::inst().ecmp_entropy_options = vm["ecmp-entropy-options"].as<int>();
@@ -457,6 +461,8 @@ void psim::log_config() {
     spdlog::info("==== placement_file: {}", GConf::inst().placement_file);
     spdlog::info("==== timing_file: {}", GConf::inst().timing_file);
     spdlog::info("==== subflows: {}", GConf::inst().subflows);
+    spdlog::info("==== ecmp_entropy_options: {}", GConf::inst().ecmp_entropy_options);
+    spdlog::info("==== isolate_job_id: {}", GConf::inst().isolate_job_id);
     spdlog::info("==== general_param_1: {}", GConf::inst().general_param_1);
     spdlog::info("==== general_param_2: {}", GConf::inst().general_param_2);
     spdlog::info("==== general_param_3: {}", GConf::inst().general_param_3);
