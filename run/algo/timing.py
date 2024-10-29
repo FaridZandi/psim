@@ -9,6 +9,7 @@ import sys
 import copy 
 from processing.flowprogress import get_job_profiles
 import subprocess
+import os 
 
 ####################################################################################
 ##################  HELPER FUNCTIONS  ##############################################
@@ -615,6 +616,7 @@ def solve_for_link_farid(job_loads, link_logical_bandwidth, run_context, fixed_p
         deltas = [(x[0], x[1] - min_delta) for x in deltas]
         
         number_of_fixed_decisions = 0 
+        
         if fixed_prefs is not None:
             for job_id, delta in fixed_prefs:
                 if job_id in involved_jobs:
@@ -706,7 +708,6 @@ def get_link_loads_farid(jobs, options, run_context, job_profiles):
                         "load": link_job_load_combined,
                         "period": job_period
                     })
-                    
                     
     cross_rack_jobs = list(cross_rack_jobs_set) 
     return link_loads, cross_rack_jobs
@@ -828,10 +829,13 @@ def farid_timing(jobs, options, run_context, config_sweeper):
         profiling_job_options["timing-file"] = None  
         profiling_job_options["ft-core-count"] = 1  
         profiling_job_options["ft-agg-core-link-capacity-mult"] = 100
+        profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"] 
 
-        output = config_sweeper.only_run_command_with_options(profiling_job_options)
+        output = config_sweeper.only_run_command_with_options(run_context, profiling_job_options)
+        
         path = "{}/worker-{}/run-1/flow-info.txt".format(config_sweeper.workers_dir, 
                                                          run_context["worker-id-for-profiling"]) 
+        
         job_prof, _, _ = get_job_profiles(path)
         
         # job_prof might be empty.
@@ -842,12 +846,13 @@ def farid_timing(jobs, options, run_context, config_sweeper):
             job["period"] = job_prof[job_id]["period"]
             
     # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
-    farid_cassini_helper(jobs, options, run_context, config_sweeper, job_profiles)
+    job_timings = farid_cassini_helper(jobs, options, run_context, config_sweeper, job_profiles)
+    
+    print(job_timings)
     
     # step 3: do the routing for the flows. 
     
     # step 4: return the full schedule.  
-    job_timings = [] 
     return job_timings
 
 ############################################################################

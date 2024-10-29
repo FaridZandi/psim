@@ -68,6 +68,7 @@ class ConfigSweeper:
         self.custom_files_dir = self.results_dir + "custom_files/"  
         self.exp_outputs_dir = self.results_dir + "exp_outputs/"
         self.commands_log_path = self.results_dir + "commands_log.txt"
+        self.thread_output_dir = self.results_dir + "thread_outputs/"
         
         self.results_cache = {}
         self.cache_lock = threading.Lock() 
@@ -86,6 +87,7 @@ class ConfigSweeper:
         os.system("mkdir -p {}".format(self.workers_dir))
         os.system("mkdir -p {}".format(self.custom_files_dir))
         os.system("mkdir -p {}".format(self.exp_outputs_dir))   
+        os.system("mkdir -p {}".format(self.thread_output_dir))
         os.system("touch {}".format(self.plot_commands_script))
         os.system("chmod +x {}".format(self.plot_commands_script))
         
@@ -196,12 +198,27 @@ class ConfigSweeper:
             worker_id = self.worker_id_counter
             self.worker_id_counter += 1
 
+        thread_output_path = self.thread_output_dir + "output-{}.txt".format(worker_id) 
+        with open(thread_output_path, "w+") as f:
+            f.write("output file for thread {}\n\n\n".format(worker_id))
+            
         while True:
             try:
                 exp = self.exp_q.get(block = 0)
+                with open(thread_output_path, "a+") as f:
+                    f.write("got the experiment\n")
+                    
                 self.run_experiment(exp, worker_id)   
-
+                
+                with open(thread_output_path, "a+") as f:
+                    f.write("done with the experiment\n")
+                    f.write("\n")   
+                    
             except queue.Empty:
+                with open(thread_output_path, "a+") as f:
+                    f.write("queue is empty\n")
+                    f.write("\n")
+                
                 return
             
             except Exception as e:
@@ -218,9 +235,11 @@ class ConfigSweeper:
                 pprint(data, stream=f)
                 f.write("\n")
     
-    def only_run_command_with_options(self, options):
+    def only_run_command_with_options(self, run_context, options):
         cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
-
+        
+        self.log_for_thread(run_context, "Going to run the command ..." + cmd)  
+            
         try: 
             output = subprocess.check_output(cmd, shell=True)
             output = output.decode("utf-8").splitlines()
@@ -230,12 +249,49 @@ class ConfigSweeper:
             exit(0)
         
         return output
-                    
+             
+    def combine_results(self, this_exp_results, run_context, options):
+        # everything will be combined in this dictionary. 
+        # the results from the executable, the options, and the context. 
+        this_exp_results_keys = list(this_exp_results.keys()) 
+        run_context_keys = list(run_context.keys())
+        options_keys = list(options.keys())
+        
+        # check for duplicate keys between the results and the options.
+        # if there are any, print them and exit. 
+        duplicate_keys = set(this_exp_results_keys) & set(options_keys)
+        if len(duplicate_keys) > 0:
+            print("duplicate keys between the results and the options")
+            print(duplicate_keys)
+            exit(0)
+        duplicate_keys = set(this_exp_results_keys) & set(run_context_keys)
+        if len(duplicate_keys) > 0:
+            print("duplicate keys between the results and the run_context")
+            print(duplicate_keys)
+            exit(0)
+        duplicate_keys = set(run_context_keys) & set(options_keys)
+        if len(duplicate_keys) > 0:
+            print("duplicate keys between the run_context and the options")
+            print(duplicate_keys)
+            exit(0)
+               
+        results = {} 
+        results.update(this_exp_results)
+        results.update(run_context)
+        results.update(options)       
+        
+        return results
+        
+        
     def run_experiment(self, exp, worker_id, add_to_results=True):
         with self.thread_lock:
             self.global_exp_id += 1 
             this_exp_uuid = self.global_exp_id
-                
+            
+            thread_output_path = self.thread_output_dir + "output-{}.txt".format(worker_id) 
+            with open(thread_output_path, "a+") as f:
+                f.write("this exp uuid is {}\n\n\n".format(this_exp_uuid))
+                    
         start_time = datetime.datetime.now()
 
         # everything about the experiment is stored in the options and context. 
@@ -368,34 +424,7 @@ class ConfigSweeper:
                 print(e)
                 exit(0)
         
-        # everything will be combined in this dictionary. 
-        # the results from the executable, the options, and the context. 
-        this_exp_results_keys = list(this_exp_results.keys()) 
-        run_context_keys = list(run_context.keys())
-        options_keys = list(options.keys())
-        
-        # check for duplicate keys between the results and the options.
-        # if there are any, print them and exit. 
-        duplicate_keys = set(this_exp_results_keys) & set(options_keys)
-        if len(duplicate_keys) > 0:
-            print("duplicate keys between the results and the options")
-            print(duplicate_keys)
-            exit(0)
-        duplicate_keys = set(this_exp_results_keys) & set(run_context_keys)
-        if len(duplicate_keys) > 0:
-            print("duplicate keys between the results and the run_context")
-            print(duplicate_keys)
-            exit(0)
-        duplicate_keys = set(run_context_keys) & set(options_keys)
-        if len(duplicate_keys) > 0:
-            print("duplicate keys between the run_context and the options")
-            print(duplicate_keys)
-            exit(0)
-               
-        results = {} 
-        results.update(this_exp_results)
-        results.update(run_context)
-        results.update(options)
+        results = self.combine_results(this_exp_results, run_context, options)
 
         self.log_for_thread(run_context, "Going to acquire the lock to save the results")
         

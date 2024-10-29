@@ -79,7 +79,7 @@ nethint_settings = [
         "iter-count": [20], # iteration count
     },
     { # very small
-        "machine-count": 128,
+        "machine-count": 24,
         "ft-server-per-rack": 8,
         "jobs-machine-count-low": 6,
         "jobs-machine-count-high": 6,
