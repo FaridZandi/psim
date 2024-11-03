@@ -101,7 +101,7 @@ std::pair<double, double> evaluate_candidate_farid(
     // Calculate compat_score
     double compat_score = 0;
     for (int i = 0; i < sim_length; ++i) {
-        if (sum_signal[i] < link_logical_bandwidth) {
+        if (sum_signal[i] <= link_logical_bandwidth) {
             compat_score++;
         }
     }

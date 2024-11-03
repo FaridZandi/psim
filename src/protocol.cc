@@ -18,6 +18,7 @@ Protocol::Protocol() {
     max_allocated_id = 0;
     max_rank = 0;
     type = ProtocolType::MAIN_PROTOCOL;
+    per_job_task_counter = 0;
 }
 
 Protocol::~Protocol() {
@@ -25,6 +26,11 @@ Protocol::~Protocol() {
         delete task;
     }
 }
+
+void Protocol::reset_per_job_task_counter(){
+    per_job_task_counter = 0;
+}   
+
 
 void Protocol::add_to_tasks(PTask *task, int id){
     if(id == -1) {
@@ -43,6 +49,9 @@ void Protocol::add_to_tasks(PTask *task, int id){
     this->tasks.push_back(task);
     this->task_map[task->id] = task;
     this->total_task_count += 1;
+
+    task->per_job_task_id = per_job_task_counter;
+    per_job_task_counter += 1;
 }
 
 PTask* Protocol::create_task(PTaskType type, int id) {
@@ -280,6 +289,7 @@ PTask::~PTask() {
 }
 
 void PTask::reset(){
+    per_job_task_id = -1;
     is_initiator = true; // default is true, unless it has a predecessor
     is_finisher = true;  // default is true, unless it has a successor
     is_on_critical_path = false; 

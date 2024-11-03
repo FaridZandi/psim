@@ -1025,6 +1025,8 @@ psim::build_nethint_test() {
         job_comm_size = (int)(job_comm_size / (job_machines.size())); 
 
         if (iso == -1 or iso == job_id) {
+            protocol->reset_per_job_task_counter();
+            
             insert_simple_data_parallelism(protocol, 
                                            job_id, 
                                            job_machines, 

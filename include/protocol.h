@@ -65,6 +65,7 @@ public:
 
     int dep_left;
     int id;
+    int per_job_task_id; 
     int rank;
     bool rank_bfs_queued;
 
@@ -211,6 +212,7 @@ public:
     void export_graph(std::ofstream& protocol_log);
     void export_dot(std::string filename);
     Protocol *make_copy(bool build_dependency_graph = true);
+    void reset_per_job_task_counter();    
 
     ProtocolType type;
     std::vector<PTask *> tasks;
@@ -219,6 +221,9 @@ public:
     std::vector<PTask *> finishers;
     int max_rank;
     int max_allocated_id;
+
+    int per_job_task_counter;
+
 
     int total_task_count;
     int finished_task_count;

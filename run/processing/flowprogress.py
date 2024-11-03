@@ -121,6 +121,24 @@ def parse_flow_progress(file_path, limit_flow_label):
             
     return core_flows_incoming, core_flows_outgoing, min_time, max_time
  
+def get_summarized_progress(progress_history):  
+    # summarize the progress into tuples, each with a value and the number of times that value appears consecutively
+    summarized_progress = []
+    prev = progress_history[0]
+    count = 1
+
+    for i in range(1, len(progress_history)):
+        if progress_history[i] == prev:
+            count += 1
+        else:
+            summarized_progress.append((prev, count))
+            prev = progress_history[i]
+            count = 1
+            
+    summarized_progress.append((prev, count))
+    
+    return summarized_progress
+
 def get_job_profiles(file_path, json_output_path=None, limit_flow_label=None):
     min_time = 1e9 
     max_time = 0
@@ -165,10 +183,9 @@ def get_job_profiles(file_path, json_output_path=None, limit_flow_label=None):
             
             flow["progress_history"] = leading_zeros + flow["progress_history"] + tailing_zeros
 
-            assert len(flow["progress_history"]) == expected_len, f"Expected length: {expected_len}, got {len(flow['progress_history'])}"
+            flow["progress_history_summarized"] = get_summarized_progress(flow["progress_history"])
             
-    
-    #
+            assert len(flow["progress_history"]) == expected_len, f"Expected length: {expected_len}, got {len(flow['progress_history'])}"
 
     return job_profiles, min_time, max_time
     
