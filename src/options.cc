@@ -66,6 +66,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("simulation-seed", po::value<int>(), "simulation seed")  
         ("placement-file", po::value<std::string>(), "placement file")
         ("timing-file", po::value<std::string>(), "timing file")
+        ("routing-file", po::value<std::string>(), "routing file")  
         ("subflows", po::value<int>(), "number of subflows")
         ("ecmp-entropy-options",  po::value<int>(), "ECMP entropy options")
         ("isolate-job-id", po::value<int>(), "isolate job id") 
@@ -405,7 +406,9 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("timing-file")) {
         GConf::inst().timing_file = vm["timing-file"].as<std::string>();
     }
-
+    if (vm.count("routing-file")) {
+        GConf::inst().routing_file = vm["routing-file"].as<std::string>();
+    }
 }
 
 void psim::log_config() {
@@ -460,6 +463,7 @@ void psim::log_config() {
     spdlog::info("==== simulation_seed: {}", GConf::inst().simulation_seed);
     spdlog::info("==== placement_file: {}", GConf::inst().placement_file);
     spdlog::info("==== timing_file: {}", GConf::inst().timing_file);
+    spdlog::info("==== routing_file: {}", GConf::inst().routing_file);
     spdlog::info("==== subflows: {}", GConf::inst().subflows);
     spdlog::info("==== ecmp_entropy_options: {}", GConf::inst().ecmp_entropy_options);
     spdlog::info("==== isolate_job_id: {}", GConf::inst().isolate_job_id);

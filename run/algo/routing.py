@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import numpy as np  
 import os
 from copy import deepcopy
-
+import random 
 
 def plot_link_capacity(ax, time_range, remaining_capacity, link_label, direction, color, min_affected_time, max_affected_time):
     """Plot the remaining capacity for a given link direction."""
@@ -55,16 +55,18 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
     num_spines = options["ft-core-count"]
     link_bandwidth = options["link-bandwidth"]  
 
+    pprint(jobs) 
+    
     print ("Number of leaves: {}, Number of spines: {}, Link bandwidth: {}".format(num_leaves, num_spines, link_bandwidth))
     
     # there this array that will be used to store the remaining capacity of the links 
     rem = []
-    routing_time = 15000
+    routing_time = 100000
     
     min_affected_time = routing_time   
     max_affected_time = 0   
     
-    iterations = 3
+    lb_decisions = {} 
     
     for i in range(num_leaves):
         rem.append([])
@@ -72,28 +74,30 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         for j in range(num_spines):
             rem[i].append({"up": [link_bandwidth] * routing_time, 
                            "down": [link_bandwidth] * routing_time})
-            
 
     job_deltas = {} 
     job_periods = {} 
+    job_iterations = {} 
     
     for job_timing in job_timings:
         job_deltas[job_timing["job_id"]] = job_timing["initial_wait"]
     
     for job in jobs:
         job_periods[job["job_id"]] = job["period"]
+        job_iterations[job["job_id"]] = job["iter_count"]
         
     all_flows = [] 
     for job_id, job_profile in job_profiles.items():
         for flow in job_profile["flows"]: 
-            for iter in range(iterations):   
+            for iter in range(job_iterations[job_id]):
+                   
                 shift = job_deltas[job_id] + (iter * job_periods[job_id])
-                print("Shift: ", shift) 
                 f = deepcopy(flow)
                 
                 f["eff_start_time"] = f["start_time"] + shift
                 f["eff_end_time"] = f["end_time"] + shift
                 f["progress_shift"] = shift 
+                f["iteration"] = iter   
                 
                 all_flows.append(f)  
         
@@ -107,15 +111,18 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         dst_leaf = flow["dstrack"]
         start_time = flow["eff_start_time"] 
         end_time = flow["eff_end_time"]     
-            
-        print ("Flow: {}-{}, Start: {}, Src: {}, Dst: {}".format(flow["job_id"], flow["flow_id"], start_time, src_leaf, dst_leaf))  
+        job_id = flow["job_id"]
+        flow_id = flow["flow_id"]
+        iteration = flow["iteration"] 
+        
+        # print ("Flow: {}-{}, Start: {}, Src: {}, Dst: {}".format(job_id, flow_id, start_time, src_leaf, dst_leaf))  
+        
         good_spines = [] 
 
         # find one path for the flow. 
         for s in range(num_spines): 
             # test this spine. 
             # it has to have capacity 
-            
             spine_okay = True 
             
             for t in range(start_time, end_time + 1): 
@@ -133,21 +140,38 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
                 good_spines.append(s)
                 
         if len(good_spines) == 0:
-            print ("No spine found for the flow: {}-{}, Start: {}, Src: {}, Dst: {}".format(flow["job_id"], flow["flow_id"], start_time, src_leaf, dst_leaf))
-        
+            print ("No spine found for the flow: {}-{}, Start: {}, Src: {}, Dst: {}".format(job_id, flow_id, start_time, src_leaf, dst_leaf))
+            selected_s = random.choice(range(num_spines))
         else:
-            selected_s = good_spines[0]
-            
-            if start_time < min_affected_time:
-                min_affected_time = start_time 
-            if end_time > max_affected_time:     
-                max_affected_time = end_time
-                
-            for t in range(start_time, end_time + 1): 
-                rem[src_leaf][selected_s]["up"][t]   -= flow["progress_history"][t - flow["progress_shift"]]
-                rem[dst_leaf][selected_s]["down"][t] -= flow["progress_history"][t - flow["progress_shift"]]    
+            selected_s = random.choice(good_spines) 
         
-    draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time)
-    # draw the assignments of the flows. 
+        lb_decisions[(job_id, flow_id, iteration)] = selected_s 
+        
+        if start_time < min_affected_time:
+            min_affected_time = start_time 
+        if end_time > max_affected_time:     
+            max_affected_time = end_time
             
-    input("Press Enter to continue...") 
+        for t in range(start_time, end_time + 1): 
+            rem[src_leaf][selected_s]["up"][t]   -= flow["progress_history"][t - flow["progress_shift"]]
+            rem[dst_leaf][selected_s]["down"][t] -= flow["progress_history"][t - flow["progress_shift"]]    
+    
+    # draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time)
+    # draw the assignments of the flows. 
+    # input("Press Enter to continue...") 
+    
+    # change the lb_decisions to be a list of tuples. 
+    # lb_decisions = [(job_id, flow_id, iteration, s) for (job_id, flow_id, iteration), s in lb_decisions.items()]
+    
+    lb_decisions_proper = []    
+    for (job_id, flow_id, iteration), s in lb_decisions.items():
+        lb_decisions_proper.append({
+            "job_id": job_id,
+            "flow_id": flow_id,
+            "iteration": iteration,
+            "spine": s
+        })
+                                   
+    
+    return lb_decisions_proper 
+

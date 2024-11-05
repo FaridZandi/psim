@@ -43,7 +43,7 @@ def zero_timing(jobs, options, run_context, config_sweeper, timing_scheme):
             "job_id": job["job_id"]
         })     
         
-    return job_timings
+    return job_timings, None 
 
 
 # trying to spread the jobs out a bit in time. The number 400 is arbitrary.
@@ -70,7 +70,7 @@ def inc_timing(jobs, options, run_context, config_sweeper, timing_scheme):
             "job_id": job["job_id"]
         })     
         
-    return job_timings
+    return job_timings, None
 
 
 # all the jobs will start at a random time, somewhere between 0 and the period of the job.
@@ -89,7 +89,7 @@ def random_timing(jobs, options, run_context, config_sweeper, timing_scheme):
             "job_id": job_id
         })     
         
-    return job_timings
+    return job_timings, None 
     
     
 
@@ -115,6 +115,7 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper):
         profiling_job_options["timing-file"] = None  
         profiling_job_options["ft-core-count"] = 1  
         profiling_job_options["ft-agg-core-link-capacity-mult"] = 100
+        profiling_job_options["lb-scheme"] = "random"   
         profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"] 
 
         output = config_sweeper.only_run_command_with_options(run_context, profiling_job_options)
@@ -500,14 +501,16 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
     time_taken = end_time - start_time 
     log_results(run_context, "time_taken", time_taken)  
         
-    return job_timings 
+    return job_timings
 
 
 
 def cassini_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)
+    
     job_timings = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
-    return job_timings
+    
+    return job_timings, None
 
 ################################################################################################
 ################ Farid TIMING #################################################################
@@ -524,16 +527,16 @@ def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     input("Press Enter to continue...")
     
     # step 3: do the routing for the flows. 
-    routings = route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings)
+    lb_decisions = route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings)
     
     # step 4: return the full schedule.  
-    return job_timings
+    return job_timings, lb_decisions
 
 ############################################################################
 ################ MAIN FUCTION  #############################################
 ############################################################################
 
-def generate_timing_file(timing_file_path, placement_seed, 
+def generate_timing_file(timing_file_path, routing_file_path, placement_seed, 
                          jobs, options, run_context, config_sweeper):
 
     random.seed(run_context["experiment-seed"] + placement_seed)
@@ -561,13 +564,21 @@ def generate_timing_file(timing_file_path, placement_seed,
         raise ValueError(f"Invalid timing-scheme: {timing_scheme}")
     
     timing_func = timing_funcions[timing_scheme.split("_")[0]] 
-    job_timings = timing_func(jobs, options, run_context, config_sweeper, timing_scheme)
+    job_timings, lb_decisions = timing_func(jobs, options, run_context, config_sweeper, timing_scheme)
     
     with open(timing_file_path, "w") as f:
         json.dump(job_timings, f, indent=4)
         f.flush() 
-
-    return job_timings
+    
+    with open(routing_file_path, "w") as f:
+        if lb_decisions is not None:    
+            json.dump(lb_decisions, f, indent=4)
+            f.flush()   
+        else: 
+            f.write("[]")
+            f.flush()   
+            
+    return job_timings, lb_decisions    
 
 if __name__ == "__main__":
     if len(sys.argv) == 2:
@@ -580,7 +591,7 @@ if __name__ == "__main__":
         input_data = json.load(sys.stdin)
             
     # call the main function
-    job_timings = generate_timing_file(**input_data)
+    job_timings, lb_decisions = generate_timing_file(**input_data)
     
     # write the output to stdout
     print(json.dumps(job_timings))

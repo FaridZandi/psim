@@ -1,14 +1,41 @@
-from utils.util import *
-import pandas as pd 
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
 
-COMPARED_LB = "perfect"
-results_dir = "results/sweep/659-run/"
-path = results_dir + "raw_results.csv"
+# Function to fetch data from World Bank
+def fetch_data():
+    # URLs for World Bank data
+    gdp_growth_url = 'http://api.worldbank.org/v2/en/indicator/NY.GDP.MKTP.KD.ZG?downloadformat=excel'
+    gini_url = 'http://api.worldbank.org/v2/en/indicator/SI.POV.GINI?downloadformat=excel'
+    
+    # Fetching and reading data
+    gdp_growth_data = pd.read_excel(gdp_growth_url, sheet_name='Data', skiprows=3)
+    gini_data = pd.read_excel(gini_url, sheet_name='Data', skiprows=3)
+    
+    # Melting the data to have one year per row
+    gdp_growth_data_melted = gdp_growth_data.melt(id_vars=['Country Name', 'Country Code'], var_name='Year', value_name='GDP Growth')
+    gini_data_melted = gini_data.melt(id_vars=['Country Name', 'Country Code'], var_name='Year', value_name='Gini Coefficient')
+    
+    # Converting 'Year' from string to integer
+    gdp_growth_data_melted['Year'] = gdp_growth_data_melted['Year'].astype(int)
+    gini_data_melted['Year'] = gini_data_melted['Year'].astype(int)
+    
+    # Merging datasets on common columns
+    merged_data = pd.merge(gdp_growth_data_melted, gini_data_melted, on=['Country Name', 'Country Code', 'Year'])
+    
+    # Dropping rows with missing values
+    merged_data.dropna(inplace=True)
+    
+    return merged_data
 
-# read the csv file
-exp_results_df = pd.read_csv(path)
+# Fetch data
+data = fetch_data()
 
+# Plotting the correlation for all years
+plt.figure(figsize=(10, 6))
+sns.regplot(x='Gini Coefficient', y='GDP Growth', data=data, ci=None, scatter_kws={'s': 10})
+plt.title('Correlation between Income Inequality (Gini Coefficient) and GDP Growth (All Years)')
+plt.xlabel('Gini Coefficient')
+plt.ylabel('GDP Growth (%)')
 
-this_exp_results_keys = ['run_id', 'min_avg_ar_time', 'max_avg_ar_time', 'last_avg_ar_time', 'avg_avg_ar_time', 'all_avg_ar_time', 'min_avg_iter_time', 'max_avg_iter_time', 'last_avg_iter_time', 'avg_avg_iter_time', 'all_avg_iter_time']
-run_context_keys =  ['perfect_lb', 'ideal_network', 'original_mult', 'original_core_count', 'placement-mode', 'ring_mode']
-options_keys =  ['step-size', 'core-status-profiling-interval', 'rep-count', 'console-log-level', 'file-log-level', 'initial-rate', 'min-rate', 'drop-chance-multiplier', 'rate-increase', 'priority-allocator', 'network-type', 'link-bandwidth', 'ft-rack-per-pod', 'ft-agg-per-pod', 'ft-pod-count', 'ft-server-tor-link-capacity-mult', 'ft-tor-agg-link-capacity-mult', 'ft-agg-core-link-capacity-mult', 'shuffle-device-map', 'regret-mode', 'protocol-file-name', 'placement-seed', 'machine-count', 'ft-server-per-rack', 'general-param-1', 'general-param-3', 'general-param-4', 'general-param-5', 'general-param-6', 'general-param-7', 'ft-core-count', 'lb-scheme', 'timing-scheme', 'simulation-seed', 'load-metric', 'placement-file', 'worker-id']
+plt.savefig('correlation_plot.png') 

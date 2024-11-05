@@ -149,7 +149,7 @@ public:
 
     std::string placement_file = ""; 
     std::string timing_file = ""; 
-
+    std::string routing_file = ""; 
 
     int subflows = 1; 
     int ecmp_entropy_options = 1; 

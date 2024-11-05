@@ -66,7 +66,7 @@ def main():
 
             # placement and workload parameters.
             # these will be different lines in the cdf plot.
-            "lb-scheme": [lb, "ideal"], 
+            "lb-scheme": [lb], 
             # "timing-scheme": ["zero", "farid", "random", "inc_100", "inc_200", "inc_400", "inc_500", "cassini"],
             "timing-scheme": ["farid"],
             # "timing-scheme": ["inc_100"],

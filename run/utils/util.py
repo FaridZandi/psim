@@ -165,6 +165,7 @@ default_load_metric_map = {
     "sita-e": "utilization",
     "ecmp": "flowsize",
     "zero": "flowsize", 
+    "readprotocol": "flowsize", 
 }
 
 rounding_precision = 3

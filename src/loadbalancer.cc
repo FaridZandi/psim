@@ -145,8 +145,9 @@ int ReadProtocolLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int t
     if (flow->protocol_defined_lb_decision == -1) {
         spdlog::error("Flow {} does not have a load balancer decision. ", flow->id);
         spdlog::error("make sure to set the protocol_defined_lb_decision field for all the flows in the protocol"); 
-        exit(1);
+        return 0; 
     } else {
+        spdlog::critical("Flow {} is assigned to core {}", flow->id, flow->protocol_defined_lb_decision);   
         return flow->protocol_defined_lb_decision;
     }
 }

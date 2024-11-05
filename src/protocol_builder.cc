@@ -384,11 +384,27 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
+int get_spine_decision(int jobid, int per_job_task_id, int iteration, std::map<ProtocolFlowSpec, int> flow_spines) {
+
+    ProtocolFlowSpec spec = {jobid, per_job_task_id, iteration};
+
+    int spine_decision = -1;    
+    if(flow_spines.find(spec) != flow_spines.end()) {
+        spine_decision = flow_spines[spec];    
+    } else {
+        spine_decision = -1;
+    }
+
+    spdlog::critical("jobid: {}, per_job_task_id: {}, iter_num: {}, spine_decision: {}", jobid, per_job_task_id, iteration, spine_decision);
+
+    return spine_decision;
+}
 
 EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp*> last_layer_pcs, 
                                            std::vector<int>& node_ids, int comm_size, 
                                            EmptyTask* last_all_reduce_finisher, bool add_stage_barriers,
-                                           bool reverse_ring, int jobid, int iter_num, int layer_num) {
+                                           bool reverse_ring, int jobid, int iter_num, int layer_num, 
+                                           std::map<ProtocolFlowSpec, int> flow_spines) {
 
 
     // in the end, everything should lead to this. 
@@ -465,7 +481,10 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             for (int k = 0; k < sub_flow_count; k++) {
                 Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
                 all_flows[i][j][k] = flow;
-                
+
+                int spine_decision = get_spine_decision(jobid, flow->per_job_task_id, iter_num, flow_spines);
+                flow->protocol_defined_lb_decision = spine_decision; 
+                 
                 flow->jobid = jobid;
                 flow->size = comm_size / sub_flow_count;
                 flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + 1) + "_subflow_" + std::to_string(k + 1);
@@ -506,6 +525,8 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                 Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
                 all_flows[i][num_replicas - 1 + j][k] = flow;
 
+                int spine_decision = get_spine_decision(jobid, flow->per_job_task_id, iter_num, flow_spines);
+                flow->protocol_defined_lb_decision = spine_decision; 
                 flow->jobid = jobid;
                 flow->size = comm_size / sub_flow_count;    
                 flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + num_replicas - 1 + 1);
@@ -560,7 +581,8 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
                                std::vector<int>& node_ids, 
                                int layer_count, int iter_count, 
                                int comp_size, int comm_size, 
-                               int initial_wait, bool reverse_ring) {
+                               int initial_wait, bool reverse_ring, 
+                               std::map<ProtocolFlowSpec, int> flow_spines) {
 
     int forward_size = comp_size;
     int backward_size = comp_size; 
@@ -579,14 +601,13 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
     }
 
     for (int i = 0; i < iter_count; i ++) {
-        std::vector<PComp*> last_layer_pcs; 
+        protocol->reset_per_job_task_counter();
 
+        std::vector<PComp*> last_layer_pcs; 
 
         // build the forward pass for the current iteration. the tasks for each machine are connected in a chain.
         for (int node_index = 0; node_index < job_node_count; node_index++) {
-            
             PComp* last_pc = nullptr; 
-            
             for (int k = 0; k < layer_count; k++) {
                 PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
                 pc->size = forward_size;
@@ -652,16 +673,15 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
                                                 " iter " + std::to_string(iter_num) +
                                                 " layer " + std::to_string(layer_num) +
                                                 " all-reduce started";
-            
+        
             for (int node_index = 0; node_index < job_node_count; node_index++) {
                 last_layer_pcs[node_index]->add_next_task_id(all_reduce_starter->id);
             }
 
-
             EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_ids, 
                                                                              comm_size, last_all_reduce_finisher, 
                                                                              add_stage_barriers, reverse_ring, 
-                                                                             jobid, iter_num, layer_num);
+                                                                             jobid, iter_num, layer_num, flow_spines);
 
             all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
 
@@ -750,14 +770,14 @@ psim::build_periodic_data_parallelism() {
                                    job1_reps_per_hyper_period * reps_multiplier, 
                                    job1_length_base * comp_length_amplification, 
                                    job1_length_base * comm_size, 
-                                   job1_initial_wait, false);
+                                   job1_initial_wait, false, {});
 
     insert_simple_data_parallelism(protocol, job2_jobid, 
                                    job2_node_ids, layer_count, 
                                    job2_reps_per_hyper_period * reps_multiplier, 
                                    job2_length_base * comp_length_amplification, 
                                    job2_length_base * comm_size, 
-                                   job2_initial_wait, true);                             
+                                   job2_initial_wait, true, {});                             
 
     return protocol;
 }
@@ -957,7 +977,9 @@ psim::build_nethint_test() {
     Protocol *protocol = new Protocol();
     nlohmann::json jobs;
     nlohmann::json timings;
+    nlohmann::json routings; 
 
+    std::map<ProtocolFlowSpec, int> flow_spines; 
 
     int iso = GConf::inst().isolate_job_id;
     bool isolated_execution = false;  
@@ -983,6 +1005,34 @@ psim::build_nethint_test() {
         timing_stream >> timings;  
     }
 
+    spdlog::critical("going to read the routing file.");    
+    // flush the output
+    std::cout << std::flush;
+
+    std::string routing_file = GConf::inst().routing_file;    
+    bool routing_file_exists = true;    
+    if (not std::filesystem::exists(routing_file)) {
+        spdlog::critical("routing file not found. exiting.");
+        routing_file_exists = false;
+    } else {
+        spdlog::critical("routing file: {}", routing_file);
+        std::ifstream routing_stream(routing_file);
+        routing_stream >> routings;
+
+        // read the routing file and populate the flow_spines map. 
+        for (auto& routing : routings) {
+            int job_id = routing["job_id"];  
+            int per_job_task_id = routing["flow_id"];   
+            int iteration = routing["iteration"];     
+            int spine = routing["spine"];
+
+            ProtocolFlowSpec spec = {job_id, per_job_task_id, iteration};   
+            flow_spines[spec] = spine; 
+
+            spdlog::critical("job_id: {}, per_job_task_id: {}, iteration: {}, spine: {}", 
+                             spec.job_id, spec.per_job_task_id, spec.iteration, spine);
+        }
+    }
 
     int job_index = 0; 
     for (auto& job : jobs) {
@@ -1025,7 +1075,6 @@ psim::build_nethint_test() {
         job_comm_size = (int)(job_comm_size / (job_machines.size())); 
 
         if (iso == -1 or iso == job_id) {
-            protocol->reset_per_job_task_counter();
             
             insert_simple_data_parallelism(protocol, 
                                            job_id, 
@@ -1035,7 +1084,8 @@ psim::build_nethint_test() {
                                            job_comp_size, 
                                            job_comm_size, 
                                            initial_wait, 
-                                           reverse_ring);
+                                           reverse_ring, 
+                                           flow_spines); 
         }
 
         job_index += 1;

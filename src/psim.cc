@@ -368,7 +368,7 @@ void PSim::log_flow_info(){
             }
 
             spdlog::warn("flow: {} jobid: {} srcrack: {} dstrack: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
-                flow->id, flow->jobid,
+                flow->per_job_task_id, flow->jobid,
                 src_rack, dst_rack, 
                 flow->start_time, flow->end_time, 
                 flow->end_time - flow->start_time + step_size, flow->lb_decision, 

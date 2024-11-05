@@ -2,6 +2,29 @@
 #define PROTOCOL_BUILDER_H
 
 namespace psim {
+
+
+struct ProtocolFlowSpec{
+    int job_id;
+    int per_job_task_id; 
+    int iteration; 
+
+    bool operator<(const ProtocolFlowSpec& other) const {
+        if (job_id < other.job_id) {
+            return true;
+        } else if (job_id == other.job_id) {
+            if (per_job_task_id < other.per_job_task_id) {
+                return true;
+            } else if (per_job_task_id == other.per_job_task_id) {
+                if (iteration < other.iteration) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }   
+}; 
+
 Protocol* build_random_protocol(int num_comp, int machine_count); 
 Protocol* load_protocol_from_file(std::string file_path); 
 Protocol* pipelinize_protocol(Protocol *proto, int num_replicas, bool tight_connections = false);

@@ -104,22 +104,24 @@ nethint_settings = [
 ]
 
 
-def calc_timing(timing_file_path, placement_seed, 
+def calc_timing(timing_file_path, routing_file_path, placement_seed, 
                 jobs, options, run_context, config_sweeper, run_cassini_timing_in_subprocess): 
     import json 
     
     timing_scheme = run_context["timing-scheme"]
     if timing_scheme != "cassini" or not run_cassini_timing_in_subprocess: 
-        job_timings = timing.generate_timing_file(timing_file_path, 
-                                                  placement_seed, 
-                                                  jobs,
-                                                  options, 
-                                                  run_context, 
-                                                  config_sweeper)
+        job_timings, lb_decisions = timing.generate_timing_file(timing_file_path, 
+                                                                routing_file_path,
+                                                                placement_seed, 
+                                                                jobs,
+                                                                options, 
+                                                                run_context, 
+                                                                config_sweeper)
     else: 
         # create a subprocess to run the cassini timing. 
         args = {
             "timing_file_path": timing_file_path,
+            "routing_file_path": routing_file_path, 
             "placement_seed": placement_seed,
             "jobs": jobs,   
             "options": options, 
@@ -137,9 +139,9 @@ def calc_timing(timing_file_path, placement_seed,
                                     
         input_data = json.dumps(args).encode("utf-8")
         stdout, _ = process.communicate(input=input_data)
-        job_timings = json.loads(stdout.decode("utf-8")) 
+        job_timings, lb_decisions = json.loads(stdout.decode("utf-8")) 
         
-    return job_timings  
+    return job_timings, lb_decisions    
    
 def calc_placement(placement_file_path, placement_seed, options, run_context):
     jobs = generate_placement_file(placement_file_path, 
@@ -191,8 +193,10 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         options["ring-mode"] = run_context["comparison-base"]["ring-mode"]
         options["timing-scheme"] = run_context["comparison-base"]["timing-scheme"]
     
-    options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
+    if options["timing-scheme"] == "farid":
+        options["lb-scheme"] = "readprotocol"
     
+    options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
     
     # the subflows are fed to simulator as general-param-1
     # TODO: I don't like this. 
@@ -222,7 +226,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     options.pop("placement-seed")   
     options.pop("timing-scheme")
 
-    
+    #########################################################################################################
     # handle the placement  
     placements_dir = "{}/placements/{}-{}/".format(config_sweeper.custom_files_dir, 
                                                    placement_mode, ring_mode) 
@@ -240,28 +244,32 @@ def run_command_options_modifier(options, config_sweeper, run_context):
 
     options["placement-file"] = placement_file_path
     
+    #########################################################################################################
     
     # handle the timing
     timings_dir = "{}/timings/{}-{}/{}/".format(config_sweeper.custom_files_dir, 
                                                 placement_mode, ring_mode, placement_seed)
     os.makedirs(timings_dir, exist_ok=True)
     
-    timing_file_path = "{}/{}.txt".format(timings_dir, timing_scheme)
+    timing_file_path = "{}/{}-timing.txt".format(timings_dir, timing_scheme)
+    routing_file_path = "{}/{}-routing.txt".format(timings_dir, timing_scheme)
     
-    job_timings = timing_cache.get(key=timing_file_path, 
-                                   lock=config_sweeper.thread_lock, 
-                                   logger_func=config_sweeper.log_for_thread, 
-                                   run_context=run_context, 
-                                   calc_func=calc_timing, 
-                                   calc_func_args=(timing_file_path, placement_seed, jobs, 
-                                                   options, run_context, config_sweeper, run_cassini_timing_in_subprocess))
+    
+    job_timings, lb_decisions = timing_cache.get(key=timing_file_path, 
+                                                 lock=config_sweeper.thread_lock, 
+                                                 logger_func=config_sweeper.log_for_thread, 
+                                                 run_context=run_context, 
+                                                 calc_func=calc_timing, 
+                                                 calc_func_args=(timing_file_path, routing_file_path,
+                                                                 placement_seed, jobs, options, 
+                                                                 run_context, config_sweeper, 
+                                                                 run_cassini_timing_in_subprocess))
     
     options["timing-file"] = timing_file_path
+    options["routing-file"] = routing_file_path 
+    
+    #########################################################################################################
         
-    # move the placement-related stuff out of the options, into the run_context.
-    # The simulator should not be concerned with these things. the placement file 
-    # should be enough for the simulator to know what to do.
-
 
 def result_extractor_function(output, options, this_exp_results, run_context):
     for metric in run_context["interesting-metrics"]:
