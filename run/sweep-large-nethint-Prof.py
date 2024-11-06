@@ -48,11 +48,11 @@ def main():
     oversub = 2
     
     cassini_parameters = {  
-        "sim-length": 10000000,
-        "link-solution-candidate-count": 3,
-        "link-solution-random-quantum": 10,
+        "sim-length": 1000000,
+        "link-solution-candidate-count": 10,
+        "link-solution-random-quantum": 100,
         "link-solution-top-candidates": 3,    
-        "overall-solution-candidate-count": 3,
+        "overall-solution-candidate-count": 10,
         "save-profiles": True,
     }    
     
@@ -66,9 +66,9 @@ def main():
 
             # placement and workload parameters.
             # these will be different lines in the cdf plot.
-            "lb-scheme": [lb], 
+            "lb-scheme": [lb, "ideal", "leastloaded"], 
             # "timing-scheme": ["zero", "farid", "random", "inc_100", "inc_200", "inc_400", "inc_500", "cassini"],
-            "timing-scheme": ["farid"],
+            "timing-scheme": ["random", "farid", "cassini"],    
             # "timing-scheme": ["inc_100"],
             "ring-mode": ["random"],
             "subflows": [1],
@@ -98,21 +98,22 @@ def main():
             
             "comparison-base": {"ring-mode": "random", 
                                 "lb-scheme": lb, 
-                                "timing-scheme": "zero",
-                                "subflows": 1} ,  
+                                "timing-scheme": "random"} ,  
             
             "comparisons": [
-                ("random", {"timing-scheme": "random"}),  
+                ("LL-LB", {"timing-scheme": "random", "lb-scheme": "leastloaded"}),
                 ("farid", {"timing-scheme": "farid"}),  
-                ("inc_100", {"timing-scheme": "inc_100"}),  
-                ("inc_200", {"timing-scheme": "inc_200"}),  
-                ("inc_400", {"timing-scheme": "inc_400"}),  
-                ("inc_500", {"timing-scheme": "inc_500"}),  
-                ("cassini", {"timing-scheme": "cassini"}),  
+                ("cassini", {"timing-scheme": "cassini"}),
+                ("cassiniLL", {"timing-scheme": "cassini", "lb-scheme": "leastloaded"}),      
                 ("Ideal", {"lb-scheme": "ideal"}),    
             ]
         } 
+        
+        sane, reason = check_comparison_sanity(exp_context, exp_sweep_config)
 
+        if not sane:
+            print("Comparison sanity check failed.")
+            input("Press Enter to continue...") 
             
         cs = ConfigSweeper(
             base_options, exp_sweep_config, exp_context,
@@ -121,8 +122,8 @@ def main():
             custom_save_results_func, 
             result_extractor_function,
             exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(lb, "", "",  
-                                                            oversub, 
-                                                            experiment_seed),
+                                                             oversub, 
+                                                             experiment_seed),
             worker_thread_count=1, 
         )
         

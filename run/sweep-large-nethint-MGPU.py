@@ -118,7 +118,7 @@ def main():
             exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(lb, "", "",  
                                                             oversub, 
                                                             experiment_seed),
-            worker_thread_count=40, 
+            worker_thread_count=1, 
         )
         
         cs.sweep()

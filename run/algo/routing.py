@@ -49,14 +49,12 @@ def draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max
     print("Combined subplot figure has been saved in the directory:", dir_path)
 
 def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings): 
-    
     servers_per_rack = options["ft-server-per-rack"]
     num_leaves = options["machine-count"] // servers_per_rack   
     num_spines = options["ft-core-count"]
     link_bandwidth = options["link-bandwidth"]  
 
     pprint(jobs) 
-    
     print ("Number of leaves: {}, Number of spines: {}, Link bandwidth: {}".format(num_leaves, num_spines, link_bandwidth))
     
     # there this array that will be used to store the remaining capacity of the links 

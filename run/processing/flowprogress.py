@@ -2,7 +2,6 @@ import re
 import sys 
 import matplotlib.pyplot as plt
 from pprint import pprint 
-import seaborn as sns 
 import json 
 
 CORES = 0
@@ -208,6 +207,9 @@ def get_color(min_time, max_time, time, jobid):
         
     
 def main(file_path, limit_flow_label=None):
+    import seaborn as sns 
+    
+    
     flow_progress_incoming, flow_progress_outgoing, min_time, max_time = parse_flow_progress(file_path, limit_flow_label)
     print("min_time: ", min_time, " max_time: ", max_time)  
     base_util_array = [0] * (max_time - min_time + 1)

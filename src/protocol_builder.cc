@@ -395,8 +395,6 @@ int get_spine_decision(int jobid, int per_job_task_id, int iteration, std::map<P
         spine_decision = -1;
     }
 
-    spdlog::critical("jobid: {}, per_job_task_id: {}, iter_num: {}, spine_decision: {}", jobid, per_job_task_id, iteration, spine_decision);
-
     return spine_decision;
 }
 
@@ -484,7 +482,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
 
                 int spine_decision = get_spine_decision(jobid, flow->per_job_task_id, iter_num, flow_spines);
                 flow->protocol_defined_lb_decision = spine_decision; 
-                 
+
                 flow->jobid = jobid;
                 flow->size = comm_size / sub_flow_count;
                 flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + 1) + "_subflow_" + std::to_string(k + 1);

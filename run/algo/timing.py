@@ -80,8 +80,12 @@ def random_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     job_timings = [] 
     job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)
 
+    pprint(jobs)
+    
     for job in jobs:
         job_id = job["job_id"] 
+        
+        pprint(job_profiles.keys()) 
         job_timing = random.randint(0, job_profiles[job_id]["period"] - 1)
     
         job_timings.append({
@@ -140,8 +144,10 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper):
                             del flow["progress_history"]
                         json.dump(copied_job_prof, f, indent=4)
                         
-            
-            
+        else:
+            job_profiles[job_id] = {"period": 1000, "flows": []}
+            job["period"] = 1000               
+
     return job_profiles 
 
 
@@ -181,11 +187,13 @@ def lcm(numbers):
 
     
 def evaluate_candidate(job_loads, deltas, run_context, link_logical_bandwidth):
-    periods = [job["period"] for job in job_loads] 
-    hyperperiod = lcm(periods) * 3
+    if len(job_loads) == 0:
+        return (1, 1)
     
+    periods = [job["period"] * job["iter_count"] for job in job_loads] 
+    hyperperiod = max(periods)  + max([d[1] for d in deltas])
     eval_length = min(hyperperiod, run_context["cassini-parameters"]["sim-length"]) 
-      
+    
     if EVAL_MODE == "cpp":
         return evaluate_candidate_cpp(job_loads, deltas, run_context, link_logical_bandwidth, eval_length)
     else:
@@ -347,6 +355,9 @@ def get_link_loads(jobs, options, run_context, job_profiles):
             continue    
         
         job_profile = job_profiles[job_id]
+        if len(job_profile["flows"]) == 0:
+            continue 
+
         job_period = job_profile["period"]  
         
         # for flow in job_profile["flows"]:   
@@ -391,6 +402,7 @@ def get_link_loads(jobs, options, run_context, job_profiles):
                     
                     link_loads[i][dir].append({
                         "job_id": job_id,
+                        "iter_count": job["iter_count"],    
                         "load": link_job_load_combined,
                         "period": job_period
                     })
@@ -410,7 +422,6 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
     link_logical_bandwidth = options["ft-core-count"]
     
     # log_results(run_context, "jobs", jobs)
-    
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)   
 
     best_candidate_score = -1e9 
@@ -507,9 +518,8 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
 
 def cassini_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)
-    
     job_timings = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
-    
+
     return job_timings, None
 
 ################################################################################################
@@ -522,9 +532,6 @@ def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     
     # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
     job_timings = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
-    
-    print(job_timings)
-    input("Press Enter to continue...")
     
     # step 3: do the routing for the flows. 
     lb_decisions = route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings)
@@ -593,8 +600,13 @@ if __name__ == "__main__":
     # call the main function
     job_timings, lb_decisions = generate_timing_file(**input_data)
     
+    dumped_data = {
+        "job_timings": job_timings, 
+        "lb_decisions": lb_decisions
+    } 
+    
     # write the output to stdout
-    print(json.dumps(job_timings))
+    print(json.dumps(dumped_data))
     
     
     

@@ -90,11 +90,11 @@ nethint_settings = [
         "iter-count": [30], # iteration count
     }, 
     {
-        "machine-count": 16,
-        "ft-server-per-rack": 4,
+        "machine-count": 32,
+        "ft-server-per-rack": 8,
         "jobs-machine-count-low": 4,
-        "jobs-machine-count-high": 4,
-        "placement-seed-range": 5,
+        "jobs-machine-count-high": 8,
+        "placement-seed-range": 1,
         "comm-size": [20000],
         "comp-size": [1000],
         "layer-count": [1],
@@ -113,9 +113,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         job_timings, lb_decisions = timing.generate_timing_file(timing_file_path, 
                                                                 routing_file_path,
                                                                 placement_seed, 
-                                                                jobs,
-                                                                options, 
-                                                                run_context, 
+                                                                jobs, options, run_context, 
                                                                 config_sweeper)
     else: 
         # create a subprocess to run the cassini timing. 
@@ -139,7 +137,10 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
                                     
         input_data = json.dumps(args).encode("utf-8")
         stdout, _ = process.communicate(input=input_data)
-        job_timings, lb_decisions = json.loads(stdout.decode("utf-8")) 
+        output = json.loads(stdout.decode("utf-8")) 
+        
+        job_timings = output["job_timings"] 
+        lb_decisions = output["lb_decisions"]
         
     return job_timings, lb_decisions    
    
@@ -159,9 +160,10 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     run_context.update({
         "perfect_lb": False,
         "ideal_network": False,
+        "farid_timing": False,   
         "original_mult": options["ft-agg-core-link-capacity-mult"],
         "original_core_count": options["ft-core-count"],
-
+        "original_lb_scheme": options["lb-scheme"],
         "original_ring_mode": options["ring-mode"],
         "original_timing_scheme": options["timing-scheme"],
     })
@@ -193,7 +195,10 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         options["ring-mode"] = run_context["comparison-base"]["ring-mode"]
         options["timing-scheme"] = run_context["comparison-base"]["timing-scheme"]
     
+    # if it's farid, then we will feed the routing decisions to the simulator, 
+    # through the input files. So the lb scheme should be readprotocol. 
     if options["timing-scheme"] == "farid":
+        run_context["farid_timing"] = True
         options["lb-scheme"] = "readprotocol"
     
     options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
@@ -358,6 +363,10 @@ def run_results_modifier(results):
         results["ft-core-count"] = results["original_core_count"]
         results["ring-mode"] = results["original_ring_mode"]
         results["timing-scheme"] = results["original_timing_scheme"]
+    
+    if results["farid_timing"]: 
+        results["lb-scheme"] = results["original_lb_scheme"]   
+         
         
     upper_tier_link_capacity = int(results["link-bandwidth"] * results["ft-agg-core-link-capacity-mult"])
     results["cores"] = "{} x {} Gbps".format(results["ft-core-count"], upper_tier_link_capacity)
@@ -532,4 +541,36 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
 
     print("Done with the metric: ", metric)
     
+
+def check_comparison_sanity(exp_context, sweep_config):
     
+    comparison_base  = exp_context["comparison-base"]   
+    comparisons = exp_context["comparisons"] 
+    
+    
+    comparison_reqs = {} 
+    
+    for key, value in comparison_base.items():
+        comparison_reqs[key] = [value]
+            
+    for comparison_name, comparison_settings in comparisons:
+        for key, value in comparison_settings.items():
+            comparison_reqs[key].append(value)
+            comparison_reqs[key] = list(set(comparison_reqs[key]))  
+            
+        
+    pprint(comparison_reqs)    
+    reasons = [] 
+    
+    for key, values in comparison_reqs.items():
+        sweep_config_values = sweep_config[key] 
+        
+        for value in values:
+            if value not in sweep_config_values:
+                print("{}:{} is not in the sweep config.".format(key, value))
+                reasons.append("{}:{} is not in the sweep config.".format(key, value))
+    
+    if len(reasons) == 0:
+        return True, ["All good"]
+    else: 
+        return False, reasons
