@@ -97,8 +97,8 @@ void Flow::update_rate(double step_size) {
     current_rate = std::min(current_rate, min_bottleneck_rate);
     current_rate = std::max(current_rate, min_rate);
 
-    if (custom_maximum_rate > 0) {
-        current_rate = std::min(current_rate, custom_maximum_rate);
+    if (protocol_defined_max_rate > 0) {
+        current_rate = std::min(current_rate, protocol_defined_max_rate);
     }
 }
 
@@ -208,9 +208,12 @@ Flow::print_task_info(std::ostream& os){
 
 void Flow::reset(){
     label_for_progress_graph = "";
-    custom_maximum_rate = -1;
     lb_decision = -1; 
     protocol_defined_lb_decision = -1; 
+    protocol_defined_max_rate = -1; 
+    protocol_defined_subflow_id = -1;   
+    protocol_defined_iteration = -1;
+    
     jobid = -1; 
     size = 0;
     progress = 0;
@@ -221,6 +224,7 @@ void Flow::reset(){
     rate_decrease_factor = GConf::inst().rate_decrease_factor;
     rate_increase = GConf::inst().rate_increase;
     min_rate = GConf::inst().min_rate;
+    
     registered_rate = 0;
     src_dev_id = -1;
     dst_dev_id = -1;

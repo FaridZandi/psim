@@ -384,25 +384,26 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
-int get_spine_decision(int jobid, int per_job_task_id, int iteration, std::map<ProtocolFlowSpec, int> flow_spines) {
+RoutingSpec get_flow_spine_rates(int jobid, int per_job_task_id, int iteration, 
+                                 std::map<ProtocolFlowSpec, RoutingSpec>& spine_rates) {
 
-    ProtocolFlowSpec spec = {jobid, per_job_task_id, iteration};
+    spdlog::critical("length of spine_rates: {}", spine_rates.size());  
 
-    int spine_decision = -1;    
-    if(flow_spines.find(spec) != flow_spines.end()) {
-        spine_decision = flow_spines[spec];    
-    } else {
-        spine_decision = -1;
+    ProtocolFlowSpec flow_spec = {jobid, per_job_task_id, iteration};
+    
+    RoutingSpec flow_spine_rates;   
+    if(spine_rates.find(flow_spec) != spine_rates.end()) {
+        flow_spine_rates = spine_rates[flow_spec];    
     }
 
-    return spine_decision;
+    return flow_spine_rates;
 }
 
 EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp*> last_layer_pcs, 
                                            std::vector<int>& node_ids, int comm_size, 
                                            EmptyTask* last_all_reduce_finisher, bool add_stage_barriers,
                                            bool reverse_ring, int jobid, int iter_num, int layer_num, 
-                                           std::map<ProtocolFlowSpec, int> flow_spines) {
+                                           std::map<ProtocolFlowSpec, RoutingSpec>& spine_rates) {
 
 
     // in the end, everything should lead to this. 
@@ -433,18 +434,23 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
     // each chuck would start rotating at its corresponding machine, 
     // going through all the machines, and then back to the original machine. 
 
-    Flow**** all_flows = new Flow***[num_chunks];
+    // Flow**** all_flows = new Flow***[num_chunks];
     
-    for (int i = 0; i < num_chunks; i++) {
-        all_flows[i] = new Flow**[2 * num_replicas - 2];
+    // for (int i = 0; i < num_chunks; i++) {
+    //     all_flows[i] = new Flow**[2 * num_replicas - 2];
         
-        for (int j = 0; j < 2 * num_replicas - 2; j++) {
-            all_flows[i][j] = new Flow*[sub_flow_count];
+    //     for (int j = 0; j < 2 * num_replicas - 2; j++) {
+    //         all_flows[i][j] = new Flow*[sub_flow_count];
     
-            for (int k = 0; k < sub_flow_count; k++) {
-                all_flows[i][j][k] = nullptr;
-            }
-        }
+    //         for (int k = 0; k < sub_flow_count; k++) {
+    //             all_flows[i][j][k] = nullptr;
+    //         }
+    //     }
+    // }
+
+    std::vector<std::vector<std::vector<Flow*>>> all_flows(num_chunks);
+    for (int i = 0; i < num_chunks; i++) {
+        all_flows[i].resize(2 * num_replicas - 2);
     }
 
     EmptyTask* initial_barrier = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
@@ -463,7 +469,6 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         last_all_reduce_finisher->add_next_task_id(initial_barrier->id);
     }
 
-
     for (int i = 0; i < num_chunks; i++) {
         // the chunk starts at machine i, goes through all the other machine, 
         // so the prev machine in the ring would know the aggregate result.
@@ -474,18 +479,43 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         // there would a total of (num_replicas - 1) aggregation steps.
 
         PTask* prev_task = nullptr; 
-
         for (int j = 0; j < num_replicas - 1; j++) {
-            for (int k = 0; k < sub_flow_count; k++) {
-                Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
-                all_flows[i][j][k] = flow;
+            RoutingSpec flow_spine_rates = get_flow_spine_rates(jobid, protocol->per_job_task_counter, iter_num, spine_rates);
 
-                int spine_decision = get_spine_decision(jobid, flow->per_job_task_id, iter_num, flow_spines);
-                flow->protocol_defined_lb_decision = spine_decision; 
+            if (flow_spine_rates.spine_count == 0) {
+                // if nothing could be found, we will just leave it unassigned.
+                flow_spine_rates.spine_count = sub_flow_count; 
+
+                for (int k = 0; k < sub_flow_count; k++) {
+                    flow_spine_rates.spine_rates.push_back({-1, 1.0 / sub_flow_count});
+                }   
+            }
+
+            for (int k = 0; k < flow_spine_rates.spine_count; k++) {
+                int spine_decision = flow_spine_rates.spine_rates[k].first; 
+                double spine_ratio = flow_spine_rates.spine_rates[k].second; 
+                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio; 
+                double flow_size = comm_size * spine_ratio;  
+
+
+                Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+                all_flows[i][j].push_back(flow);
+
+                flow->protocol_defined_lb_decision = spine_decision;
+                flow->protocol_defined_max_rate = flow_max_rate;
+                flow->protocol_defined_subflow_id = k;  
+                flow->protocol_defined_iteration = iter_num; 
+
+                spdlog::critical("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps", 
+                                 jobid, flow->per_job_task_id, flow->id, k,
+                                 flow->protocol_defined_lb_decision, 
+                                 flow->protocol_defined_max_rate);    
 
                 flow->jobid = jobid;
                 flow->size = comm_size / sub_flow_count;
-                flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + 1) + "_subflow_" + std::to_string(k + 1);
+                flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + 
+                                                 "_hop_" + std::to_string(j + 1) + 
+                                                 "_subflow_" + std::to_string(k + 1);
 
                 int flow_src_index = (i + j) % num_replicas; 
                 int flow_dst_index = (i + j + 1) % num_replicas;
@@ -493,15 +523,18 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                 flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
             }
 
+            protocol->increment_per_job_task_counter();
+
             // An empty to show the aggregation. 
             EmptyTask* agg = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
             agg->name = "Agg"; 
             
             // Linking all the dependencies 
-            for (int k = 0; k < sub_flow_count; k++) {
-                Flow* flow = all_flows[i][j][k];
+            // for (int k = 0; k < sub_flow_count; k++) {
+            //     Flow* flow = all_flows[i][j][k];
+
+            for (Flow* flow: all_flows[i][j]) { 
                 flow->add_next_task_id(agg->id);
-            
                 if (j == 0) {
                     initial_barrier->add_next_task_id(flow->id);
                 } else {
@@ -515,26 +548,50 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         // now the aggregate result is at machine i + num_replicas - 1 round the ring. 
         // now turn the aggregated result round the ring again, so that all the machines
         // will have the aggregated result.
-
         int starting = i + num_replicas - 1;
-
         for (int j = 0; j < num_replicas - 1; j++) {
-            for (int k = 0; k < sub_flow_count; k++) {
-                Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
-                all_flows[i][num_replicas - 1 + j][k] = flow;
+            // we will trust that the same per task id will be used for this flow. 
+            RoutingSpec flow_spine_rates = get_flow_spine_rates(jobid, protocol->per_job_task_counter, iter_num, spine_rates);
 
-                int spine_decision = get_spine_decision(jobid, flow->per_job_task_id, iter_num, flow_spines);
-                flow->protocol_defined_lb_decision = spine_decision; 
+            if (flow_spine_rates.spine_count == 0) {
+                // if nothing could be found, we will just leave it unassigned.
+                flow_spine_rates.spine_count = 1;    
+                flow_spine_rates.spine_rates.push_back({-1, 1.0});
+            }
+
+            for (int k = 0; k < flow_spine_rates.spine_count; k++) {
+                int spine_decision = flow_spine_rates.spine_rates[k].first; 
+                double spine_ratio = flow_spine_rates.spine_rates[k].second; 
+                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio; 
+                double flow_size = comm_size * spine_ratio;  
+
+                Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
+                all_flows[i][num_replicas - 1 + j].push_back(flow);
+
+                flow->protocol_defined_lb_decision = spine_decision;
+                flow->protocol_defined_max_rate = flow_max_rate;
+                flow->protocol_defined_subflow_id = k;  
+                flow->protocol_defined_iteration = iter_num;
+
+                spdlog::critical("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps", 
+                                 jobid, flow->per_job_task_id, flow->id, k, 
+                                 flow->protocol_defined_lb_decision, 
+                                 flow->protocol_defined_max_rate);    
+
                 flow->jobid = jobid;
-                flow->size = comm_size / sub_flow_count;    
-                flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + "_hop_" + std::to_string(j + num_replicas - 1 + 1);
+                flow->size = flow_size; 
+                flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + 
+                                                 "_hop_" + std::to_string(j + num_replicas - 1 + 1) +
+                                                 "_subflow_" + std::to_string(k + 1);
 
                 int flow_src_index = (starting + j) % num_replicas;
                 int flow_dst_index = (starting + j + 1) % num_replicas;
+                
                 flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
                 flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
             }
-            
+
+            protocol->increment_per_job_task_counter();
 
             EmptyTask* agg = nullptr;
             if (j < num_replicas - 2) {
@@ -542,8 +599,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                 agg->name = "Agg";  
             }
 
-            for (int k = 0; k < sub_flow_count; k++) {
-                Flow* flow = all_flows[i][num_replicas - 1 + j][k];
+            for (Flow* flow: all_flows[i][num_replicas - 1 + j]) {  
                 prev_task->add_next_task_id(flow->id);
 
                 if (j == num_replicas - 2) { // the last one
@@ -561,10 +617,11 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         for (int j = 0; j < 2 * num_replicas - 3; j++) {
             EmptyTask* barrier = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
             barrier->name = "barrier";
+
             for (int i = 0; i < num_chunks; i++) {
-                for (int k = 0; k < sub_flow_count; k++) {
-                    all_flows[i][j][k]->add_next_task_id(barrier->id);
-                    barrier->add_next_task_id(all_flows[i][j + 1][k]->id);
+                for (Flow* flow: all_flows[i][j]) {
+                    flow->add_next_task_id(barrier->id);
+                    barrier->add_next_task_id(flow->id);
                 }
             }
         }
@@ -580,7 +637,7 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
                                int layer_count, int iter_count, 
                                int comp_size, int comm_size, 
                                int initial_wait, bool reverse_ring, 
-                               std::map<ProtocolFlowSpec, int> flow_spines) {
+                               std::map<ProtocolFlowSpec, RoutingSpec>& spine_rates) {
 
     int forward_size = comp_size;
     int backward_size = comp_size; 
@@ -679,7 +736,7 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_ids, 
                                                                              comm_size, last_all_reduce_finisher, 
                                                                              add_stage_barriers, reverse_ring, 
-                                                                             jobid, iter_num, layer_num, flow_spines);
+                                                                             jobid, iter_num, layer_num, spine_rates);
 
             all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
 
@@ -763,19 +820,21 @@ psim::build_periodic_data_parallelism() {
 
     Protocol *protocol = new Protocol();
 
+    std::map<ProtocolFlowSpec, RoutingSpec> spine_rates;
+
     insert_simple_data_parallelism(protocol, job1_jobid, 
                                    job1_node_ids, layer_count, 
                                    job1_reps_per_hyper_period * reps_multiplier, 
                                    job1_length_base * comp_length_amplification, 
                                    job1_length_base * comm_size, 
-                                   job1_initial_wait, false, {});
+                                   job1_initial_wait, false, spine_rates);
 
     insert_simple_data_parallelism(protocol, job2_jobid, 
                                    job2_node_ids, layer_count, 
                                    job2_reps_per_hyper_period * reps_multiplier, 
                                    job2_length_base * comp_length_amplification, 
                                    job2_length_base * comm_size, 
-                                   job2_initial_wait, true, {});                             
+                                   job2_initial_wait, true, spine_rates);                             
 
     return protocol;
 }
@@ -969,7 +1028,6 @@ int get_config_or_default(int value, int default_value) {
     return value;
 }
 
-
 Protocol* 
 psim::build_nethint_test() {
     Protocol *protocol = new Protocol();
@@ -977,7 +1035,7 @@ psim::build_nethint_test() {
     nlohmann::json timings;
     nlohmann::json routings; 
 
-    std::map<ProtocolFlowSpec, int> flow_spines; 
+    std::map<ProtocolFlowSpec, RoutingSpec> flow_spines; 
 
     int iso = GConf::inst().isolate_job_id;
     bool isolated_execution = false;  
@@ -1022,13 +1080,22 @@ psim::build_nethint_test() {
             int job_id = routing["job_id"];  
             int per_job_task_id = routing["flow_id"];   
             int iteration = routing["iteration"];     
-            int spine = routing["spine"];
-
             ProtocolFlowSpec spec = {job_id, per_job_task_id, iteration};   
-            flow_spines[spec] = spine; 
 
-            spdlog::critical("job_id: {}, per_job_task_id: {}, iteration: {}, spine: {}", 
-                             spec.job_id, spec.per_job_task_id, spec.iteration, spine);
+            RoutingSpec routing_spec; 
+            int spine_count = routing["spine_count"];
+            routing_spec.spine_count = spine_count; 
+            std::vector<std::pair<int, double>> spine_rates;
+            spine_rates = routing["spine_rates"];   
+            routing_spec.spine_rates = spine_rates; 
+
+            flow_spines[spec] = routing_spec;   
+            
+            // print all this info in one line 
+            spdlog::critical("job_id: {}, per_job_task_id: {}, iteration: {}, spine_count: {}", job_id, per_job_task_id, iteration, spine_count);
+            for (auto& spine_rate : spine_rates) {
+                spdlog::critical("spine_id: {}, rate: {}", spine_rate.first, spine_rate.second);
+            } 
         }
     }
 

@@ -462,7 +462,6 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
                 set_delta_for_job_in_decisions(current_decisions, job_id, delta)
 
             # log_results(run_context, f"link_solutions_{j}_candidate_{i}", current_decisions)
-            
             if len(current_decisions) == len(cross_rack_jobs):
                 break
         

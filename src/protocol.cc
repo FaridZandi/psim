@@ -51,8 +51,14 @@ void Protocol::add_to_tasks(PTask *task, int id){
     this->total_task_count += 1;
 
     task->per_job_task_id = per_job_task_counter;
-    per_job_task_counter += 1;
+    
+    // let's not do this automatically.
+    // per_job_task_counter += 1; 
 }
+
+void Protocol::increment_per_job_task_counter(){
+    per_job_task_counter += 1;
+}   
 
 PTask* Protocol::create_task(PTaskType type, int id) {
 

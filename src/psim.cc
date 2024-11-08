@@ -367,8 +367,10 @@ void PSim::log_flow_info(){
                 progress_history += item + " ";
             }
 
-            spdlog::warn("flow: {} jobid: {} srcrack: {} dstrack: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
+            spdlog::warn("flow: {} jobid: {} iter: {} subflow: {} srcrack: {} dstrack: {} start: {} end: {} fct: {} core: {} stepsize: {} label: {} progress_history: {}", 
                 flow->per_job_task_id, flow->jobid,
+                flow->protocol_defined_iteration, 
+                flow->protocol_defined_subflow_id,
                 src_rack, dst_rack, 
                 flow->start_time, flow->end_time, 
                 flow->end_time - flow->start_time + step_size, flow->lb_decision, 

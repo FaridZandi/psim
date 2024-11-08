@@ -21,28 +21,33 @@ def parse_line(line, limit_flow_label=None):
  
             # parse the numbers: 
             flow_info = critical_info.split(" ")
+            
             assert flow_info[0] == "flow:", f"Expected 'flow:', got {flow_info[0]}"
             flow_id = int(flow_info[1])
             assert flow_info[2] == "jobid:", f"Expected 'jobid:', got {flow_info[2]}"
             job_id = int(flow_info[3])
-            assert flow_info[4] == "srcrack:", f"Expected 'srcrack:', got {flow_info[4]}"
-            srcrack = int(flow_info[5])
-            assert flow_info[6] == "dstrack:", f"Expected 'dstrack:', got {flow_info[6]}"
-            dstrack = int(flow_info[7])
-            assert flow_info[8] == "start:", f"Expected 'start:', got {flow_info[8]}"
-            start_time = float(flow_info[9])
-            assert flow_info[10] == "end:", f"Expected 'end:', got {flow_info[10]}"
-            end_time = float(flow_info[11])
-            assert flow_info[12] == "fct:", f"Expected 'fct:', got {flow_info[12]}"
-            fct = float(flow_info[13])
-            assert flow_info[14] == "core:", f"Expected 'core:', got {flow_info[14]}"
-            core = int(flow_info[15])
-            assert flow_info[16] == "stepsize:", f"Expected 'stepsize:', got {flow_info[16]}"
-            stepsize = float(flow_info[17])
-            assert flow_info[18] == "label:", f"Expected 'label:', got {flow_info[18]}"
-            label = flow_info[19]
-            assert flow_info[20] == "progress_history:", f"Expected 'progress_history:', got {flow_info[20]}"
-            progress_history = list(map(float, flow_info[21:]))
+            assert flow_info[4] == "iter:", f"Expected 'iter:', got {flow_info[4]}"
+            iteration = int(flow_info[5])
+            assert flow_info[6] == "subflow:", f"Expected 'subflow:', got {flow_info[6]}"
+            subflow = int(flow_info[7])
+            assert flow_info[8] == "srcrack:", f"Expected 'srcrack:', got {flow_info[8]}"
+            srcrack = int(flow_info[9])
+            assert flow_info[10] == "dstrack:", f"Expected 'dstrack:', got {flow_info[10]}"
+            dstrack = int(flow_info[11])
+            assert flow_info[12] == "start:", f"Expected 'start:', got {flow_info[12]}"
+            start_time = float(flow_info[13])
+            assert flow_info[14] == "end:", f"Expected 'end:', got {flow_info[14]}"
+            end_time = float(flow_info[15])
+            assert flow_info[16] == "fct:", f"Expected 'fct:', got {flow_info[16]}"
+            fct = float(flow_info[17])
+            assert flow_info[18] == "core:", f"Expected 'core:', got {flow_info[18]}"
+            core = int(flow_info[19])
+            assert flow_info[20] == "stepsize:", f"Expected 'stepsize:', got {flow_info[20]}"
+            stepsize = float(flow_info[21])
+            assert flow_info[22] == "label:", f"Expected 'label:', got {flow_info[22]}"
+            label = flow_info[23]
+            assert flow_info[24] == "progress_history:", f"Expected 'progress_history:', got {flow_info[24]}"
+            progress_history = list(map(float, flow_info[25:]))
             
             start_time = round(start_time / stepsize)
             end_time = round(end_time / stepsize)
@@ -51,6 +56,8 @@ def parse_line(line, limit_flow_label=None):
             flow_info = {
                 "flow_id": flow_id,
                 "job_id": job_id,
+                "iteration": iteration,
+                "subflow": subflow,
                 "start_time": start_time,
                 "end_time": end_time,
                 "srcrack": srcrack,

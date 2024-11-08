@@ -5,19 +5,49 @@ import os
 from copy import deepcopy
 import random 
 
-def plot_link_capacity(ax, time_range, remaining_capacity, link_label, direction, color, min_affected_time, max_affected_time):
+def plot_link_capacity(ax, time_range, base_rem, smoothed_rem, link_label, direction, color, min_affected_time, max_affected_time):
     """Plot the remaining capacity for a given link direction."""
-    ax.plot(time_range, remaining_capacity, label=f'{direction}', color=color)
+    
+    ax.plot(time_range, smoothed_rem, label=f'{direction}', color=color)
+    
+    # add a gray shade to the area in the regions where base_rem is negative
+    for t in range(len(time_range)):
+        # find a range where the base_rem is negative   
+        if base_rem[t] < 0:
+            start = t
+            while t < len(time_range) and base_rem[t] < 0:
+                t += 1
+            end = t
+            ax.fill_between(range(start, end), -1, 101, color='gray', alpha=0.5)
+                        
+    
+    
+    
     ax.set_title(f'{link_label} - {direction}')
     ax.set_xlabel('Time')
     ax.set_ylabel('Remaining Capacity')
+    
+    
     ax.grid(True)
     ax.set_ylim(-1, 101)
     ax.set_xlim(min_affected_time - 100, max_affected_time + 100)
+    
+    
 
-def draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time):
+def draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time, smoothing_window=1):
     time_range = range(routing_time)
+    smoothed_rem = deepcopy(rem) 
+    
+    if smoothing_window > 1:
+        for leaf in range(num_leaves):
+            for spine in range(num_spines):
+                for direction in ["up", "down"]:
+                    smthed = np.convolve(smoothed_rem[leaf][spine][direction], 
+                                         np.ones(smoothing_window) / smoothing_window, 
+                                         mode='same')
 
+                    smoothed_rem[leaf][spine][direction] = smthed 
+    
     # Ensure the target directory exists
     dir_path = "plots/routing/"
     if not os.path.exists(dir_path):
@@ -32,17 +62,25 @@ def draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max
         for spine in range(num_spines):
             # Plot "up" direction
             ax_up = axes[leaf, spine * 2] if num_leaves > 1 else axes[spine * 2]
-            plot_link_capacity(ax_up, time_range, rem[leaf][spine]["up"], f'Leaf {leaf}, Spine {spine}', 'Up', 'blue', min_affected_time, max_affected_time)
+            plot_link_capacity(ax_up, time_range, 
+                               rem[leaf][spine]["up"],
+                               smoothed_rem[leaf][spine]["up"], 
+                               f'Leaf {leaf}, Spine {spine}', 'Up', 'blue', 
+                               min_affected_time, max_affected_time)
 
             # Plot "down" direction
             ax_down = axes[leaf, spine * 2 + 1] if num_leaves > 1 else axes[spine * 2 + 1]
-            plot_link_capacity(ax_down, time_range, rem[leaf][spine]["down"], f'Leaf {leaf}, Spine {spine}', 'Down', 'red', min_affected_time, max_affected_time)
+            plot_link_capacity(ax_down, time_range, 
+                               rem[leaf][spine]["down"],    
+                               smoothed_rem[leaf][spine]["down"], 
+                               f'Leaf {leaf}, Spine {spine}', 'Down', 'red', 
+                               min_affected_time, max_affected_time)
 
     # Give a super title to the whole figure
     fig.suptitle('Remaining Bandwidth for Each Link (Up and Down)', fontsize=16)
 
     # Save the entire subplot grid
-    plt_path = os.path.join(dir_path, 'combined_subplots_remaining.png')
+    plt_path = os.path.join(dir_path, 'combined_subplots_remaining_{}.png'.format(smoothing_window))    
     plt.savefig(plt_path)
     plt.close(fig)
 
@@ -60,6 +98,8 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
     # there this array that will be used to store the remaining capacity of the links 
     rem = []
     routing_time = 100000
+    max_subflow_count = 2
+    assert max_subflow_count < 3, "The current implementation only supports 1 or 2 subflows."
     
     min_affected_time = routing_time   
     max_affected_time = 0   
@@ -85,6 +125,7 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         job_iterations[job["job_id"]] = job["iter_count"]
         
     all_flows = [] 
+    
     for job_id, job_profile in job_profiles.items():
         for flow in job_profile["flows"]: 
             for iter in range(job_iterations[job_id]):
@@ -101,8 +142,9 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         
     # sort flows by their start time.
     all_flows.sort(key=lambda x: x["eff_start_time"])
-    
+
     pprint(job_deltas)
+    
     for flow in all_flows:  
         # print the flow_id, job_id, start_time, srcrack, dstrack 
         src_leaf = flow["srcrack"]
@@ -112,62 +154,98 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         job_id = flow["job_id"]
         flow_id = flow["flow_id"]
         iteration = flow["iteration"] 
+        min_subflow_mult = 1.0 / max_subflow_count    
         
         # print ("Flow: {}-{}, Start: {}, Src: {}, Dst: {}".format(job_id, flow_id, start_time, src_leaf, dst_leaf))  
+        spine_availablity = [] 
+
+        for s in range(num_spines): 
+            spine_min_max_availble_mult = 1.0   
+            
+            for t in range(start_time, end_time + 1): 
+                up_req = flow["progress_history"][t - flow["progress_shift"]]
+                up_rem = rem[src_leaf][s]["up"][t] 
+                down_req = flow["progress_history"][t - flow["progress_shift"]]
+                down_rem = rem[dst_leaf][s]["down"][t]
+                
+                up_max_available_mult = min(1, up_rem / up_req)
+                down_max_available_mult = min(1, down_rem / down_req)   
+                this_time_max_available_mult = min(up_max_available_mult, down_max_available_mult)  
+
+                spine_min_max_availble_mult = min(spine_min_max_availble_mult, this_time_max_available_mult)    
+                
+            spine_availablity.append((s, spine_min_max_availble_mult))
+        
+        # sort the spines by their availability.
+        spine_availablity.sort(key=lambda x: x[1], reverse=True)
+        
+        # print ("Spine availability: ", spine_availablity)   
         
         good_spines = [] 
 
-        # find one path for the flow. 
-        for s in range(num_spines): 
-            # test this spine. 
-            # it has to have capacity 
-            spine_okay = True 
-            
-            for t in range(start_time, end_time + 1): 
-                # test this time.
-                up_req = flow["progress_history"][t - flow["progress_shift"]]
-                up_rem = rem[src_leaf][s]["up"][t] 
-                down_req = flow["progress_history"][t - flow["progress_shift"]] 
-                down_rem = rem[dst_leaf][s]["down"][t]
-                
-                if up_rem < up_req or down_rem < down_req:
-                    spine_okay = False 
-                    break
-                
-            if spine_okay:
-                good_spines.append(s)
-                
-        if len(good_spines) == 0:
-            print ("No spine found for the flow: {}-{}, Start: {}, Src: {}, Dst: {}".format(job_id, flow_id, start_time, src_leaf, dst_leaf))
-            selected_s = random.choice(range(num_spines))
-        else:
-            selected_s = random.choice(good_spines) 
+        for s, spine_min_max_availble_mult in spine_availablity:
+            if spine_min_max_availble_mult >= min_subflow_mult:
+                good_spines.append((s, spine_min_max_availble_mult))    
         
-        lb_decisions[(job_id, flow_id, iteration)] = selected_s 
+        # print ("Good spines: ", good_spines)
+        
+        selected_spines = []
+        # selection_strategy = "random" 
+        selection_strategy = "random"
+        
+                    
+
+        if len(good_spines) == 0:
+            message = "No spine found for the flow: {}-{}-{}, Start: {}, Src: {}, Dst: {}".format(
+                      job_id, flow_id, iteration, start_time, src_leaf, dst_leaf) 
+            print (message)
+            config_sweeper.log_for_thread(run_context, message)
+            selected_spines_samples = random.sample(range(num_spines), max_subflow_count)
+            for s in selected_spines_samples:
+                selected_spines.append((s, min_subflow_mult))
+        else:
+            if len(good_spines) == 1:
+                selected_spines = [(good_spines[0][0], 1.0)]
+            else: 
+                if selection_strategy == "first":
+                    selected_spines_samples = good_spines[:max_subflow_count]
+                elif selection_strategy == "random":
+                    selected_spines_samples = random.sample(good_spines, max_subflow_count)
+                
+                for s, spine_min_max_availble_mult in selected_spines_samples:
+                    selected_spines.append((s, min_subflow_mult))
+        
+        # print ("Selected spines: ", selected_spines)
+        
+        lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
         
         if start_time < min_affected_time:
             min_affected_time = start_time 
         if end_time > max_affected_time:     
             max_affected_time = end_time
             
-        for t in range(start_time, end_time + 1): 
-            rem[src_leaf][selected_s]["up"][t]   -= flow["progress_history"][t - flow["progress_shift"]]
-            rem[dst_leaf][selected_s]["down"][t] -= flow["progress_history"][t - flow["progress_shift"]]    
+        for t in range(start_time, end_time + 1):
+            for s, mult in selected_spines:
+                time_req = flow["progress_history"][t - flow["progress_shift"]] * mult
+                rem[src_leaf][s]["up"][t]   -= time_req
+                rem[dst_leaf][s]["down"][t] -= time_req    
     
-    # draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time)
+    draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time)
+    draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time, smoothing_window=1000)
     # draw the assignments of the flows. 
     # input("Press Enter to continue...") 
-    
     # change the lb_decisions to be a list of tuples. 
     # lb_decisions = [(job_id, flow_id, iteration, s) for (job_id, flow_id, iteration), s in lb_decisions.items()]
-    
+
     lb_decisions_proper = []    
-    for (job_id, flow_id, iteration), s in lb_decisions.items():
+    
+    for (job_id, flow_id, iteration), selected_spines in lb_decisions.items():
         lb_decisions_proper.append({
             "job_id": job_id,
             "flow_id": flow_id,
             "iteration": iteration,
-            "spine": s
+            "spine_count": len(selected_spines),     
+            "spine_rates": [(s, mult) for s, mult in selected_spines]
         })
                                    
     

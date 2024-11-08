@@ -25,6 +25,16 @@ struct ProtocolFlowSpec{
     }   
 }; 
 
+struct RoutingSpec {
+    int spine_count;    
+    std::vector<std::pair<int, double>> spine_rates;    
+
+    // init 
+    RoutingSpec() {
+        spine_count = 0; 
+    }
+}; 
+
 Protocol* build_random_protocol(int num_comp, int machine_count); 
 Protocol* load_protocol_from_file(std::string file_path); 
 Protocol* pipelinize_protocol(Protocol *proto, int num_replicas, bool tight_connections = false);

@@ -124,7 +124,6 @@ public:
     double rate_decrease_factor;
     
     std::string label_for_progress_graph; 
-    double custom_maximum_rate; 
 
     int src_dev_id;
     int dst_dev_id;
@@ -139,7 +138,11 @@ public:
     int bottlenecked_by_srcdst_count;
     
     int lb_decision; 
+    
     int protocol_defined_lb_decision; 
+    double protocol_defined_max_rate; 
+    int protocol_defined_iteration; 
+    int protocol_defined_subflow_id; 
     
     std::vector<double> progress_history; 
 
@@ -206,6 +209,7 @@ public:
 
     PTask* create_task(PTaskType type, int id = -1);
     void add_to_tasks(PTask *task, int id = -1);
+    
     void build_dependency_graph();
     std::vector<Flow*> get_flows();
 
@@ -223,7 +227,7 @@ public:
     int max_allocated_id;
 
     int per_job_task_counter;
-
+    void increment_per_job_task_counter(); 
 
     int total_task_count;
     int finished_task_count;

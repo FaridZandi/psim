@@ -143,10 +143,11 @@ ReadProtocolLoadBalancer::ReadProtocolLoadBalancer(int item_count) : LoadBalance
 
 int ReadProtocolLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
     if (flow->protocol_defined_lb_decision == -1) {
-        spdlog::error("Flow {} does not have a load balancer decision. ", flow->id);
+        spdlog::error("Flow {} does not have a load balancer decision. ", flow->per_job_task_id);   
         spdlog::error("make sure to set the protocol_defined_lb_decision field for all the flows in the protocol"); 
         exit(0); 
     } else {
+        spdlog::info("Flow {}-{} is assigned to core {}", flow->per_job_task_id, flow->id, flow->protocol_defined_lb_decision);
         return flow->protocol_defined_lb_decision;
     }
 }
