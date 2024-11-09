@@ -230,13 +230,13 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
                 rem[src_leaf][s]["up"][t]   -= time_req
                 rem[dst_leaf][s]["down"][t] -= time_req    
     
-    draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time)
-    draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time, smoothing_window=1000)
+    # draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time)
+    # draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time, smoothing_window=1000)
     # draw the assignments of the flows. 
     # input("Press Enter to continue...") 
     # change the lb_decisions to be a list of tuples. 
     # lb_decisions = [(job_id, flow_id, iteration, s) for (job_id, flow_id, iteration), s in lb_decisions.items()]
-
+    
     lb_decisions_proper = []    
     
     for (job_id, flow_id, iteration), selected_spines in lb_decisions.items():

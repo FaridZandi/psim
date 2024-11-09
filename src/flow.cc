@@ -34,6 +34,11 @@ void Flow::initiate(){
     for (Bottleneck* bottleneck : this->path) {
         bottleneck->flow_started(this); 
     }
+
+    current_rate = std::min(min_bottleneck_rate, initial_rate);
+    if (protocol_defined_max_rate > 0) {
+        current_rate = std::min(current_rate, protocol_defined_max_rate);
+    }
 }
 
 void Flow::finished() {

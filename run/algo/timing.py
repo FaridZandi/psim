@@ -478,7 +478,7 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
                 candidate_score += compat_score
                 candidate_score += max_util_score
                 
-                print(f"Rack: {rack}, Direction: {direction}, max_util_score: {max_util_score}, compat_score: {compat_score}")  
+                # print(f"Rack: {rack}, Direction: {direction}, max_util_score: {max_util_score}, compat_score: {compat_score}")  
                 
         log_results(run_context, "candidate", (current_decisions, candidate_score))
         

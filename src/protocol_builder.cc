@@ -385,17 +385,25 @@ psim::build_all_to_all(int num_replicas, double comm_size, int chunk_count) {
 //////////////////////////////////////////////////////////////////////////////////////////////////
 
 RoutingSpec get_flow_spine_rates(int jobid, int per_job_task_id, int iteration, 
+                                 int sub_flow_count, 
                                  std::map<ProtocolFlowSpec, RoutingSpec>& spine_rates) {
 
-    spdlog::critical("length of spine_rates: {}", spine_rates.size());  
-
     ProtocolFlowSpec flow_spec = {jobid, per_job_task_id, iteration};
-    
     RoutingSpec flow_spine_rates;   
+
     if(spine_rates.find(flow_spec) != spine_rates.end()) {
         flow_spine_rates = spine_rates[flow_spec];    
     }
 
+    if (flow_spine_rates.spine_count == 0) {
+        // if nothing could be found, we will just leave it unassigned.
+        flow_spine_rates.spine_count = sub_flow_count; 
+
+        for (int k = 0; k < sub_flow_count; k++) {
+            flow_spine_rates.spine_rates.push_back({-1, 1.0 / sub_flow_count});
+        }   
+    }
+    
     return flow_spine_rates;
 }
 
@@ -433,21 +441,6 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
 
     // each chuck would start rotating at its corresponding machine, 
     // going through all the machines, and then back to the original machine. 
-
-    // Flow**** all_flows = new Flow***[num_chunks];
-    
-    // for (int i = 0; i < num_chunks; i++) {
-    //     all_flows[i] = new Flow**[2 * num_replicas - 2];
-        
-    //     for (int j = 0; j < 2 * num_replicas - 2; j++) {
-    //         all_flows[i][j] = new Flow*[sub_flow_count];
-    
-    //         for (int k = 0; k < sub_flow_count; k++) {
-    //             all_flows[i][j][k] = nullptr;
-    //         }
-    //     }
-    // }
-
     std::vector<std::vector<std::vector<Flow*>>> all_flows(num_chunks);
     for (int i = 0; i < num_chunks; i++) {
         all_flows[i].resize(2 * num_replicas - 2);
@@ -480,51 +473,41 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
 
         PTask* prev_task = nullptr; 
         for (int j = 0; j < num_replicas - 1; j++) {
-            RoutingSpec flow_spine_rates = get_flow_spine_rates(jobid, protocol->per_job_task_counter, iter_num, spine_rates);
-
-            if (flow_spine_rates.spine_count == 0) {
-                // if nothing could be found, we will just leave it unassigned.
-                flow_spine_rates.spine_count = sub_flow_count; 
-
-                for (int k = 0; k < sub_flow_count; k++) {
-                    flow_spine_rates.spine_rates.push_back({-1, 1.0 / sub_flow_count});
-                }   
-            }
+            RoutingSpec flow_spine_rates = get_flow_spine_rates(jobid, protocol->per_job_task_counter, 
+                                                                iter_num, sub_flow_count, spine_rates);
 
             for (int k = 0; k < flow_spine_rates.spine_count; k++) {
                 int spine_decision = flow_spine_rates.spine_rates[k].first; 
                 double spine_ratio = flow_spine_rates.spine_rates[k].second; 
                 double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio; 
                 double flow_size = comm_size * spine_ratio;  
-
+                int flow_src_index = (i + j) % num_replicas; 
+                int flow_dst_index = (i + j + 1) % num_replicas;
 
                 Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
                 all_flows[i][j].push_back(flow);
 
+                flow->jobid = jobid;
+                flow->size = flow_size;
+                flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
+                flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
                 flow->protocol_defined_lb_decision = spine_decision;
                 flow->protocol_defined_max_rate = flow_max_rate;
                 flow->protocol_defined_subflow_id = k;  
                 flow->protocol_defined_iteration = iter_num; 
 
-                spdlog::critical("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps", 
-                                 jobid, flow->per_job_task_id, flow->id, k,
-                                 flow->protocol_defined_lb_decision, 
-                                 flow->protocol_defined_max_rate);    
-
-                flow->jobid = jobid;
-                flow->size = comm_size / sub_flow_count;
                 flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + 
                                                  "_hop_" + std::to_string(j + 1) + 
                                                  "_subflow_" + std::to_string(k + 1);
 
-                int flow_src_index = (i + j) % num_replicas; 
-                int flow_dst_index = (i + j + 1) % num_replicas;
-                flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
-                flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
+                spdlog::critical("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps, size {} Mbytes", 
+                                 jobid, flow->per_job_task_id, flow->id, k,
+                                 flow->protocol_defined_lb_decision, 
+                                 flow->protocol_defined_max_rate, flow_size);
+
             }
 
             protocol->increment_per_job_task_counter();
-
             // An empty to show the aggregation. 
             EmptyTask* agg = (EmptyTask*)protocol->create_task(PTaskType::EMPTY);
             agg->name = "Agg"; 
@@ -541,7 +524,6 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                     prev_task->add_next_task_id(flow->id);
                 }
             }
-
             prev_task = agg;
         } 
 
@@ -551,46 +533,38 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         int starting = i + num_replicas - 1;
         for (int j = 0; j < num_replicas - 1; j++) {
             // we will trust that the same per task id will be used for this flow. 
-            RoutingSpec flow_spine_rates = get_flow_spine_rates(jobid, protocol->per_job_task_counter, iter_num, spine_rates);
-
-            if (flow_spine_rates.spine_count == 0) {
-                // if nothing could be found, we will just leave it unassigned.
-                flow_spine_rates.spine_count = 1;    
-                flow_spine_rates.spine_rates.push_back({-1, 1.0});
-            }
+            RoutingSpec flow_spine_rates = get_flow_spine_rates(jobid, protocol->per_job_task_counter, 
+                                                                iter_num, sub_flow_count, spine_rates);
 
             for (int k = 0; k < flow_spine_rates.spine_count; k++) {
                 int spine_decision = flow_spine_rates.spine_rates[k].first; 
                 double spine_ratio = flow_spine_rates.spine_rates[k].second; 
                 double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio; 
                 double flow_size = comm_size * spine_ratio;  
+                int flow_src_index = (starting + j) % num_replicas;
+                int flow_dst_index = (starting + j + 1) % num_replicas;
 
                 Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
                 all_flows[i][num_replicas - 1 + j].push_back(flow);
 
+                flow->jobid = jobid;
+                flow->size = flow_size; 
+                flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
+                flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
                 flow->protocol_defined_lb_decision = spine_decision;
                 flow->protocol_defined_max_rate = flow_max_rate;
                 flow->protocol_defined_subflow_id = k;  
-                flow->protocol_defined_iteration = iter_num;
+                flow->protocol_defined_iteration = iter_num; 
 
-                spdlog::critical("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps", 
-                                 jobid, flow->per_job_task_id, flow->id, k, 
-                                 flow->protocol_defined_lb_decision, 
-                                 flow->protocol_defined_max_rate);    
-
-                flow->jobid = jobid;
-                flow->size = flow_size; 
                 flow->label_for_progress_graph = "chain_" + std::to_string(i + 1) + 
                                                  "_hop_" + std::to_string(j + num_replicas - 1 + 1) +
                                                  "_subflow_" + std::to_string(k + 1);
 
-                int flow_src_index = (starting + j) % num_replicas;
-                int flow_dst_index = (starting + j + 1) % num_replicas;
-                
-                flow->src_dev_id = last_layer_pcs[flow_src_index]->dev_id;
-                flow->dst_dev_id = last_layer_pcs[flow_dst_index]->dev_id;
+                spdlog::critical("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps, size {} Mbytes", 
+                                 jobid, flow->per_job_task_id, flow->id, k, 
+                                 flow->protocol_defined_lb_decision, 
+                                 flow->protocol_defined_max_rate, flow_size);   
             }
-
             protocol->increment_per_job_task_counter();
 
             EmptyTask* agg = nullptr;
@@ -1031,11 +1005,8 @@ int get_config_or_default(int value, int default_value) {
 Protocol* 
 psim::build_nethint_test() {
     Protocol *protocol = new Protocol();
-    nlohmann::json jobs;
-    nlohmann::json timings;
-    nlohmann::json routings; 
-
     std::map<ProtocolFlowSpec, RoutingSpec> flow_spines; 
+
 
     int iso = GConf::inst().isolate_job_id;
     bool isolated_execution = false;  
@@ -1043,14 +1014,18 @@ psim::build_nethint_test() {
         isolated_execution = true;
     }
 
+    // read the placement file and populate the jobs map.
+    nlohmann::json jobs;
     std::string placement_file = GConf::inst().placement_file;   
     spdlog::critical("placement file: {}", placement_file);
     std::ifstream placement_stream(placement_file);
     placement_stream >> jobs;
 
+
+    // read the timing file and populate the timings map.
+    nlohmann::json timings;
     std::string timing_file = GConf::inst().timing_file;    
     bool timing_file_exists = true; 
-
     if (not std::filesystem::exists(timing_file)) {
         timing_file_exists = false; 
         spdlog::critical("timing file not found. all timings will be set to 0.");  
@@ -1061,10 +1036,9 @@ psim::build_nethint_test() {
         timing_stream >> timings;  
     }
 
-    spdlog::critical("going to read the routing file.");    
-    // flush the output
-    std::cout << std::flush;
 
+    // read the routing file and populate the flow_spines map.
+    nlohmann::json routings; 
     std::string routing_file = GConf::inst().routing_file;    
     bool routing_file_exists = true;    
     if (not std::filesystem::exists(routing_file)) {
@@ -1075,7 +1049,6 @@ psim::build_nethint_test() {
         std::ifstream routing_stream(routing_file);
         routing_stream >> routings;
 
-        // read the routing file and populate the flow_spines map. 
         for (auto& routing : routings) {
             int job_id = routing["job_id"];  
             int per_job_task_id = routing["flow_id"];   
@@ -1140,7 +1113,6 @@ psim::build_nethint_test() {
         job_comm_size = (int)(job_comm_size / (job_machines.size())); 
 
         if (iso == -1 or iso == job_id) {
-            
             insert_simple_data_parallelism(protocol, 
                                            job_id, 
                                            job_machines, 
