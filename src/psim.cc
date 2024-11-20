@@ -330,12 +330,12 @@ double PSim::simulate() {
                 break;
             }
         }
-
+        
+        timer += this_step_step_size;
+        
         if (all_finished) {
             break;
         }
-
-        timer += this_step_step_size;
     }
 
     mark_critical_path(); 

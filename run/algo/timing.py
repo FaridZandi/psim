@@ -11,6 +11,7 @@ from processing.flowprogress import get_job_profiles
 from algo.routing import route_flows
 import subprocess
 import os 
+import pickle as pkl 
 
 ####################################################################################
 ##################  HELPER FUNCTIONS  ##############################################
@@ -78,15 +79,10 @@ def inc_timing(jobs, options, run_context, config_sweeper, timing_scheme):
 # synchronized in any sense. 
 def random_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     job_timings = [] 
-    job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)
 
-    pprint(jobs)
-    
     for job in jobs:
         job_id = job["job_id"] 
-        
-        pprint(job_profiles.keys()) 
-        job_timing = random.randint(0, job_profiles[job_id]["period"] - 1)
+        job_timing = random.randint(0, job["period"] - 1)
     
         job_timings.append({
             "initial_wait": job_timing,
@@ -95,63 +91,13 @@ def random_timing(jobs, options, run_context, config_sweeper, timing_scheme):
         
     return job_timings, None 
     
-    
-
 
 ################################################################################################
 ################ CASINI TIMING #################################################################
 ################################################################################################
 
-
 # we will run each job in isolation, in a network that wouldn't be bottlenecked by the core part 
 # of the network. We will get the flow progress history for each job, process it and get the period.
-
-# TODO: it might be a good idea to be able to store the flow progress history in a file, so that
-# I can later write the C++ code to read from that file and do the whole schudling thing in C++.
-
-def profile_all_jobs(jobs, options, run_context, config_sweeper, stretch_factor=1):
-    job_profiles = {}
-    
-    for job in jobs:
-        profiling_job_options = copy.deepcopy(options)  
-        profiling_job_options["isolate-job-id"] = job["job_id"]
-        profiling_job_options["print-flow-progress-history"] = True
-        profiling_job_options["timing-file"] = None  
-        profiling_job_options["ft-core-count"] = 1  
-        profiling_job_options["ft-agg-core-link-capacity-mult"] = 100
-        profiling_job_options["lb-scheme"] = "random"   
-        profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"]
-        profiling_job_options["stretch-factor"] = stretch_factor 
-
-        output = config_sweeper.only_run_command_with_options(run_context, profiling_job_options)
-        
-        path = "{}/worker-{}/run-1/flow-info.txt".format(config_sweeper.workers_dir, 
-                                                         run_context["worker-id-for-profiling"]) 
-        
-        
-        job_prof, _, _ = get_job_profiles(path)
-        
-        # job_prof might be empty.
-        job_id = job["job_id"]
-        if job_id in job_prof:
-            print("job_prof period: ", job_prof[job_id]["period"])
-            job_profiles[job_id] = job_prof[job_id]
-            job["period"] = job_prof[job_id]["period"]
-            
-            if "save-profiles" in run_context["cassini-parameters"]:
-                if run_context["cassini-parameters"]["save-profiles"]:  
-                    with open(f"{run_context['timing-extra-files-dir']}/job-{job_id}-flows.json", "w") as f:
-                        copied_job_prof = copy.deepcopy(job_prof[job_id])
-                        for flow in copied_job_prof["flows"]:
-                            del flow["progress_history"]
-                        json.dump(copied_job_prof, f, indent=4)
-                        
-        else:
-            job_profiles[job_id] = {"period": 1000, "flows": []}
-            job["period"] = 1000               
-
-    return job_profiles 
-
 
 def get_delta_for_job_in_decisions(decisions, id):
     for decision in decisions:
@@ -168,8 +114,6 @@ def set_delta_for_job_in_decisions(decisions, id, delta):
             return
         
     decisions.append((id, delta))
-
-        
 
 
 def lcm(numbers):
@@ -410,13 +354,14 @@ def get_link_loads(jobs, options, run_context, job_profiles):
     cross_rack_jobs = list(cross_rack_jobs_set) 
     return link_loads, cross_rack_jobs
 
-def visualize_link_loads(link_loads, run_context, deltas=None, repeat_iterations=None, suffix=""): 
+def visualize_link_loads(link_loads, run_context, link_logical_bandwidth = None, deltas=None, repeat_iterations=None, suffix=""): 
+    
+    if "visualize-timing" not in run_context or not run_context["visualize-timing"]:    
+        return  
+    
     import matplotlib.pyplot as plt
     import numpy as np
     import os
-
-    # Ensure the directory exists
-    os.makedirs(run_context['timing-extra-files-dir'], exist_ok=True)
 
     num_racks = len(link_loads)
     num_directions = 2  # "up" and "down"
@@ -470,14 +415,23 @@ def visualize_link_loads(link_loads, run_context, deltas=None, repeat_iterations
 
                 ax.stackplot(range(max_length), job_loads_array, labels=[f"Job: {job_id}" for job_id in job_ids])
 
+                if link_logical_bandwidth is not None:  
+                    ax.axhline(y=link_logical_bandwidth, color='r', linestyle='--') 
+                
+                max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
+                
+                ax.axhline(y=max_value_in_stack, color='blue', linestyle='--') 
+                                    
             ax.set_xlabel("Time")
             ax.set_ylabel("Load")
             ax.legend(loc='upper left')
 
     plt.tight_layout()
 
-    # Save the entire figure
-    plt.savefig(f"{run_context['timing-extra-files-dir']}/stacked_racks_directions{suffix}.png")
+    timing_plots_dir = f"{run_context['timings-dir']}/timing/"
+    os.makedirs(timing_plots_dir, exist_ok=True)
+    plot_path = f"{timing_plots_dir}/demand{suffix}.png"  
+    plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
     plt.close(fig)
 
     
@@ -493,7 +447,7 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
     # log_results(run_context, "jobs", jobs)
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)   
 
-    visualize_link_loads(link_loads, run_context)
+    visualize_link_loads(link_loads, run_context, link_logical_bandwidth=link_logical_bandwidth)
     
     best_candidate_score = -1e9 
     best_candidate = None
@@ -536,7 +490,8 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
             if len(current_decisions) == len(cross_rack_jobs):
                 break
         
-        visualize_link_loads(link_loads, run_context, current_decisions, suffix=f"_{i}")
+        visualize_link_loads(link_loads, run_context, link_logical_bandwidth=link_logical_bandwidth, 
+                             deltas=current_decisions, suffix=f"_{i}")
         
         # now we have a candidate solution. We should evaluate it. 
         candidate_score = 0 
@@ -590,11 +545,27 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
         
     return job_timings, perfection_solution_found
 
-
+def load_job_profiles(jobs, run_context): 
+    job_profiles = {} 
+    
+    for job in jobs: 
+        profiles_dir = run_context["profiles-dir"]
+        job_id = job["job_id"]
+        path = f"{profiles_dir}/{job_id}.pkl"
+        
+        if path is None: 
+            continue
+        
+        with open(path, "rb") as f:  
+            job_profiles[job_id] = pkl.load(f)
+    
+    return job_profiles
+        
 
 def cassini_timing(jobs, options, run_context, config_sweeper, timing_scheme):
-    job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)
-    
+    # job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)
+    job_profiles = load_job_profiles(jobs, run_context) 
+
     job_timings, perfect = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
 
     return job_timings, None
@@ -605,8 +576,8 @@ def cassini_timing(jobs, options, run_context, config_sweeper, timing_scheme):
 
 def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     # step 1: profile the jobs 
-    job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)    
-    
+    job_profiles = load_job_profiles(jobs, run_context)
+
     # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
     job_timings, perfect = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
     
@@ -627,13 +598,6 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     
     if "timing-scheme" not in run_context:
         raise ValueError("timing-scheme option is required")
-
-
-    # get the base dir for the timing_file_path
-    timing_file_dir = os.path.dirname(timing_file_path)
-    timing_extra_files_dir_name = run_context["timing-scheme"] + "-" + "files"
-    os.makedirs(f"{timing_file_dir}/{timing_extra_files_dir_name}", exist_ok=True)  
-    run_context["timing-extra-files-dir"] = f"{timing_file_dir}/{timing_extra_files_dir_name}"
 
     timing_scheme = run_context["timing-scheme"]    
     timing_funcions = {

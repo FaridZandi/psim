@@ -30,7 +30,14 @@ def plot_link_capacity(ax, time_range, base_rem, smoothed_rem, link_label, direc
     
     
 
-def draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time, smoothing_window=1):
+def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time, 
+               min_affected_time, max_affected_time, plots_dir, smoothing_window=1):
+    
+    if "visualize-routing" in run_context and not run_context["visualize-routing"]:
+        return  
+    
+    print("plotting for smoothing window {} ...".format(smoothing_window)) 
+    
     time_range = range(routing_time)
     smoothed_rem = deepcopy(rem) 
     
@@ -43,11 +50,7 @@ def draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max
                                          mode='same')
 
                     smoothed_rem[leaf][spine][direction] = smthed 
-    
-    # Ensure the target directory exists
-    dir_path = "plots/routing/"
-    if not os.path.exists(dir_path):
-        os.makedirs(dir_path)
+
 
     # Create a figure with multiple subplots
     total_subplots = num_leaves * num_spines * 2  # Two plots (up and down) per leaf-spine pair
@@ -76,11 +79,11 @@ def draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max
     fig.suptitle('Remaining Bandwidth for Each Link (Up and Down)', fontsize=16)
 
     # Save the entire subplot grid
-    plt_path = os.path.join(dir_path, 'combined_subplots_remaining_{}.png'.format(smoothing_window))    
+    plt_path = os.path.join(plots_dir, 'remaining_{}.png'.format(smoothing_window))    
     plt.savefig(plt_path)
     plt.close(fig)
 
-    print("Combined subplot figure has been saved in the directory:", dir_path)
+    print("Combined subplot figure has been saved in the directory:", plots_dir)
 
 def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings): 
     servers_per_rack = options["ft-server-per-rack"]
@@ -187,6 +190,11 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         
         selected_spines = []
         selection_strategy = run_context["routing-fit-strategy"]
+        
+        if selection_strategy == "ecmp": 
+            selected_spines_samples = random.sample(range(num_spines), max_subflow_count)
+            for s in selected_spines_samples:
+                selected_spines.append((s, min_subflow_mult))
 
         if len(good_spines) == 0:
             message = "No spine found for the flow: {}-{}-{}, Start: {}, Src: {}, Dst: {}".format(
@@ -223,8 +231,14 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
                 rem[src_leaf][s]["up"][t]   -= time_req
                 rem[dst_leaf][s]["down"][t] -= time_req    
     
-    # draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time)
-    # draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time, smoothing_window=1000)
+    routing_plot_dir = "{}/routing/".format(run_context["timings-dir"])  
+    os.makedirs(routing_plot_dir, exist_ok=True)    
+
+    for smoothing_window in [1, 1000]: 
+        draw_stuff(run_context, 
+                rem, num_leaves, num_spines, routing_time, 
+                min_affected_time, max_affected_time, 
+                routing_plot_dir, smoothing_window=smoothing_window)
     
     lb_decisions_proper = []    
     

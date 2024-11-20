@@ -96,7 +96,7 @@ nethint_settings = [
         "jobs-machine-count-high": 8,
         "placement-seed-range": 1,
         "comm-size": [20000],
-        "comp-size": [1000, 1500, 2000],
+        "comp-size": [2000],
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }
@@ -144,11 +144,13 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         
     return job_timings, lb_decisions    
    
-def calc_placement(placement_file_path, placement_seed, options, run_context):
+def calc_placement(placement_file_path, placement_seed, options, run_context, config_sweeper):
+    
     jobs = generate_placement_file(placement_file_path, 
                                    placement_seed,   
                                    options, 
-                                   run_context)
+                                   run_context,
+                                   config_sweeper)  
     
     return jobs
    
@@ -239,31 +241,39 @@ def run_command_options_modifier(options, config_sweeper, run_context):
 
     #########################################################################################################
     # handle the placement  
-    placements_dir = "{}/placements/{}-{}/".format(config_sweeper.custom_files_dir, 
-                                                   placement_mode, ring_mode) 
-
-    placement_file_path = "{}/seed-{}.txt".format(placements_dir, placement_seed)
+    placements_dir = "{}/placements/{}-{}/{}/".format(config_sweeper.custom_files_dir, 
+                                                      placement_mode, ring_mode, placement_seed) 
+    profiles_dir = "{}/profiles/{}-{}/{}/".format(config_sweeper.custom_files_dir, 
+                                                    placement_mode, ring_mode, placement_seed)
 
     os.makedirs(placements_dir, exist_ok=True)
+    os.makedirs(profiles_dir, exist_ok=True)
+
+    run_context["placements_dir"] = placements_dir
+    run_context["profiles-dir"]   = profiles_dir
+
+    placement_file_path = "{}/placement.txt".format(placements_dir)
         
     jobs = placement_cache.get(key=placement_file_path, 
                                lock=config_sweeper.thread_lock, 
                                logger_func=config_sweeper.log_for_thread, 
                                run_context=run_context, 
                                calc_func=calc_placement, 
-                               calc_func_args=(placement_file_path, placement_seed, options, run_context))
+                               calc_func_args=(placement_file_path, placement_seed, options, run_context, config_sweeper))
 
     options["placement-file"] = placement_file_path
     
     #########################################################################################################
     
     # handle the timing
-    timings_dir = "{}/timings/{}-{}/{}/".format(config_sweeper.custom_files_dir, 
-                                                placement_mode, ring_mode, placement_seed)
+    timings_dir = "{}/timings/{}-{}/{}/{}/{}/".format(config_sweeper.custom_files_dir, 
+                                                placement_mode, ring_mode, placement_seed, 
+                                                timing_scheme, run_context["routing-fit-strategy"])
     os.makedirs(timings_dir, exist_ok=True)
+    run_context["timings-dir"] = timings_dir    
     
-    timing_file_path = "{}/{}-timing.txt".format(timings_dir, timing_scheme)
-    routing_file_path = "{}/{}-routing.txt".format(timings_dir, timing_scheme)
+    timing_file_path = "{}/timing.txt".format(timings_dir, timing_scheme)
+    routing_file_path = "{}/routing.txt".format(timings_dir, timing_scheme)
     
     
     job_timings, lb_decisions = timing_cache.get(key=timing_file_path, 

@@ -2,7 +2,13 @@ import random
 import json 
 import time 
 from algo.placement_sim import get_job_placement_info
-
+from pprint import pprint
+import os 
+import copy
+from processing.flowprogress import get_job_profiles
+from processing.sim_finish import get_simulation_finish_time
+import pickle as pkl    
+import math 
 
 def generate_job_basics(options, run_context, job_machine_counts=None):
     machine_count = options["machine-count"]
@@ -171,10 +177,60 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
         job["machines"] = job_placement_info["machines"]    
                 
     return jobs
+
+
+
+def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path, stretch_factor=1):
+    # job_profiles = {}
+    run_context["profiles"] = {} 
     
+    for job in jobs:
+        profiling_job_options = copy.deepcopy(options)  
+        profiling_job_options["isolate-job-id"] = job["job_id"]
+        profiling_job_options["print-flow-progress-history"] = True
+        profiling_job_options["timing-file"] = None  
+        profiling_job_options["ft-core-count"] = 1  
+        profiling_job_options["ft-agg-core-link-capacity-mult"] = 100
+        profiling_job_options["lb-scheme"] = "random"   
+        profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"]
+        profiling_job_options["stretch-factor"] = stretch_factor 
+        profiling_job_options["placement-file"] = placement_path
+        
+        output = config_sweeper.only_run_command_with_options(run_context, profiling_job_options)
+        
+        flow_info_path = "{}/worker-{}/run-1/flow-info.txt".format(config_sweeper.workers_dir, 
+                                                         run_context["worker-id-for-profiling"]) 
+        job_prof, _, _ = get_job_profiles(flow_info_path)
+        
+        
+        
+        results_path = "{}/worker-{}/run-1/results.txt".format(config_sweeper.workers_dir,
+                                                            run_context["worker-id-for-profiling"])
+        psim_finish_time = get_simulation_finish_time(results_path)
+        
+        
+        # job_prof might be empty.
+        job_id = job["job_id"]
+        if job_id in job_prof:
+            
+            assert job_prof[job_id]["period"] == psim_finish_time, "periods do not match" 
+            print("job_prof period: ", job_prof[job_id]["period"])
+            
+            # job_profiles[job_id] = job_prof[job_id]
+            profile_file_path = f"{run_context['profiles-dir']}/{job_id}.pkl" 
+            with open(profile_file_path, "wb") as f:
+                pkl.dump(job_prof[job_id], f)    
+            
+            
+            job["period"] = job_prof[job_id]["period"]
+            # run_context["profiles"][job_id] = profile_file_path 
+        else:
+            print("no profiling but psim_finish_time: ", psim_finish_time)   
+            # run_context["profiles"][job_id] = None
+            job["period"] = psim_finish_time    
                                               
 def generate_placement_file(placement_path, placement_seed,   
-                            options, run_context):
+                            options, run_context, config_sweeper):  
     
     placement_magic = 45 
     ring_magic = 67
@@ -217,10 +273,27 @@ def generate_placement_file(placement_path, placement_seed,
         for job in jobs:
             job["machines"] = sorted(job["machines"])  
     
-    
     with open(placement_path, "w") as f:
         json.dump(jobs, f, indent=4)
         f.flush()
 
+    # we want to do the profiling here. 
+    profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path) 
+    
+    # at this point, all the profiles are ready and each job has a period associated with it.   
+    for job in jobs: 
+        period = job["period"] 
+        sim_length = run_context["sim-length"]  
+        iter_count = math.floor(sim_length / period) - 1
+        if iter_count < 1:
+            iter_count = 1   
+        job["iter_count"] = iter_count  
+        print(f"job_id: {job['job_id']}, period: {period}, iter_count: {iter_count}")   
+       
+    # now we save the jobs with the iter count.       
+    with open(placement_path, "w") as f:
+        json.dump(jobs, f, indent=4)
+        f.flush()
+    
     return jobs
     

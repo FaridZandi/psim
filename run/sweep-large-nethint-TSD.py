@@ -67,7 +67,6 @@ def main():
     # the results is one plot for each setting.
     for lb in ["random"]:                
         exp_sweep_config = {
-            
             "protocol-file-name": ["nethint-test"],
 
             # placement and workload parameters.
@@ -75,7 +74,6 @@ def main():
             "lb-scheme": [lb],   
             # "timing-scheme": ["zero", "farid", "random", "inc_100", "inc_200", "inc_400", "inc_500", "cassini"],
             "timing-scheme": ["farid"],    
-            # "timing-scheme": ["inc_100"],
             "ring-mode": ["random"],
             "subflows": [1],
 
@@ -86,7 +84,7 @@ def main():
             "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
             "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)),
             
-            "routing-fit-strategy": ["first"],
+            "routing-fit-strategy": ["random", "first", "ecmp"],
         } 
         
         
@@ -95,6 +93,10 @@ def main():
         # am I making this too complicated? I think I am.
         exp_context = {
             "sim-length": 100000,
+            
+            "visualize-timing": False, 
+            "visualize-routing": True, 
+            
             # other stuff
             "random-rep-count": random_rep_count,
             "interesting-metrics": interesting_metrics,
@@ -137,7 +139,7 @@ def main():
             exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(lb, "", "",  
                                                              oversub, 
                                                              experiment_seed),
-            worker_thread_count=1, 
+            worker_thread_count=3, 
         )
         
         cs.sweep()
