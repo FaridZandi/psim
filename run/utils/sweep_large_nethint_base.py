@@ -96,7 +96,7 @@ nethint_settings = [
         "jobs-machine-count-high": 8,
         "placement-seed-range": 1,
         "comm-size": [20000],
-        "comp-size": [1000],
+        "comp-size": [1000, 1500, 2000],
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }
@@ -168,6 +168,12 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         "original_timing_scheme": options["timing-scheme"],
     })
 
+    if "routing-fit-strategy" in options:
+        run_context["routing-fit-strategy"] = options["routing-fit-strategy"]
+        options.pop("routing-fit-strategy") 
+    else: 
+        run_context["routing-fit-strategy"] = ""
+        
     # if the lb scheme involves making random decisions, then we need to run multiple reps.    
     if options["lb-scheme"] in lbs_involving_randomness:
         # there's no point in running more than one rep for random if there's only one core. 

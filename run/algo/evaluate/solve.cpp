@@ -77,7 +77,7 @@ std::pair<double, double> evaluate_candidate_farid(
     int sim_length,
     int link_logical_bandwidth
 ) {
-    std::vector<int> sum_signal(sim_length, 0);
+    std::vector<double> sum_signal(sim_length, 0);
 
     for (const auto& job_load : input_data.job_loads) {
         int job_id = job_load.job_id; 
@@ -95,7 +95,7 @@ std::pair<double, double> evaluate_candidate_farid(
         }
     }
 
-    int max_util = *std::max_element(sum_signal.begin(), sum_signal.end());
+    double max_util = *std::max_element(sum_signal.begin(), sum_signal.end());
     double max_util_score = (link_logical_bandwidth - max_util) / static_cast<double>(link_logical_bandwidth);
 
     // Calculate compat_score

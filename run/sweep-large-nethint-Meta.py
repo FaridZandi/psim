@@ -48,7 +48,6 @@ def main():
     oversub = 2
     
     cassini_parameters = {  
-        "sim-length": 100000,
         "link-solution-candidate-count": 10,
         "link-solution-random-quantum": 10,
         "link-solution-top-candidates": 10,    
@@ -84,6 +83,8 @@ def main():
         # the run_context will be then handed back to the custom functions. 
         # am I making this too complicated? I think I am.
         exp_context = {
+            "sim-length": 100000,
+            
             # other stuff
             "random-rep-count": random_rep_count,
             "interesting-metrics": interesting_metrics,

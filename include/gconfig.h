@@ -157,6 +157,9 @@ public:
 
     int isolate_job_id = -1; 
     
+
+    double stretch_factor = 1.0;    
+    
     GConf() {}
 };
 

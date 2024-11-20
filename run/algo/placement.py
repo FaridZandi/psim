@@ -28,8 +28,6 @@ def generate_job_basics(options, run_context, job_machine_counts=None):
             if machines_left < 2: # if we have just one machine left, then we break. 
                 break                   
                  
-                 
-                 
         if job_machine_counts is not None:
             this_job_machine_count = job_machine_counts.pop(0)
         else:
@@ -45,6 +43,11 @@ def generate_job_basics(options, run_context, job_machine_counts=None):
         job_communication_size = random.choice(run_context["selected-setting"]["comm-size"])   
         job_computation_size = random.choice(run_context["selected-setting"]["comp-size"])    
         job_layer_count = random.choice(run_context["selected-setting"]["layer-count"])  
+        
+        # TODO: wish I could be changing the iter count based on the job size. But to get 
+        # a good estimate of the job size, I will need to do the profiling. To be fair, 
+        # it's not a crazy idea to do the profiling here. becuase it's supposed to be 
+        # independent of the timing. 
         job_iter_count = random.choice(run_context["selected-setting"]["iter-count"])
         
         jobs.append({
@@ -148,12 +151,14 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
     
     print("simulating to get the placement info ...")
     
+    sim_length = run_context["sim-length"]
+    
     placement_info = get_job_placement_info(
             strategy=placement_strategy,
             ring_mode=run_context["ring-mode"], 
             rack_size=options["ft-server-per-rack"],
             total_machine_count=options["machine-count"],
-            sim_length=1000000)  
+            sim_length=sim_length)  
     
     job_machine_counts = [job["machine_count"] for job in placement_info]
     

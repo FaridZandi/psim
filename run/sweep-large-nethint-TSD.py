@@ -40,7 +40,7 @@ def main():
 
         "simulation-seed": experiment_seed, 
         
-        # "print-flow-progress-history": True,
+        "print-flow-progress-history": True,
         # "export-dot": True,    
     }
 
@@ -51,7 +51,6 @@ def main():
     oversub = 2
     
     cassini_parameters = {  
-        "sim-length": 1000000,
         "link-solution-candidate-count": 10,
         "link-solution-random-quantum": 100,
         "link-solution-top-candidates": 3,    
@@ -59,12 +58,16 @@ def main():
         "save-profiles": True,
     }    
     
+    routing_parameters = {
+    } 
+    
     random.seed(experiment_seed)
     
     # iterating over the different settings. Each setting will create a different experiment. 
     # the results is one plot for each setting.
     for lb in ["random"]:                
         exp_sweep_config = {
+            
             "protocol-file-name": ["nethint-test"],
 
             # placement and workload parameters.
@@ -81,7 +84,9 @@ def main():
             
             # some dynamic parameters.                             
             "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
-            "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)), 
+            "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)),
+            
+            "routing-fit-strategy": ["first"],
         } 
         
         
@@ -89,6 +94,7 @@ def main():
         # the run_context will be then handed back to the custom functions. 
         # am I making this too complicated? I think I am.
         exp_context = {
+            "sim-length": 100000,
             # other stuff
             "random-rep-count": random_rep_count,
             "interesting-metrics": interesting_metrics,
@@ -97,6 +103,7 @@ def main():
             "oversub": oversub,
             
             "cassini-parameters": cassini_parameters,
+            "routing-parameters": routing_parameters,   
             "selected-setting": selected_setting,
             
             "comparison-base": {"ring-mode": "random", 
@@ -136,5 +143,6 @@ def main():
         cs.sweep()
 
 if __name__ == "__main__":
+    
     main() 
     

@@ -109,7 +109,7 @@ def random_timing(jobs, options, run_context, config_sweeper, timing_scheme):
 # TODO: it might be a good idea to be able to store the flow progress history in a file, so that
 # I can later write the C++ code to read from that file and do the whole schudling thing in C++.
 
-def profile_all_jobs(jobs, options, run_context, config_sweeper):
+def profile_all_jobs(jobs, options, run_context, config_sweeper, stretch_factor=1):
     job_profiles = {}
     
     for job in jobs:
@@ -120,12 +120,14 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper):
         profiling_job_options["ft-core-count"] = 1  
         profiling_job_options["ft-agg-core-link-capacity-mult"] = 100
         profiling_job_options["lb-scheme"] = "random"   
-        profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"] 
+        profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"]
+        profiling_job_options["stretch-factor"] = stretch_factor 
 
         output = config_sweeper.only_run_command_with_options(run_context, profiling_job_options)
         
         path = "{}/worker-{}/run-1/flow-info.txt".format(config_sweeper.workers_dir, 
                                                          run_context["worker-id-for-profiling"]) 
+        
         
         job_prof, _, _ = get_job_profiles(path)
         
@@ -192,7 +194,7 @@ def evaluate_candidate(job_loads, deltas, run_context, link_logical_bandwidth):
     
     periods = [job["period"] * job["iter_count"] for job in job_loads] 
     hyperperiod = max(periods)  + max([d[1] for d in deltas])
-    eval_length = min(hyperperiod, run_context["cassini-parameters"]["sim-length"]) 
+    eval_length = min(hyperperiod, run_context["sim-length"]) 
     
     if EVAL_MODE == "cpp":
         return evaluate_candidate_cpp(job_loads, deltas, run_context, link_logical_bandwidth, eval_length)
@@ -212,7 +214,6 @@ def evaluate_candidate_cpp(job_loads, deltas, run_context, link_logical_bandwidt
     # sim_length = run_context["cassini-parameters"]["sim-length"] 
     sim_length = eval_length
     
-
     # Run the C++ executable using subprocess
     process = subprocess.Popen(
         ['./algo/evaluate/solve', str(sim_length), str(link_logical_bandwidth)],  # Path to your compiled C++ executable
@@ -232,8 +233,6 @@ def evaluate_candidate_cpp(job_loads, deltas, run_context, link_logical_bandwidt
     
     # Parse and return the output
     max_util_score, compat_score = map(float, stdout.split())
-    
-    # print(f"max_util_score: {max_util_score}, compat_score: {compat_score}")
     
     return max_util_score, compat_score
 
@@ -382,6 +381,7 @@ def get_link_loads(jobs, options, run_context, job_profiles):
                     flow_dst_rack = flow["dstrack"]
                     
                     flow_progress_history = flow["progress_history"].copy()    
+                    
                     for t in range(len(flow_progress_history)): 
                         flow_progress_history[t] /= link_bandwidth
 
@@ -410,8 +410,77 @@ def get_link_loads(jobs, options, run_context, job_profiles):
     cross_rack_jobs = list(cross_rack_jobs_set) 
     return link_loads, cross_rack_jobs
 
+def visualize_link_loads(link_loads, run_context, deltas=None, repeat_iterations=None, suffix=""): 
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import os
 
+    # Ensure the directory exists
+    os.makedirs(run_context['timing-extra-files-dir'], exist_ok=True)
 
+    num_racks = len(link_loads)
+    num_directions = 2  # "up" and "down"
+
+    # Create a figure and subplots
+    fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), squeeze=False)
+
+    # Convert deltas to a dictionary for easy lookup if deltas is not None
+    delta_dict = dict(deltas) if deltas is not None else {}
+
+    for rack in range(num_racks):
+        for i, direction in enumerate(["up", "down"]):
+            ax = axes[rack][i]
+            ax.set_title(f"Rack: {rack}, Direction: {direction}")
+
+            job_ids = [job_load["job_id"] for job_load in link_loads[rack][direction]]
+            job_loads = [job_load["load"] for job_load in link_loads[rack][direction]]
+            job_iter_counts = [job_load["iter_count"] for job_load in link_loads[rack][direction]]  
+            
+            if job_loads:  # Check if there are any loads to plot
+                repeated_job_loads = []
+                for job_id, job_load, job_iter_count in zip(job_ids, job_loads, job_iter_counts):   
+                    # Repeat the load
+                    
+                    repeat_count_final = None 
+                    if repeat_iterations is not None:
+                        repeat_count_final = repeat_iterations
+                    else:
+                        repeat_count_final = job_iter_count
+                        
+                    repeated_load = np.tile(job_load, repeat_count_final)
+                    # Shift the load by the delta amount if deltas are provided
+                    shift_amount = delta_dict.get(job_id, 0)
+                    shifted_load = np.roll(repeated_load, shift_amount)
+                    # Zero out the initial values based on the shift
+                    if shift_amount > 0:
+                        shifted_load[:shift_amount] = 0
+                    repeated_job_loads.append(shifted_load)
+
+                # Find the maximum length of the repeated and shifted job loads
+                max_length = max(len(job_load) for job_load in repeated_job_loads)
+
+                # Pad repeated and shifted job loads with zeros to make them all the same length
+                padded_job_loads = [
+                    np.pad(job_load, (0, max_length - len(job_load)), mode='constant')
+                    for job_load in repeated_job_loads
+                ]
+
+                # Convert the padded job loads to a 2D array
+                job_loads_array = np.array(padded_job_loads)
+
+                ax.stackplot(range(max_length), job_loads_array, labels=[f"Job: {job_id}" for job_id in job_ids])
+
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Load")
+            ax.legend(loc='upper left')
+
+    plt.tight_layout()
+
+    # Save the entire figure
+    plt.savefig(f"{run_context['timing-extra-files-dir']}/stacked_racks_directions{suffix}.png")
+    plt.close(fig)
+
+    
 def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles): 
     start_time = time.time()    
     
@@ -424,6 +493,8 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
     # log_results(run_context, "jobs", jobs)
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)   
 
+    visualize_link_loads(link_loads, run_context)
+    
     best_candidate_score = -1e9 
     best_candidate = None
 
@@ -465,6 +536,7 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
             if len(current_decisions) == len(cross_rack_jobs):
                 break
         
+        visualize_link_loads(link_loads, run_context, current_decisions, suffix=f"_{i}")
         
         # now we have a candidate solution. We should evaluate it. 
         candidate_score = 0 
@@ -476,7 +548,7 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
                                                                   link_logical_bandwidth=link_logical_bandwidth)
 
                 candidate_score += compat_score
-                candidate_score += max_util_score
+                # candidate_score += max_util_score
                 
                 # print(f"Rack: {rack}, Direction: {direction}, max_util_score: {max_util_score}, compat_score: {compat_score}")  
                 
@@ -486,6 +558,11 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
             best_candidate_score = candidate_score
             best_candidate = current_decisions
 
+    perfection_solution_found = False 
+    max_possible_score = rack_count * 2 
+    if best_candidate_score == max_possible_score: 
+        perfection_solution_found = True
+        
     # some job timings are negative now. 
     
     job_timings = [] 
@@ -511,13 +588,14 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
     time_taken = end_time - start_time 
     log_results(run_context, "time_taken", time_taken)  
         
-    return job_timings
+    return job_timings, perfection_solution_found
 
 
 
 def cassini_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)
-    job_timings = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
+    
+    job_timings, perfect = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
 
     return job_timings, None
 
@@ -526,11 +604,11 @@ def cassini_timing(jobs, options, run_context, config_sweeper, timing_scheme):
 ################################################################################################
 
 def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
-    # step 1: profile the jobs. Run them in isolation and get their flows and periods.
+    # step 1: profile the jobs 
     job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)    
     
     # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
-    job_timings = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
+    job_timings, perfect = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
     
     # step 3: do the routing for the flows. 
     lb_decisions = route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings)

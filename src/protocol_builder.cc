@@ -407,6 +407,8 @@ RoutingSpec get_flow_spine_rates(int jobid, int per_job_task_id, int iteration,
     return flow_spine_rates;
 }
 
+
+
 EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp*> last_layer_pcs, 
                                            std::vector<int>& node_ids, int comm_size, 
                                            EmptyTask* last_all_reduce_finisher, bool add_stage_barriers,
@@ -434,6 +436,11 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
 
     if(reverse_ring) {
         std::reverse(last_layer_pcs.begin(), last_layer_pcs.end());
+    }
+
+    double stretch_factor = 1.0;    
+    if (GConf::inst().stretch_factor != 0) {
+        stretch_factor = GConf::inst().stretch_factor;
     }
 
     // shuffle the last_layer_pcs to creat a random chain 
@@ -472,6 +479,8 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         // there would a total of (num_replicas - 1) aggregation steps.
 
         PTask* prev_task = nullptr; 
+        int starting = i;
+
         for (int j = 0; j < num_replicas - 1; j++) {
             RoutingSpec flow_spine_rates = get_flow_spine_rates(jobid, protocol->per_job_task_counter, 
                                                                 iter_num, sub_flow_count, spine_rates);
@@ -479,10 +488,10 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             for (int k = 0; k < flow_spine_rates.spine_count; k++) {
                 int spine_decision = flow_spine_rates.spine_rates[k].first; 
                 double spine_ratio = flow_spine_rates.spine_rates[k].second; 
-                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio; 
+                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio * stretch_factor;  
                 double flow_size = comm_size * spine_ratio;  
-                int flow_src_index = (i + j) % num_replicas; 
-                int flow_dst_index = (i + j + 1) % num_replicas;
+                int flow_src_index = (starting + j) % num_replicas; 
+                int flow_dst_index = (starting + j + 1) % num_replicas;
 
                 Flow* flow = (Flow*)protocol->create_task(PTaskType::FLOW);
                 all_flows[i][j].push_back(flow);
@@ -530,7 +539,8 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
         // now the aggregate result is at machine i + num_replicas - 1 round the ring. 
         // now turn the aggregated result round the ring again, so that all the machines
         // will have the aggregated result.
-        int starting = i + num_replicas - 1;
+        starting = i + num_replicas - 1;
+
         for (int j = 0; j < num_replicas - 1; j++) {
             // we will trust that the same per task id will be used for this flow. 
             RoutingSpec flow_spine_rates = get_flow_spine_rates(jobid, protocol->per_job_task_counter, 
@@ -539,7 +549,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             for (int k = 0; k < flow_spine_rates.spine_count; k++) {
                 int spine_decision = flow_spine_rates.spine_rates[k].first; 
                 double spine_ratio = flow_spine_rates.spine_rates[k].second; 
-                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio; 
+                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio * stretch_factor; 
                 double flow_size = comm_size * spine_ratio;  
                 int flow_src_index = (starting + j) % num_replicas;
                 int flow_dst_index = (starting + j + 1) % num_replicas;

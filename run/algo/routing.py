@@ -19,14 +19,10 @@ def plot_link_capacity(ax, time_range, base_rem, smoothed_rem, link_label, direc
                 t += 1
             end = t
             ax.fill_between(range(start, end), -1, 101, color='gray', alpha=0.5)
-                        
-    
-    
     
     ax.set_title(f'{link_label} - {direction}')
     ax.set_xlabel('Time')
     ax.set_ylabel('Remaining Capacity')
-    
     
     ax.grid(True)
     ax.set_ylim(-1, 101)
@@ -190,10 +186,7 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         # print ("Good spines: ", good_spines)
         
         selected_spines = []
-        # selection_strategy = "random" 
-        selection_strategy = "random"
-        
-                    
+        selection_strategy = run_context["routing-fit-strategy"]
 
         if len(good_spines) == 0:
             message = "No spine found for the flow: {}-{}-{}, Start: {}, Src: {}, Dst: {}".format(
@@ -232,10 +225,6 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
     
     # draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time)
     # draw_stuff(rem, num_leaves, num_spines, routing_time, min_affected_time, max_affected_time, smoothing_window=1000)
-    # draw the assignments of the flows. 
-    # input("Press Enter to continue...") 
-    # change the lb_decisions to be a list of tuples. 
-    # lb_decisions = [(job_id, flow_id, iteration, s) for (job_id, flow_id, iteration), s in lb_decisions.items()]
     
     lb_decisions_proper = []    
     

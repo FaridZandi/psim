@@ -69,7 +69,6 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("routing-file", po::value<std::string>(), "routing file")  
         ("subflows", po::value<int>(), "number of subflows")
         ("ecmp-entropy-options",  po::value<int>(), "ECMP entropy options")
-        ("isolate-job-id", po::value<int>(), "isolate job id") 
         //////////////////////////////////////////////////////
         ("general-param-1", po::value<int>(), "general param 1")
         ("general-param-2", po::value<int>(), "general param 2")
@@ -81,6 +80,9 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("general-param-8", po::value<int>(), "general param 8")
         ("general-param-9", po::value<int>(), "general param 9")
         ("general-param-10", po::value<int>(), "general param 10")
+        /////////////////////////////////////////////////////
+        ("isolate-job-id", po::value<int>(), "isolate job id") 
+        ("stretch-factor", po::value<double>(), "stretch factor")
     ;
 
     po::variables_map vm;
@@ -409,6 +411,9 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("routing-file")) {
         GConf::inst().routing_file = vm["routing-file"].as<std::string>();
     }
+    if (vm.count("stretch-factor")) {
+        GConf::inst().stretch_factor = vm["stretch-factor"].as<double>();
+    }   
 }
 
 void psim::log_config() {
@@ -467,6 +472,7 @@ void psim::log_config() {
     spdlog::info("==== subflows: {}", GConf::inst().subflows);
     spdlog::info("==== ecmp_entropy_options: {}", GConf::inst().ecmp_entropy_options);
     spdlog::info("==== isolate_job_id: {}", GConf::inst().isolate_job_id);
+    spdlog::info("==== stretch_factor: {}", GConf::inst().stretch_factor);  
     spdlog::info("==== general_param_1: {}", GConf::inst().general_param_1);
     spdlog::info("==== general_param_2: {}", GConf::inst().general_param_2);
     spdlog::info("==== general_param_3: {}", GConf::inst().general_param_3);
@@ -477,7 +483,6 @@ void psim::log_config() {
     spdlog::info("==== general_param_8: {}", GConf::inst().general_param_8);
     spdlog::info("==== general_param_9: {}", GConf::inst().general_param_9);
     spdlog::info("==== general_param_10: {}", GConf::inst().general_param_10);
-
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }
