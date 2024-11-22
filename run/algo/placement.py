@@ -181,9 +181,6 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
 
 
 def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path, stretch_factor=1):
-    # job_profiles = {}
-    run_context["profiles"] = {} 
-    
     for job in jobs:
         profiling_job_options = copy.deepcopy(options)  
         profiling_job_options["isolate-job-id"] = job["job_id"]
@@ -198,16 +195,14 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
         
         output = config_sweeper.only_run_command_with_options(run_context, profiling_job_options)
         
-        flow_info_path = "{}/worker-{}/run-1/flow-info.txt".format(config_sweeper.workers_dir, 
-                                                         run_context["worker-id-for-profiling"]) 
+        run_path = "{}/worker-{}/run-1".format(config_sweeper.workers_dir,
+                                               run_context["worker-id-for-profiling"])
+        
+        flow_info_path = "{}/flow-info.txt".format(run_path)    
+        results_path = "{}/results.txt".format(run_path)    
+        
         job_prof, _, _ = get_job_profiles(flow_info_path)
-        
-        
-        
-        results_path = "{}/worker-{}/run-1/results.txt".format(config_sweeper.workers_dir,
-                                                            run_context["worker-id-for-profiling"])
         psim_finish_time = get_simulation_finish_time(results_path)
-        
         
         # job_prof might be empty.
         job_id = job["job_id"]
@@ -221,12 +216,9 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
             with open(profile_file_path, "wb") as f:
                 pkl.dump(job_prof[job_id], f)    
             
-            
             job["period"] = job_prof[job_id]["period"]
-            # run_context["profiles"][job_id] = profile_file_path 
         else:
             print("no profiling but psim_finish_time: ", psim_finish_time)   
-            # run_context["profiles"][job_id] = None
             job["period"] = psim_finish_time    
                                               
 def generate_placement_file(placement_path, placement_seed,   

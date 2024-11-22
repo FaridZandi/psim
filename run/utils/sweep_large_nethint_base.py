@@ -95,7 +95,7 @@ nethint_settings = [
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 8,
         "placement-seed-range": 1,
-        "comm-size": [20000],
+        "comm-size": [80000],
         "comp-size": [2000],
         "layer-count": [1],
         "iter-count": [30], # iteration count
@@ -208,6 +208,10 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     if options["timing-scheme"] == "farid":
         run_context["farid_timing"] = True
         options["lb-scheme"] = "readprotocol"
+        
+    if "compat-score-mode" in options: 
+        run_context["compat-score-mode"] = options["compat-score-mode"]
+        options.pop("compat-score-mode")    
     
     options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
     
@@ -259,21 +263,34 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                                logger_func=config_sweeper.log_for_thread, 
                                run_context=run_context, 
                                calc_func=calc_placement, 
-                               calc_func_args=(placement_file_path, placement_seed, options, run_context, config_sweeper))
+                               calc_func_args=(placement_file_path, placement_seed, 
+                                               options, run_context, config_sweeper))
 
     options["placement-file"] = placement_file_path
     
     #########################################################################################################
     
     # handle the timing
-    timings_dir = "{}/timings/{}-{}/{}/{}/{}/".format(config_sweeper.custom_files_dir, 
+    timings_dir = "{}/timings/{}-{}/{}/{}/{}/{}/".format(config_sweeper.custom_files_dir, 
                                                 placement_mode, ring_mode, placement_seed, 
-                                                timing_scheme, run_context["routing-fit-strategy"])
+                                                timing_scheme, 
+                                                run_context["routing-fit-strategy"], 
+                                                run_context["compat-score-mode"])   
+    
+    routings_dir = "{}/routings/{}-{}/{}/{}/{}/{}".format(config_sweeper.custom_files_dir,    
+                                                placement_mode, ring_mode, placement_seed,
+                                                timing_scheme, 
+                                                run_context["routing-fit-strategy"], 
+                                                run_context["compat-score-mode"])
+    
     os.makedirs(timings_dir, exist_ok=True)
+    os.makedirs(routings_dir, exist_ok=True)    
+    
     run_context["timings-dir"] = timings_dir    
+    run_context["routings-dir"] = routings_dir
     
     timing_file_path = "{}/timing.txt".format(timings_dir, timing_scheme)
-    routing_file_path = "{}/routing.txt".format(timings_dir, timing_scheme)
+    routing_file_path = "{}/routing.txt".format(routings_dir, timing_scheme)
     
     
     job_timings, lb_decisions = timing_cache.get(key=timing_file_path, 

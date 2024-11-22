@@ -12,13 +12,14 @@ from algo.routing import route_flows
 import subprocess
 import os 
 import pickle as pkl 
+import numpy as np 
 
 ####################################################################################
 ##################  HELPER FUNCTIONS  ##############################################
 ####################################################################################
 
 EVAL_MODE = "cpp"
-
+EVAL_MODE = "python"
 
 def log_results(run_context, key, value):
     # print to stderr first  
@@ -132,21 +133,37 @@ def lcm(numbers):
     return result
 
     
-def evaluate_candidate(job_loads, deltas, run_context, link_logical_bandwidth):
+def evaluate_candidate(job_loads, deltas, run_context, link_logical_bandwidth, compat_score_mode):
     if len(job_loads) == 0:
-        return (1, 1)
+        return 1
     
     periods = [job["period"] * job["iter_count"] for job in job_loads] 
     hyperperiod = max(periods)  + max([d[1] for d in deltas])
     eval_length = min(hyperperiod, run_context["sim-length"]) 
     
     if EVAL_MODE == "cpp":
-        return evaluate_candidate_cpp(job_loads, deltas, run_context, link_logical_bandwidth, eval_length)
+        return evaluate_candidate_cpp(job_loads, deltas, run_context, 
+                                      link_logical_bandwidth, compat_score_mode, 
+                                      eval_length)
     else:
-        return evaluate_candidate_python(job_loads, deltas, run_context, link_logical_bandwidth, eval_length)
-        
+        # score_cpp = evaluate_candidate_cpp(job_loads, deltas, run_context, 
+        #                                   link_logical_bandwidth, compat_score_mode, 
+        #                                   eval_length)
+        # score_1 = evaluate_candidate_python(job_loads, deltas, run_context, 
+        #                                  link_logical_bandwidth, compat_score_mode, 
+        #                                  eval_length)
 
-def evaluate_candidate_cpp(job_loads, deltas, run_context, link_logical_bandwidth, eval_length):
+        score_2 = evaluate_candidate_python_2(job_loads, deltas, run_context,    
+                                             link_logical_bandwidth, compat_score_mode, 
+                                             eval_length)
+
+        # print(f"CPP: {score_cpp}, Python: {score_1}, Python 2: {score_2}")
+
+        return score_2 
+
+def evaluate_candidate_cpp(job_loads, deltas, run_context, 
+                           link_logical_bandwidth, compat_score_mode, eval_length):
+    
     # Prepare JSON input
     input_data = {
         "job_loads": job_loads,
@@ -155,12 +172,19 @@ def evaluate_candidate_cpp(job_loads, deltas, run_context, link_logical_bandwidt
         
     # Convert the input data to JSON string
     json_input = json.dumps(input_data)
-    # sim_length = run_context["cassini-parameters"]["sim-length"] 
     sim_length = eval_length
+    
+    # TODO: it probably shouldn't be like this? 
+    exec_path = './algo/evaluate/solve'
     
     # Run the C++ executable using subprocess
     process = subprocess.Popen(
-        ['./algo/evaluate/solve', str(sim_length), str(link_logical_bandwidth)],  # Path to your compiled C++ executable
+        [   
+            exec_path, 
+            str(sim_length), 
+            str(link_logical_bandwidth),
+            compat_score_mode, 
+        ],  
         stdin=subprocess.PIPE,       # Pipe the input
         stdout=subprocess.PIPE,      # Capture the output
         stderr=subprocess.PIPE,      # Capture errors
@@ -176,64 +200,145 @@ def evaluate_candidate_cpp(job_loads, deltas, run_context, link_logical_bandwidt
         return None
     
     # Parse and return the output
-    max_util_score, compat_score = map(float, stdout.split())
+    # max_util_score, compat_score = map(float, stdout.split())
+    compat_score = float(stdout) 
     
-    return max_util_score, compat_score
+    return compat_score
 
 
 # counter = 0 
-def evaluate_candidate_python(job_loads, deltas, run_context, link_logical_bandwidth, eval_length):
+def evaluate_candidate_python(job_loads, deltas, run_context, link_logical_bandwidth, 
+                              compat_score_mode, eval_length):
     # sim_length = run_context["cassini-parameters"]["sim-length"]
     sim_length = eval_length    
      
-    sum_signal = [0] * sim_length
-            
+    sum_signal = [0] * sim_length        
     for job_load in job_loads:
         job_id = job_load["job_id"]
         current_time = get_delta_for_job_in_decisions(deltas, job_id)   
-
-        while current_time < sim_length:
+        iter_count = job_load["iter_count"] 
+        
+        for i in range(iter_count):
             for j in range(len(job_load["load"])):
                 sum_signal[current_time] += job_load["load"][j]
-
                 current_time += 1
-                if current_time >= sim_length:
-                    break
+    
+    # sum_signal_np = np.zeros(sim_length, dtype=np.float64)
+    # for job_load in job_loads:
+    #     job_id = job_load["job_id"]
+    #     repeat_count = job_load["iter_count"]
+    #     time_shift = get_delta_for_job_in_decisions(deltas, job_id)
 
-    # max_util is the maximum utilization of the link.
-    # the higher the score, the better.
-    max_util = max(sum_signal) 
-    max_util_score = (link_logical_bandwidth - max_util) / link_logical_bandwidth
+    #     job_load_array = np.array(job_load["load"])
+    #     repeated_load = np.tile(job_load_array, repeat_count)
+    #     padded_load = np.pad(repeated_load, (0, sim_length - len(repeated_load)), mode='constant')
+    #     shifted_load = np.roll(padded_load, time_shift)
+
+    #     # Aggregate the shifted loads into the sum signal
+    #     sum_signal_np += shifted_load
+    
+    # sum_signal_non_np_np = np.array(sum_signal)    
+    
+    # # if the arrays not equal, plot them 
+    
+    # if not np.array_equal(sum_signal_np, sum_signal_non_np_np):
+    #     import matplotlib.pyplot as plt
+
+    #     for job_load in job_loads:  
+    #         print(f"Job ID: {job_load['job_id']}, Iter Count: {job_load['iter_count']}, Period: {job_load['period']}, Time Shift: {get_delta_for_job_in_decisions(deltas, job_load['job_id'])}")     
+            
+    #     # plot 2 subplots for the two signals.
+    #     fig, axes = plt.subplots(2, 1, figsize=(10, 6), squeeze=False)
+    #     axes[0][0].plot(sum_signal_np)
+    #     axes[0][0].set_title("Sum Signal NP")
+    #     axes[1][0].plot(sum_signal_non_np_np)
+    #     axes[1][0].set_title("Sum Signal Non NP")
+    #     plt.tight_layout()
+    #     plt.savefig("plots/sum_signal_comparison.png", bbox_inches='tight', dpi=300)   
+                
+    #     input("Press Enter to continue...")
+        
+        
     
     # compat_score is the fraction of the time the link is not saturated.
     # the higher the score, the better. 
     compat_score = 0 
-    for i in range(sim_length): 
-        if sum_signal[i] <= link_logical_bandwidth:
-            compat_score += 1
-    compat_score = compat_score / sim_length
     
-    # global counter
-    # counter += 1
-    # import matplotlib.pyplot as plt 
-    # plt.plot(sum_signal)
-    # plt.savefig(f"plots/wtf/sum_signal_{counter}.png")
-    # plt.clf()    
+    if compat_score_mode == "under-cap":
+        # the fraction of the time the link is under the logical bandwidth.
+        for i in range(sim_length): 
+            if sum_signal[i] < link_logical_bandwidth:
+                compat_score += 1
 
-    print(f"PYTHON: max_util_score: {max_util_score}, compat_score: {compat_score}")
-    return (max_util_score, compat_score)
+        compat_score = compat_score / sim_length    
+
+    if compat_score_mode == "time-no-coll":
+        # the time until we go over the logical bandwidth.
+        for i in range(sim_length): 
+            if sum_signal[i] <= link_logical_bandwidth:
+                compat_score += 1
+            else: 
+                break 
+            
+        compat_score = compat_score / sim_length    
+    
+    if compat_score_mode == "max-util-left":
+        max_util = max(sum_signal) 
+        compat_score = (link_logical_bandwidth - max_util) / link_logical_bandwidth
+    
+
+    return compat_score
+
+def evaluate_candidate_python_2(job_loads, deltas, run_context, link_logical_bandwidth, 
+                              compat_score_mode, eval_length):
+    sim_length = eval_length
+    
+    sum_signal = np.zeros(sim_length, dtype=np.float64)
+    
+    for job_load in job_loads:
+        job_id = job_load["job_id"]
+        repeat_count = job_load["iter_count"]
+        time_shift = get_delta_for_job_in_decisions(deltas, job_id)
+
+        job_load_array = np.array(job_load["load"])
+        repeated_load = np.tile(job_load_array, repeat_count)
+        padded_load = np.pad(repeated_load, (0, sim_length - len(repeated_load)), mode='constant')
+        shifted_load = np.roll(padded_load, time_shift)
+        
+        # Aggregate the shifted loads into the sum signal
+        sum_signal += shifted_load
+
+    compat_score = 0
+    max_util = np.max(sum_signal)
+
+    if compat_score_mode == "under-cap":
+        compat_score = np.mean(sum_signal <= link_logical_bandwidth)
+
+    elif compat_score_mode == "time-no-coll":
+        
+        if max_util <= link_logical_bandwidth:  
+            compat_score = 1.0   
+        else: 
+            first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
+            compat_score = first_overload_index / sim_length
+        
+        
+    elif compat_score_mode == "max-util-left":
+        compat_score = (link_logical_bandwidth - max_util) / link_logical_bandwidth
+
+    return compat_score
     
     
-def solve_for_link(job_loads, link_logical_bandwidth, run_context, fixed_prefs=None):
+def solve_for_link(job_loads, link_logical_bandwidth, run_context, compat_score_mode, fixed_prefs=None):
     ls_candidates = run_context["cassini-parameters"]["link-solution-candidate-count"]
     ls_rand_quantum = run_context["cassini-parameters"]["link-solution-random-quantum"]
     ls_top_candidates = run_context["cassini-parameters"]["link-solution-top-candidates"]    
     
     if len(job_loads) == 0: 
-        return [([], 0, 0)] * ls_top_candidates
+        return [([], 0)] * ls_top_candidates
     
     if len(job_loads) == 1:
-        return [([(job_loads[0]["job_id"], 0)], 0, 0)]
+        return [([(job_loads[0]["job_id"], 0)], 0)]
         
     delta_scores = [] 
     involved_jobs = set([job["job_id"] for job in job_loads])
@@ -258,28 +363,20 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context, fixed_prefs=N
                     set_delta_for_job_in_decisions(deltas, job_id, delta)
         
         if number_of_fixed_decisions == len(involved_jobs):
-            # print("All fixed decisions")
-            return [(deltas, 0, 0)]
+            return [(deltas, 0)]
         
-        max_util_score, compat_score = evaluate_candidate(job_loads, deltas, 
-                                                          run_context, 
-                                                          link_logical_bandwidth)
+        compat_score = evaluate_candidate(job_loads, deltas, 
+                                          run_context, 
+                                          link_logical_bandwidth, 
+                                          compat_score_mode)
         
-        delta_scores.append((deltas, max_util_score, compat_score))
+        delta_scores.append((deltas, compat_score))
 
-    def this_sort(x):
-        # best compat score, among those, lowest max_util
-        return (x[2], x[1])
-
-    good_deltas = sorted(delta_scores, key=this_sort, reverse=True)
+    good_deltas = sorted(delta_scores, key=lambda x: x[1], reverse=True)
     results = good_deltas[:ls_top_candidates]
-
-    # pprint(results)
-    
     return results
 
 def get_link_loads(jobs, options, run_context, job_profiles):
-    
     servers_per_rack = options["ft-server-per-rack"]
     rack_count = options["machine-count"] // servers_per_rack   
     link_bandwidth = options["link-bandwidth"]  
@@ -392,13 +489,15 @@ def visualize_link_loads(link_loads, run_context, link_logical_bandwidth = None,
                     else:
                         repeat_count_final = job_iter_count
                         
-                    repeated_load = np.tile(job_load, repeat_count_final)
-                    # Shift the load by the delta amount if deltas are provided
+                        
                     shift_amount = delta_dict.get(job_id, 0)
+                        
+                    repeated_load = np.tile(job_load, repeat_count_final)
+                    repeated_load = np.pad(repeated_load, (0, len(job_load)), mode='constant')
                     shifted_load = np.roll(repeated_load, shift_amount)
-                    # Zero out the initial values based on the shift
-                    if shift_amount > 0:
-                        shifted_load[:shift_amount] = 0
+                    array_size_target = len(job_load) * repeat_count_final + shift_amount
+                    shifted_load = shifted_load[:array_size_target] 
+
                     repeated_job_loads.append(shifted_load)
 
                 # Find the maximum length of the repeated and shifted job loads
@@ -424,7 +523,7 @@ def visualize_link_loads(link_loads, run_context, link_logical_bandwidth = None,
                                     
             ax.set_xlabel("Time")
             ax.set_ylabel("Load")
-            ax.legend(loc='upper left')
+            # ax.legend(loc='upper left')
 
     plt.tight_layout()
 
@@ -438,6 +537,10 @@ def visualize_link_loads(link_loads, run_context, link_logical_bandwidth = None,
 def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles): 
     start_time = time.time()    
     
+    if "compat-score-mode" not in run_context:
+        exit("compat-score-mode is required in run_context")
+        
+    compat_score_mode = run_context["compat-score-mode"]
     overall_solution_candidate_count = run_context["cassini-parameters"]["overall-solution-candidate-count"]
     
     servers_per_rack = options["ft-server-per-rack"]
@@ -451,32 +554,36 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
     
     best_candidate_score = -1e9 
     best_candidate = None
-
+    all_scores = [] 
+     
     link_loads_list = [] 
     for rack in range(rack_count):
         for direction in ["up", "down"]:
             link_loads_list.append(link_loads[rack][direction])
                 
+                
+
     for i in range(overall_solution_candidate_count):
         # shuffle the link_solutions. No real difference beetwen the links.
         random.shuffle(link_loads_list)
 
         # pick the top solution for the first link (which is an arbitrary choice)
         first_link_loads = link_loads_list[0]
-        solutions = solve_for_link(first_link_loads, link_logical_bandwidth, run_context)
+        solutions = solve_for_link(first_link_loads, link_logical_bandwidth, 
+                                   run_context, compat_score_mode)
         
         r = random.randint(0, len(solutions) - 1)
         top_solution = solutions[r]
         current_decisions = top_solution[0]
-        
         # log_results(run_context, f"link_solutions_0_candidate_{i}", current_decisions)
 
         # go through the rest of the links. 
         for j in range(1, len(link_loads_list)):
             this_link_loads = link_loads_list[j]
             
-            link_solutions = solve_for_link(this_link_loads, link_logical_bandwidth, run_context, 
-                                                  fixed_prefs=current_decisions)
+            link_solutions = solve_for_link(this_link_loads, link_logical_bandwidth, 
+                                            run_context, compat_score_mode, 
+                                            fixed_prefs=current_decisions)
             
             r = random.randint(0, len(link_solutions) - 1)
             top_solution = link_solutions[r]
@@ -490,36 +597,43 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
             if len(current_decisions) == len(cross_rack_jobs):
                 break
         
-        visualize_link_loads(link_loads, run_context, link_logical_bandwidth=link_logical_bandwidth, 
+        visualize_link_loads(link_loads, run_context, 
+                             link_logical_bandwidth=link_logical_bandwidth, 
                              deltas=current_decisions, suffix=f"_{i}")
         
         # now we have a candidate solution. We should evaluate it. 
-        candidate_score = 0 
+        if compat_score_mode == "time-no-coll":
+            candidate_score = 1 
+        elif compat_score_mode == "max-util-left":    
+            candidate_score = 0
+        elif compat_score_mode == "under-cap":
+            candidate_score = 0
+                    
         for rack in range(rack_count):
             for direction in ["up", "down"]:
-                max_util_score, compat_score = evaluate_candidate(job_loads=link_loads[rack][direction], 
-                                                                  deltas=current_decisions, 
-                                                                  run_context=run_context,
-                                                                  link_logical_bandwidth=link_logical_bandwidth)
+                compat_score = evaluate_candidate(job_loads=link_loads[rack][direction], 
+                                                  deltas=current_decisions, 
+                                                  run_context=run_context,
+                                                  compat_score_mode=compat_score_mode,
+                                                  link_logical_bandwidth=link_logical_bandwidth)
 
-                candidate_score += compat_score
-                # candidate_score += max_util_score
-                
+                if compat_score_mode == "max-util-left": 
+                    candidate_score += compat_score
+                elif compat_score_mode == "under-cap": 
+                    candidate_score += compat_score 
+                elif compat_score_mode == "time-no-coll":
+                    candidate_score = min(compat_score, candidate_score)   
+                    
                 # print(f"Rack: {rack}, Direction: {direction}, max_util_score: {max_util_score}, compat_score: {compat_score}")  
                 
         log_results(run_context, "candidate", (current_decisions, candidate_score))
+        
+        all_scores.append(candidate_score)
         
         if candidate_score > best_candidate_score:
             best_candidate_score = candidate_score
             best_candidate = current_decisions
 
-    perfection_solution_found = False 
-    max_possible_score = rack_count * 2 
-    if best_candidate_score == max_possible_score: 
-        perfection_solution_found = True
-        
-    # some job timings are negative now. 
-    
     job_timings = [] 
     
     log_results(run_context, "best_candidate", (best_candidate, best_candidate_score))
@@ -527,6 +641,7 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
     for job in jobs:
         job_id = job["job_id"]
         timing = get_delta_for_job_in_decisions(best_candidate, job_id)
+        
         if timing is None:
             # it could be that the job has no intra-rack communication.
             # therefore, it's doesn't appear anywhere in the decisions. 
@@ -539,11 +654,19 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
         })           
     
     
+    ###
+    import matplotlib.pyplot as plt 
+    plot_path = f"{run_context['timings-dir']}/scores_dist.png"  
+    plt.hist(all_scores, bins=20)
+    plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+    plt.close()
+    
+        
     end_time = time.time() 
     time_taken = end_time - start_time 
     log_results(run_context, "time_taken", time_taken)  
         
-    return job_timings, perfection_solution_found
+    return job_timings
 
 def load_job_profiles(jobs, run_context): 
     job_profiles = {} 
@@ -566,7 +689,8 @@ def cassini_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     # job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)
     job_profiles = load_job_profiles(jobs, run_context) 
 
-    job_timings, perfect = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
+    # run cassini timing with the job profiles, find some timings for the jobs.
+    job_timings = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
 
     return job_timings, None
 
@@ -579,7 +703,7 @@ def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     job_profiles = load_job_profiles(jobs, run_context)
 
     # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
-    job_timings, perfect = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
+    job_timings = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
     
     # step 3: do the routing for the flows. 
     lb_decisions = route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings)

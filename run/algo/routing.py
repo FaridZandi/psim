@@ -96,7 +96,7 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
     
     # there this array that will be used to store the remaining capacity of the links 
     rem = []
-    routing_time = 100000
+    routing_time = run_context["sim-length"]  
     max_subflow_count = 2
     assert max_subflow_count < 3, "The current implementation only supports 1 or 2 subflows."
     
@@ -231,7 +231,7 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
                 rem[src_leaf][s]["up"][t]   -= time_req
                 rem[dst_leaf][s]["down"][t] -= time_req    
     
-    routing_plot_dir = "{}/routing/".format(run_context["timings-dir"])  
+    routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
     os.makedirs(routing_plot_dir, exist_ok=True)    
 
     for smoothing_window in [1, 1000]: 

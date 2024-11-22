@@ -54,7 +54,7 @@ def main():
         "link-solution-candidate-count": 10,
         "link-solution-random-quantum": 100,
         "link-solution-top-candidates": 3,    
-        "overall-solution-candidate-count": 10,
+        "overall-solution-candidate-count": 20,
         "save-profiles": True,
     }    
     
@@ -73,7 +73,7 @@ def main():
             # these will be different lines in the cdf plot.
             "lb-scheme": [lb],   
             # "timing-scheme": ["zero", "farid", "random", "inc_100", "inc_200", "inc_400", "inc_500", "cassini"],
-            "timing-scheme": ["farid"],    
+            "timing-scheme": ["farid", "random"],    
             "ring-mode": ["random"],
             "subflows": [1],
 
@@ -84,7 +84,8 @@ def main():
             "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
             "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)),
             
-            "routing-fit-strategy": ["random", "first", "ecmp"],
+            "routing-fit-strategy": ["first"],
+            "compat-score-mode": ["under-cap", "time-no-coll", "max-util-left"], 
         } 
         
         
@@ -92,10 +93,10 @@ def main():
         # the run_context will be then handed back to the custom functions. 
         # am I making this too complicated? I think I am.
         exp_context = {
-            "sim-length": 100000,
+            "sim-length": 300000,
             
             "visualize-timing": False, 
-            "visualize-routing": True, 
+            "visualize-routing": False, 
             
             # other stuff
             "random-rep-count": random_rep_count,
@@ -139,7 +140,7 @@ def main():
             exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(lb, "", "",  
                                                              oversub, 
                                                              experiment_seed),
-            worker_thread_count=3, 
+            worker_thread_count=6, 
         )
         
         cs.sweep()
