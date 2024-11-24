@@ -54,7 +54,7 @@ def main():
         "link-solution-candidate-count": 10,
         "link-solution-random-quantum": 100,
         "link-solution-top-candidates": 3,    
-        "overall-solution-candidate-count": 20,
+        "overall-solution-candidate-count": 10,
         "save-profiles": True,
     }    
     
@@ -93,7 +93,7 @@ def main():
         # the run_context will be then handed back to the custom functions. 
         # am I making this too complicated? I think I am.
         exp_context = {
-            "sim-length": 300000,
+            "sim-length": 100000,
             
             "visualize-timing": False, 
             "visualize-routing": False, 
@@ -112,16 +112,13 @@ def main():
             "comparison-base": {"ring-mode": "random", 
                                 "lb-scheme": lb, 
                                 "timing-scheme": "random",
-                                "subflows": 1},   
+                                "subflows": 1, 
+                                "compat-score-mode": "time-no-coll"}, 
             
             "comparisons": [
-                ("SF4", {"subflows": 4}),   
-                ("farid", {"timing-scheme": "farid"}),  
-                ("faridSF4", {"timing-scheme": "farid", "subflows": 4}),    
-                ("cassini", {"timing-scheme": "cassini"}),
-                ("cassiniLL", {"timing-scheme": "cassini", "lb-scheme": "leastloaded"}),
-                ("cassiniSF4", {"timing-scheme": "cassini", "subflows": 4}),        
-                ("ideal", {"lb-scheme": "ideal"}),  
+                ("farid-no-coll", {"timing-scheme": "farid", "compat-score-mode": "time-no-coll"}),  
+                ("farid-max-util-left", {"timing-scheme": "farid", "compat-score-mode": "max-util-left"}),  
+                ("farid-under-cap", {"timing-scheme": "farid", "compat-score-mode": "under-cap"}),  
             ]
         } 
         

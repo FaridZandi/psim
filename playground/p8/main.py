@@ -352,10 +352,17 @@ class Simulation():
         else: 
             return cross_rack_flows / (total_flows)
     
-    def draw_rect(self, ax, bottom_left, width, height, color, label, text_color):
+    def draw_rect(self, ax, bottom_left, width, height, color, job_id, text_color):
         from matplotlib import patches  
         
-        rect = patches.Rectangle(bottom_left, width, height, linewidth=1, edgecolor='black', facecolor=color)
+        if job_id is None:
+            label = None
+            hatch = "x" 
+        else:
+            label = str(job_id)
+            hatch = None
+            
+        rect = patches.Rectangle(bottom_left, width, height, linewidth=1, edgecolor='black', facecolor=color, hatch=hatch)
         ax.add_patch(rect)
         
         ax.text(bottom_left[0] + width/2, 
@@ -387,6 +394,7 @@ class Simulation():
                     break
 
                 job_id = self.machine_job_assignment[machine_id]
+                
                 # generate a random color for the job
                 if job_id is None:
                     color = "gray"
@@ -412,7 +420,8 @@ class Simulation():
                     text_color = "white"
                 else:
                     text_color = "black"
-                self.draw_rect(ax, (x_position, y_position), 1, 1, color, f'{job_id}', text_color)            
+                    
+                self.draw_rect(ax, (x_position, y_position), 1, 1, color, job_id, text_color)          
                 
         ax.set_xlim(0, self.rack_size)
         ax.set_ylim(0, self.rack_count)
@@ -475,8 +484,8 @@ class Simulation():
         
         if self.current_time == 75000 and self.verbose: 
             pprint(max_jobs_in_same_rack)  
-            # self.visualize_assignments()
-            # input("Press Enter to continue...")  
+            self.visualize_assignments()
+            input("Press Enter to continue...")  
                 
         return max_jobs_in_same_rack / self.rack_size       
     
@@ -716,7 +725,7 @@ def main():
                             rack_size=rack_size, 
                             rack_count=rack_count, 
                             setting_dir=setting_dir,
-                            verbose=False,  
+                            verbose=True,  
                             alpha=alpha)
                 
                 s.simulate()    

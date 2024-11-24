@@ -655,11 +655,11 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles):
     
     
     ###
-    import matplotlib.pyplot as plt 
-    plot_path = f"{run_context['timings-dir']}/scores_dist.png"  
-    plt.hist(all_scores, bins=20)
-    plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-    plt.close()
+    # import matplotlib.pyplot as plt 
+    # plot_path = f"{run_context['timings-dir']}/scores_dist.png"  
+    # plt.hist(all_scores, bins=20)
+    # plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+    # plt.close()
     
         
     end_time = time.time() 
@@ -676,9 +676,10 @@ def load_job_profiles(jobs, run_context):
         job_id = job["job_id"]
         path = f"{profiles_dir}/{job_id}.pkl"
         
-        if path is None: 
-            continue
-        
+        # check if the file exists.
+        if not os.path.exists(path):
+            continue 
+                
         with open(path, "rb") as f:  
             job_profiles[job_id] = pkl.load(f)
     

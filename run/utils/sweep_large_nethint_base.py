@@ -34,7 +34,7 @@ timing_cache = NonBlockingCache("timing-cache")
 placement_cache = NonBlockingCache("placement-cache")    
 
 nethint_settings = [
-    { # big settings
+    { #0 big settings
         "machine-count": 256,
         "ft-server-per-rack": 16,
         "jobs-machine-count-low": 8,
@@ -45,7 +45,7 @@ nethint_settings = [
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }, 
-    { # small settings
+    { #1 small settings
         "machine-count": 64,
         "ft-server-per-rack": 8,
         "jobs-machine-count-low": 4,
@@ -56,7 +56,7 @@ nethint_settings = [
         "layer-count": [2, 3],
         "iter-count": [10], # iteration count
     },
-    { # tiny settings
+    { #2 tiny settings
         "machine-count": 80,
         "ft-server-per-rack": 16,
         "jobs-machine-count-low": 10,
@@ -67,7 +67,7 @@ nethint_settings = [
         "layer-count": [1],
         "iter-count": [20], # iteration count
     },
-    { # tiny settings
+    { #3 tiny settings
         "machine-count": 256,
         "ft-server-per-rack": 16,
         "jobs-machine-count-low": 8,
@@ -78,7 +78,7 @@ nethint_settings = [
         "layer-count": [1],
         "iter-count": [20], # iteration count
     },
-    { # very small
+    { #4 very small
         "machine-count": 24,
         "ft-server-per-rack": 8,
         "jobs-machine-count-low": 6,
@@ -89,18 +89,17 @@ nethint_settings = [
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }, 
-    {
+    { #5 quite small. 
         "machine-count": 32,
         "ft-server-per-rack": 8,
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 8,
-        "placement-seed-range": 1,
+        "placement-seed-range": 10,
         "comm-size": [80000],
         "comp-size": [2000],
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }
-    
 ]
 
 
@@ -580,7 +579,6 @@ def check_comparison_sanity(exp_context, sweep_config):
     comparison_base  = exp_context["comparison-base"]   
     comparisons = exp_context["comparisons"] 
     
-    
     comparison_reqs = {} 
     
     for key, value in comparison_base.items():
@@ -590,7 +588,6 @@ def check_comparison_sanity(exp_context, sweep_config):
         for key, value in comparison_settings.items():
             comparison_reqs[key].append(value)
             comparison_reqs[key] = list(set(comparison_reqs[key]))  
-            
         
     pprint(comparison_reqs)    
     reasons = [] 
