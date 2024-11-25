@@ -7,7 +7,7 @@ random_rep_count = 1
 
 def main():
     # choose one of the settings to run the experiments with.     
-    selected_setting = nethint_settings[5]
+    selected_setting = nethint_settings[6]
     
     base_options = {
         "step-size": 1,
@@ -51,10 +51,10 @@ def main():
     oversub = 2
     
     cassini_parameters = {  
-        "link-solution-candidate-count": 10,
-        "link-solution-random-quantum": 100,
+        "link-solution-candidate-count": 20,
+        "link-solution-random-quantum": 10,
         "link-solution-top-candidates": 3,    
-        "overall-solution-candidate-count": 3,
+        "overall-solution-candidate-count": 10,
         "save-profiles": True,
     }    
     
@@ -93,7 +93,7 @@ def main():
         # the run_context will be then handed back to the custom functions. 
         # am I making this too complicated? I think I am.
         exp_context = {
-            "sim-length": 100000,
+            "sim-length": 9000,
             
             "visualize-timing": True, 
             "visualize-routing": False, 

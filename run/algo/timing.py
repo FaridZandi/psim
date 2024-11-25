@@ -307,12 +307,13 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
         number_of_fixed_decisions = 0 
         
         if fixed_prefs is not None and resolved_deltas_set is not None:
-            
             # iterate over the set 
             for job_id, deltas in fixed_prefs.items():  
                 if job_id in resolved_deltas_set:   
                     number_of_fixed_decisions += 1
-                    set_delta_for_job_in_decisions(random_deltas, job_id, deltas[starting_iterations[job_id]])  
+                    iter = starting_iterations[job_id]
+                    if iter < len(new_deltas[job_id]):
+                        set_delta_for_job_in_decisions(random_deltas, job_id, deltas[starting_iterations[job_id]])  
         
         if number_of_fixed_decisions == len(involved_jobs):
             return [(new_deltas, 0)]
@@ -320,7 +321,8 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
         for job_id, delta in random_deltas:
             # set_delta_for_job_in_decisions(new_deltas, job_id, delta)
             iter = starting_iterations[job_id]
-            new_deltas[job_id][iter] = delta
+            if iter < len(new_deltas[job_id]):
+                new_deltas[job_id][iter] = delta
             
         compat_score = evaluate_candidate(job_loads, new_deltas, 
                                           run_context, 
@@ -358,7 +360,6 @@ def get_link_loads(jobs, options, run_context, job_profiles):
             continue 
 
         job_period = job_profile["period"]  
-        
         # for flow in job_profile["flows"]:   
         #     for i in range(len(flow["progress_history"])):
         #         flow["progress_history"][i] /= link_bandwidth
@@ -428,6 +429,8 @@ def visualize_link_loads(link_loads, run_context, deltas,
     # Create a figure and subplots
     fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), squeeze=False)
 
+    min_over_capacity_time = 1e9 
+    
     for rack in range(num_racks):
         for i, direction in enumerate(["up", "down"]):
             ax = axes[rack][i]
@@ -454,7 +457,9 @@ def visualize_link_loads(link_loads, run_context, deltas,
                 sum_signal = np.sum(job_loads_array, axis=0)
                 first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
                 if max(sum_signal) > link_logical_bandwidth:
-                    ax.axvline(x=first_overload_index, color='r', linestyle='--')
+                    min_over_capacity_time = min(min_over_capacity_time, first_overload_index) 
+                    
+                    ax.axvline(x=first_overload_index, color='black', linestyle='--', linewidth=1)
             
             max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
             
@@ -462,12 +467,20 @@ def visualize_link_loads(link_loads, run_context, deltas,
 
             # ax.legend(loc='upper left')
 
+    if min_over_capacity_time < 1e9:
+        
+        for rack in range(num_racks):
+            for i, direction in enumerate(["up", "down"]):
+                ax = axes[rack][i]
+                ax.axvline(x=min_over_capacity_time, color='black', linestyle='-', linewidth=3)     
+            
     plt.tight_layout()
 
     timing_plots_dir = f"{run_context['timings-dir']}/timing/"
     os.makedirs(timing_plots_dir, exist_ok=True)
     plot_path = f"{timing_plots_dir}/demand{suffix}.png"  
     plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
+    
     plt.close(fig)
 
 def get_good_until(jobs, link_loads, run_context, deltas, link_logical_bandwidth):    
@@ -490,7 +503,11 @@ def get_good_until(jobs, link_loads, run_context, deltas, link_logical_bandwidth
     # so everything is good until the min_first_overload_index.
     # everything is good until the min_first_overload_index.
     # what's the iteration that corresponds to this index?
+    
+    print(f"min_first_overload_index: {min_first_overload_index}")  
+    
     good_until = {} 
+    
     for job in jobs: 
         good_until[job["job_id"]] = -1
         
@@ -506,8 +523,10 @@ def get_good_until(jobs, link_loads, run_context, deltas, link_logical_bandwidth
             current_time += job_period 
             if current_time > min_first_overload_index:
                 break
-            
-            good_until[job_id] = iter_id
+            good_until[job_id] = iter_id 
+        
+        print(f"job_id: {job_id}, job_period: {job_period}, job_iter_count: {job_iter_count}, good_until: {good_until[job_id]}")      
+    
     return good_until
     
 def evaluate_candidate_all_links(link_loads, deltas, run_context, 
@@ -560,7 +579,9 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles,
     # log_results(run_context, "jobs", jobs)
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)   
 
-    visualize_link_loads(link_loads, run_context, base_deltas, link_logical_bandwidth=link_logical_bandwidth)
+    # visualize_link_loads(link_loads, run_context, base_deltas, 
+    #                      link_logical_bandwidth=link_logical_bandwidth, 
+    #                      suffix=f"_round_{round}_base")
     
     best_candidate_score = -1e9 
     best_candidate = None
@@ -624,15 +645,13 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles,
             if len(resolved_deltas_set) == len(cross_rack_jobs):
                 break
         
-        visualize_link_loads(link_loads, run_context, current_decisions,    
-                             link_logical_bandwidth=link_logical_bandwidth, 
-                             suffix=f"_{i}_{round}")    
+        # visualize_link_loads(link_loads, run_context, current_decisions,    
+        #                      link_logical_bandwidth=link_logical_bandwidth, 
+        #                      suffix=f"_{round}_{i}")    
         
         candidate_score = evaluate_candidate_all_links(link_loads, current_decisions, run_context, 
                                                        link_logical_bandwidth, compat_score_mode, 
                                                        rack_count) 
-        
-
         
         log_results(run_context, "candidate", (current_decisions, candidate_score))
         
@@ -646,6 +665,9 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles,
             best_candidate = current_decisions
             best_candidate_good_until = good_until
 
+    visualize_link_loads(link_loads, run_context, best_candidate,    
+                         link_logical_bandwidth=link_logical_bandwidth, 
+                         suffix=f"_round_{round}_best")
 
     job_timings = [] 
     log_results(run_context, "best_candidate", (best_candidate, best_candidate_score))
@@ -716,7 +738,7 @@ def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
         base_deltas[job_id] = [0] * job["iter_count"]
         starting_iterations[job_id] = 0
         
-    for i in range(3): 
+    for i in range(20): 
         
         print("starting round {}".format(i))    
         print("starting_iterations:")
@@ -725,8 +747,10 @@ def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
         print("base_deltas:")
         pprint(base_deltas)
         
-        job_timings, good_until = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles, 
-                                                starting_iterations=starting_iterations, base_deltas=base_deltas, round=i) 
+        job_timings, good_until = get_timeshifts(jobs, options, run_context, 
+                                                 config_sweeper, job_profiles, 
+                                                 starting_iterations=starting_iterations, 
+                                                 base_deltas=base_deltas, round=i) 
         
         for job in jobs:
             job_id = job["job_id"]
@@ -736,6 +760,17 @@ def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
                 if timing["job_id"] == job_id:
                     base_deltas[job_id] = timing["initial_wait"]
                     break   
+        
+        are_we_done = True 
+        for job in jobs:    
+            if starting_iterations[job["job_id"]] < job["iter_count"]:
+                are_we_done = False 
+                break
+        
+        if are_we_done:
+            break
+        
+    input("Press Enter to continue...")
                 
     # step 3: do the routing for the flows. 
     lb_decisions = route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings)

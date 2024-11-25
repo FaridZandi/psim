@@ -96,7 +96,18 @@ nethint_settings = [
         "jobs-machine-count-high": 8,
         "placement-seed-range": 10,
         "comm-size": [80000],
-        "comp-size": [2000, 1000],
+        "comp-size": [1300, 1000],
+        "layer-count": [1],
+        "iter-count": [30], # iteration count
+    },
+    { #5 quite small. 
+        "machine-count": 32,
+        "ft-server-per-rack": 8,
+        "jobs-machine-count-low": 4,
+        "jobs-machine-count-high": 8,
+        "placement-seed-range": 10,
+        "comm-size": [8000],
+        "comp-size": [200, 100],
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }
