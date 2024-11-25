@@ -3,6 +3,7 @@ import os
 import resource 
 import sys 
 import numpy as np
+import traceback 
 
 def make_shuffle(count, path):
     dir = os.path.dirname(path)
@@ -94,7 +95,7 @@ def build_exec(executable, base_executable, build_path, run_dir):
     
     if exit_code != 0:
         print("make failed, exiting")
-        sys.exit(1)
+        rage_quit("make failed, exiting")   
         
     os.chdir(run_dir)
     os.system("cp {} {}".format(base_executable, executable))
@@ -104,8 +105,7 @@ def get_base_dir():
     base_dir = os.environ.get("PSIM_BASE_DIR")
 
     if base_dir is None:
-        print("export PSIM_BASE_DIR to the base directory of the project, exiting")
-        sys.exit(1)
+        rage_quit("export PSIM_BASE_DIR to the base directory of the project, exiting")
 
     print("base_dir:", base_dir)
     return base_dir
@@ -134,7 +134,9 @@ def get_psim_time(job_output, print_output=False):
         print("no point in continuing, exiting")
         for line in output_lines:
             print(line, end="")
-        sys.exit(1)
+        
+        rage_quit("no psim times found, simulation probably failed")
+        
         
     else:     
         result = {
@@ -169,3 +171,11 @@ default_load_metric_map = {
 }
 
 rounding_precision = 3
+
+def rage_quit(msg, error_code=1):   
+    print("-----------CRITICAL----------")
+    print("CRITICAL ERROR: ", end="")
+    print(msg)
+    sys.stdout.flush()
+    traceback.print_stack()
+    os._exit(error_code)  

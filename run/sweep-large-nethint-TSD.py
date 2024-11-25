@@ -54,7 +54,7 @@ def main():
         "link-solution-candidate-count": 10,
         "link-solution-random-quantum": 100,
         "link-solution-top-candidates": 3,    
-        "overall-solution-candidate-count": 10,
+        "overall-solution-candidate-count": 3,
         "save-profiles": True,
     }    
     
@@ -73,7 +73,7 @@ def main():
             # these will be different lines in the cdf plot.
             "lb-scheme": [lb],   
             # "timing-scheme": ["zero", "farid", "random", "inc_100", "inc_200", "inc_400", "inc_500", "cassini"],
-            "timing-scheme": ["farid", "random"],    
+            "timing-scheme": ["farid"],    
             "ring-mode": ["random"],
             "subflows": [1],
 
@@ -85,7 +85,7 @@ def main():
             "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)),
             
             "routing-fit-strategy": ["first"],
-            "compat-score-mode": ["under-cap", "time-no-coll", "max-util-left"], 
+            "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
         } 
         
         
@@ -95,7 +95,7 @@ def main():
         exp_context = {
             "sim-length": 100000,
             
-            "visualize-timing": False, 
+            "visualize-timing": True, 
             "visualize-routing": False, 
             
             # other stuff
@@ -137,7 +137,7 @@ def main():
             exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(lb, "", "",  
                                                              oversub, 
                                                              experiment_seed),
-            worker_thread_count=6, 
+            worker_thread_count=1, 
         )
         
         cs.sweep()

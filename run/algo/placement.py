@@ -9,6 +9,7 @@ from processing.flowprogress import get_job_profiles
 from processing.sim_finish import get_simulation_finish_time
 import pickle as pkl    
 import math 
+from utils.util import rage_quit
 
 def generate_job_basics(options, run_context, job_machine_counts=None):
     machine_count = options["machine-count"]
@@ -115,7 +116,7 @@ def generate_semirandom_placement_file(options, run_context, fragmentation_facto
         
         if len(under_allocated_jobs) == 0:
             print("Error: No under allocated jobs left, but the number of allocated machines is less than the number of assigned machines.")
-            exit(0)
+            rage_quit("Error: No under allocated jobs left, but the number of allocated machines is less than the number of assigned machines.")
             
         job = random.choice(under_allocated_jobs)
         

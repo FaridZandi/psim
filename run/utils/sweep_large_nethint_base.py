@@ -96,7 +96,7 @@ nethint_settings = [
         "jobs-machine-count-high": 8,
         "placement-seed-range": 10,
         "comm-size": [80000],
-        "comp-size": [2000],
+        "comp-size": [2000, 1000],
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }
@@ -343,8 +343,7 @@ def result_extractor_function(output, options, this_exp_results, run_context):
                 job_numbers.append(rep_numbers)
         
         else: 
-            print("Unknown metric: ", metric)
-            sys.exit(1)
+            rage_quit("Unknown metric: {}".format(metric))
         
         
         if "output-file" in run_context: 

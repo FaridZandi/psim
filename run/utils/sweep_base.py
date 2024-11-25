@@ -218,14 +218,11 @@ class ConfigSweeper:
                 with open(thread_output_path, "a+") as f:
                     f.write("queue is empty\n")
                     f.write("\n")
-                
                 return
             
             except Exception as e:
-                print("error in getting the experiment")
-                traceback.print_exc()
-                print(e)
-                exit(0)
+                traceback.print_exc()   
+                rage_quit("error in getting the experiment" + str(e))   
                 
             
     def log_for_thread(self, run_context, message, data=None):
@@ -243,10 +240,9 @@ class ConfigSweeper:
         try: 
             output = subprocess.check_output(cmd, shell=True)
             output = output.decode("utf-8").splitlines()
-        except:
-            print("error in running the command")
-            print("I don't know what to do here")
-            exit(0)
+        except Exception as e:
+            traceback.print_exc()   
+            rage_quit("error in running the command" + str(e))              
         
         return output
              
@@ -261,20 +257,16 @@ class ConfigSweeper:
         # if there are any, print them and exit. 
         duplicate_keys = set(this_exp_results_keys) & set(options_keys)
         if len(duplicate_keys) > 0:
-            print("duplicate keys between the results and the options")
-            print(duplicate_keys)
-            exit(0)
+            rage_quit("duplicate keys between the results and the options: " + str(duplicate_keys))    
+
         duplicate_keys = set(this_exp_results_keys) & set(run_context_keys)
         if len(duplicate_keys) > 0:
-            print("duplicate keys between the results and the run_context")
-            print(duplicate_keys)
-            exit(0)
+            rage_quit("duplicate keys between the results and the run_context: " + str(duplicate_keys))
+
         duplicate_keys = set(run_context_keys) & set(options_keys)
         if len(duplicate_keys) > 0:
-            print("duplicate keys between the run_context and the options")
-            print(duplicate_keys)
-            exit(0)
-               
+            rage_quit("duplicate keys between the run_context and the options: " + str(duplicate_keys))                
+
         results = {} 
         results.update(this_exp_results)
         results.update(run_context)
@@ -386,7 +378,9 @@ class ConfigSweeper:
                     print("options: ", options) 
                     print("run_context: ", run_context)
                     print(e)
-                    exit(0) 
+                    traceback.print_exc()  
+                    
+                    rage_quit("error in result_extractor_function") 
                     
                 # save the results to the cache to avoid recalculating them.
                 self.log_for_thread(run_context, "Going to acquire the lock to save the results to the cache")
@@ -422,8 +416,10 @@ class ConfigSweeper:
                 print("error in running the command")
                 print("I don't know what to do here")
                 print(e)
-                exit(0)
-        
+                traceback.print_exc()   
+                
+                rage_quit("error in running the command")   
+
         results = self.combine_results(this_exp_results, run_context, options)
 
         self.log_for_thread(run_context, "Going to acquire the lock to save the results")

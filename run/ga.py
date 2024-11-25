@@ -235,7 +235,7 @@ def make_baseline_decisions(rep_count = 2):
             print("running cmd: ", cmds[i])
             print("error getting psim time stats for baseline {}:".format(baseline_lb_schemes[i]))
             print(e)
-            exit(0)
+            rage_quit("error getting psim time stats for baseline {}:".format(baseline_lb_schemes[i]))
             
         avg_psim_time = psim_time_stats["avg"]
         print("baseline {} avg psim time: {}".format(baseline_lb_schemes[i], avg_psim_time))

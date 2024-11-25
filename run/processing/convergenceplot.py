@@ -81,8 +81,7 @@ if __name__ == "__main__":
             metric not in df.columns):
             
             print("The specified columns are not found in the CSV file.")
-            exit(0)
-        
+
         results_dir = csv_file_path[:csv_file_path.rfind("/")] + "/"
         plot_path = "{}/convergence-{}.png".format(results_dir, metric)
         plot_csv_data(df, metric, plot_path)
