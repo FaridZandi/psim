@@ -93,6 +93,10 @@ class ConfigSweeper:
         
         # set up the watchdog. Run the "./ram_controller.sh 18 python3" in background,
         # keep pid and kill it when the program ends.
+        # kill all the ram_controller.sh processes that are running.     
+        os.system("pkill -f ram_controller.sh")
+        
+        # run the ram_controller.sh in the background.
         self.watchdog_pid = subprocess.Popen([
                                 "./ram_controller.sh", 
                                 str(MEMORY_LIMIT), 
@@ -121,8 +125,7 @@ class ConfigSweeper:
             pprint("------------------------------------------", stream=f)
             pprint("global_context", stream=f)
             pprint(self.global_context, stream=f)
-            
-            
+        
     def sweep(self):
         self.log_config()
 

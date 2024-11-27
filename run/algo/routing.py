@@ -5,6 +5,13 @@ import os
 from copy import deepcopy
 import random 
 
+
+
+############################################################################################################
+############################################################################################################
+############################################################################################################
+
+
 def plot_link_capacity(ax, time_range, base_rem, smoothed_rem, link_label, direction, color, min_affected_time, max_affected_time):
     """Plot the remaining capacity for a given link direction."""
     
@@ -28,7 +35,6 @@ def plot_link_capacity(ax, time_range, base_rem, smoothed_rem, link_label, direc
     ax.set_ylim(-1, 101)
     ax.set_xlim(min_affected_time - 100, max_affected_time + 100)
     
-    
 
 def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time, 
                min_affected_time, max_affected_time, plots_dir, smoothing_window=1):
@@ -50,7 +56,6 @@ def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time,
                                          mode='same')
 
                     smoothed_rem[leaf][spine][direction] = smthed 
-
 
     # Create a figure with multiple subplots
     total_subplots = num_leaves * num_spines * 2  # Two plots (up and down) per leaf-spine pair
@@ -85,51 +90,67 @@ def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time,
 
     print("Combined subplot figure has been saved in the directory:", plots_dir)
 
+
+
+
+############################################################################################################
+############################################################################################################
+############################################################################################################
+
+
 def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings): 
     servers_per_rack = options["ft-server-per-rack"]
     num_leaves = options["machine-count"] // servers_per_rack   
     num_spines = options["ft-core-count"]
     link_bandwidth = options["link-bandwidth"]  
-
-    pprint(jobs) 
     print ("Number of leaves: {}, Number of spines: {}, Link bandwidth: {}".format(num_leaves, num_spines, link_bandwidth))
-    
-    # there this array that will be used to store the remaining capacity of the links 
-    rem = []
-    routing_time = run_context["sim-length"]  
-    max_subflow_count = 2
-    assert max_subflow_count < 3, "The current implementation only supports 1 or 2 subflows."
-    
-    min_affected_time = routing_time   
-    max_affected_time = 0   
-    
-    lb_decisions = {} 
-    
-    for i in range(num_leaves):
-        rem.append([])
-            
-        for j in range(num_spines):
-            rem[i].append({"up": [link_bandwidth] * routing_time, 
-                           "down": [link_bandwidth] * routing_time})
 
+    max_subflow_count = num_spines
+    # assert max_subflow_count < 3, "The current implementation only supports 1 or 2 subflows."
+    
+    pprint(jobs) 
     job_deltas = {} 
     job_periods = {} 
     job_iterations = {} 
     
     for job_timing in job_timings:
-        job_deltas[job_timing["job_id"]] = job_timing["initial_wait"]
+        job_deltas[job_timing["job_id"]] = job_timing["deltas"]
     
     for job in jobs:
         job_periods[job["job_id"]] = job["period"]
         job_iterations[job["job_id"]] = job["iter_count"]
-        
-    all_flows = [] 
     
+    
+    # routing_time = run_context["sim-length"]  
+    # it might actually be more than that.     
+    routing_time = 0
+    for job in jobs: 
+        job_id = job["job_id"]
+        total_productive_time = job["period"] * job["iter_count"]   
+        total_time_delay = sum(job_deltas[job_id]) 
+        this_job_time = total_productive_time + total_time_delay 
+        routing_time = max(routing_time, this_job_time)     
+        
+    # there this array that will be used to store the remaining capacity of the links 
+    rem = []
+    for i in range(num_leaves):
+        rem.append([])
+        for j in range(num_spines):
+            rem[i].append({"up": [link_bandwidth] * routing_time, 
+                           "down": [link_bandwidth] * routing_time})
+            
+            
+    all_flows = [] 
     for job_id, job_profile in job_profiles.items():
         for flow in job_profile["flows"]: 
             for iter in range(job_iterations[job_id]):
                    
-                shift = job_deltas[job_id] + (iter * job_periods[job_id])
+                # shift = job_deltas[job_id] + (iter * job_periods[job_id])
+                shift_due_to_deltas = sum(job_deltas[job_id][:(iter + 1)])
+                shift_due_to_periods = iter * job_periods[job_id]   
+                
+                shift = shift_due_to_deltas + shift_due_to_periods
+                
                 f = deepcopy(flow)
                 
                 f["eff_start_time"] = f["start_time"] + shift
@@ -141,8 +162,10 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         
     # sort flows by their start time.
     all_flows.sort(key=lambda x: x["eff_start_time"])
-
-    pprint(job_deltas)
+    
+    lb_decisions = {} 
+    min_affected_time = routing_time   
+    max_affected_time = 0   
     
     for flow in all_flows:  
         # print the flow_id, job_id, start_time, srcrack, dstrack 

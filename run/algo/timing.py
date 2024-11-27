@@ -134,7 +134,6 @@ def lcm(numbers):
 
     return result
 
-    
 def evaluate_candidate(job_loads, deltas, run_context, link_logical_bandwidth, compat_score_mode):
     if len(job_loads) == 0:
         return 1
@@ -154,7 +153,7 @@ def evaluate_candidate(job_loads, deltas, run_context, link_logical_bandwidth, c
         
         eval_length = max(eval_length, job_length)  
 
-    eval_length = eval_length + max_base_job_length 
+    eval_length = eval_length + max_base_job_length
     
     if EVAL_MODE == "cpp":
         return evaluate_candidate_cpp(job_loads, deltas, run_context, 
@@ -215,7 +214,7 @@ def evaluate_candidate_cpp(job_loads, deltas, run_context,
     
     return compat_score
 
-def get_full_jobs_signals(this_link_loads, deltas, max_length=None):     
+def get_full_jobs_signals(this_link_loads, deltas):     
     
     job_ids = [job_load["job_id"] for job_load in this_link_loads]
     job_loads = [job_load["load"] for job_load in this_link_loads]
@@ -230,9 +229,7 @@ def get_full_jobs_signals(this_link_loads, deltas, max_length=None):
             job_total_load = np.append(job_total_load, job_load)
         repeated_job_loads.append(job_total_load)
 
-    # Find the maximum length of the repeated and shifted job loads
-    if max_length is None:  
-        max_length = max(len(job_load) for job_load in repeated_job_loads)
+    max_length = max(len(job_load) for job_load in repeated_job_loads)
 
     # Pad repeated and shifted job loads with zeros to make them all the same length
     padded_job_loads = [
@@ -249,7 +246,7 @@ def evaluate_candidate_python_2(job_loads, deltas, run_context, link_logical_ban
     
     sum_signal = np.zeros(sim_length, dtype=np.float64)
     
-    padded_job_loads, _ = get_full_jobs_signals(job_loads, deltas, sim_length) 
+    padded_job_loads, _ = get_full_jobs_signals(job_loads, deltas) 
     job_loads_array = np.array(padded_job_loads)
     sum_signal = np.sum(job_loads_array, axis=0)
         
@@ -274,8 +271,8 @@ def evaluate_candidate_python_2(job_loads, deltas, run_context, link_logical_ban
     
     
 def solve_for_link(job_loads, link_logical_bandwidth, run_context, 
-                   compat_score_mode, starting_iterations, base_deltas, 
-                   fixed_prefs=None, resolved_deltas_set=None):
+                   compat_score_mode, starting_iterations, base_deltas, weights,
+                   fixed_prefs=None, resolved_deltas_set=None):  
     
     ls_candidates = run_context["cassini-parameters"]["link-solution-candidate-count"]
     ls_rand_quantum = run_context["cassini-parameters"]["link-solution-random-quantum"]
@@ -297,7 +294,11 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
         
         random_deltas = [] 
         for job in job_loads: 
-            rand_options = int(math.ceil(job["period"] / ls_rand_quantum))
+            job_id = job["job_id"]
+            weighted_job_period = job["period"] + weights[job_id]
+            if weighted_job_period < 0: 
+                weighted_job_period = 0
+            rand_options = int(math.ceil((weighted_job_period) / ls_rand_quantum))
             r = random.randint(0, rand_options) * ls_rand_quantum        
             random_deltas.append((job["job_id"], r)) 
             
@@ -329,6 +330,7 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
                                           link_logical_bandwidth, 
                                           compat_score_mode)
         
+        # print("new_deltas: ", new_deltas, "compat_score: ", compat_score)   
         
         delta_scores.append((new_deltas, compat_score))
 
@@ -487,26 +489,30 @@ def get_good_until(jobs, link_loads, run_context, deltas, link_logical_bandwidth
     num_racks = len(link_loads)
 
     min_first_overload_index = 1e9  
+    max_length_across_links = 0 
     
     for rack in range(num_racks):
         for i, direction in enumerate(["up", "down"]):
             padded_job_loads, max_length = get_full_jobs_signals(link_loads[rack][direction], deltas)
+            max_length_across_links = max(max_length_across_links, max_length)
             # Convert the padded job loads to a 2D array
             job_loads_array = np.array(padded_job_loads)
             sum_signal = np.sum(job_loads_array, axis=0)
             first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
-            if max(sum_signal) <= link_logical_bandwidth:
-                first_overload_index = max_length   
-            
-            min_first_overload_index = min(min_first_overload_index, first_overload_index)  
+            if max(sum_signal) > link_logical_bandwidth:
+                min_first_overload_index = min(min_first_overload_index, first_overload_index)  
+                 
+    if min_first_overload_index == 1e9:
+        min_first_overload_index = max_length_across_links  
 
     # so everything is good until the min_first_overload_index.
     # everything is good until the min_first_overload_index.
     # what's the iteration that corresponds to this index?
     
-    print(f"min_first_overload_index: {min_first_overload_index}")  
+    # print(f"min_first_overload_index: {min_first_overload_index}")  
     
     good_until = {} 
+    print("min_first_overload_index: ", min_first_overload_index)   
     
     for job in jobs: 
         good_until[job["job_id"]] = -1
@@ -519,13 +525,16 @@ def get_good_until(jobs, link_loads, run_context, deltas, link_logical_bandwidth
         current_time = 0    
         
         for iter_id in range(job_iter_count):
+            
             current_time += deltas[job_id][iter_id]
             current_time += job_period 
+            
             if current_time > min_first_overload_index:
                 break
+            
             good_until[job_id] = iter_id 
         
-        print(f"job_id: {job_id}, job_period: {job_period}, job_iter_count: {job_iter_count}, good_until: {good_until[job_id]}")      
+        # print(f"job_id: {job_id}, job_period: {job_period}, job_iter_count: {job_iter_count}, good_until: {good_until[job_id]}")      
     
     return good_until
     
@@ -559,10 +568,10 @@ def evaluate_candidate_all_links(link_loads, deltas, run_context,
 
     
 def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles, 
-                   starting_iterations=None, base_deltas=None, round=0):       
+                   starting_iterations=None, base_deltas=None, weights=None, round=0):       
     
-    if starting_iterations is None or base_deltas is None:
-        rage_quit("starting_iteration or deltas is None")
+    if starting_iterations is None or base_deltas is None or weights is None:   
+        rage_quit("starting_iteration or deltas or weights in None") 
      
     start_time = time.time()    
     
@@ -596,6 +605,10 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles,
     
     resolved_deltas_set = set() 
     
+    for job in jobs: 
+        job_id = job["job_id"]
+        resolved_deltas_set.add(job_id)
+    
     for i in range(overall_solution_candidate_count):
         # shuffle the link_solutions. No real difference beetwen the links.
         random.shuffle(link_loads_list)
@@ -605,7 +618,8 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles,
         solutions = solve_for_link(first_link_loads, link_logical_bandwidth, 
                                    run_context, compat_score_mode, 
                                    starting_iterations=starting_iterations, 
-                                   base_deltas=base_deltas)
+                                   base_deltas=base_deltas, 
+                                   weights=weights)
         
         
         r = random.randint(0, len(solutions) - 1)
@@ -625,23 +639,25 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles,
                                             run_context, compat_score_mode,
                                             starting_iterations=starting_iterations, 
                                             base_deltas=base_deltas,
+                                            weights=weights, 
                                             fixed_prefs=current_decisions, 
                                             resolved_deltas_set=resolved_deltas_set)    
             
             r = random.randint(0, len(link_solutions) - 1)
             top_solution = link_solutions[r]
-            
             top_solution_timing = top_solution[0]
             
             # update the current decisions.
             for job_id, delta in top_solution_timing.items(): 
                 this_link_jobs_id = set([job["job_id"] for job in this_link_loads]) 
                 if job_id in this_link_jobs_id:
-                    starting_iter = starting_iterations[job_id]  
-                    current_decisions[job_id][starting_iter] = delta[starting_iter]
+                    starting_iter = starting_iterations[job_id] 
+                    if starting_iter < len(delta): 
+                        current_decisions[job_id][starting_iter] = delta[starting_iter]
+                    
                     resolved_deltas_set.add(job_id)
+                    
             # log_results(run_context, f"link_solutions_{j}_candidate_{i}", current_decisions)
-            
             if len(resolved_deltas_set) == len(cross_rack_jobs):
                 break
         
@@ -653,8 +669,7 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles,
                                                        link_logical_bandwidth, compat_score_mode, 
                                                        rack_count) 
         
-        log_results(run_context, "candidate", (current_decisions, candidate_score))
-        
+        # log_results(run_context, "candidate", (current_decisions, candidate_score))
         good_until = get_good_until(jobs, link_loads, run_context, current_decisions,    
                                     link_logical_bandwidth=link_logical_bandwidth)
         
@@ -680,7 +695,7 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles,
             timing = [0] * job["iter_count"]    
             
         job_timings.append({
-            "initial_wait": timing,
+            "deltas": timing,
             "job_id": job_id
         })           
 
@@ -723,34 +738,33 @@ def cassini_timing(jobs, options, run_context, config_sweeper, timing_scheme):
 ################ Farid TIMING #################################################################
 ################################################################################################
 
-def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
-    # step 1: profile the jobs 
-    job_profiles = load_job_profiles(jobs, run_context)
+def get_job_iter_finish(period, deltas, iter_id):
+    finish = 0
+    for i in range(iter_id + 1):
+        finish += period + deltas[i]
+    return finish
 
-    # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
-    
-    
+def get_extended_time_shifts(jobs, options, run_context, config_sweeper, job_profiles):
     base_deltas = {}
     starting_iterations = {}    
+    weights = {} 
     
     for job in jobs:
         job_id = job["job_id"]
         base_deltas[job_id] = [0] * job["iter_count"]
         starting_iterations[job_id] = 0
-        
+        weights[job_id] = 0
+            
     for i in range(20): 
-        
-        print("starting round {}".format(i))    
-        print("starting_iterations:")
-        pprint(starting_iterations)
-        
-        print("base_deltas:")
-        pprint(base_deltas)
+        print("starting round: {}".format(i))   
         
         job_timings, good_until = get_timeshifts(jobs, options, run_context, 
                                                  config_sweeper, job_profiles, 
                                                  starting_iterations=starting_iterations, 
-                                                 base_deltas=base_deltas, round=i) 
+                                                 base_deltas=base_deltas, weights=weights, 
+                                                 round=i) 
+        
+        sum_deltas = {} 
         
         for job in jobs:
             job_id = job["job_id"]
@@ -758,20 +772,65 @@ def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
             
             for timing in job_timings:
                 if timing["job_id"] == job_id:
-                    base_deltas[job_id] = timing["initial_wait"]
+                    base_deltas[job_id] = timing["deltas"]
                     break   
-        
+            
+            sum_deltas[job_id] = sum(base_deltas[job_id])
+            
+            
+            print("job_id: {}, good until: {}, sum_deltas: {}, period: {}, missed iters: {}".format(
+                    job_id,
+                    good_until[job_id],
+                    sum_deltas[job_id],
+                    job["period"], 
+                    int(math.ceil(sum_deltas[job_id] / job["period"]))))
+            
+            
+        avg_sum_deltas = int(sum(sum_deltas.values()) / len(jobs))   
+                
+        for job in jobs:
+            job_id = job["job_id"]
+            # job_a  = (avg_sum_deltas / (sum_deltas[job_id])) 
+            # weights[job_id] = job_a**0.5
+            # weights[job_id] = avg_sum_deltas - sum_deltas[job_id]
+            weights[job_id] = 0
+            
+            print("job_id: {}, sum_deltas: {}, avg_sum_deltas: {}, weight: {}".format(  
+                    job_id, sum_deltas[job_id], avg_sum_deltas, weights[job_id]))
+            
+                
         are_we_done = True 
         for job in jobs:    
             if starting_iterations[job["job_id"]] < job["iter_count"]:
+                print("job_id: {}, starting_iterations: {}, iter_count: {} is still not okay".format(
+                    job["job_id"], starting_iterations[job["job_id"]], job["iter_count"])
+                )
                 are_we_done = False 
                 break
         
         if are_we_done:
             break
-        
-    input("Press Enter to continue...")
-                
+
+    log_results(run_context, "job_timings", job_timings)
+    pprint(job_timings) 
+    input("Press Enter to continue...")  
+    return job_timings 
+
+def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
+    # step 1: profile the jobs 
+    job_profiles = load_job_profiles(jobs, run_context)
+
+    # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
+    # job_timings = get_extended_time_shifts(jobs, options, run_context, config_sweeper, job_profiles)
+    
+    job_timings = [
+        {'deltas': [270, 0, 0, 0, 0, 730, 610], 'job_id': 1},
+        {'deltas': [310, 0, 0, 0, 0, 330, 0, 0, 0, 0, 0, 100, 0], 'job_id': 2},
+        {'deltas': [0, 0, 690, 250, 0, 100, 0, 0], 'job_id': 3},
+        {'deltas': [750, 190, 200, 0, 750, 540, 0, 0], 'job_id': 4},
+        {'deltas': [0, 0, 0, 0, 0, 0, 0, 0, 0, 70, 0, 0, 0, 110, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'job_id': 5}
+    ]
+    
     # step 3: do the routing for the flows. 
     lb_decisions = route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings)
     
