@@ -83,6 +83,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         /////////////////////////////////////////////////////
         ("isolate-job-id", po::value<int>(), "isolate job id") 
         ("stretch-factor", po::value<double>(), "stretch factor")
+        ("throttle_factor", po::value<double>(), "throttle the workload transmission rate")
     ;
 
     po::variables_map vm;
@@ -414,6 +415,10 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("stretch-factor")) {
         GConf::inst().stretch_factor = vm["stretch-factor"].as<double>();
     }   
+
+    if (vm.count("throttle_factor")) {
+        GConf::inst().throttle_factor = vm["throttle_factor"].as<double>();
+    }
 }
 
 void psim::log_config() {
@@ -473,6 +478,7 @@ void psim::log_config() {
     spdlog::info("==== ecmp_entropy_options: {}", GConf::inst().ecmp_entropy_options);
     spdlog::info("==== isolate_job_id: {}", GConf::inst().isolate_job_id);
     spdlog::info("==== stretch_factor: {}", GConf::inst().stretch_factor);  
+    spdlog::info("==== throttle_factor: {}", GConf::inst().throttle_factor);    
     spdlog::info("==== general_param_1: {}", GConf::inst().general_param_1);
     spdlog::info("==== general_param_2: {}", GConf::inst().general_param_2);
     spdlog::info("==== general_param_3: {}", GConf::inst().general_param_3);
@@ -483,6 +489,7 @@ void psim::log_config() {
     spdlog::info("==== general_param_8: {}", GConf::inst().general_param_8);
     spdlog::info("==== general_param_9: {}", GConf::inst().general_param_9);
     spdlog::info("==== general_param_10: {}", GConf::inst().general_param_10);
+
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

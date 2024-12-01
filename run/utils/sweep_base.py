@@ -79,7 +79,7 @@ class ConfigSweeper:
         self.last_df_save_time = datetime.datetime.now() 
         self.df_save_interval_seconds = 300 
         
-        self.do_store_outputs = True
+        self.do_store_outputs = False
         
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.csv_dir))

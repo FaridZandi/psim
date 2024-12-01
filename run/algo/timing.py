@@ -7,7 +7,6 @@ import math
 import time 
 import sys 
 import copy 
-from processing.flowprogress import get_job_profiles
 from algo.routing import route_flows
 import subprocess
 import os 
@@ -36,14 +35,13 @@ def log_results(run_context, key, value):
 
 # all the workloads will be starting at the same time, at time 0.
 # this is technically the worst case scenario.
-def zero_timing(jobs, options, run_context, config_sweeper, timing_scheme):
+def zero_timing(jobs, options, run_context, timing_scheme):
     job_timings = [] 
     
     for job in jobs:
-        job_timing = 0
-    
         job_timings.append({
-            "initial_wait": job_timing,
+            "deltas": [0] * job["iter_count"],
+            "throttle_rates": [1.0] * job["iter_count"],    
             "job_id": job["job_id"]
         })     
         
@@ -54,7 +52,7 @@ def zero_timing(jobs, options, run_context, config_sweeper, timing_scheme):
 # it's chosen based on the curren numbers. 
 # TODO: make this number something that could be found based on the job profiles.
 # in some way, a much much simpler version of the cassini timing.
-def inc_timing(jobs, options, run_context, config_sweeper, timing_scheme):
+def inc_timing(jobs, options, run_context, timing_scheme):
     job_timings = [] 
     
     timing_scheme_split = timing_scheme.split("_") 
@@ -64,13 +62,16 @@ def inc_timing(jobs, options, run_context, config_sweeper, timing_scheme):
     else: 
         job_timing_increment = int(timing_scheme_split[1])
     
-    
-    
     for job in jobs:
         job_timing = job_timing_increment * (job["job_id"] - 1)
-    
+        
+        deltas = [job_timing] 
+        for i in range(1, job["iter_count"]):
+            deltas.append(0)
+            
         job_timings.append({
-            "initial_wait": job_timing,
+            "deltas": deltas,
+            "throttle_rates": [1.0] * job["iter_count"],    
             "job_id": job["job_id"]
         })     
         
@@ -80,15 +81,21 @@ def inc_timing(jobs, options, run_context, config_sweeper, timing_scheme):
 # all the jobs will start at a random time, somewhere between 0 and the period of the job.
 # this is what we should assume to be happening in the real world, where the jobs are not
 # synchronized in any sense. 
-def random_timing(jobs, options, run_context, config_sweeper, timing_scheme):
+def random_timing(jobs, options, run_context, timing_scheme):
     job_timings = [] 
 
     for job in jobs:
         job_id = job["job_id"] 
-        job_timing = random.randint(0, job["period"] - 1)
-    
+        base_job_period = job["base_period"]
+        job_timing = random.randint(0, base_job_period - 1)
+
+        deltas = [job_timing]
+        for i in range(1, job["iter_count"]):
+            deltas.append(0)
+            
         job_timings.append({
-            "initial_wait": job_timing,
+            "deltas": deltas,
+            "throttle_rates": [1.0] * job["iter_count"],    
             "job_id": job_id
         })     
         
@@ -102,21 +109,19 @@ def random_timing(jobs, options, run_context, config_sweeper, timing_scheme):
 # we will run each job in isolation, in a network that wouldn't be bottlenecked by the core part 
 # of the network. We will get the flow progress history for each job, process it and get the period.
 
-def get_delta_for_job_in_decisions(decisions, id):
-    for decision in decisions:
-        if decision[0] == id:
-            return decision[1]
+# def get_delta_for_job_in_decisions(decisions, id):
+#     for decision in decisions:
+#         if decision[0] == id:
+#             return decision[1]
+#     return None 
 
-    return None 
 
-
-def set_delta_for_job_in_decisions(decisions, id, delta):
+def set_value_for_job_in_decisions(decisions, id, value):
     for i in range(len(decisions)):
         if decisions[i][0] == id:
-            decisions[i] = (id, delta)
+            decisions[i] = (id, value)
             return
-        
-    decisions.append((id, delta))
+    decisions.append((id, value))
 
 
 def lcm(numbers):
@@ -134,45 +139,48 @@ def lcm(numbers):
 
     return result
 
-def evaluate_candidate(job_loads, deltas, run_context, link_logical_bandwidth, compat_score_mode):
+
+def get_job_load_length(job_load, deltas, throttle_rates):
+    job_id = job_load["job_id"]
+
+    job_periods = [job_load["profiles"][throttle_rate]["period"] for throttle_rate in throttle_rates[job_id]]
+    sum_job_periods = sum(job_periods)
+
+    sum_job_deltas = sum(deltas[job_id])
+
+    job_length = sum_job_deltas + sum_job_periods
+
+    return job_length
+
+def evaluate_candidate(job_loads, deltas, throttle_rates, run_context, 
+                       link_logical_bandwidth, compat_score_mode):
+    
     if len(job_loads) == 0:
         return 1
     
     # periods = [job["period"] * job["iter_count"] for job in job_loads]
     # hyperperiod = max(periods)  + max([d[1] for d in deltas])
     # eval_length = min(hyperperiod, run_context["sim-length"]) 
-    max_base_job_length = 0 
-    eval_length = 0 
 
-    for job_load in job_loads:
-        job_id = job_load["job_id"] 
-        deltas_for_job = deltas[job_id] 
-        max_base_job_length = max(max_base_job_length, len(job_load["load"]))
-        job_length_all_iter = len(job_load["load"]) * job_load["iter_count"]
-        job_length = job_length_all_iter + sum(deltas_for_job)
-        
-        eval_length = max(eval_length, job_length)  
-
-    eval_length = eval_length + max_base_job_length
+    job_lengths = [get_job_load_length(job_load, deltas, throttle_rates) for job_load in job_loads]   
+    eval_length = max(job_lengths)  
     
     if EVAL_MODE == "cpp":
-        return evaluate_candidate_cpp(job_loads, deltas, run_context, 
+        return evaluate_candidate_cpp(job_loads, deltas, throttle_rates, run_context, 
                                       link_logical_bandwidth, compat_score_mode, 
                                       eval_length)
     else:
-        score_2 = evaluate_candidate_python_2(job_loads, deltas, run_context,    
+        return evaluate_candidate_python_2(job_loads, deltas, throttle_rates, run_context,    
                                              link_logical_bandwidth, compat_score_mode, 
                                              eval_length)
 
-        # print(f"CPP: {score_cpp}, Python: {score_1}, Python 2: {score_2}")
 
-        return score_2 
-
-def evaluate_candidate_cpp(job_loads, deltas, run_context, 
+def evaluate_candidate_cpp(job_loads, deltas, throttle_rates, run_context, 
                            link_logical_bandwidth, compat_score_mode, eval_length):
     
     rage_quit("This function is not working. It's not returning the right values.")
-    
+    return 
+
     # Prepare JSON input
     input_data = {
         "job_loads": job_loads,
@@ -214,19 +222,24 @@ def evaluate_candidate_cpp(job_loads, deltas, run_context,
     
     return compat_score
 
-def get_full_jobs_signals(this_link_loads, deltas):     
-    
-    job_ids = [job_load["job_id"] for job_load in this_link_loads]
-    job_loads = [job_load["load"] for job_load in this_link_loads]
-    job_iter_counts = [job_load["iter_count"] for job_load in this_link_loads]  
-    
+def get_full_jobs_signals(this_link_loads, deltas, throttle_rates):     
     repeated_job_loads = []
-    for job_id, job_load, job_iter_count in zip(job_ids, job_loads, job_iter_counts):   
+    
+    for job_load in this_link_loads:
+        job_id = job_load["job_id"] 
+        job_iter_count = job_load["iter_count"]
+        
         job_total_load = np.zeros(0)
-        for iter_id in range (job_iter_count):
+        
+        for iter_id in range(job_iter_count):
             iter_time_shift = deltas[job_id][iter_id]
+            iter_throttle_rate = throttle_rates[job_id][iter_id]
+            
+            this_job_load = job_load["profiles"][iter_throttle_rate]["load"] 
+            
             job_total_load = np.append(job_total_load, np.zeros(iter_time_shift))
-            job_total_load = np.append(job_total_load, job_load)
+            job_total_load = np.append(job_total_load, this_job_load)
+            
         repeated_job_loads.append(job_total_load)
 
     max_length = max(len(job_load) for job_load in repeated_job_loads)
@@ -240,13 +253,15 @@ def get_full_jobs_signals(this_link_loads, deltas):
     return padded_job_loads, max_length
 
 
-def evaluate_candidate_python_2(job_loads, deltas, run_context, link_logical_bandwidth, 
-                              compat_score_mode, eval_length):
+def evaluate_candidate_python_2(job_loads, deltas, throttle_rates, 
+                                run_context, link_logical_bandwidth, 
+                                compat_score_mode, eval_length):
+    
     sim_length = eval_length
     
     sum_signal = np.zeros(sim_length, dtype=np.float64)
     
-    padded_job_loads, _ = get_full_jobs_signals(job_loads, deltas) 
+    padded_job_loads, _ = get_full_jobs_signals(job_loads, deltas, throttle_rates) 
     job_loads_array = np.array(padded_job_loads)
     sum_signal = np.sum(job_loads_array, axis=0)
         
@@ -263,6 +278,16 @@ def evaluate_candidate_python_2(job_loads, deltas, run_context, link_logical_ban
         else: 
             first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
             compat_score = first_overload_index / sim_length
+            
+        solution_cost = 0 
+        for job_load in job_loads:
+            job_id = job_load["job_id"]
+            job_cost = get_solution_cost_job_load(job_load, deltas, throttle_rates)
+            job_length = job_load["profiles"][1.0]["period"] * job_load["iter_count"]
+            solution_cost += (job_cost / job_length)
+        solution_cost = solution_cost / len(job_loads)
+        
+        compat_score = compat_score - solution_cost  
         
     elif compat_score_mode == "max-util-left":
         compat_score = (link_logical_bandwidth - max_util) / link_logical_bandwidth
@@ -271,33 +296,45 @@ def evaluate_candidate_python_2(job_loads, deltas, run_context, link_logical_ban
     
     
 def solve_for_link(job_loads, link_logical_bandwidth, run_context, 
-                   compat_score_mode, starting_iterations, base_deltas, weights,
-                   fixed_prefs=None, resolved_deltas_set=None):  
+                   compat_score_mode, starting_iterations, 
+                   current_deltas, current_throttle_rates, 
+                   weights, resolved_deltas_set):  
     
     ls_candidates = run_context["cassini-parameters"]["link-solution-candidate-count"]
     ls_rand_quantum = run_context["cassini-parameters"]["link-solution-random-quantum"]
     ls_top_candidates = run_context["cassini-parameters"]["link-solution-top-candidates"]    
     
-    if len(job_loads) == 0: 
-        return [([], 0)] * ls_top_candidates
-    
-    if len(job_loads) == 1:
-        one_job_id = job_loads[0]["job_id"] 
-        new_solution = base_deltas[one_job_id].copy()
-        return [([(job_loads[0]["job_id"], new_solution)], 0)]
+    if len(job_loads) == 0 or len(job_loads) == 1:
+        same_deltas = copy.deepcopy(current_deltas)
+        same_throttle_rates = copy.deepcopy(current_throttle_rates)
+        return (same_deltas, same_throttle_rates)
         
-    delta_scores = [] 
+    solution_scores = [] 
     involved_jobs = set([job["job_id"] for job in job_loads])
     
-    for i in range(ls_candidates):
-        new_deltas = copy.deepcopy(base_deltas) 
+    for candidate_id in range(ls_candidates):
+        new_deltas = copy.deepcopy(current_deltas) 
+        new_throttle_rates = copy.deepcopy(current_throttle_rates)  
         
+        # find a bunch of random deltas. 
         random_deltas = [] 
+        random_throttle_rates = [] 
+        
         for job in job_loads: 
             job_id = job["job_id"]
-            weighted_job_period = job["period"] + weights[job_id]
+            
+            if run_context["timing-scheme"] == "cassini":
+                throttle_rate = 1.0   
+            elif run_context["timing-scheme"] == "farid":  
+                throttle_rate = random.choice(run_context["profiled-throttle-factors"])
+                
+            random_throttle_rates.append((job["job_id"], throttle_rate))
+            
+            job_period = job["profiles"][throttle_rate]["period"]
+            weighted_job_period = job_period + weights[job_id]
             if weighted_job_period < 0: 
                 weighted_job_period = 0
+            
             rand_options = int(math.ceil((weighted_job_period) / ls_rand_quantum))
             r = random.randint(0, rand_options) * ls_rand_quantum        
             random_deltas.append((job["job_id"], r)) 
@@ -305,39 +342,49 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
         min_delta = min([x[1] for x in random_deltas])
         random_deltas = [(x[0], x[1] - min_delta) for x in random_deltas]
         
+        # if some of the jobs are already resolved, we will discard the random deltas for them.        
         number_of_fixed_decisions = 0 
+        for job_id in involved_jobs:     
+            if job_id in resolved_deltas_set:
+                
+                number_of_fixed_decisions += 1
+                iter = starting_iterations[job_id]
         
-        if fixed_prefs is not None and resolved_deltas_set is not None:
-            # iterate over the set 
-            for job_id, deltas in fixed_prefs.items():  
-                if job_id in resolved_deltas_set:   
-                    number_of_fixed_decisions += 1
-                    iter = starting_iterations[job_id]
-                    if iter < len(new_deltas[job_id]):
-                        set_delta_for_job_in_decisions(random_deltas, job_id, deltas[starting_iterations[job_id]])  
-        
+                if iter < len(new_deltas[job_id]):
+                    set_value_for_job_in_decisions(random_deltas, job_id, 
+                                                   new_deltas[job_id][iter])
+                    
+                    set_value_for_job_in_decisions(random_throttle_rates, job_id, 
+                                                   new_throttle_rates[job_id][iter])
+                    
         if number_of_fixed_decisions == len(involved_jobs):
-            return [(new_deltas, 0)]
+            same_deltas = copy.deepcopy(current_deltas)
+            same_throttle_rates = copy.deepcopy(current_throttle_rates) 
+            return (same_deltas, same_throttle_rates) # no need to evaluate this.
         
         for job_id, delta in random_deltas:
-            # set_delta_for_job_in_decisions(new_deltas, job_id, delta)
             iter = starting_iterations[job_id]
             if iter < len(new_deltas[job_id]):
                 new_deltas[job_id][iter] = delta
-            
-        compat_score = evaluate_candidate(job_loads, new_deltas, 
-                                          run_context, 
-                                          link_logical_bandwidth, 
+        
+        for job_id, throttle_rate in random_throttle_rates: 
+            iter = starting_iterations[job_id]
+            if iter < len(new_throttle_rates[job_id]):
+                new_throttle_rates[job_id][iter] = throttle_rate
+        
+        compat_score = evaluate_candidate(job_loads, new_deltas, new_throttle_rates, 
+                                          run_context, link_logical_bandwidth, 
                                           compat_score_mode)
-        
-        # print("new_deltas: ", new_deltas, "compat_score: ", compat_score)   
-        
-        delta_scores.append((new_deltas, compat_score))
 
-    good_deltas = sorted(delta_scores, key=lambda x: x[1], reverse=True)
-    results = good_deltas[:ls_top_candidates]
+        # print("new_deltas: ", new_deltas, "compat_score: ", compat_score)   
+        solution_scores.append((new_deltas, new_throttle_rates, compat_score))
+
+    good_solutions = sorted(solution_scores, key=lambda x: x[2], reverse=True)
+    top_candidates = good_solutions[:ls_top_candidates]
+    r = random.randint(0, len(top_candidates) - 1)
+    top_solution = top_candidates[r]
     
-    return results
+    return top_solution[0], top_solution[1]
 
 def get_link_loads(jobs, options, run_context, job_profiles):
     servers_per_rack = options["ft-server-per-rack"]
@@ -348,75 +395,94 @@ def get_link_loads(jobs, options, run_context, job_profiles):
     cross_rack_jobs_set = set() 
     cross_rack_jobs = []    
     
+    def add_signal_to_sum(signal, sum_signal):
+        for i in range(len(signal)):
+            if i >= len(sum_signal):
+                sum_signal.append(0)
+            sum_signal[i] += signal[i]
+            
     for i in range(rack_count):
         this_rack = {"up": [], "down": []}
         link_loads.append(this_rack)
 
-    for job in jobs:
-        job_id = job["job_id"]
-        if job_id not in job_profiles:
-            continue    
-        
-        job_profile = job_profiles[job_id]
-        if len(job_profile["flows"]) == 0:
-            continue 
-
-        job_period = job_profile["period"]  
-        # for flow in job_profile["flows"]:   
-        #     for i in range(len(flow["progress_history"])):
-        #         flow["progress_history"][i] /= link_bandwidth
-        
-        # this job will add some load to each of the links. 
-        # all the flows for this job will be added up. 
-        for i in range(rack_count):
-            for dir in ["up", "down"]:
-                def add_signal_to_sum(signal, sum_signal):
-                    for i in range(len(signal)):
-                        if i >= len(sum_signal):
-                            sum_signal.append(0)
-                        sum_signal[i] += signal[i]
-
-                link_job_load_combined = [] 
+        for dir in ["up", "down"]:
+            
+            for job in jobs:
+                job_id = job["job_id"]
+                throttled_job_profiles = {}
                 any_flow_added = False
                 
-                for flow in job_profile["flows"]:
-                    flow_src_rack = flow["srcrack"]
-                    flow_dst_rack = flow["dstrack"]
+                for throttle_factor in run_context["profiled-throttle-factors"]:
+                    if job_id not in job_profiles:
+                        continue    
                     
-                    flow_progress_history = flow["progress_history"].copy()    
-                    
-                    for t in range(len(flow_progress_history)): 
-                        flow_progress_history[t] /= link_bandwidth
+                    job_profile = job_profiles[job_id][throttle_factor]
+                    if len(job_profile["flows"]) == 0:
+                        continue 
 
-                    # print flow start and end and src and dst 
-                    if ((dir == "up" and flow_src_rack == i) or 
-                        (dir == "down" and flow_dst_rack == i)):    
+                    job_period = job_profile["period"]  
+                    # for flow in job_profile["flows"]:   
+                    #     for i in range(len(flow["progress_history"])):
+                    #         flow["progress_history"][i] /= link_bandwidth
+                    
+                    # this job will add some load to each of the links. 
+                    # all the flows for this job will be added up. 
+
+                    link_job_load_combined = [] 
+                    
+                    for flow in job_profile["flows"]:
+                        flow_src_rack = flow["srcrack"]
+                        flow_dst_rack = flow["dstrack"]
                         
-                        any_flow_added = True 
-                        if len(link_job_load_combined) > 0:
-                            assert len(link_job_load_combined) == len(flow_progress_history)
+                        flow_progress_history = flow["progress_history"].copy()    
+                        
+                        for t in range(len(flow_progress_history)): 
+                            flow_progress_history[t] /= link_bandwidth
+
+                        # print flow start and end and src and dst 
+                        if ((dir == "up" and flow_src_rack == i) or 
+                            (dir == "down" and flow_dst_rack == i)):    
                             
-                        # this is a flow that goes through this link
-                        add_signal_to_sum(flow_progress_history,
-                                          link_job_load_combined)
-                
+                            any_flow_added = True 
+                            if len(link_job_load_combined) > 0:
+                                assert len(link_job_load_combined) == len(flow_progress_history)
+                                
+                            # this is a flow that goes through this link
+                            add_signal_to_sum(flow_progress_history,
+                                              link_job_load_combined)
+                            
+                    if any_flow_added:
+                        throttled_job_profiles[throttle_factor] = {
+                            "load": link_job_load_combined, 
+                            "period": job_period,
+                            "max": max(link_job_load_combined),
+                        }
+                        
+                        # if there were no flows for this throttle factor, 
+                        # there won't be any flows for the other throttle factors.
+                        # so we can break out of the loop.
+                    else:                         
+                        break 
+                    
                 if any_flow_added:
-                    cross_rack_jobs_set.add(job_id) 
+                    cross_rack_jobs_set.add(job_id)
                     
                     link_loads[i][dir].append({
+                        "link_id": i * 2 + (1 if dir == "up" else 0),   
                         "job_id": job_id,
-                        "iter_count": job["iter_count"],    
-                        "load": link_job_load_combined,
-                        "period": job_period
+                        "iter_count": job["iter_count"],  
+                        "profiles": throttled_job_profiles
                     })
-                    
+    
     cross_rack_jobs = list(cross_rack_jobs_set) 
     return link_loads, cross_rack_jobs
 
 
 
-def visualize_link_loads(link_loads, run_context, deltas, 
-                         link_logical_bandwidth = None, suffix=""): 
+def visualize_link_loads(link_loads, run_context, 
+                         deltas, throttle_rates,
+                         link_logical_bandwidth = None, 
+                         suffix=""): 
     
     if "visualize-timing" not in run_context or not run_context["visualize-timing"]:    
         return  
@@ -444,7 +510,7 @@ def visualize_link_loads(link_loads, run_context, deltas,
                 ax.text(0.5, 0.5, "No jobs", horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)  
                 continue
             
-            padded_job_loads, max_length = get_full_jobs_signals(link_loads[rack][direction], deltas)
+            padded_job_loads, max_length = get_full_jobs_signals(link_loads[rack][direction], deltas, throttle_rates)
             job_ids = [job_load["job_id"] for job_load in link_loads[rack][direction]]  
             
             # Convert the padded job loads to a 2D array
@@ -474,7 +540,7 @@ def visualize_link_loads(link_loads, run_context, deltas,
         for rack in range(num_racks):
             for i, direction in enumerate(["up", "down"]):
                 ax = axes[rack][i]
-                ax.axvline(x=min_over_capacity_time, color='black', linestyle='-', linewidth=3)     
+                ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
             
     plt.tight_layout()
 
@@ -485,22 +551,19 @@ def visualize_link_loads(link_loads, run_context, deltas,
     
     plt.close(fig)
 
-def get_good_until(jobs, link_loads, run_context, deltas, link_logical_bandwidth):    
-    num_racks = len(link_loads)
-
+def get_good_until(jobs, link_loads_list, run_context, deltas, throttle_rates, link_logical_bandwidth):    
     min_first_overload_index = 1e9  
     max_length_across_links = 0 
     
-    for rack in range(num_racks):
-        for i, direction in enumerate(["up", "down"]):
-            padded_job_loads, max_length = get_full_jobs_signals(link_loads[rack][direction], deltas)
-            max_length_across_links = max(max_length_across_links, max_length)
-            # Convert the padded job loads to a 2D array
-            job_loads_array = np.array(padded_job_loads)
-            sum_signal = np.sum(job_loads_array, axis=0)
-            first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
-            if max(sum_signal) > link_logical_bandwidth:
-                min_first_overload_index = min(min_first_overload_index, first_overload_index)  
+    for link_load in link_loads_list:   
+        padded_job_loads, max_length = get_full_jobs_signals(link_load, deltas, throttle_rates)
+        max_length_across_links = max(max_length_across_links, max_length)
+        # Convert the padded job loads to a 2D array
+        job_loads_array = np.array(padded_job_loads)
+        sum_signal = np.sum(job_loads_array, axis=0)
+        first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
+        if max(sum_signal) > link_logical_bandwidth:
+            min_first_overload_index = min(min_first_overload_index, first_overload_index)  
                  
     if min_first_overload_index == 1e9:
         min_first_overload_index = max_length_across_links  
@@ -512,13 +575,11 @@ def get_good_until(jobs, link_loads, run_context, deltas, link_logical_bandwidth
     # print(f"min_first_overload_index: {min_first_overload_index}")  
     
     good_until = {} 
-    print("min_first_overload_index: ", min_first_overload_index)   
+    # print("min_first_overload_index: ", min_first_overload_index)   
     
     for job in jobs: 
         good_until[job["job_id"]] = -1
-        
         job_id = job["job_id"] 
-        job_period = job["period"] 
         job_iter_count = job["iter_count"] 
 
         # the job will be delta, period, delta, period, delta, period, ...  
@@ -526,8 +587,11 @@ def get_good_until(jobs, link_loads, run_context, deltas, link_logical_bandwidth
         
         for iter_id in range(job_iter_count):
             
+            iter_throttle_rate = throttle_rates[job_id][iter_id] 
+            
+            job_iter_period = job["period"][iter_throttle_rate]
             current_time += deltas[job_id][iter_id]
-            current_time += job_period 
+            current_time += job_iter_period 
             
             if current_time > min_first_overload_index:
                 break
@@ -538,9 +602,11 @@ def get_good_until(jobs, link_loads, run_context, deltas, link_logical_bandwidth
     
     return good_until
     
-def evaluate_candidate_all_links(link_loads, deltas, run_context, 
+def evaluate_candidate_all_links(jobs, link_loads, deltas, throttle_rates, run_context, 
                                  link_logical_bandwidth, compat_score_mode, 
-                                 rack_count):
+                                 cross_rack_jobs): 
+    # pprint(deltas)  
+    
     # now we have a candidate solution. We should evaluate it. 
     if compat_score_mode == "time-no-coll":
         candidate_score = 1 
@@ -549,51 +615,120 @@ def evaluate_candidate_all_links(link_loads, deltas, run_context,
     elif compat_score_mode == "under-cap":
         candidate_score = 0
                 
-    for rack in range(rack_count):
-        for direction in ["up", "down"]:
-            compat_score = evaluate_candidate(job_loads=link_loads[rack][direction], 
-                                              deltas=deltas, 
-                                              run_context=run_context,
-                                              compat_score_mode=compat_score_mode,
-                                              link_logical_bandwidth=link_logical_bandwidth)
+    for link_load in link_loads:    
+        compat_score = evaluate_candidate(job_loads=link_load, 
+                                            deltas=deltas, 
+                                            throttle_rates=throttle_rates,
+                                            run_context=run_context,
+                                            compat_score_mode=compat_score_mode,
+                                            link_logical_bandwidth=link_logical_bandwidth)
 
-            if compat_score_mode == "max-util-left": 
-                candidate_score += compat_score
-            elif compat_score_mode == "under-cap": 
-                candidate_score += compat_score 
-            elif compat_score_mode == "time-no-coll":
-                candidate_score = min(compat_score, candidate_score)   
+        if compat_score_mode == "max-util-left": 
+            candidate_score += compat_score
+        elif compat_score_mode == "under-cap": 
+            candidate_score += compat_score 
+        elif compat_score_mode == "time-no-coll":
+            # print("candidate_score: ", candidate_score, "compat_score: ", compat_score) 
+            candidate_score = min(compat_score, candidate_score)   
 
+    
+    # if compat_score_mode == "time-no-coll":
+    #     total_cost = 0 
+    #     for job in jobs:
+    #         job_id = job["job_id"]
+    #         if job_id in cross_rack_jobs:   
+    #             job_cost = get_solution_cost(job, deltas, throttle_rates)
+    #             job_length = job["base_period"] * job["iter_count"]
+                
+    #             total_cost += job_cost / job_length 
+                
+    #     delay_penalty = total_cost / len(cross_rack_jobs)
+        
+    #     print("candidate_score: ", candidate_score, 
+    #           "delay_penalty: ", delay_penalty, 
+    #           "candidate_score - delay_penalty: ", candidate_score - delay_penalty)
+        
+    #     candidate_score -= delay_penalty
+    
     return candidate_score  
 
+def get_solution_cost_job(job, deltas, throttle_rates):    
+    job_id = job["job_id"]
     
-def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles, 
-                   starting_iterations=None, base_deltas=None, weights=None, round=0):       
+    total_deltas_cost = sum(deltas[job_id]) 
     
-    if starting_iterations is None or base_deltas is None or weights is None:   
-        rage_quit("starting_iteration or deltas or weights in None") 
-     
-    start_time = time.time()    
+    total_throttle_cost = 0
+    for throttle_rate in throttle_rates[job_id]:    
+        period = job["period"][throttle_rate]
+        base_period = job["base_period"]       
+        
+        throttle_cost = period - base_period    
+        total_deltas_cost += throttle_cost
+        
+    job_cost = total_deltas_cost + total_throttle_cost 
+    
+    return job_cost
+
+def get_solution_cost_job_load(job_load, deltas, throttle_rates):   
+    job_id = job_load["job_id"]
+    
+    total_deltas_cost = sum(deltas[job_id]) 
+    
+    total_throttle_cost = 0
+    for throttle_rate in throttle_rates[job_id]:    
+        period = job_load["profiles"][throttle_rate]["period"]
+        base_period = job_load["profiles"][1.0]["period"]          
+        
+        throttle_cost = period - base_period    
+        total_deltas_cost += throttle_cost
+        
+    job_cost = total_deltas_cost + total_throttle_cost 
+    
+    return job_cost
+    
+def get_timeshifts(jobs, options, run_context, job_profiles, 
+                   starting_iterations=None, base_deltas=None, 
+                   weights=None, base_throttle_rates=None, round=0):       
+
+    # check if the required parameters are there.    
+    if (starting_iterations is None or 
+            base_deltas is None or 
+            weights is None or 
+            base_throttle_rates is None): 
+         
+        base_deltas = {}
+        base_throttle_rates = {}
+        starting_iterations = {}    
+        weights = {} 
+
+        for job in jobs:
+            job_id = job["job_id"]
+    
+            base_deltas[job_id] = [0] * job["iter_count"]
+            base_throttle_rates[job_id] = [1.0] * job["iter_count"]
+            starting_iterations[job_id] = 0
+            weights[job_id] = 0
     
     if "compat-score-mode" not in run_context:
         rage_quit("compat-score-mode is required in run_context")
-        
+    
     compat_score_mode = run_context["compat-score-mode"]
     overall_solution_candidate_count = run_context["cassini-parameters"]["overall-solution-candidate-count"]
-    
     servers_per_rack = options["ft-server-per-rack"]
     rack_count = options["machine-count"] // servers_per_rack       
     link_logical_bandwidth = options["ft-core-count"]
     
-    # log_results(run_context, "jobs", jobs)
+    start_time = time.time()
+    
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)   
 
-    # visualize_link_loads(link_loads, run_context, base_deltas, 
+    # visualize_link_loads(link_loads, run_context, base_deltas, base_throttle_rates,
     #                      link_logical_bandwidth=link_logical_bandwidth, 
     #                      suffix=f"_round_{round}_base")
     
     best_candidate_score = -1e9 
-    best_candidate = None
+    best_candidate_deltas = None
+    best_candidate_throttle_rates = None 
     best_candidate_good_until = None     
     
     all_scores = [] 
@@ -603,103 +738,93 @@ def get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles,
         for direction in ["up", "down"]:
             link_loads_list.append(link_loads[rack][direction])
     
-    resolved_deltas_set = set() 
-    
-    for job in jobs: 
-        job_id = job["job_id"]
-        resolved_deltas_set.add(job_id)
-    
     for i in range(overall_solution_candidate_count):
+        resolved_deltas_set = set() 
+    
+        for job in jobs: 
+            job_id = job["job_id"]
+            if starting_iterations[job_id] == job["iter_count"]:
+                resolved_deltas_set.add(job_id)
+        
+        current_deltas = copy.deepcopy(base_deltas)
+        current_throttle_rates = copy.deepcopy(base_throttle_rates)   
+
         # shuffle the link_solutions. No real difference beetwen the links.
         random.shuffle(link_loads_list)
-
-        # pick the top solution for the first link (which is an arbitrary choice)
-        first_link_loads = link_loads_list[0]
-        solutions = solve_for_link(first_link_loads, link_logical_bandwidth, 
-                                   run_context, compat_score_mode, 
-                                   starting_iterations=starting_iterations, 
-                                   base_deltas=base_deltas, 
-                                   weights=weights)
         
-        
-        r = random.randint(0, len(solutions) - 1)
-        top_solution = solutions[r]
-        current_decisions = top_solution[0]
-        # log_results(run_context, f"link_solutions_0_candidate_{i}", current_decisions)
-
-        this_link_jobs_ids = [job["job_id"] for job in first_link_loads]
-        for this_link_jobs_id in this_link_jobs_ids:
-            resolved_deltas_set.add(this_link_jobs_id)
-
         # go through the rest of the links. 
-        for j in range(1, len(link_loads_list)):
+        for j in range(0, len(link_loads_list)):
             this_link_loads = link_loads_list[j]
             
-            link_solutions = solve_for_link(this_link_loads, link_logical_bandwidth, 
-                                            run_context, compat_score_mode,
-                                            starting_iterations=starting_iterations, 
-                                            base_deltas=base_deltas,
-                                            weights=weights, 
-                                            fixed_prefs=current_decisions, 
-                                            resolved_deltas_set=resolved_deltas_set)    
+            solution = solve_for_link(this_link_loads, link_logical_bandwidth, 
+                                      run_context, compat_score_mode,
+                                      starting_iterations=starting_iterations, 
+                                      current_deltas=current_deltas, 
+                                      current_throttle_rates=current_throttle_rates,
+                                      weights=weights, 
+                                      resolved_deltas_set=resolved_deltas_set)    
+             
+            current_deltas, current_throttle_rates = solution
             
-            r = random.randint(0, len(link_solutions) - 1)
-            top_solution = link_solutions[r]
-            top_solution_timing = top_solution[0]
             
-            # update the current decisions.
-            for job_id, delta in top_solution_timing.items(): 
-                this_link_jobs_id = set([job["job_id"] for job in this_link_loads]) 
-                if job_id in this_link_jobs_id:
-                    starting_iter = starting_iterations[job_id] 
-                    if starting_iter < len(delta): 
-                        current_decisions[job_id][starting_iter] = delta[starting_iter]
-                    
-                    resolved_deltas_set.add(job_id)
-                    
-            # log_results(run_context, f"link_solutions_{j}_candidate_{i}", current_decisions)
+            for job_load in this_link_loads:
+                resolved_deltas_set.add(job_load["job_id"]) 
+                
+            if len(resolved_deltas_set) > len(cross_rack_jobs): 
+                rage_quit("resolved_deltas_set is bigger than cross_rack_jobs. what's going on?")
+                   
             if len(resolved_deltas_set) == len(cross_rack_jobs):
                 break
+            
+            # log_results(run_context, f"link_solutions_{j}_candidate_{i}", current_deltas)
         
-        # visualize_link_loads(link_loads, run_context, current_decisions,    
+        
+        # visualize_link_loads(link_loads, run_context, current_deltas, current_throttle_rates,   
         #                      link_logical_bandwidth=link_logical_bandwidth, 
         #                      suffix=f"_{round}_{i}")    
+        candidate_score = evaluate_candidate_all_links(jobs, link_loads_list, current_deltas, current_throttle_rates, 
+                                                       run_context, link_logical_bandwidth, 
+                                                       compat_score_mode, cross_rack_jobs)
+    
         
-        candidate_score = evaluate_candidate_all_links(link_loads, current_decisions, run_context, 
-                                                       link_logical_bandwidth, compat_score_mode, 
-                                                       rack_count) 
-        
-        # log_results(run_context, "candidate", (current_decisions, candidate_score))
-        good_until = get_good_until(jobs, link_loads, run_context, current_decisions,    
+        # log_results(run_context, "candidate", (current_deltas, candidate_score))
+        good_until = get_good_until(jobs, link_loads_list, run_context, 
+                                    current_deltas, current_throttle_rates,   
                                     link_logical_bandwidth=link_logical_bandwidth)
         
         all_scores.append(candidate_score)
         
         if candidate_score > best_candidate_score:
             best_candidate_score = candidate_score
-            best_candidate = current_decisions
+            best_candidate_deltas = current_deltas
+            best_candidate_throttle_rates = current_throttle_rates
             best_candidate_good_until = good_until
 
-    visualize_link_loads(link_loads, run_context, best_candidate,    
+    visualize_link_loads(link_loads, run_context, best_candidate_deltas, 
+                         best_candidate_throttle_rates,    
                          link_logical_bandwidth=link_logical_bandwidth, 
                          suffix=f"_round_{round}_best")
 
     job_timings = [] 
-    log_results(run_context, "best_candidate", (best_candidate, best_candidate_score))
+    log_results(run_context, "best_candidate", (best_candidate_deltas, 
+                                                best_candidate_throttle_rates, 
+                                                best_candidate_score))
+    
     for job in jobs:
         job_id = job["job_id"]
-        # timing = get_delta_for_job_in_decisions(best_candidate, job_id)
-        if job_id in best_candidate:
-            timing = best_candidate[job_id]
+        if job_id in best_candidate_deltas:
+            deltas = best_candidate_deltas[job_id]
+            throttle_rates = best_candidate_throttle_rates[job_id] 
         else:
-            timing = [0] * job["iter_count"]    
+            deltas = [0] * job["iter_count"]
+            throttle_rates = [1.0] * job["iter_count"]      
             
         job_timings.append({
-            "deltas": timing,
+            "deltas": deltas,
+            "throttle_rates": throttle_rates,   
             "job_id": job_id
         })           
 
-            
     end_time = time.time() 
     time_taken = end_time - start_time 
     log_results(run_context, "time_taken", time_taken)  
@@ -710,27 +835,28 @@ def load_job_profiles(jobs, run_context):
     job_profiles = {} 
     
     for job in jobs: 
-        profiles_dir = run_context["profiles-dir"]
         job_id = job["job_id"]
-        path = f"{profiles_dir}/{job_id}.pkl"
-        
-        # check if the file exists.
-        if not os.path.exists(path):
-            continue 
-                
-        with open(path, "rb") as f:  
-            job_profiles[job_id] = pkl.load(f)
+        job_profiles[job_id] = {}
+
+        for throttle_factor in run_context["profiled-throttle-factors"]:
+            profiles_dir = run_context["profiles-dir"]
+            path = f"{profiles_dir}/{job_id}_{throttle_factor}.pkl"
+            
+            # check if the file exists.
+            if not os.path.exists(path):
+                continue 
+                    
+            with open(path, "rb") as f:  
+                job_profiles[job_id][throttle_factor] = pkl.load(f)
     
     return job_profiles
         
 
-def cassini_timing(jobs, options, run_context, config_sweeper, timing_scheme):
-    # job_profiles = profile_all_jobs(jobs, options, run_context, config_sweeper)
+def cassini_timing(jobs, options, run_context, timing_scheme):
+    # job_profiles = profile_all_jobs(jobs, options, run_context)
     job_profiles = load_job_profiles(jobs, run_context) 
 
-    # run cassini timing with the job profiles, find some timings for the jobs.
-    # TODO: add the other argument. 
-    job_timings = get_timeshifts(jobs, options, run_context, config_sweeper, job_profiles)
+    job_timings, good_until = get_timeshifts(jobs, options, run_context, job_profiles)
 
     return job_timings, None
 
@@ -744,27 +870,27 @@ def get_job_iter_finish(period, deltas, iter_id):
         finish += period + deltas[i]
     return finish
 
-def get_extended_time_shifts(jobs, options, run_context, config_sweeper, job_profiles):
+def get_extended_time_shifts(jobs, options, run_context, job_profiles):
     base_deltas = {}
+    base_throttle_rates = {}
     starting_iterations = {}    
     weights = {} 
     
     for job in jobs:
         job_id = job["job_id"]
+
         base_deltas[job_id] = [0] * job["iter_count"]
-        starting_iterations[job_id] = 0
+        base_throttle_rates[job_id] = [1.0] * job["iter_count"]
         weights[job_id] = 0
+        starting_iterations[job_id] = 0
+        
             
     for i in range(20): 
-        print("starting round: {}".format(i))   
-        
-        job_timings, good_until = get_timeshifts(jobs, options, run_context, 
-                                                 config_sweeper, job_profiles, 
+        # print("starting round: {}".format(i))   
+        job_timings, good_until = get_timeshifts(jobs, options, run_context, job_profiles, 
                                                  starting_iterations=starting_iterations, 
                                                  base_deltas=base_deltas, weights=weights, 
-                                                 round=i) 
-        
-        sum_deltas = {} 
+                                                 base_throttle_rates=base_throttle_rates, round=i) 
         
         for job in jobs:
             job_id = job["job_id"]
@@ -773,66 +899,56 @@ def get_extended_time_shifts(jobs, options, run_context, config_sweeper, job_pro
             for timing in job_timings:
                 if timing["job_id"] == job_id:
                     base_deltas[job_id] = timing["deltas"]
-                    break   
+                    base_throttle_rates[job_id] = timing["throttle_rates"]
+                    break  
+            # print("job_id: {}, good until: {}, sum_deltas: {}, period: {}, missed iters: {}".format(
+            #         job_id, good_until[job_id], sum_deltas[job_id], job["period"], 
+            #         int(math.ceil(sum_deltas[job_id] / job["period"]))))
+        
+        job_costs = {} 
+        for job in jobs:
+            job_id = job["job_id"]  
+            job_costs[job_id] = get_solution_cost_job(job, base_deltas, base_throttle_rates)
+            print("job_id: {}, job_cost: {}, job_period: {}, job_iter_count: {}".format(
+                job_id, job_costs[job_id], job["period"], job["iter_count"]))
             
-            sum_deltas[job_id] = sum(base_deltas[job_id])
-            
-            
-            print("job_id: {}, good until: {}, sum_deltas: {}, period: {}, missed iters: {}".format(
-                    job_id,
-                    good_until[job_id],
-                    sum_deltas[job_id],
-                    job["period"], 
-                    int(math.ceil(sum_deltas[job_id] / job["period"]))))
-            
-            
-        avg_sum_deltas = int(sum(sum_deltas.values()) / len(jobs))   
+        avg_job_cost = int(sum(job_costs.values()) / len(jobs))   
                 
         for job in jobs:
             job_id = job["job_id"]
-            # job_a  = (avg_sum_deltas / (sum_deltas[job_id])) 
-            # weights[job_id] = job_a**0.5
-            # weights[job_id] = avg_sum_deltas - sum_deltas[job_id]
-            weights[job_id] = 0
-            
-            print("job_id: {}, sum_deltas: {}, avg_sum_deltas: {}, weight: {}".format(  
-                    job_id, sum_deltas[job_id], avg_sum_deltas, weights[job_id]))
-            
+            weights[job_id] = avg_job_cost - job_costs[job_id]
                 
         are_we_done = True 
         for job in jobs:    
             if starting_iterations[job["job_id"]] < job["iter_count"]:
-                print("job_id: {}, starting_iterations: {}, iter_count: {} is still not okay".format(
-                    job["job_id"], starting_iterations[job["job_id"]], job["iter_count"])
-                )
                 are_we_done = False 
                 break
-        
         if are_we_done:
             break
 
     log_results(run_context, "job_timings", job_timings)
-    pprint(job_timings) 
-    input("Press Enter to continue...")  
+    # pprint(job_timings)
+    
     return job_timings 
 
-def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
+def farid_timing(jobs, options, run_context, timing_scheme):
+    
     # step 1: profile the jobs 
     job_profiles = load_job_profiles(jobs, run_context)
 
     # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
-    # job_timings = get_extended_time_shifts(jobs, options, run_context, config_sweeper, job_profiles)
+    job_timings = get_extended_time_shifts(jobs, options, run_context, job_profiles)
     
-    job_timings = [
-        {'deltas': [270, 0, 0, 0, 0, 730, 610], 'job_id': 1},
-        {'deltas': [310, 0, 0, 0, 0, 330, 0, 0, 0, 0, 0, 100, 0], 'job_id': 2},
-        {'deltas': [0, 0, 690, 250, 0, 100, 0, 0], 'job_id': 3},
-        {'deltas': [750, 190, 200, 0, 750, 540, 0, 0], 'job_id': 4},
-        {'deltas': [0, 0, 0, 0, 0, 0, 0, 0, 0, 70, 0, 0, 0, 110, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'job_id': 5}
-    ]
+    # job_timings = [
+    #     {'deltas': [270, 0, 0, 0, 0, 730, 610], 'job_id': 1},
+    #     {'deltas': [310, 0, 0, 0, 0, 330, 0, 0, 0, 0, 0, 100, 0], 'job_id': 2},
+    #     {'deltas': [0, 0, 690, 250, 0, 100, 0, 0], 'job_id': 3},
+    #     {'deltas': [750, 190, 200, 0, 750, 540, 0, 0], 'job_id': 4},
+    #     {'deltas': [0, 0, 0, 0, 0, 0, 0, 0, 0, 70, 0, 0, 0, 110, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 'job_id': 5}
+    # ]
     
     # step 3: do the routing for the flows. 
-    lb_decisions = route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings)
+    lb_decisions = route_flows(jobs, options, run_context, job_profiles, job_timings)
     
     # step 4: return the full schedule.  
     return job_timings, lb_decisions
@@ -842,7 +958,7 @@ def farid_timing(jobs, options, run_context, config_sweeper, timing_scheme):
 ############################################################################
 
 def generate_timing_file(timing_file_path, routing_file_path, placement_seed, 
-                         jobs, options, run_context, config_sweeper):
+                         jobs, options, run_context):
 
     random.seed(run_context["experiment-seed"] + placement_seed)
     
@@ -862,7 +978,7 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
         raise ValueError(f"Invalid timing-scheme: {timing_scheme}")
     
     timing_func = timing_funcions[timing_scheme.split("_")[0]] 
-    job_timings, lb_decisions = timing_func(jobs, options, run_context, config_sweeper, timing_scheme)
+    job_timings, lb_decisions = timing_func(jobs, options, run_context, timing_scheme)
     
     with open(timing_file_path, "w") as f:
         json.dump(job_timings, f, indent=4)
@@ -879,15 +995,9 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     return job_timings, lb_decisions    
 
 if __name__ == "__main__":
-    if len(sys.argv) == 2:
-        if sys.argv[1] == "--test":
-            input_data = '{"timing_file_path": "results/sweep/1223-nethint_LB+leastloaded_TS+cassini_R+optimal_4_58/custom_files//timings/random-optimal/2//cassini.txt", "placement_seed": 2, "jobs": [{"job_id": 1, "machine_count": 6, "comm_size": 10000, "comp_size": 1000, "layer_count": 1, "iter_count": 20, "machines": [2, 4, 7, 8, 17, 22]}, {"job_id": 2, "machine_count": 7, "comm_size": 10000, "comp_size": 500, "layer_count": 1, "iter_count": 20, "machines": [5, 10, 21, 24, 26, 29, 31]}, {"job_id": 3, "machine_count": 5, "comm_size": 20000, "comp_size": 500, "layer_count": 1, "iter_count": 20, "machines": [1, 16, 18, 19, 25]}, {"job_id": 4, "machine_count": 4, "comm_size": 10000, "comp_size": 1000, "layer_count": 1, "iter_count": 20, "machines": [3, 15, 23, 30]}, {"job_id": 5, "machine_count": 8, "comm_size": 20000, "comp_size": 1000, "layer_count": 1, "iter_count": 20, "machines": [0, 6, 9, 11, 12, 20, 27, 28]}, {"job_id": 6, "machine_count": 2, "comm_size": 20000, "comp_size": 1000, "layer_count": 1, "iter_count": 20, "machines": [13, 14]}], "options": {"step-size": 1, "core-status-profiling-interval": 100000, "rep-count": 1, "console-log-level": 4, "file-log-level": 3, "initial-rate": 100, "min-rate": 100, "drop-chance-multiplier": 0, "rate-increase": 1, "priority-allocator": "maxmin", "network-type": "leafspine", "link-bandwidth": 100, "ft-rack-per-pod": 1, "ft-agg-per-pod": 1, "ft-pod-count": -1, "ft-server-tor-link-capacity-mult": 1, "ft-tor-agg-link-capacity-mult": 1, "ft-agg-core-link-capacity-mult": 1, "shuffle-device-map": false, "regret-mode": "none", "machine-count": 32, "ft-server-per-rack": 8, "general-param-1": 4, "general-param-3": 8, "simulation-seed": 58, "protocol-file-name": "nethint-test", "lb-scheme": "random", "timing-scheme": "cassini", "ring-mode": "optimal", "placement-mode": "random", "ft-core-count": 2, "placement-seed": 2, "load-metric": "utilization", "placement-file": "results/sweep/1223-nethint_LB+leastloaded_TS+cassini_R+optimal_4_58/custom_files//placements/random-optimal//seed-2.txt"}, "run_context": {"base-lb-scheme": "random", "base-timing-scheme": "random", "base-ring-mode": "random", "compared-lb-scheme": "leastloaded", "compared-timing-scheme": "cassini", "compared-ring-mode": "optimal", "random-rep-count": 1, "interesting-metrics": ["avg_ar_time", "avg_iter_time"], "experiment-seed": 58, "oversub": 4, "exp-uuid": 5, "output-file": "results/sweep/1223-nethint_LB+leastloaded_TS+cassini_R+optimal_4_58/exp_outputs/output-5.txt", "perfect_lb": false, "ideal_network": false, "original_mult": 1, "original_core_count": 2, "original_ring_mode": "optimal", "original_timing_scheme": "cassini"}}'
-        else: 
-            input_data = json.load(sys.stdin)
-
-    else: 
-        input_data = json.load(sys.stdin)
-            
+    
+    input_data = json.load(sys.stdin)
+    # input_data = {"timing_file_path": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//timings/random-random/12/farid/first/time-no-coll//timing.txt", "routing_file_path": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//routings/random-random/12/farid/first/time-no-coll/routing.txt", "placement_seed": 12, "jobs": [{"job_id": 1, "machine_count": 14, "comm_size": 2000, "comp_size": 200, "layer_count": 1, "iter_count": 16, "machines": [22, 12, 48, 25, 41, 34, 26, 49, 10, 9, 55, 18, 6, 24], "period": 452}, {"job_id": 2, "machine_count": 15, "comm_size": 4000, "comp_size": 100, "layer_count": 1, "iter_count": 27, "machines": [40, 59, 5, 51, 47, 58, 39, 8, 11, 43, 33, 60, 45, 38, 56], "period": 284}, {"job_id": 3, "machine_count": 13, "comm_size": 4000, "comp_size": 100, "layer_count": 2, "iter_count": 15, "machines": [63, 37, 20, 28, 44, 42, 23, 54, 19, 32, 1, 46, 27], "period": 496}, {"job_id": 4, "machine_count": 16, "comm_size": 4000, "comp_size": 400, "layer_count": 2, "iter_count": 3, "machines": [3, 31, 35, 0, 61, 52, 4, 29, 57, 53, 30, 17, 13, 50, 16, 2], "period": 1690}, {"job_id": 5, "machine_count": 6, "comm_size": 8000, "comp_size": 200, "layer_count": 2, "iter_count": 7, "machines": [36, 14, 7, 21, 15, 62], "period": 940}], "options": {"step-size": 1, "core-status-profiling-interval": 100000, "rep-count": 1, "console-log-level": 4, "file-log-level": 1, "initial-rate": 100, "min-rate": 100, "drop-chance-multiplier": 0, "rate-increase": 1, "priority-allocator": "maxmin", "network-type": "leafspine", "link-bandwidth": 100, "ft-rack-per-pod": 1, "ft-agg-per-pod": 1, "ft-pod-count": -1, "ft-server-tor-link-capacity-mult": 1, "ft-tor-agg-link-capacity-mult": 1, "ft-agg-core-link-capacity-mult": 1, "shuffle-device-map": False, "regret-mode": "none", "machine-count": 64, "ft-server-per-rack": 16, "simulation-seed": 67, "print-flow-progress-history": True, "protocol-file-name": "nethint-test", "lb-scheme": "readprotocol", "subflows": 1, "ft-core-count": 8, "workers-dir": "/home/faridzandi/git/psim/run/workers/", "load-metric": "flowsize", "placement-file": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//placements/random-random/12//placement.txt"}, "run_context": {"sim-length": 8000, "visualize-timing": False, "visualize-routing": False, "random-rep-count": 1, "interesting-metrics": ["avg_ar_time", "avg_iter_time"], "all-placement-modes": ["random"], "experiment-seed": 67, "oversub": 2, "cassini-parameters": {"link-solution-candidate-count": 50, "link-solution-random-quantum": 10, "link-solution-top-candidates": 3, "overall-solution-candidate-count": 10, "save-profiles": True}, "routing-parameters": {}, "selected-setting": {"machine-count": 64, "ft-server-per-rack": 16, "jobs-machine-count-low": 12, "jobs-machine-count-high": 16, "placement-seed-range": 40, "comm-size": [8000, 4000, 2000], "comp-size": [200, 100, 400], "layer-count": [1, 2], "iter-count": [30]}, "comparison-base": {"timing-scheme": "random", "ring-mode": "random", "lb-scheme": "random"}, "comparisons": [["farid", {"timing-scheme": "farid", "lb-scheme": "random"}], ["ideal", {"lb-scheme": "ideal", "timing-scheme": "random"}]], "exp-uuid": 1, "worker-id-for-profiling": 0, "output-file": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/exp_outputs/output-1.txt", "perfect_lb": False, "ideal_network": False, "farid_timing": True , "original_mult": 1, "original_core_count": 8, "original_lb_scheme": "random", "original_ring_mode": "random", "original_timing_scheme": "farid", "routing-fit-strategy": "first", "compat-score-mode": "time-no-coll", "placement-mode": "random", "ring-mode": "random", "placement-seed": 12, "timing-scheme": "farid", "placements_dir": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//placements/random-random/12/", "profiles-dir": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//profiles/random-random/12/", "timings-dir": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//timings/random-random/12/farid/first/time-no-coll/", "routings-dir": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//routings/random-random/12/farid/first/time-no-coll"}}
     # call the main function
     job_timings, lb_decisions = generate_timing_file(**input_data)
     

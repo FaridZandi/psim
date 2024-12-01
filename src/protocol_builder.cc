@@ -413,7 +413,8 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                                            std::vector<int>& node_ids, int comm_size, 
                                            EmptyTask* last_all_reduce_finisher, bool add_stage_barriers,
                                            bool reverse_ring, int jobid, int iter_num, int layer_num, 
-                                           std::map<ProtocolFlowSpec, RoutingSpec>& spine_rates) {
+                                           std::map<ProtocolFlowSpec, RoutingSpec>& spine_rates, 
+                                           double iteration_throttle_rate) {
 
 
     // in the end, everything should lead to this. 
@@ -436,11 +437,6 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
 
     if(reverse_ring) {
         std::reverse(last_layer_pcs.begin(), last_layer_pcs.end());
-    }
-
-    double stretch_factor = 1.0;    
-    if (GConf::inst().stretch_factor != 0) {
-        stretch_factor = GConf::inst().stretch_factor;
     }
 
     // shuffle the last_layer_pcs to creat a random chain 
@@ -488,7 +484,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             for (int k = 0; k < flow_spine_rates.spine_count; k++) {
                 int spine_decision = flow_spine_rates.spine_rates[k].first; 
                 double spine_ratio = flow_spine_rates.spine_rates[k].second; 
-                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio * stretch_factor;  
+                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio * iteration_throttle_rate;  
                 double flow_size = comm_size * spine_ratio;  
                 int flow_src_index = (starting + j) % num_replicas; 
                 int flow_dst_index = (starting + j + 1) % num_replicas;
@@ -513,7 +509,6 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                                  jobid, flow->per_job_task_id, flow->id, k,
                                  flow->protocol_defined_lb_decision, 
                                  flow->protocol_defined_max_rate, flow_size);
-
             }
 
             protocol->increment_per_job_task_counter();
@@ -524,7 +519,6 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             // Linking all the dependencies 
             // for (int k = 0; k < sub_flow_count; k++) {
             //     Flow* flow = all_flows[i][j][k];
-
             for (Flow* flow: all_flows[i][j]) { 
                 flow->add_next_task_id(agg->id);
                 if (j == 0) {
@@ -549,7 +543,8 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             for (int k = 0; k < flow_spine_rates.spine_count; k++) {
                 int spine_decision = flow_spine_rates.spine_rates[k].first; 
                 double spine_ratio = flow_spine_rates.spine_rates[k].second; 
-                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio * stretch_factor; 
+                double flow_max_rate = GConf::inst().link_bandwidth * spine_ratio * iteration_throttle_rate;
+
                 double flow_size = comm_size * spine_ratio;  
                 int flow_src_index = (starting + j) % num_replicas;
                 int flow_dst_index = (starting + j + 1) % num_replicas;
@@ -620,7 +615,9 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
                                std::vector<int>& node_ids, 
                                int layer_count, int iter_count, 
                                int comp_size, int comm_size, 
-                               int initial_wait, bool reverse_ring, 
+                               std::vector<int>& iteration_deltas, 
+                               std::vector<double>& iter_throttle_rates,
+                               bool reverse_ring, 
                                std::map<ProtocolFlowSpec, RoutingSpec>& spine_rates) {
 
     int forward_size = comp_size;
@@ -632,15 +629,27 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
     last_iter_finisher->print_on_exec = true;
     last_iter_finisher->print_message = "job " + std::to_string(jobid) + " started";
 
-    if(initial_wait != 0) {
-        PComp* wait = (PComp*)protocol->create_task(PTaskType::COMPUTE);
-        wait->size = initial_wait;
-        wait->dev_id = node_ids[0];
-        wait->add_next_task_id(last_iter_finisher->id);
-    }
+    PTask* prev_dep = last_iter_finisher; 
+    // if(initial_wait != 0) {
+    //     PComp* wait = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+    //     wait->size = initial_wait;
+    //     wait->dev_id = node_ids[0];
+    //     wait->add_next_task_id(last_iter_finisher->id);
+    // }
 
     for (int i = 0; i < iter_count; i ++) {
+        double iteration_throttle_rate = iter_throttle_rates[i];
+        
         protocol->reset_per_job_task_counter();
+
+        int this_iter_delta = iteration_deltas[i];  
+        if (this_iter_delta != 0) {
+            PComp* wait = (PComp*)protocol->create_task(PTaskType::COMPUTE);
+            wait->size = this_iter_delta;
+            wait->dev_id = node_ids[0];
+            last_iter_finisher->add_next_task_id(wait->id); 
+            prev_dep = wait;
+        }
 
         std::vector<PComp*> last_layer_pcs; 
 
@@ -653,8 +662,8 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
                 pc->dev_id = node_ids[node_index];
 
                 // if it's not the first iteration, I have to connect it somehow to the previous iteration. 
-                if (k == 0 and last_iter_finisher != nullptr) {
-                    last_iter_finisher->add_next_task_id(pc->id);
+                if (k == 0 and prev_dep != nullptr) {
+                    prev_dep->add_next_task_id(pc->id);
                 }
 
                 if (last_pc != nullptr) {
@@ -673,7 +682,8 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
         last_iter_finisher->name = "ITER" + std::to_string(i);
         last_iter_finisher->print_on_exec = true;
         last_iter_finisher->print_message = "job " + std::to_string(jobid) + " iter " + std::to_string(i + 1) + " finished";
-
+        prev_dep = last_iter_finisher;
+        
         // build the backward pass for the current iteration. the tasks for each machine are connected in a chain.
         EmptyTask* last_all_reduce_finisher = nullptr;
 
@@ -720,7 +730,8 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             EmptyTask* all_reduce_finisher = insert_all_reduce_into_protocol(protocol, last_layer_pcs, node_ids, 
                                                                              comm_size, last_all_reduce_finisher, 
                                                                              add_stage_barriers, reverse_ring, 
-                                                                             jobid, iter_num, layer_num, spine_rates);
+                                                                             jobid, iter_num, layer_num, spine_rates, 
+                                                                             iteration_throttle_rate);
 
             all_reduce_finisher->add_next_task_id(last_iter_finisher->id);
 
@@ -742,6 +753,9 @@ int LCM(int a, int b){
 Protocol* 
 psim::build_periodic_data_parallelism() { 
 
+    spdlog::critical("building periodic data parallelism protocol is probably not working correctly. exiting.");    
+    exit(0);    
+
     int node_count = 4; // n: number of machines
         
     int layer_count = GConf::inst().general_param_6;  // l: number of teeth in the graph
@@ -759,7 +773,7 @@ psim::build_periodic_data_parallelism() {
         job1_length_base = 1;
     }
 
-    int job1_initial_wait = 0;
+    std::vector<int> job1_initial_wait(0, 0); 
     int job1_starting_node = 2; 
     int job1_jobid = 1; 
 
@@ -768,10 +782,12 @@ psim::build_periodic_data_parallelism() {
         job2_length_base = 1;
     }
 
-    int job2_initial_wait = GConf::inst().general_param_1;
+    int job2_initial_wait_input = GConf::inst().general_param_1;
+    std::vector<int> job2_initial_wait = {job2_initial_wait_input};  
     int job2_starting_node = job1_starting_node + node_count;
     int job2_jobid = 2; 
     
+    std::vector<double> iter_throttle_rates = {1.0}; 
     
     int comp_length_amplification = 100;
     
@@ -788,7 +804,6 @@ psim::build_periodic_data_parallelism() {
         comm_size = 4000; 
     }
 
-
     int hyper_period = LCM(job1_length_base, job2_length_base);
     int job1_reps_per_hyper_period = hyper_period / job1_length_base;
     int job2_reps_per_hyper_period = hyper_period / job2_length_base;
@@ -802,6 +817,7 @@ psim::build_periodic_data_parallelism() {
         job2_node_ids.push_back(i + job2_starting_node);
     }
 
+
     Protocol *protocol = new Protocol();
 
     std::map<ProtocolFlowSpec, RoutingSpec> spine_rates;
@@ -811,14 +827,16 @@ psim::build_periodic_data_parallelism() {
                                    job1_reps_per_hyper_period * reps_multiplier, 
                                    job1_length_base * comp_length_amplification, 
                                    job1_length_base * comm_size, 
-                                   job1_initial_wait, false, spine_rates);
+                                   job1_initial_wait, iter_throttle_rates, 
+                                   false, spine_rates);
 
     insert_simple_data_parallelism(protocol, job2_jobid, 
                                    job2_node_ids, layer_count, 
                                    job2_reps_per_hyper_period * reps_multiplier, 
                                    job2_length_base * comp_length_amplification, 
                                    job2_length_base * comm_size, 
-                                   job2_initial_wait, true, spine_rates);                             
+                                   job2_initial_wait, iter_throttle_rates, 
+                                   true, spine_rates);                             
 
     return protocol;
 }
@@ -1016,7 +1034,8 @@ Protocol*
 psim::build_nethint_test() {
     Protocol *protocol = new Protocol();
     std::map<ProtocolFlowSpec, RoutingSpec> flow_spines; 
-
+    std::map<int, std::vector<int>> job_timings_data; 
+    std::map<int, std::vector<double>> rate_throttling_data; 
 
     int iso = GConf::inst().isolate_job_id;
     bool isolated_execution = false;  
@@ -1031,10 +1050,10 @@ psim::build_nethint_test() {
     std::ifstream placement_stream(placement_file);
     placement_stream >> jobs;
 
-
     // read the timing file and populate the timings map.
     nlohmann::json timings;
-    std::string timing_file = GConf::inst().timing_file;    
+    std::string timing_file = GConf::inst().timing_file; 
+
     bool timing_file_exists = true; 
     if (not std::filesystem::exists(timing_file)) {
         timing_file_exists = false; 
@@ -1043,9 +1062,21 @@ psim::build_nethint_test() {
         timing_file_exists = true;
         spdlog::critical("timing file: {}", timing_file);
         std::ifstream timing_stream(timing_file);
-        timing_stream >> timings;  
+        timing_stream >> timings;
+
+        for (const auto& item : timings) {
+            int job_id = item["job_id"];
+            std::vector<int> deltas = item["deltas"];
+            std::vector<double> throttle_rates = item["throttle_rates"];
+            
+            job_timings_data[job_id] = deltas;
+            rate_throttling_data[job_id] = throttle_rates;
+        }
     }
 
+    // std::cout << "press any key to continue" << std::endl;  
+    // int a; 
+    // std::cin >> a; 
 
     // read the routing file and populate the flow_spines map.
     nlohmann::json routings; 
@@ -1054,6 +1085,7 @@ psim::build_nethint_test() {
     if (not std::filesystem::exists(routing_file)) {
         spdlog::critical("routing file not found. exiting.");
         routing_file_exists = false;
+    
     } else {
         spdlog::critical("routing file: {}", routing_file);
         std::ifstream routing_stream(routing_file);
@@ -1097,26 +1129,46 @@ psim::build_nethint_test() {
         }
 
         std::vector<int> job_machines = job["machines"];
+        std::vector<int> iteration_deltas(job_iter_count, 0);
+        std::vector<double> iter_throttle_rates(job_iter_count, 1.0);   
 
-        int initial_wait = 0; 
         if (timing_file_exists) {
             auto& job_timing = timings[job_index];
-            initial_wait = job_timing["initial_wait"];
+            for (int i = 0; i < job_iter_count; i++) {
+                iteration_deltas[i] = job_timing["deltas"][i];
+                iter_throttle_rates[i] = job_timing["throttle_rates"][i];   
+            }
+        }
+
+        if (isolated_execution) {
+            // if this an isolated execution, only one iteration
+            iter_throttle_rates[0] = GConf::inst().throttle_factor; 
         }
 
         // print the information    
         spdlog::critical("job_id: {}", job_id);
-        spdlog::critical("machine_count: {}", machine_count);
-        spdlog::critical("timing: {}", initial_wait); 
+        spdlog::critical("machine_count: {}", machine_count); 
         spdlog::critical("job_comm_size: {}", job_comm_size);
         spdlog::critical("job_comp_size: {}", job_comp_size);
         spdlog::critical("job_layer_count: {}", job_layer_count);
+
+        std::string deltas_str = "";    
+        for (auto& delta : iteration_deltas) {
+            deltas_str += std::to_string(delta) + " ";
+        }
+        spdlog::critical("iteration_deltas: {}", deltas_str);   
 
         std::string machines_str = "";
         for (auto& machine : job_machines) {
             machines_str += std::to_string(machine) + " ";
         }
         spdlog::critical("machines: {}", machines_str);
+
+        std::string rates_str = ""; 
+        for (auto& rate : iter_throttle_rates) {
+            rates_str += std::to_string(rate) + " ";
+        }
+        spdlog::critical("throttle rates: {}", rates_str);
 
         int this_job_long_pc_length = 0;
         bool reverse_ring = false;
@@ -1130,7 +1182,8 @@ psim::build_nethint_test() {
                                            job_iter_count, 
                                            job_comp_size, 
                                            job_comm_size, 
-                                           initial_wait, 
+                                           iteration_deltas,
+                                           iter_throttle_rates, 
                                            reverse_ring, 
                                            flow_spines); 
         }

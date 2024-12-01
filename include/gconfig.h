@@ -160,6 +160,8 @@ public:
 
     double stretch_factor = 1.0;    
     
+    double throttle_factor = -1;   
+
     GConf() {}
 };
 

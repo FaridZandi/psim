@@ -149,7 +149,6 @@ def generate_semirandom_placement_file(options, run_context, fragmentation_facto
                     allocated_machines += 1 
                     available_machines[i] = False
                     break
-
                                
     return jobs    
                                   
@@ -171,9 +170,7 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
     
     jobs, _ = generate_job_basics(options, run_context, job_machine_counts)                        
     
-    
     # placement_info is a list of dictionaries, each containing the placement information for a job.
-    
     for job, job_placement_info in zip(jobs, placement_info):
         job["machines"] = job_placement_info["machines"]    
                 
@@ -183,45 +180,58 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
 
 def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path, stretch_factor=1):
     for job in jobs:
-        profiling_job_options = copy.deepcopy(options)  
-        profiling_job_options["isolate-job-id"] = job["job_id"]
-        profiling_job_options["print-flow-progress-history"] = True
-        profiling_job_options["timing-file"] = None  
-        profiling_job_options["ft-core-count"] = 1  
-        profiling_job_options["ft-agg-core-link-capacity-mult"] = 100
-        profiling_job_options["lb-scheme"] = "random"   
-        profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"]
-        profiling_job_options["stretch-factor"] = stretch_factor 
-        profiling_job_options["placement-file"] = placement_path
+        if "profiled-throttle-factors" not in run_context:  
+            rage_quit("Error: profiled-throttle-factors not in run_context.")
         
-        output = config_sweeper.only_run_command_with_options(run_context, profiling_job_options)
-        
-        run_path = "{}/worker-{}/run-1".format(config_sweeper.workers_dir,
-                                               run_context["worker-id-for-profiling"])
-        
-        flow_info_path = "{}/flow-info.txt".format(run_path)    
-        results_path = "{}/results.txt".format(run_path)    
-        
-        job_prof, _, _ = get_job_profiles(flow_info_path)
-        psim_finish_time = get_simulation_finish_time(results_path)
-        
-        # job_prof might be empty.
-        job_id = job["job_id"]
-        if job_id in job_prof:
+        job["period"] = {}
+
+        for throttle_factor in run_context["profiled-throttle-factors"]:
+            profiling_job_options = copy.deepcopy(options)  
+            profiling_job_options["isolate-job-id"] = job["job_id"]
+            profiling_job_options["print-flow-progress-history"] = True
+            profiling_job_options["timing-file"] = None  
+            profiling_job_options["ft-core-count"] = 1  
+            profiling_job_options["ft-agg-core-link-capacity-mult"] = 100
+            profiling_job_options["lb-scheme"] = "random"   
+            profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"]
+            profiling_job_options["stretch-factor"] = stretch_factor 
+            profiling_job_options["placement-file"] = placement_path
+            profiling_job_options["throttle_factor"] = throttle_factor
+            profiling_job_options["subflows"] = 1 
             
-            assert job_prof[job_id]["period"] == psim_finish_time, "periods do not match" 
-            print("job_prof period: ", job_prof[job_id]["period"])
+            output = config_sweeper.only_run_command_with_options(run_context, profiling_job_options)
             
-            # job_profiles[job_id] = job_prof[job_id]
-            profile_file_path = f"{run_context['profiles-dir']}/{job_id}.pkl" 
-            with open(profile_file_path, "wb") as f:
-                pkl.dump(job_prof[job_id], f)    
+            run_path = "{}/worker-{}/run-1".format(config_sweeper.workers_dir,
+                                                   run_context["worker-id-for-profiling"])
             
-            job["period"] = job_prof[job_id]["period"]
-        else:
-            print("no profiling but psim_finish_time: ", psim_finish_time)   
-            job["period"] = psim_finish_time    
-                                              
+            flow_info_path = "{}/flow-info.txt".format(run_path)    
+            results_path = "{}/results.txt".format(run_path)    
+            
+            job_prof, _, _ = get_job_profiles(flow_info_path)
+            psim_finish_time = get_simulation_finish_time(results_path)
+            
+            # job_prof might be empty.
+            job_id = job["job_id"]
+            
+            if job_id in job_prof:
+                assert job_prof[job_id]["period"] == psim_finish_time, "periods do not match" 
+                
+                profile_file_path = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.pkl" 
+                with open(profile_file_path, "wb") as f:
+                    pkl.dump(job_prof[job_id], f)    
+                    
+                profile_file_path_json = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.json"   
+                with open(profile_file_path_json, "w") as f:    
+                    json.dump(job_prof[job_id], f, indent=4)    
+                
+                
+            job["period"][throttle_factor] = psim_finish_time
+            if throttle_factor == 1.0:  
+                job["base_period"] = psim_finish_time
+                
+            print("profiled job: ", job_id, " with throttle factor: ", throttle_factor, " period: ", psim_finish_time)
+                
+                                                      
 def generate_placement_file(placement_path, placement_seed,   
                             options, run_context, config_sweeper):  
     
@@ -275,13 +285,13 @@ def generate_placement_file(placement_path, placement_seed,
     
     # at this point, all the profiles are ready and each job has a period associated with it.   
     for job in jobs: 
-        period = job["period"] 
+        period = job["period"][1.0]
+        
         sim_length = run_context["sim-length"]  
         iter_count = math.floor(sim_length / period) - 1
         if iter_count < 1:
             iter_count = 1   
         job["iter_count"] = iter_count  
-        print(f"job_id: {job['job_id']}, period: {period}, iter_count: {iter_count}")   
        
     # now we save the jobs with the iter count.       
     with open(placement_path, "w") as f:

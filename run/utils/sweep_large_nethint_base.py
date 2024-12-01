@@ -108,23 +108,25 @@ nethint_settings = [
         "placement-seed-range": 10,
         "comm-size": [8000, 4000, 2000],
         "comp-size": [200, 100, 400],
-        "layer-count": [1],
+        "layer-count": [1, 2],
         "iter-count": [30], # iteration count
     }
 ]
 
 
 def calc_timing(timing_file_path, routing_file_path, placement_seed, 
-                jobs, options, run_context, config_sweeper, run_cassini_timing_in_subprocess): 
+                jobs, options, run_context, run_cassini_timing_in_subprocess): 
     import json 
     
     timing_scheme = run_context["timing-scheme"]
-    if timing_scheme != "cassini" or not run_cassini_timing_in_subprocess: 
+    
+    if not run_cassini_timing_in_subprocess: 
         job_timings, lb_decisions = timing.generate_timing_file(timing_file_path, 
                                                                 routing_file_path,
                                                                 placement_seed, 
-                                                                jobs, options, run_context, 
-                                                                config_sweeper)
+                                                                jobs, 
+                                                                options, 
+                                                                run_context)
     else: 
         # create a subprocess to run the cassini timing. 
         args = {
@@ -134,18 +136,16 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
             "jobs": jobs,   
             "options": options, 
             "run_context": run_context,
-            # I would add the config_sweeper, but it's not serializable.
-            # so this path is not really working at the moment. 
-            "config_sweeper": config_sweeper,  # this should technically cause an error.
         }
-
+        
         # create a python subprocess, feed the json dump of the args to the subprocess.
-        process = subprocess.Popen([current_executable, "algo/timing.py"], 
+        process = subprocess.Popen([current_executable, "-m", "algo.timing"], 
                                     stdin=subprocess.PIPE, 
                                     stdout=subprocess.PIPE, 
                                     stderr=subprocess.PIPE)
                                     
         input_data = json.dumps(args).encode("utf-8")
+        
         stdout, _ = process.communicate(input=input_data)
         output = json.loads(stdout.decode("utf-8")) 
         
@@ -206,7 +206,6 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     # ideal network will create a network where the core layer has infinite capacity.
     if options["lb-scheme"] == "ideal":
         run_context["ideal_network"] = True 
-
         options["lb-scheme"] = "random"
         options["ft-agg-core-link-capacity-mult"] = 1000
         options["ft-core-count"] = 1
@@ -310,8 +309,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                                                  calc_func=calc_timing, 
                                                  calc_func_args=(timing_file_path, routing_file_path,
                                                                  placement_seed, jobs, options, 
-                                                                 run_context, config_sweeper, 
-                                                                 run_cassini_timing_in_subprocess))
+                                                                 run_context, run_cassini_timing_in_subprocess))
     
     options["timing-file"] = timing_file_path
     options["routing-file"] = routing_file_path 
@@ -322,16 +320,23 @@ def run_command_options_modifier(options, config_sweeper, run_context):
 def result_extractor_function(output, options, this_exp_results, run_context):
     for metric in run_context["interesting-metrics"]:
         
+        all_jobs_running = False
+        
         if metric == "avg_ar_time":
-            job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], all_jobs_running=True)
+            job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], 
+                                                       all_jobs_running=all_jobs_running)
             
                     
         elif metric == "avg_iter_time": 
-            job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], all_jobs_running=True)
+            job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], 
+                                                   all_jobs_running=all_jobs_running)
             
         elif metric == "iter_minus_ar_time":
-            ar_times = get_all_rep_all_reduce_times(output, options["rep-count"], all_jobs_running=True)
-            iter_times = get_all_rep_iter_lengths(output, options["rep-count"], all_jobs_running=True)
+            ar_times = get_all_rep_all_reduce_times(output, options["rep-count"], 
+                                                    all_jobs_running=all_jobs_running)
+            
+            iter_times = get_all_rep_iter_lengths(output, options["rep-count"], 
+                                                  all_jobs_running=all_jobs_running)
             job_numbers = [] 
             
             for rep in range(options["rep-count"]):

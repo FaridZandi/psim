@@ -174,13 +174,7 @@ void PSim::start_task(PTask *task, bool start_in_next_timestep) {
             }
 
             handle_task_completion(task);
-
-            if (start_in_next_timestep) {
-                start_next_tasks(task, true);
-            } else {
-                start_next_tasks(task, false);
-            }
-
+            start_next_tasks(task, start_in_next_timestep);
             break;
 
         } default: {
@@ -208,10 +202,8 @@ double PSim::simulate() {
         }
     }
 
-
     // THE main simulator loop. everything happens in here. 
     while (true) {
-        
         // auto new_flows = traffic_gen->get_flows(timer);
         // for (auto flow : new_flows) {
         //     this->start_task(flow);

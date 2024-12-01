@@ -98,35 +98,41 @@ def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time,
 ############################################################################################################
 
 
-def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_timings): 
+def route_flows(jobs, options, run_context, job_profiles, job_timings): 
     servers_per_rack = options["ft-server-per-rack"]
     num_leaves = options["machine-count"] // servers_per_rack   
     num_spines = options["ft-core-count"]
     link_bandwidth = options["link-bandwidth"]  
-    print ("Number of leaves: {}, Number of spines: {}, Link bandwidth: {}".format(num_leaves, num_spines, link_bandwidth))
+    # print ("Number of leaves: {}, Number of spines: {}, Link bandwidth: {}".format(num_leaves, num_spines, link_bandwidth))
 
     max_subflow_count = num_spines
     # assert max_subflow_count < 3, "The current implementation only supports 1 or 2 subflows."
     
-    pprint(jobs) 
+    # pprint(jobs) 
     job_deltas = {} 
+    job_throttle_rates = {} 
     job_periods = {} 
     job_iterations = {} 
     
     for job_timing in job_timings:
-        job_deltas[job_timing["job_id"]] = job_timing["deltas"]
+        job_id = job_timing["job_id"]
+        job_deltas[job_id] = job_timing["deltas"]
+        job_throttle_rates[job_id] = job_timing["throttle_rates"]  
     
     for job in jobs:
-        job_periods[job["job_id"]] = job["period"]
         job_iterations[job["job_id"]] = job["iter_count"]
-    
-    
+        job_periods[job["job_id"]] = []
+        
+        for i in range(job["iter_count"]):
+            iter_throttle_rate = job_throttle_rates[job["job_id"]][i]
+            job_periods[job["job_id"]].append(job["period"][iter_throttle_rate])
+            
     # routing_time = run_context["sim-length"]  
     # it might actually be more than that.     
     routing_time = 0
     for job in jobs: 
         job_id = job["job_id"]
-        total_productive_time = job["period"] * job["iter_count"]   
+        total_productive_time = sum(job_periods[job_id])   
         total_time_delay = sum(job_deltas[job_id]) 
         this_job_time = total_productive_time + total_time_delay 
         routing_time = max(routing_time, this_job_time)     
@@ -141,15 +147,16 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
             
             
     all_flows = [] 
+    
     for job_id, job_profile in job_profiles.items():
-        for flow in job_profile["flows"]: 
-            for iter in range(job_iterations[job_id]):
-                   
+        shift = 0 
+            
+        for iter in range(job_iterations[job_id]):
+            shift += job_deltas[job_id][iter]
+            iter_throttle_rate = job_throttle_rates[job_id][iter]  
+    
+            for flow in job_profile[iter_throttle_rate]["flows"]: 
                 # shift = job_deltas[job_id] + (iter * job_periods[job_id])
-                shift_due_to_deltas = sum(job_deltas[job_id][:(iter + 1)])
-                shift_due_to_periods = iter * job_periods[job_id]   
-                
-                shift = shift_due_to_deltas + shift_due_to_periods
                 
                 f = deepcopy(flow)
                 
@@ -159,7 +166,9 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
                 f["iteration"] = iter   
                 
                 all_flows.append(f)  
-        
+            
+            shift += job_periods[job_id][iter] 
+                    
     # sort flows by their start time.
     all_flows.sort(key=lambda x: x["eff_start_time"])
     
@@ -200,7 +209,6 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         
         # sort the spines by their availability.
         spine_availablity.sort(key=lambda x: x[1], reverse=True)
-        
         # print ("Spine availability: ", spine_availablity)   
         
         good_spines = [] 
@@ -210,7 +218,6 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
                 good_spines.append((s, spine_min_max_availble_mult))    
         
         # print ("Good spines: ", good_spines)
-        
         selected_spines = []
         selection_strategy = run_context["routing-fit-strategy"]
         
@@ -222,8 +229,7 @@ def route_flows(jobs, options, run_context, config_sweeper, job_profiles, job_ti
         if len(good_spines) == 0:
             message = "No spine found for the flow: {}-{}-{}, Start: {}, Src: {}, Dst: {}".format(
                       job_id, flow_id, iteration, start_time, src_leaf, dst_leaf) 
-            print (message)
-            config_sweeper.log_for_thread(run_context, message)
+            # print (message)
             selected_spines_samples = random.sample(range(num_spines), max_subflow_count)
             for s in selected_spines_samples:
                 selected_spines.append((s, min_subflow_mult))

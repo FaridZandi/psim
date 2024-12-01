@@ -2,7 +2,7 @@ from utils.util import *
 from utils.sweep_large_nethint_base import *
 from utils.sweep_base import ConfigSweeper
 
-experiment_seed = 58
+experiment_seed = 67
 random_rep_count = 1
 
 def main():
@@ -51,10 +51,11 @@ def main():
     oversub = 2
     
     cassini_parameters = {  
-        "link-solution-candidate-count": 10,
+        "link-solution-candidate-count": 50,
         "link-solution-random-quantum": 10,
         "link-solution-top-candidates": 3,    
         "overall-solution-candidate-count": 10,
+        
         "save-profiles": True,
     }    
     
@@ -65,82 +66,81 @@ def main():
     
     # iterating over the different settings. Each setting will create a different experiment. 
     # the results is one plot for each setting.
-    for lb in ["random"]:                
-        exp_sweep_config = {
-            "protocol-file-name": ["nethint-test"],
+    exp_sweep_config = {
+        "protocol-file-name": ["nethint-test"],
 
-            # placement and workload parameters.
-            # these will be different lines in the cdf plot.
-            "lb-scheme": [lb],   
-            # "timing-scheme": ["zero", "farid", "random", "inc_100", "inc_200", "inc_400", "inc_500", "cassini"],
-            "timing-scheme": ["farid"],    
-            "ring-mode": ["random"],
-            "subflows": [1],
+        # placement and workload parameters.
+        # these will be different lines in the cdf plot.
+        "lb-scheme": ["random", "leastloaded", "ideal"], #[lb, "ideal", "leastloaded"],   
+        # "timing-scheme": ["zero", "farid", "random", "inc_100", "inc_200", "inc_400", "inc_500", "cassini"],
+        "timing-scheme": ["cassini", "farid", "random", "zero"], #["cassini", "farid", "random"],
+        "ring-mode": ["random"],
+        "subflows": [1, 8],
 
-            # each placement strategy will be a different plot, drawn next to each other.
-            "placement-mode": placement_modes, 
-            
-            # some dynamic parameters.                             
-            "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
-            "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)),
-            
-            "routing-fit-strategy": ["first"],
-            "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
-        } 
+        # each placement strategy will be a different plot, drawn next to each other.
+        "placement-mode": placement_modes, 
         
+        # some dynamic parameters.                             
+        "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
+        "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)),
         
-        # to be give to the CS, which will be used to populate the run_context.
-        # the run_context will be then handed back to the custom functions. 
-        # am I making this too complicated? I think I am.
-        exp_context = {
-            "sim-length": 8000,
-            
-            "visualize-timing": False, 
-            "visualize-routing": True, 
-            
-            # other stuff
-            "random-rep-count": random_rep_count,
-            "interesting-metrics": interesting_metrics,
-            "all-placement-modes": placement_modes,
-            "experiment-seed": experiment_seed,
-            "oversub": oversub,
-            
-            "cassini-parameters": cassini_parameters,
-            "routing-parameters": routing_parameters,   
-            "selected-setting": selected_setting,
-            
-            "comparison-base": {"ring-mode": "random", 
-                                "lb-scheme": lb, 
-                                "timing-scheme": "random",
-                                "subflows": 1, 
-                                "compat-score-mode": "time-no-coll"}, 
-            
-            "comparisons": [
-                ("farid-no-coll", {"timing-scheme": "farid", "compat-score-mode": "time-no-coll"}),  
-                ("farid-max-util-left", {"timing-scheme": "farid", "compat-score-mode": "max-util-left"}),  
-                ("farid-under-cap", {"timing-scheme": "farid", "compat-score-mode": "under-cap"}),  
-            ]
-        } 
+        "routing-fit-strategy": ["first"],
+        "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
+    } 
+    
+    
+    # to be give to the CS, which will be used to populate the run_context.
+    # the run_context will be then handed back to the custom functions. 
+    # am I making this too complicated? I think I am.
+    exp_context = {
+        "sim-length": 20000,
         
-        sane, reason = check_comparison_sanity(exp_context, exp_sweep_config)
+        "visualize-timing": False, 
+        "visualize-routing": False, 
+        "profiled-throttle-factors": [1.0, 0.75, 0.5], 
+        
+        # other stuff
+        "random-rep-count": random_rep_count,
+        "interesting-metrics": interesting_metrics,
+        "all-placement-modes": placement_modes,
+        "experiment-seed": experiment_seed,
+        "oversub": oversub,
+        
+        "cassini-parameters": cassini_parameters,
+        "routing-parameters": routing_parameters,   
+        "selected-setting": selected_setting,
+        
+        "comparison-base": {"timing-scheme": "random", "ring-mode": "random", "lb-scheme": "random", "subflows": 1},            
+        
+        "comparisons": [
+            ("farid", {"timing-scheme": "farid"}),       
+            ("cassini", {"timing-scheme": "cassini"}),
+            ("zero", {"timing-scheme": "zero"}),  
+            ("cassinLB", {"timing-scheme": "cassini", "lb-scheme": "leastloaded"}),
+            ("sub8", {"subflows": 8}),
+            ("ideal", {"lb-scheme": "ideal"}), 
+        ]
+    } 
+    
+    sane, reason = check_comparison_sanity(exp_context, exp_sweep_config)
 
-        if not sane:
-            print("Comparison sanity check failed.")
-            input("Press Enter to continue...") 
-            
-        cs = ConfigSweeper(
-            base_options, exp_sweep_config, exp_context,
-            run_command_options_modifier, 
-            run_results_modifier, 
-            custom_save_results_func, 
-            result_extractor_function,
-            exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format(lb, "", "",  
-                                                             oversub, 
-                                                             experiment_seed),
-            worker_thread_count=1, 
-        )
+    if not sane:
+        print("Comparison sanity check failed.")
+        input("Press Enter to continue...") 
         
-        cs.sweep()
+    cs = ConfigSweeper(
+        base_options, exp_sweep_config, exp_context,
+        run_command_options_modifier, 
+        run_results_modifier, 
+        custom_save_results_func, 
+        result_extractor_function,
+        exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format("", "", "",  
+                                                            oversub, 
+                                                            experiment_seed),
+        worker_thread_count=40, 
+    )
+    
+    cs.sweep()
 
 if __name__ == "__main__":
     
