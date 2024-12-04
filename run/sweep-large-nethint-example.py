@@ -2,12 +2,12 @@ from utils.util import *
 from utils.sweep_large_nethint_base import *
 from utils.sweep_base import ConfigSweeper
 
-experiment_seed = 67
+experiment_seed = 69
 random_rep_count = 1
 
 def main():
     # choose one of the settings to run the experiments with.     
-    selected_setting = nethint_settings[6]
+    selected_setting = nethint_settings[7]
     
     base_options = {
         "step-size": 1,
@@ -40,15 +40,15 @@ def main():
 
         "simulation-seed": experiment_seed, 
         
-        "print-flow-progress-history": True,
+        "print-flow-progress-history": False,
         # "export-dot": True,    
     }
 
     interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-    placement_modes = ["random", "semirandom_4", "sim", "compact"]
+    placement_modes = ["manual"]
     # placement_modes = ["random", "compact"] 
     
-    oversub = 2
+    oversub = 4
     
     cassini_parameters = {  
         "link-solution-candidate-count": 50,
@@ -66,26 +66,33 @@ def main():
     
     # iterating over the different settings. Each setting will create a different experiment. 
     # the results is one plot for each setting.
+    
+    # to control the ratio of uplinks and downlinks.
+    # higher oversub means less uplinks 
+    core_count = base_options["ft-server-per-rack"] // oversub
+    
     exp_sweep_config = {
         "protocol-file-name": ["nethint-test"],
 
         # placement and workload parameters.
         # these will be different lines in the cdf plot.
-        "lb-scheme": ["random", "leastloaded", "ideal"], #[lb, "ideal", "leastloaded"],   
+        "lb-scheme": ["random", "leastloaded", "ideal", "perfect"], #[lb, "ideal", "leastloaded"],   
         # "timing-scheme": ["zero", "farid", "random", "inc_100", "inc_200", "inc_400", "inc_500", "cassini"],
         "timing-scheme": ["cassini", "farid", "random", "zero"], #["cassini", "farid", "random"],
         "ring-mode": ["random"],
-        "subflows": [1, 8],
+        "subflows": [1, core_count],
 
         # each placement strategy will be a different plot, drawn next to each other.
         "placement-mode": placement_modes, 
         
         # some dynamic parameters.                             
-        "ft-core-count": [base_options["ft-server-per-rack"] // oversub],
+        "ft-core-count": [core_count],
         "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)),
         
         "routing-fit-strategy": ["first"],
         "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
+        "throttle-search": [True, False],
+        
     } 
     
     
@@ -93,7 +100,7 @@ def main():
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
     exp_context = {
-        "sim-length": 20000,
+        "sim-length": 5000,
         
         "visualize-timing": False, 
         "visualize-routing": False, 
@@ -113,22 +120,32 @@ def main():
         "comparison-base": {"timing-scheme": "random", 
                             "ring-mode": "random",  
                             "lb-scheme": "random", 
-                            "subflows": 1},            
+                            "subflows": 1, 
+                            "throttle-search": False},              
         
         "comparisons": [
-            ("farid", {"timing-scheme": "farid"}),       
+            ("farid-throt", {"timing-scheme": "farid", "throttle-search": True}),   
+            ("farid-nothrot", {"timing-scheme": "farid", "throttle-search": False}),   
+            ("farid-throt-subf", {"timing-scheme": "farid", "throttle-search": True, "subflows": core_count}),
+            ("farid-nothrot-subf", {"timing-scheme": "farid", "throttle-search": False, "subflows": core_count}),
             ("cassini", {"timing-scheme": "cassini"}),
             ("zero", {"timing-scheme": "zero"}),  
             ("cassinLB", {"timing-scheme": "cassini", "lb-scheme": "leastloaded"}),
-            ("sub8", {"subflows": 8}),
-            ("ideal", {"lb-scheme": "ideal"}), 
+            ("subf", {"subflows": core_count}),
+            ("ideal", {"lb-scheme": "ideal", "timing-scheme": "zero"}), 
+            ("randomLL", {"lb-scheme": "leastloaded", "timing-scheme": "random"}), 
+            ("randomPerfect", {"lb-scheme": "perfect", "timing-scheme": "random"}), 
         ]
     } 
     
+    if base_options["print-flow-progress-history"] and not exp_context["visualize-timing"]:
+        print("Warning: print-flow-progress-history is enabled, but visualize-timing is not.")
+        print("turn off print-flow-progress-history or enable visualize-timing.")
+        return
+        
+    exp_context["visualize-timing"]
     sane, reason = check_comparison_sanity(exp_context, exp_sweep_config)
 
-    input("Press Enter to continue...") 
-    
     if not sane:
         print("Comparison sanity check failed.")
         input("Press Enter to continue...") 
@@ -139,6 +156,7 @@ def main():
         run_results_modifier, 
         custom_save_results_func, 
         result_extractor_function,
+        exp_filter_function=exp_filter_function,
         exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format("", "", "",  
                                                             oversub, 
                                                             experiment_seed),

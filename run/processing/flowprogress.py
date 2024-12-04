@@ -145,7 +145,7 @@ def get_summarized_progress(progress_history):
     
     return summarized_progress
 
-def get_job_profiles(file_path, json_output_path=None, limit_flow_label=None):
+def get_job_profiles(file_path, json_output_path=None, limit_flow_label=None, only_summary=False):
     min_time = 1e9 
     max_time = 0
     
@@ -184,14 +184,19 @@ def get_job_profiles(file_path, json_output_path=None, limit_flow_label=None):
         
     for job_id, job in job_profiles.items():
         for flow in job["flows"]:
-            leading_zeros = [0] * (flow["start_time"])
-            tailing_zeros = [0] * (max_time - flow["end_time"])
-            
-            flow["progress_history"] = leading_zeros + flow["progress_history"] + tailing_zeros
+            if only_summary is False:
+                leading_zeros = [0] * (flow["start_time"])
+                tailing_zeros = [0] * (max_time - flow["end_time"])
+                flow["progress_history"] = leading_zeros + flow["progress_history"] + tailing_zeros
+                flow["progress_history_summarized"] = get_summarized_progress(flow["progress_history"])
+                assert len(flow["progress_history"]) == expected_len, f"Expected length: {expected_len}, got {len(flow['progress_history'])}"
 
-            flow["progress_history_summarized"] = get_summarized_progress(flow["progress_history"])
-            
-            assert len(flow["progress_history"]) == expected_len, f"Expected length: {expected_len}, got {len(flow['progress_history'])}"
+            else: 
+                summary = get_summarized_progress(flow["progress_history"]) 
+                full_summary = [(0, flow["start_time"])] + summary + [(0, max_time - flow["end_time"])]
+                flow["progress_history_summarized"] = full_summary  
+                flow["progress_history"] = None 
+                
 
     return job_profiles, min_time, max_time
     

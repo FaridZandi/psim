@@ -9,6 +9,7 @@ import datetime
 from utils.util import *
 import copy 
 import traceback
+import time 
 
 # pd.set_option('display.max_rows', 500)
 # pd.set_option('display.max_columns', 500)
@@ -23,6 +24,7 @@ class ConfigSweeper:
                  run_results_modifier=None,
                  custom_save_results_func=None,
                  result_extractor_function=None,
+                 exp_filter_function=None,
                  exp_name="exp",
                  worker_thread_count=DEFAULT_WORKER_THREAD_COUNT):
         
@@ -36,6 +38,7 @@ class ConfigSweeper:
         self.non_converged_jobs = 0 
         self.exp_results = []
         self.threads = []
+        self.thread_states = {i: "idle" for i in range(worker_thread_count)}
         self.worker_id_counter = 0
         self.global_exp_id = 0
 
@@ -48,6 +51,7 @@ class ConfigSweeper:
         self.worker_thread_count = worker_thread_count
         self.custom_save_results_func = custom_save_results_func
         self.result_extractor_function = result_extractor_function
+        self.exp_filter_function = exp_filter_function  
         
         # paths
         self.run_id = str(get_incremented_number())
@@ -69,6 +73,7 @@ class ConfigSweeper:
         self.exp_outputs_dir = self.results_dir + "exp_outputs/"
         self.commands_log_path = self.results_dir + "commands_log.txt"
         self.thread_output_dir = self.results_dir + "thread_outputs/"
+        self.thread_state_path = self.results_dir + "thread_states.txt" 
         
         self.results_cache = {}
         self.cache_lock = threading.Lock() 
@@ -80,6 +85,7 @@ class ConfigSweeper:
         self.df_save_interval_seconds = 300 
         
         self.do_store_outputs = False
+        self.relevant_keys = [] 
         
         os.system("mkdir -p {}".format(self.results_dir))
         os.system("mkdir -p {}".format(self.csv_dir))
@@ -170,6 +176,8 @@ class ConfigSweeper:
     def run_all_experiments(self):
         # each item in the sweep_config is a list of values for a parameter.
         # only keep the unique values.
+        self.relevant_keys = list(self.sweep_config.keys())
+        
         for key in self.sweep_config:
             self.sweep_config[key] = list(set(self.sweep_config[key]))
         
@@ -177,6 +185,12 @@ class ConfigSweeper:
         keys, values = zip(*self.sweep_config.items())
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
         
+        # filter out the permutations that do not correspond to a comparison
+        if self.exp_filter_function is not None:
+            permutations_dicts, relevant_keys_filtered = self.exp_filter_function(permutations_dicts, self) 
+            self.relevant_keys = relevant_keys_filtered
+             
+            
         # shuffle the permutations: 
         random.shuffle(permutations_dicts)
         
@@ -191,9 +205,26 @@ class ConfigSweeper:
             t = threading.Thread(target=self.worker_function)
             self.threads.append(t)
             t.start()
+        
+        t = threading.Thread(target=self.thread_state_function)
+        self.threads.append(t)
+        t.start()
 
         for t in self.threads:
             t.join()       
+    
+    def thread_state_function(self):
+        while True:
+            with self.thread_lock:
+                with open(self.thread_state_path, "w+") as f:
+                    for i in range(self.worker_thread_count):
+                        f.write("thread {} is {}\n".format(i, self.thread_states[i]))
+                    f.write("\n")
+                    
+            if len(self.exp_results) == self.total_jobs:
+                return  
+            
+            time.sleep(1)
             
             
     def worker_function(self):
@@ -298,6 +329,8 @@ class ConfigSweeper:
         run_context["exp-uuid"] = this_exp_uuid
         run_context["worker-id-for-profiling"] = worker_id  
         
+        self.thread_states[worker_id] = "running exp-{}".format(this_exp_uuid)  
+              
         output_file_path = self.exp_outputs_dir + "output-{}.txt".format(run_context["exp-uuid"])
         with open(output_file_path, "w+") as f:
             f.write("output file for experiment {}\n\n\n".format(run_context["exp-uuid"]))
@@ -339,14 +372,20 @@ class ConfigSweeper:
 
         if cache_hit:
             with self.thread_lock:
-                this_exp_results, output = self.results_cache[cache_key]
+                this_exp_results, output, printed_metrics = self.results_cache[cache_key]
                 this_exp_results = copy.deepcopy(this_exp_results)
                 duration = 0 
                 
-        else:                         
+        else:     
+            self.thread_states[worker_id] = "running the exp {}".format(this_exp_uuid) 
+                    
             options["worker-id"] = worker_id
             cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
             
+            if "runtime-dir" in run_context:
+                with open(run_context["runtime-dir"] + "/command.txt", "w+") as f:
+                    f.write(cmd)
+                            
             try: 
                 with open(self.commands_log_path, "a+") as f:
                     f.write(cmd + "\n")
@@ -372,10 +411,11 @@ class ConfigSweeper:
                     "run_id": self.run_id,
                 }
                 
+                printed_metrics = [] 
                 try: 
                     if self.result_extractor_function is not None:
-                        self.result_extractor_function(output, options, this_exp_results, run_context)
-                        
+                        printed_metrics = self.result_extractor_function(output, options, this_exp_results, 
+                                                                         run_context, self)        
                 except Exception as e:
                     print("error in result_extractor_function")
                     print("options: ", options) 
@@ -411,7 +451,7 @@ class ConfigSweeper:
                                 
                                 self.cache_mistakes += 1    
                                                         
-                    self.results_cache[cache_key] = (new_results_copy, output)
+                    self.results_cache[cache_key] = (new_results_copy, output, printed_metrics)
                 
                 self.log_for_thread(run_context, "Done with the lock to save the results to the cache")
                 
@@ -422,7 +462,8 @@ class ConfigSweeper:
                 traceback.print_exc()   
                 
                 rage_quit("error in running the command")   
-
+                
+        self.thread_states[worker_id] = "saving results for exp-{}".format(this_exp_uuid)  
         results = self.combine_results(this_exp_results, run_context, options)
 
         self.log_for_thread(run_context, "Going to acquire the lock to save the results")
@@ -433,8 +474,11 @@ class ConfigSweeper:
             # a final chance for the user to modify the results before saving them.
             if self.run_results_modifier is not None:
                 self.run_results_modifier(results)
-                
-                
+            
+            if "runtime-dir" in run_context:    
+                with open(run_context["runtime-dir"] + "/results.txt", "w+") as f:
+                    pprint(results, stream=f, indent=4, width=100) 
+                                    
             if not add_to_results:
                 return results
             
@@ -456,12 +500,21 @@ class ConfigSweeper:
                             print("error in custom_save_results_func")
                             print(e)
                 
-                pprint(results)
+                relevent_results = {key: results[key] for key in self.relevant_keys}   
+                relevent_metrics = {key: results[key] for key in printed_metrics}
+                relevent_results.update(relevent_metrics)
+                pprint(relevent_results)
+                
+                if "runtime-dir" in run_context:    
+                    with open(run_context["runtime-dir"] + "/summarized_results.txt", "w+") as f:
+                        pprint(relevent_results, stream=f, indent=4, width=100) 
+                        
                 print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))
                 print("duration: {}".format(duration))
                 print("worker id: {}".format(worker_id))
                 print("--------------------------------------------")
-
+                
+        self.thread_states[worker_id] = "done with exp-{}".format(this_exp_uuid)  
         self.log_for_thread(run_context, "Done with the lock to save the results")
 
         return results

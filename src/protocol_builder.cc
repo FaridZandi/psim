@@ -570,6 +570,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                                  flow->protocol_defined_lb_decision, 
                                  flow->protocol_defined_max_rate, flow_size);   
             }
+            
             protocol->increment_per_job_task_counter();
 
             EmptyTask* agg = nullptr;
@@ -598,9 +599,14 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
             barrier->name = "barrier";
 
             for (int i = 0; i < num_chunks; i++) {
-                for (Flow* flow: all_flows[i][j]) {
-                    flow->add_next_task_id(barrier->id);
-                    barrier->add_next_task_id(flow->id);
+                for (int k = 0; k < all_flows[i][j].size(); k++) {  
+                    Flow* this_stage_flow = all_flows[i][j][k];    
+                    this_stage_flow->add_next_task_id(barrier->id);
+                }
+
+                for (int k = 0; k < all_flows[i][j + 1].size(); k++) {  
+                    Flow* next_stage_flow = all_flows[i][j + 1][k];    
+                    barrier->add_next_task_id(next_stage_flow->id);
                 }
             }
         }
@@ -708,8 +714,8 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             // at this point last_layer_pcs contains the last layer of the backward passes.
             // we can do the all_reduce to the protocol. 
 
-            // bool add_stage_barriers = true; 
-            bool add_stage_barriers = false; 
+            bool add_stage_barriers = true; 
+            // bool add_stage_barriers = false; 
 
             int iter_num = i; 
             int layer_num = j;  

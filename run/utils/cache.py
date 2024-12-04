@@ -17,6 +17,8 @@ class NonBlockingCache:
         
     def get(self, key, lock, logger_func, run_context, calc_func, calc_func_args):
         cache_status = None 
+        start_time = time.time()     
+        
         logger_func(run_context, "Going to acquire the lock to check the {} cache status ...".format(self.name))
 
         with lock:
@@ -68,7 +70,9 @@ class NonBlockingCache:
             
             value = self.cache[key]
 
-        print ("{} -> Hits: {}, Misses: {}, Waiting: {}".format(self.name, self.hits, self.misses, self.waiting))
+        print ("{} -> Hits: {}, Misses: {}, Waiting: {}, My state: {}, Time: {}".format(
+               self.name, self.hits, self.misses, self.waiting, 
+               cache_status, time.time() - start_time))
         
         return value
      

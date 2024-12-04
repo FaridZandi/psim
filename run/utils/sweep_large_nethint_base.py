@@ -6,6 +6,7 @@ from processing.itertimes_multirep import get_all_rep_iter_lengths, get_all_rep_
 from pprint import pprint 
 import copy
 import json
+from processing.flowprogress import get_job_profiles    
 
 # from algo.timing import generate_timing_file
 from algo import timing
@@ -14,20 +15,13 @@ import time
 import subprocess
 from utils.cache import NonBlockingCache
 
-#########################
-# TODO: 
-# 4. Add support for more complex protocols to be recognized by the timing. Eventually, ideally, 
-#    There would be something like: running the simulator, only with one job, and acquire the loads 
-#    from the simulator. Then use these loads to generate the timing.
-#########################
+import shutil   
 
 # get the current executable. like if this file was run with python3 or pypy3, for example.
 current_executable = sys.executable
-
-run_cassini_timing_in_subprocess = False # don't turn this on. 
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
-placement_files_state = {} 
-# timing_files_states = {} 
+
+run_cassini_timing_in_subprocess = True # don't turn this on. 
     
 # self, lock, logger_func, run_context, cache_dir, calc_func
 timing_cache = NonBlockingCache("timing-cache")
@@ -100,11 +94,22 @@ nethint_settings = [
         "layer-count": [1],
         "iter-count": [30], # iteration count
     },
-    { #5 quite small. 
+    { #6 quite small. 
         "machine-count": 64,
         "ft-server-per-rack": 16,
         "jobs-machine-count-low": 12,
         "jobs-machine-count-high": 16,
+        "placement-seed-range": 1,
+        "comm-size": [8000, 4000, 2000],
+        "comp-size": [200, 100, 400],
+        "layer-count": [1, 2],
+        "iter-count": [30], # iteration count
+    },
+    { #7 manual 
+        "machine-count": 16,
+        "ft-server-per-rack": 4,
+        "jobs-machine-count-low": 4,
+        "jobs-machine-count-high": 4,
         "placement-seed-range": 10,
         "comm-size": [8000, 4000, 2000],
         "comp-size": [200, 100, 400],
@@ -113,8 +118,17 @@ nethint_settings = [
     }
 ]
 
+placement_related_keys = ["placement-mode", "ring-mode", "placement-seed"]
+scheduling_related_keys = ["timing-scheme", "subflows", "throttle-search", "routing-fit-strategy", "compat-score-mode"] 
 
-def calc_timing(timing_file_path, routing_file_path, placement_seed, 
+def summarize_key_ids(key): 
+    s = key.split("-")
+    # take all the first letters of the words.  
+    short_form = "".join([word[0] for word in s])
+    return short_form
+
+
+def calc_timing(timing_file_path, routing_file_path, placement_seed,
                 jobs, options, run_context, run_cassini_timing_in_subprocess): 
     import json 
     
@@ -146,8 +160,16 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
                                     
         input_data = json.dumps(args).encode("utf-8")
         
-        stdout, _ = process.communicate(input=input_data)
-        output = json.loads(stdout.decode("utf-8")) 
+        stdout, stderr = process.communicate(input=input_data)
+        try:
+            output = json.loads(stdout.decode("utf-8")) 
+        except json.JSONDecodeError as e:
+            print("Error in the subprocess: ", e)
+            print("stdout: ", stdout)
+            print("stderr: ", stderr)
+            
+            print("input_data: ", input_data)
+            rage_quit("Error in the subprocess")    
         
         job_timings = output["job_timings"] 
         lb_decisions = output["lb_decisions"]
@@ -165,6 +187,8 @@ def calc_placement(placement_file_path, placement_seed, options, run_context, co
     return jobs
    
 def run_command_options_modifier(options, config_sweeper, run_context):
+    
+    original_options = copy.deepcopy(options)   
     
     # I want to have a fixed amount of capacity to the core layer. 
     # If there are more cores, then the capacity per link should be divided.
@@ -202,7 +226,6 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         options["ft-agg-core-link-capacity-mult"] = run_context["original_core_count"]
         options["ft-core-count"] = 1
     
-    
     # ideal network will create a network where the core layer has infinite capacity.
     if options["lb-scheme"] == "ideal":
         run_context["ideal_network"] = True 
@@ -210,7 +233,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         options["ft-agg-core-link-capacity-mult"] = 1000
         options["ft-core-count"] = 1
         options["ring-mode"] = run_context["comparison-base"]["ring-mode"]
-        options["timing-scheme"] = run_context["comparison-base"]["timing-scheme"]
+        # options["timing-scheme"] = run_context["comparison-base"]["timing-scheme"]
+        options["timing-scheme"] = "zero"
     
     # if it's farid, then we will feed the routing decisions to the simulator, 
     # through the input files. So the lb scheme should be readprotocol. 
@@ -220,7 +244,11 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         
     if "compat-score-mode" in options: 
         run_context["compat-score-mode"] = options["compat-score-mode"]
-        options.pop("compat-score-mode")    
+        options.pop("compat-score-mode") 
+        
+    if "throttle-search" in options: 
+        run_context["throttle-search"] = options["throttle-search"]
+        options.pop("throttle-search")   
     
     options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
     
@@ -231,15 +259,13 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     # options.pop("subflows") 
     
     ### based on the placement seed, we need to generate the placements. 
-    global placement_files_state
-    global timing_files_states
     
     # handle the placement
     placement_mode = options["placement-mode"] 
     ring_mode = options["ring-mode"]
     placement_seed = options["placement-seed"] 
     timing_scheme = options["timing-scheme"]    
-    
+
     run_context.update({
         "placement-mode": options["placement-mode"],
         "ring-mode": options["ring-mode"],
@@ -253,12 +279,36 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     options.pop("timing-scheme")
 
     #########################################################################################################
-    # handle the placement  
-    placements_dir = "{}/placements/{}-{}/{}/".format(config_sweeper.custom_files_dir, 
-                                                      placement_mode, ring_mode, placement_seed) 
-    profiles_dir = "{}/profiles/{}-{}/{}/".format(config_sweeper.custom_files_dir, 
-                                                    placement_mode, ring_mode, placement_seed)
+    # handle the placement
+    placement_related_base_path = config_sweeper.custom_files_dir + "/" + "p-"
+    placement_related_added_keys = [] 
+    for key in placement_related_keys:
+        if key in config_sweeper.relevant_keys:
+            placement_related_added_keys.append(key)
+            
+    # sort the keys so that the path is always the same.    
+    # placement_related_added_keys.sort()
+    
+    # add the keys to the base path.
+    placement_identifier = ""   
+    for key in placement_related_added_keys:  
+        if key in original_options:  
+            value = original_options[key]
+        else:
+            value = run_context[key]
+        placement_identifier += summarize_key_ids(key) + "-" + str(value) + "-"
+    placement_identifier = placement_identifier[:-1]
+    
+    placement_related_base_path += (placement_identifier + "/")
+    
+    config_sweeper.thread_states[run_context["worker-id-for-profiling"]] = "exp-{}-placement-{}".format(run_context["exp-uuid"], 
+                                                                                                        placement_identifier)
+    
+    run_context["placement-related-dir"] = placement_related_base_path
 
+    placements_dir = placement_related_base_path + "placements/"   
+    profiles_dir = placement_related_base_path + "profiles/"
+    
     os.makedirs(placements_dir, exist_ok=True)
     os.makedirs(profiles_dir, exist_ok=True)
 
@@ -275,32 +325,62 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                                calc_func_args=(placement_file_path, placement_seed, 
                                                options, run_context, config_sweeper))
 
+    run_context["jobs"] = jobs  
+    
     options["placement-file"] = placement_file_path
     
-    #########################################################################################################
+    #######################################################################################################
     
     # handle the timing
-    timings_dir = "{}/timings/{}-{}/{}/{}/{}/{}/".format(config_sweeper.custom_files_dir, 
-                                                placement_mode, ring_mode, placement_seed, 
-                                                timing_scheme, 
-                                                run_context["routing-fit-strategy"], 
-                                                run_context["compat-score-mode"])   
+    # timings_dir = "{}/timings/{}-{}/{}/{}/{}/{}/{}/{}/".format(config_sweeper.custom_files_dir, 
+    #                                             placement_mode, ring_mode, placement_seed, 
+    #                                             timing_scheme, 
+    #                                             run_context["routing-fit-strategy"], 
+    #                                             run_context["compat-score-mode"], 
+    #                                             run_context["throttle-search"], 
+    #                                             options["subflows"])       
     
-    routings_dir = "{}/routings/{}-{}/{}/{}/{}/{}".format(config_sweeper.custom_files_dir,    
-                                                placement_mode, ring_mode, placement_seed,
-                                                timing_scheme, 
-                                                run_context["routing-fit-strategy"], 
-                                                run_context["compat-score-mode"])
+    # routings_dir = "{}/routings/{}-{}/{}/{}/{}/{}/{}/{}/".format(config_sweeper.custom_files_dir,    
+    #                                             placement_mode, ring_mode, placement_seed,
+    #                                             timing_scheme, 
+    #                                             run_context["routing-fit-strategy"], 
+    #                                             run_context["compat-score-mode"],
+    #                                             run_context["throttle-search"], 
+    #                                             options["subflows"])   
+    
+    scheduling_related_base_path = placement_related_base_path + "s-"
+    scheduling_related_added_keys = []  
+    for key in scheduling_related_keys:
+        if key in config_sweeper.relevant_keys:
+            scheduling_related_added_keys.append(key)
+    
+    # scheduling_related_added_keys.sort()
+    scheduling_identifier = "" 
+    for key in scheduling_related_added_keys:
+        if key in original_options:  
+            value = original_options[key]    
+        else:
+            value = run_context[key]    
+        scheduling_identifier += summarize_key_ids(key) + "-" + str(value) + "-"
+    
+    scheduling_identifier = scheduling_identifier[:-1]
+    scheduling_related_base_path += (scheduling_identifier + "/")
+    
+    timings_dir = scheduling_related_base_path + "timings/" 
+    routings_dir = scheduling_related_base_path + "routings/"
     
     os.makedirs(timings_dir, exist_ok=True)
     os.makedirs(routings_dir, exist_ok=True)    
     
+    run_context["schedulings-dir"] = scheduling_related_base_path   
     run_context["timings-dir"] = timings_dir    
     run_context["routings-dir"] = routings_dir
     
     timing_file_path = "{}/timing.txt".format(timings_dir, timing_scheme)
     routing_file_path = "{}/routing.txt".format(routings_dir, timing_scheme)
     
+    config_sweeper.thread_states[run_context["worker-id-for-profiling"]] = "exp-{}-scheduling-{}".format(run_context["exp-uuid"],
+                                                                                                         scheduling_identifier)
     
     job_timings, lb_decisions = timing_cache.get(key=timing_file_path, 
                                                  lock=config_sweeper.thread_lock, 
@@ -314,18 +394,67 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     options["timing-file"] = timing_file_path
     options["routing-file"] = routing_file_path 
     
-    #########################################################################################################
+    ###############################################################################################
         
+    runtime_related_base_path = run_context["schedulings-dir"] + "r-"
+    runtime_related_added_keys = [] 
+    for key in config_sweeper.relevant_keys:
+        if key not in placement_related_keys and key not in scheduling_related_keys:    
+            # everything else that remains would be related to the runtime.
+            runtime_related_added_keys.append(key)  
+            
+    runtime_related_added_keys.sort()   
+    
+    runtime_identifier = ""
+    for key in runtime_related_added_keys:  
+        if key in original_options:  
+            value = original_options[key]    
+        else:
+            value = run_context[key]
+        runtime_identifier += summarize_key_ids(key) + "-" + str(value) + "-"
+    runtime_identifier = runtime_identifier[:-1]    
+    runtime_related_base_path += (runtime_identifier + "/")
+    
+    run_context["runtime-dir"] = runtime_related_base_path
+    os.makedirs(runtime_related_base_path, exist_ok=True)    
+    
+    
 
-def result_extractor_function(output, options, this_exp_results, run_context):
+def result_extractor_function(output, options, this_exp_results, run_context, config_sweeper):
+    if "visualize-timing" in run_context and run_context["visualize-timing"]:   
+        run_path = "{}/worker-{}/run-1".format(config_sweeper.workers_dir,
+                                            run_context["worker-id-for-profiling"])
+        flow_files_path = "{}/flow-info.txt".format(run_path)   
+
+        shutil.copy(flow_files_path, run_context["runtime-dir"] + "/flow-info.txt") 
+        summarized_job_profiles, _, _ = get_job_profiles(flow_files_path, only_summary=True)
+
+        link_loads, _ = timing.get_link_loads_runtime(
+            jobs=run_context["jobs"],
+            options=options, 
+            run_context=run_context,
+            summarized_job_profiles=summarized_job_profiles 
+        )
+        
+        # the stupid matplotlib doesn't work in a thread.   
+        with config_sweeper.thread_lock:
+            timing.visualize_link_loads_runtime(
+                link_loads=link_loads,
+                run_context=run_context,
+                suffix="_runtime",        
+                plot_dir=run_context["runtime-dir"]
+            )
+            
+        final_timing_output = run_context["timings-dir"] + "/demand_final.png"   
+        shutil.copy(final_timing_output, run_context["runtime-dir"] + "/demand_final.png")   
+        
+    printed_metrics = [] 
+     
     for metric in run_context["interesting-metrics"]:
-        
         all_jobs_running = False
-        
         if metric == "avg_ar_time":
             job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], 
                                                        all_jobs_running=all_jobs_running)
-            
                     
         elif metric == "avg_iter_time": 
             job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], 
@@ -380,6 +509,7 @@ def result_extractor_function(output, options, this_exp_results, run_context):
             avg_job_number = round(sum_job_numbers / number_count, rounding_precision) 
             avg_job_numbers.append(avg_job_number)    
         
+        printed_metrics.append("avg_{}".format(metric)) 
         
         this_exp_results.update({
             "min_{}".format(metric): min(avg_job_numbers),
@@ -389,6 +519,7 @@ def result_extractor_function(output, options, this_exp_results, run_context):
             "all_{}".format(metric): avg_job_numbers,  
         })
     
+    return printed_metrics  
 
 def run_results_modifier(results):
     
@@ -607,6 +738,13 @@ def check_comparison_sanity(exp_context, sweep_config):
     pprint(comparison_reqs)    
     reasons = [] 
     
+    
+    for key, value in sweep_config.items():
+        if len(value) > 1: 
+            if key not in comparison_base and key != "placement-seed" and key != "placement-mode":
+                print("{} is not in the comparison base, but is being swept".format(key))
+                reasons.append("{} is not in the comparison base, but is being swept".format(key))
+    
     for key, values in comparison_reqs.items():
         sweep_config_values = sweep_config[key] 
         
@@ -619,3 +757,39 @@ def check_comparison_sanity(exp_context, sweep_config):
         return True, ["All good"]
     else: 
         return False, reasons
+    
+def exp_filter_function(permutations_dicts, config_sweeper):    
+    
+    comparison_base = config_sweeper.global_context["comparison-base"].copy()
+    comparisons = config_sweeper.global_context["comparisons"].copy() 
+
+    comparison_settings = [comparison_base.copy()]  
+    for comparison in comparisons:  
+        comparison_setting = comparison_base.copy()
+        for key, value in comparison[1].items():
+            comparison_setting[key] = value
+        comparison_settings.append(comparison_setting)  
+        
+    filtered_permutations = []
+    relevant_keys = set() 
+    
+    for exp in permutations_dicts:
+        exp_valid = False    
+        for comparison in comparison_settings:  
+            found_in_this_comparison = True 
+            for key, value in comparison.items():
+                relevant_keys.add(key)
+                if exp[key] != value:
+                    found_in_this_comparison = False
+                    break
+            if found_in_this_comparison:
+                exp_valid = True
+                break
+        if exp_valid:
+            filtered_permutations.append(exp)
+            
+    for key, value in config_sweeper.sweep_config.items():
+        if len(value) > 1:
+            relevant_keys.add(key)
+    
+    return filtered_permutations, relevant_keys

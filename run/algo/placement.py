@@ -177,6 +177,50 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
     return jobs
 
 
+def generate_manual_placement_file(options, run_context):   
+    assert options["machine-count"] == 16, "Error: machine count does not match."        
+    
+    jobs = [
+        {
+            "job_id": 1,
+            "machine_count": 4,
+            "comm_size": 10000,
+            "comp_size": 175,
+            "layer_count": 1,
+            "machines": [14, 15, 0, 1],
+            "iter_count": 1 
+        },
+        {
+            "job_id": 2,
+            "machine_count": 4,
+            "comm_size": 10000,
+            "comp_size": 275,
+            "layer_count": 1,
+            "machines": [2, 3, 4, 5],
+            "iter_count": 1 
+        },
+        {
+            "job_id": 3,
+            "machine_count": 4,
+            "comm_size": 10000,
+            "comp_size": 75,
+            "layer_count": 1,
+            "machines": [6, 7, 8, 9],
+            "iter_count": 1 
+        },
+        {
+            "job_id": 4,
+            "machine_count": 4,
+            "comm_size": 10000,
+            "comp_size": 375,
+            "layer_count": 1,
+            "machines": [10, 11, 12, 13],
+            "iter_count": 1 
+        }
+    ]
+    
+    return jobs
+
 
 def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path, stretch_factor=1):
     for job in jobs:
@@ -212,25 +256,30 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
             
             # job_prof might be empty.
             job_id = job["job_id"]
+            this_job_prof = None 
             
             if job_id in job_prof:
                 assert job_prof[job_id]["period"] == psim_finish_time, "periods do not match" 
+                this_job_prof = job_prof[job_id] 
+            else: 
+                this_job_prof = {
+                    "period": psim_finish_time,
+                    "flows": []
+                }
                 
-                profile_file_path = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.pkl" 
-                with open(profile_file_path, "wb") as f:
-                    pkl.dump(job_prof[job_id], f)    
-                    
-                profile_file_path_json = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.json"   
-                with open(profile_file_path_json, "w") as f:    
-                    json.dump(job_prof[job_id], f, indent=4)    
+            profile_file_path = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.pkl" 
+            with open(profile_file_path, "wb") as f:
+                pkl.dump(this_job_prof, f)    
+            
+            # profile_file_path_json = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.json"   
+            # with open(profile_file_path_json, "w") as f:    
+            #     json.dump(this_job_prof, f, indent=4) 
                 
-                
-            job["period"][throttle_factor] = psim_finish_time
+            job["period"][str(throttle_factor)] = psim_finish_time
             if throttle_factor == 1.0:  
                 job["base_period"] = psim_finish_time
                 
             print("profiled job: ", job_id, " with throttle factor: ", throttle_factor, " period: ", psim_finish_time)
-                
                                                       
 def generate_placement_file(placement_path, placement_seed,   
                             options, run_context, config_sweeper):  
@@ -265,16 +314,22 @@ def generate_placement_file(placement_path, placement_seed,
             placement_strategy = "firstfit"
               
         jobs = generate_simulated_placement_file(options, run_context, placement_strategy)
+    
+    elif placement_mode == "manual":
+        jobs = generate_manual_placement_file(options, run_context) 
+    else: 
+        rage_quit("Error: unknown placement mode: " + placement_mode)
         
     random.seed(run_context["experiment-seed"] + placement_seed + ring_magic)
         
     ring_mode = run_context["ring-mode"]    
-    if ring_mode == "random":
-        for job in jobs:
-            random.shuffle(job["machines"]) 
-    else:
-        for job in jobs:
-            job["machines"] = sorted(job["machines"])  
+    if placement_mode != "manual":
+        if ring_mode == "random":
+            for job in jobs:
+                random.shuffle(job["machines"]) 
+        else:
+            for job in jobs:
+                job["machines"] = sorted(job["machines"])  
     
     with open(placement_path, "w") as f:
         json.dump(jobs, f, indent=4)
@@ -285,7 +340,7 @@ def generate_placement_file(placement_path, placement_seed,
     
     # at this point, all the profiles are ready and each job has a period associated with it.   
     for job in jobs: 
-        period = job["period"][1.0]
+        period = job["base_period"] 
         
         sim_length = run_context["sim-length"]  
         iter_count = math.floor(sim_length / period) - 1

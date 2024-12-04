@@ -105,7 +105,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
     link_bandwidth = options["link-bandwidth"]  
     # print ("Number of leaves: {}, Number of spines: {}, Link bandwidth: {}".format(num_leaves, num_spines, link_bandwidth))
 
-    max_subflow_count = num_spines
+    max_subflow_count = options["subflows"]
     # assert max_subflow_count < 3, "The current implementation only supports 1 or 2 subflows."
     
     # pprint(jobs) 
@@ -125,7 +125,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
         
         for i in range(job["iter_count"]):
             iter_throttle_rate = job_throttle_rates[job["job_id"]][i]
-            job_periods[job["job_id"]].append(job["period"][iter_throttle_rate])
+            job_periods[job["job_id"]].append(job["period"][str(iter_throttle_rate)])
             
     # routing_time = run_context["sim-length"]  
     # it might actually be more than that.     
