@@ -7,6 +7,7 @@ from pprint import pprint
 import copy
 import json
 from processing.flowprogress import get_job_profiles    
+from hashlib import md5
 
 # from algo.timing import generate_timing_file
 from algo import timing
@@ -110,7 +111,7 @@ nethint_settings = [
         "ft-server-per-rack": 4,
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 4,
-        "placement-seed-range": 10,
+        "placement-seed-range": 3,
         "comm-size": [8000, 4000, 2000],
         "comp-size": [200, 100, 400],
         "layer-count": [1, 2],
@@ -327,6 +328,9 @@ def run_command_options_modifier(options, config_sweeper, run_context):
 
     run_context["jobs"] = jobs  
     
+    jobs_str = json.dumps(jobs, sort_keys=True).encode("utf-8")
+    run_context["placement-hash"] = md5(jobs_str).hexdigest()
+    
     options["placement-file"] = placement_file_path
     
     #######################################################################################################
@@ -394,6 +398,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     options["timing-file"] = timing_file_path
     options["routing-file"] = routing_file_path 
     
+    run_context["job-timings"] = job_timings    
+    
     ###############################################################################################
         
     runtime_related_base_path = run_context["schedulings-dir"] + "r-"
@@ -417,6 +423,38 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     run_context["runtime-dir"] = runtime_related_base_path
     os.makedirs(runtime_related_base_path, exist_ok=True)    
+    
+    
+def plot_job_numbers(job_numbers, run_context, metric_name):   
+    # job_numbers look like this.   
+
+    # [{1: [228.0, 224.0, 150.0, 300.0, 196.0, 206.0, 203.0, 224.0, 150.0],
+    #     2: [300.0, 300.0, 300.0, 264.0, 289.0, 300.0],
+    #     3: [150.0, 260.0, 290.0, 150.0],
+    #     4: [300.0, 300.0, 206.0, 273.0]}] 
+    
+    # let's assume that it has one item in the top level 
+    numbers = job_numbers[0]
+    
+    # let's plot the numbers.
+    import matplotlib.pyplot as plt
+    
+    # one subplot for each job.  
+    fig, axs = plt.subplots(len(numbers), 1, figsize=(10, 5 * len(numbers)))
+    
+    for i, (job, numbers) in enumerate(numbers.items()):
+        axs[i].plot(numbers)
+        axs[i].set_title("Job {}".format(job))
+        axs[i].set_xlabel("Iteration")
+        axs[i].set_ylabel("Time (ms)")
+        
+    plt.tight_layout()
+    
+    plot_path = run_context["runtime-dir"] + "/iterations-{}.png".format(metric_name)
+    plt.savefig(plot_path)
+    plt.close()
+    plt.clf()   
+    plt.cla()
     
     
 
@@ -449,12 +487,16 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
         shutil.copy(final_timing_output, run_context["runtime-dir"] + "/demand_final.png")   
         
     printed_metrics = [] 
+    run_context["job_numbers"] = {}    
      
     for metric in run_context["interesting-metrics"]:
         all_jobs_running = False
         if metric == "avg_ar_time":
             job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], 
                                                        all_jobs_running=all_jobs_running)
+            
+            # with config_sweeper.thread_lock:
+            #     plot_job_numbers(job_numbers, run_context, metric)
                     
         elif metric == "avg_iter_time": 
             job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], 
@@ -489,13 +531,13 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
         
         else: 
             rage_quit("Unknown metric: {}".format(metric))
-        
-        
-        if "output-file" in run_context: 
-            with open(run_context["output-file"], "a+") as f:
-                f.write("\nResults for {}:\n".format(metric))
-                f.write(json.dumps(job_numbers, indent=4))
-                f.write("\n")    
+
+        # print the values of the relevant keys either from run_context or from the options.            
+        run_context["job_numbers"][metric] = job_numbers    
+        if "output-file" in run_context:
+            results_path = "{}/results-{}.json".format(run_context["runtime-dir"], metric)
+            with open(results_path, "w") as f:
+                json.dump(job_numbers, f, indent=4)
                 
         avg_job_numbers = [] 
         for rep in job_numbers:
@@ -545,13 +587,13 @@ def run_results_modifier(results):
     if results["farid_timing"]: 
         results["lb-scheme"] = results["original_lb_scheme"]   
          
-        
     upper_tier_link_capacity = int(results["link-bandwidth"] * results["ft-agg-core-link-capacity-mult"])
     results["cores"] = "{} x {} Gbps".format(results["ft-core-count"], upper_tier_link_capacity)
     
     rack_count = results["machine-count"] // results["ft-server-per-rack"]
     results["machines"] = "{}M x {}R".format(results["ft-server-per-rack"], rack_count)
     
+
 def plot_results(interesting_keys, plotted_key_min, plotted_key_max, 
                  title, random_seed, csv_path, plot_path, script_path, 
                  actually_plot=True):
@@ -595,8 +637,494 @@ def plot_cdfs(separating_params, cdf_params,
         f.write(plot_command)
         f.write("\n")   
                 
+def plot_all_stuff(exp_results_df, config_sweeper, global_context): 
+    import matplotlib.pyplot as plt 
+    
+    # print everything in the exp_results_df without any summarization. print all the columns 
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
+    #     print(exp_results_df)
+        
+    # make a copy of the dataframe.
+    exp_results_df = exp_results_df.copy()
+    
+    # combine the placement-mode and ring-mode into one column. 
+    exp_results_df["placement-mode-all"] = exp_results_df["placement-mode"] + "-" + exp_results_df["ring-mode"]
+    
+    # unique values for placement-mode-all  
+    pmodes = exp_results_df["placement-mode-all"].nunique()  
+    all_placement_modes = exp_results_df["placement-mode-all"].unique() 
+    
+    # placement-seeds 
+    seeds = exp_results_df["placement-seed"].nunique() 
+    all_placement_seeds = exp_results_df["placement-seed"].unique()
+    
+    # for each metric in the interesting metrics, we will plot the iteration times
+    for k, placement_seed in enumerate(all_placement_seeds):  
+        
+        for metric in global_context["interesting-metrics"]:
+            # height = number of jobs for this seed
+            jobs = exp_results_df[exp_results_df["placement-seed"] == placement_seed]["jobs"].iloc[0]
+            job_ids = [job["job_id"] for job in jobs]   
+            job_ids.sort()              
+            height = len(job_ids)   
+            job_plot_index = {job_id: i for i, job_id in enumerate(job_ids)}
+                        
+            width = pmodes  
+
+            fig, axs = plt.subplots(height, width, figsize=(5 * width, 5 * height), squeeze=False) 
+
+            # enumarate with i and j over the placement-mode-all and placement-seed.
+            for i, placement_mode in enumerate(all_placement_modes):    
+                placement_seed_group = exp_results_df[(exp_results_df["placement-mode-all"] == placement_mode) & 
+                                                      (exp_results_df["placement-seed"] == placement_seed)]
+                
+                base_setting = global_context["comparison-base"]
+                comparisons = global_context["comparisons"] + [("base", base_setting)]
+                
+                base_df = placement_seed_group
+                    
+                comparison_results = [] 
+                                    
+                for c, comp in enumerate(comparisons):
+                    comparison_name, compared_df_setting = comp 
+                    last_comparison = (c == len(comparisons) - 1)   
+                    
+                    compared_df = base_df
+                    full_compared_df_setting = base_setting.copy()
+                    full_compared_df_setting.update(compared_df_setting)
+                    
+                    for key, value in full_compared_df_setting.items():
+                        compared_df = compared_df[compared_df[key] == value]
+
+                    assert (len(compared_df) == 1)
+                    
+                    # print the job_numbers for this comparison.    
+                    job_numbers = compared_df["job_numbers"].iloc[0]
+                    
+                    metric_numbers = job_numbers[metric][0]
+                    
+                    for job_id, numbers in metric_numbers.items():  
+                        j = job_plot_index[job_id]
+                        ax = axs[j, i]  
+                        ax.plot(numbers, label=comparison_name)
+                        ax.set_xlabel("Iteration")
+                        ax.set_ylabel("Time (ms)")  
+                        
+                        last_job = (j == height - 1) 
+                        if last_comparison and last_job:
+                            # legend to the bottom of the last plot.
+                            ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05))
             
+            plt.tight_layout()  
+            plot_path = config_sweeper.plots_dir + f"seed-{placement_seed}-metric-{metric}.png"
+            plt.savefig(plot_path)
+            plt.close()
+            plt.clf()
+            
+    
+    return     
+
+
+def plot_all_stuff_2(exp_results_df, config_sweeper, global_context):
+    import matplotlib.pyplot as plt 
+    
+    # print everything in the exp_results_df without any summarization. print all the columns 
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
+    #     print(exp_results_df)
+        
+    # make a copy of the dataframe.
+    exp_results_df = exp_results_df.copy()
+    
+    # combine the placement-mode and ring-mode into one column. 
+    exp_results_df["placement-mode-all"] = exp_results_df["placement-mode"] + "-" + exp_results_df["ring-mode"]
+    
+    # unique values for placement-mode-all  
+    pmodes = exp_results_df["placement-mode-all"].nunique()  
+    all_placement_modes = exp_results_df["placement-mode-all"].unique() 
+    
+    # placement-seeds 
+    seeds = exp_results_df["placement-seed"].nunique() 
+    all_placement_seeds = exp_results_df["placement-seed"].unique()
+    
+    # for each metric in the interesting metrics, we will plot the iteration times
+    for metric in global_context["interesting-metrics"]:
+        all_data = {} 
+        
+        # assume that all jobs are the same for now 
+        jobs = exp_results_df["jobs"].iloc[0]
+    
+        job_ids = [job["job_id"] for job in jobs]   
+        job_ids.sort()              
+
+        height = len(job_ids)   
+        width = pmodes  
+
+        fig, axs = plt.subplots(height, width, figsize=(5 * width, 5 * height), squeeze=False) 
+
+        job_plot_index = {job_id: i for i, job_id in enumerate(job_ids)}
+                        
+        for i, placement_mode in enumerate(all_placement_modes):    
+            
+            if placement_mode not in all_data:
+                all_data[placement_mode] = {}
+                
+            for k, placement_seed in enumerate(all_placement_seeds):  
+            # enumarate with i and j over the placement-mode-all and placement-seed.
+                placement_seed_group = exp_results_df[(exp_results_df["placement-mode-all"] == placement_mode) & 
+                                                      (exp_results_df["placement-seed"] == placement_seed)]
+                
+                base_setting = global_context["comparison-base"]
+                comparisons = global_context["comparisons"] + [("base", base_setting)]
+                
+                base_df = placement_seed_group
+                    
+                for c, comp in enumerate(comparisons):
+                    comparison_name, compared_df_setting = comp 
+                    
+                    if comparison_name not in all_data[placement_mode]:
+                        all_data[placement_mode][comparison_name] = {}
+                        
+                    last_comparison = (c == len(comparisons) - 1)   
+
+                    compared_df = base_df
+                    full_compared_df_setting = base_setting.copy()
+                    full_compared_df_setting.update(compared_df_setting)
+                    
+                    for key, value in full_compared_df_setting.items():
+                        compared_df = compared_df[compared_df[key] == value]
+
+                    assert (len(compared_df) == 1)
+                    
+                    # print the job_numbers for this comparison.    
+                    job_numbers = compared_df["job_numbers"].iloc[0]
+                    
+                    print("comp: ", placement_mode, comparison_name, placement_seed)
+                    
+                    metric_numbers = job_numbers[metric][0]
+                    
+                    for job_id, numbers in metric_numbers.items():  
+                        j = job_plot_index[job_id]
+                        
+                        if j not in all_data[placement_mode][comparison_name]:
+                            all_data[placement_mode][comparison_name][j] = {}
+                            
+                        for iter_id, number in enumerate(numbers):  
+                            if iter_id not in all_data[placement_mode][comparison_name][j]:
+                                all_data[placement_mode][comparison_name][j][iter_id] = []
+                                
+                            all_data[placement_mode][comparison_name][j][iter_id].append(number)
+
+        pprint(all_data)         
+            
+        for placement_mode in all_data.keys():
+            for comparison_name in all_data[placement_mode].keys():
+                for j in all_data[placement_mode][comparison_name].keys():
+                    for iter_id in all_data[placement_mode][comparison_name][j].keys():
+                        all_data[placement_mode][comparison_name][j][iter_id] = np.mean(
+                            all_data[placement_mode][comparison_name][j][iter_id]
+                        )
+        pprint(all_data)             
+        
+        for i, placement_mode in enumerate(all_data.keys()):
+            for j, comparison_name in enumerate(all_data[placement_mode].keys()):
+                for job_index in all_data[placement_mode][comparison_name].keys():
+                    ax = axs[job_index, i]  
+                    
+                    numbers = all_data[placement_mode][comparison_name][job_index]
+                    numbers_list = [numbers[iter_id] for iter_id in range(len(numbers))] 
+                    print("Plotting: ", placement_mode, comparison_name, job_index, "->", numbers_list)
+                    
+                    
+                    marker_options = ["o", "s", "x", "D", "^", "v", "<", ">"] 
+                    marker = marker_options[j % len(marker_options)]
+                    
+                    linestyle_options = ["-", "--", "-.", ":"]  
+                    linestyle = linestyle_options[j % len(linestyle_options)]
+                    
+                    ax.plot(numbers_list, label=comparison_name, marker=marker, linestyle=linestyle)    
+
+                    ax.set_xlabel("Iteration")
+                    ax.set_ylabel("Time (ms)")  
+                    
+                    last_plot = (job_index == height - 1) and j == len(comparisons) - 1 
+                    
+                    if last_plot:
+                        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05))
+                        
+            
+        plt.tight_layout()  
+        plot_path = config_sweeper.plots_dir + f"seed-{placement_seed}-metric-{metric}.png"
+        plt.savefig(plot_path)
+        plt.close()
+        plt.clf()
+            
+    
+    return 
+
+
+def plot_all_stuff_3(exp_results_df, config_sweeper, global_context):
+    import matplotlib.pyplot as plt 
+    import seaborn as sns   
+    
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
+    #     print(exp_results_df)
+        
+    # make a copy of the dataframe.
+    exp_results_df = exp_results_df.copy()
+    
+    # combine the placement-mode and ring-mode into one column. 
+    # exp_results_df["placement-mode-all"] = exp_results_df["placement-mode"] + "-" + exp_results_df["ring-mode"]
+    # unique values for placement-mode-all  
+
+    
+    all_data_df = pd.DataFrame(
+        columns=["placement-hash", "comparison", "metric", "job_id", "iter_id", "value"]    
+    )
+    all_data_list = []
+    
+    # for each metric in the interesting metrics, we will plot the iteration times
+    
+    # iterate over all rows of the exp_results_df.  
+    base_setting = global_context["comparison-base"]
+    comparisons = global_context["comparisons"] + [("base", base_setting)]
+    
+        
+    for c, comp in enumerate(comparisons):
+        comparison_name, compared_df_setting = comp 
+        
+        # get the base setting, update the keys that have been changed.         
+        full_compared_df_setting = base_setting.copy()
+        full_compared_df_setting.update(compared_df_setting)
+
+        # start with the full df, narrow it down with the settings.
+        compared_df = exp_results_df
+        for key, value in full_compared_df_setting.items():
+            compared_df = compared_df[compared_df[key] == value]
+            
+        for i, row in compared_df.iterrows():
+            placement_hash = row["placement-hash"] 
+            
+            job_numbers = row["job_numbers"]
+                    
+            for metric in global_context["interesting-metrics"]:
+                metric_numbers = job_numbers[metric][0]
+                
+                for job_id, numbers in metric_numbers.items():
+                    for iter_id, number in enumerate(numbers):  
+                        all_data_list.append({
+                            "placement-hash": placement_hash,   
+                            "comparison": comparison_name,
+                            "metric": metric,
+                            "job_id": job_id,
+                            "iter_id": iter_id,
+                            "value": number
+                        })
+            
+            
+    all_data_df = pd.DataFrame(all_data_list)
+    
+    # merge placement-mode and ring-mode into one column. 
+    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
+        print(all_data_df)
+        
+    csv_path = config_sweeper.plots_dir + f"metric-{metric}.csv"
+    all_data_df.to_csv(csv_path, index=False)
+
+    # reduce mean over placement-seed
+    all_columns_but_value = list(all_data_df.columns).copy()
+    all_columns_but_value.remove("value")    
+    all_data_df = all_data_df.groupby(all_columns_but_value).mean().reset_index()
+    
+    csv_path = config_sweeper.plots_dir + f"reduced-{metric}.csv"
+    all_data_df.to_csv(csv_path, index=False)
+    
+    for metric in global_context["interesting-metrics"]:
+        metric_group = all_data_df[all_data_df["metric"] == metric] 
+            
+        # number of unique placement hashes.    
+        placement_hashes = metric_group["placement-hash"].unique()
+        plot_width = len(placement_hashes) 
+        
+        max_height = 0 
+        for placement_hash in placement_hashes:  
+            placement_group = metric_group[metric_group["placement-hash"] == placement_hash]
+            jobs = placement_group["job_id"].unique() 
+            plot_height = len(jobs)
+            max_height = max(max_height, plot_height)    
+        
+        fig, axs = plt.subplots(max_height, plot_width, figsize=(5 * plot_width, 5 * max_height), squeeze=False)
+        
+        for i, placement_hash in enumerate(placement_hashes):
+            placement_group = metric_group[metric_group["placement-hash"] == placement_hash]
+            
+            job_ids = placement_group["job_id"].unique() 
+            job_ids.sort()
+            height = len(job_ids) 
+            
+            job_plot_index = {job_id: j for j, job_id in enumerate(job_ids)}
+            
+            # average value for each comparison 
+            comparison_mean = placement_group.groupby(["comparison"])["value"].mean().reset_index()
+            comparison_mean_dict = {row["comparison"]: row["value"] for i, row in comparison_mean.iterrows()}
+            # sort the comparisons by the mean value.
+            sorted_comparisons = sorted(comparison_mean_dict.items(), key=lambda x: x[1])
+            sorted_comparisons = [comp for comp, _ in sorted_comparisons]
+            
+            for job_id in job_ids:
+
+                j = job_plot_index[job_id]
+                ax = axs[j, i]  
+                
+                job_group = placement_group[placement_group["job_id"] == job_id]
+                
+                
+                print("plotting the ax: ", i, j, job_id)    
+                legend = (j == height - 1)
+                sns.lineplot(data=job_group, ax=ax,
+                             x="iter_id", y="value", 
+                             hue="comparison", hue_order=sorted_comparisons,
+                             style="comparison", markers=True,  
+                             legend=legend)
+                if legend: 
+                    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05))
+                                        
+                ax.set_xlabel("Iteration")
+                ax.set_ylabel("Time (ms)")  
+                    
+        plt.tight_layout()
+        plot_path = config_sweeper.plots_dir + f"metric-{metric}.png"
+        plt.savefig(plot_path)
+        plt.close()
+        plt.clf()
+
+    
+    
+    # for metric in global_context["interesting-metrics"]:
+    #     # assume that all jobs are the same for now 
+    #     jobs = exp_results_df["jobs"].iloc[0]
+    
+    #     job_ids = [job["job_id"] for job in jobs]   
+    #     job_ids.sort()              
+
+    #     height = len(job_ids)   
+    #     width = pmodes  
+    #     fig, axs = plt.subplots(height, width, figsize=(5 * width, 5 * height), squeeze=False) 
+
+    #     job_plot_index = {job_id: i for i, job_id in enumerate(job_ids)}
+                        
+    #     for placement_mode in all_placement_modes:    
+    #         for placement_seed in all_placement_seeds:  
+    #         # enumarate with i and j over the placement-mode-all and placement-seed.
+    #             placement_seed_group = exp_results_df[(exp_results_df["placement-mode-all"] == placement_mode) & 
+    #                                                   (exp_results_df["placement-seed"] == placement_seed)]
+                
+    #             base_setting = global_context["comparison-base"]
+    #             comparisons = global_context["comparisons"] + [("base", base_setting)]
+                
+    #             base_df = placement_seed_group
+                    
+    #             for c, comp in enumerate(comparisons):
+    #                 comparison_name, compared_df_setting = comp 
+                    
+    #                 last_comparison = (c == len(comparisons) - 1)   
+
+    #                 compared_df = base_df
+    #                 full_compared_df_setting = base_setting.copy()
+    #                 full_compared_df_setting.update(compared_df_setting)
+                    
+    #                 for key, value in full_compared_df_setting.items():
+    #                     compared_df = compared_df[compared_df[key] == value]
+
+    #                 assert (len(compared_df) == 1)
+                    
+    #                 # print the job_numbers for this comparison.    
+    #                 job_numbers = compared_df["job_numbers"].iloc[0]
+                    
+    #                 metric_numbers = job_numbers[metric][0]
+                    
+    #                 for job_id, numbers in metric_numbers.items():  
+    #                     j = job_plot_index[job_id]
+                        
+    #                     for iter_id, number in enumerate(numbers):  
+    #                         # all_data[placement_mode][comparison_name][j][iter_id].append(number)
+
+    #                         all_data_list.append({
+    #                             "metric": metric,
+    #                             "placement-mode": placement_mode,
+    #                             "placement-seed": placement_seed,
+    #                             "comparison": comparison_name,
+    #                             "job_id": job_id,
+    #                             "iter_id": iter_id,
+    #                             "value": number
+    #                         })                                  
+
+        
+    #     # for placement_mode in all_data.keys():
+    #     #     for comparison_name in all_data[placement_mode].keys():
+    #     #         for j in all_data[placement_mode][comparison_name].keys():
+    #     #             for iter_id in all_data[placement_mode][comparison_name][j].keys():
+    #     #                 all_data[placement_mode][comparison_name][j][iter_id] = np.mean(
+    #     #                     all_data[placement_mode][comparison_name][j][iter_id]
+    #     #                 )
+        
+    #     # reduce mean over placement-seed   
+    #     all_data_df = pd.DataFrame(all_data_list)
+    #     all_data_df = all_data_df.groupby(["metric", "placement-mode", "comparison", "job_id", "iter_id"]) \
+    #                              .mean() \
+    #                              .reset_index()
+        
+    #     # print the data.
+    #     pprint(all_data_df)             
+        
+        
+    #     pmodes = exp_results_df["placement-mode-all"].nunique()  
+    #     all_placement_modes = exp_results_df["placement-mode-all"].unique() 
+        
+    #     # placement-seeds 
+    #     seeds = exp_results_df["placement-seed"].nunique() 
+    #     all_placement_seeds = exp_results_df["placement-seed"].unique()
+        
+        
+        # for i, placement_mode in enumerate(all_data.keys()):
+        #     for j, comparison_name in enumerate(all_data[placement_mode].keys()):
+        #         for job_index in all_data[placement_mode][comparison_name].keys():
+        #             ax = axs[job_index, i]  
+                    
+        #             numbers = all_data[placement_mode][comparison_name][job_index]
+        #             numbers_list = [numbers[iter_id] for iter_id in range(len(numbers))] 
+        #             print("Plotting: ", placement_mode, comparison_name, job_index, "->", numbers_list)
+                    
+                    
+        #             marker_options = ["o", "s", "x", "D", "^", "v", "<", ">"] 
+        #             marker = marker_options[j % len(marker_options)]
+                    
+        #             linestyle_options = ["-", "--", "-.", ":"]  
+        #             linestyle = linestyle_options[j % len(linestyle_options)]
+                    
+        #             ax.plot(numbers_list, label=comparison_name, marker=marker, linestyle=linestyle)    
+
+        #             ax.set_xlabel("Iteration")
+        #             ax.set_ylabel("Time (ms)")  
+                    
+        #             last_plot = (job_index == height - 1) and j == len(comparisons) - 1 
+                    
+        #             if last_plot:
+        #                 ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05))
+                        
+            
+        # plt.tight_layout()  
+        # plot_path = config_sweeper.plots_dir + f"seed-{placement_seed}-metric-{metric}.png"
+        # plt.savefig(plot_path)
+        # plt.close()
+        # plt.clf()
+            
+    
+    return 
+
+
 def custom_save_results_func(exp_results_df, config_sweeper, global_context, plot=False): 
+    plot_all_stuff_3(exp_results_df, config_sweeper, global_context)
+    input("Press enter to continue")
     
     print("Saving the results ...") 
     
@@ -672,6 +1200,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
             group_on.remove("placement-seed")
 
             agg_dict = {}
+            
             for comparison_name, _ in comparisons:
                 agg_dict[f"speedup_{comparison_name}_min"] = (f"speedup_{comparison_name}", "min")
                 agg_dict[f"speedup_{comparison_name}_max"] = (f"speedup_{comparison_name}", "max")
@@ -718,8 +1247,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                   actually_plot=plot)
 
     print("Done with the metric: ", metric)
-    
 
+    
 def check_comparison_sanity(exp_context, sweep_config):
     
     comparison_base  = exp_context["comparison-base"]   

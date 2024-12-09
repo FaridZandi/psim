@@ -218,7 +218,11 @@ class ConfigSweeper:
             with self.thread_lock:
                 with open(self.thread_state_path, "w+") as f:
                     for i in range(self.worker_thread_count):
-                        f.write("thread {} is {}\n".format(i, self.thread_states[i]))
+                        thread_number = i 
+                        # pad with zeros to make the thread number 3 digits long.
+                        thread_number = str(thread_number).zfill(3)
+                        
+                        f.write("thread {} → {}\n".format(thread_number, self.thread_states[i]))
                     f.write("\n")
                     
             if len(self.exp_results) == self.total_jobs:
@@ -365,11 +369,11 @@ class ConfigSweeper:
             self.log_for_thread(run_context, "Acquired the lock to check the cache")
             
             if cache_key in self.results_cache:
-                cache_hit = True
-                self.cache_hits += 1
+                cache_hit = False
+                # self.cache_hits += 1
         
         self.log_for_thread(run_context, "Done with the lock to check the cache")
-
+        
         if cache_hit:
             with self.thread_lock:
                 this_exp_results, output, printed_metrics = self.results_cache[cache_key]
@@ -377,7 +381,7 @@ class ConfigSweeper:
                 duration = 0 
                 
         else:     
-            self.thread_states[worker_id] = "running the exp {}".format(this_exp_uuid) 
+            self.thread_states[worker_id] = "exp-{}-running".format(this_exp_uuid) 
                     
             options["worker-id"] = worker_id
             cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
@@ -448,7 +452,6 @@ class ConfigSweeper:
                                 # results are not deterministic, which is against our attempt 
                                 # to make the results deterministic. So not a cache mistake, 
                                 # per se, but a mistake in the simulation itself.
-                                
                                 self.cache_mistakes += 1    
                                                         
                     self.results_cache[cache_key] = (new_results_copy, output, printed_metrics)
@@ -463,7 +466,7 @@ class ConfigSweeper:
                 
                 rage_quit("error in running the command")   
                 
-        self.thread_states[worker_id] = "saving results for exp-{}".format(this_exp_uuid)  
+        self.thread_states[worker_id] = "exp-{}-saving results".format(this_exp_uuid)  
         results = self.combine_results(this_exp_results, run_context, options)
 
         self.log_for_thread(run_context, "Going to acquire the lock to save the results")
@@ -514,7 +517,7 @@ class ConfigSweeper:
                 print("worker id: {}".format(worker_id))
                 print("--------------------------------------------")
                 
-        self.thread_states[worker_id] = "done with exp-{}".format(this_exp_uuid)  
+        self.thread_states[worker_id] = "exp-{}-done with the experiment".format(this_exp_uuid)  
         self.log_for_thread(run_context, "Done with the lock to save the results")
 
         return results

@@ -177,8 +177,53 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
     return jobs
 
 
-def generate_manual_placement_file(options, run_context):   
+def generate_manual_1_placement_file(options, run_context):   
     assert options["machine-count"] == 16, "Error: machine count does not match."        
+    
+    jobs = [
+        {
+            "job_id": 1,
+            "machine_count": 4,
+            "comm_size": 10000,
+            "comp_size": 175,
+            "layer_count": 1,
+            "machines": [14, 15, 0, 1],
+            "iter_count": 1 
+        },
+        {
+            "job_id": 2,
+            "machine_count": 4,
+            "comm_size": 10000,
+            "comp_size": 275,
+            "layer_count": 1,
+            "machines": [2, 3, 4, 5],
+            "iter_count": 1 
+        },
+        {
+            "job_id": 3,
+            "machine_count": 4,
+            "comm_size": 10000,
+            "comp_size": 75,
+            "layer_count": 1,
+            "machines": [6, 7, 8, 9],
+            "iter_count": 1 
+        },
+        {
+            "job_id": 4,
+            "machine_count": 4,
+            "comm_size": 10000,
+            "comp_size": 375,
+            "layer_count": 1,
+            "machines": [10, 11, 12, 13],
+            "iter_count": 1 
+        }
+    ]
+    
+    return jobs
+
+
+def generate_manual_2_placement_file(options, run_context):   
+    assert options["machine-count"] == 64, "Error: machine count does not match."        
     
     jobs = [
         {
@@ -315,8 +360,10 @@ def generate_placement_file(placement_path, placement_seed,
               
         jobs = generate_simulated_placement_file(options, run_context, placement_strategy)
     
-    elif placement_mode == "manual":
-        jobs = generate_manual_placement_file(options, run_context) 
+    elif placement_mode == "manual_1":
+        jobs = generate_manual_1_placement_file(options, run_context) 
+    elif placement_mode == "manual_2":
+        jobs = generate_manual_2_placement_file(options, run_context)
     else: 
         rage_quit("Error: unknown placement mode: " + placement_mode)
         
@@ -348,6 +395,7 @@ def generate_placement_file(placement_path, placement_seed,
             iter_count = 1   
         job["iter_count"] = iter_count  
        
+    
     # now we save the jobs with the iter count.       
     with open(placement_path, "w") as f:
         json.dump(jobs, f, indent=4)

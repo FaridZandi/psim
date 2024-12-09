@@ -45,7 +45,7 @@ def main():
     }
 
     interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-    placement_modes = ["manual"]
+    placement_modes = ["random"]
     # placement_modes = ["random", "compact"] 
     
     oversub = 4
@@ -53,9 +53,9 @@ def main():
     cassini_parameters = {  
         "link-solution-candidate-count": 50,
         "link-solution-random-quantum": 10,
-        "link-solution-top-candidates": 3,    
-        "overall-solution-candidate-count": 10,
-        
+        "link-solution-top-candidates": 5,    
+        "overall-solution-candidate-count": 3,
+        "rounds": 10,    
         "save-profiles": True,
     }    
     
@@ -77,8 +77,7 @@ def main():
         # placement and workload parameters.
         # these will be different lines in the cdf plot.
         "lb-scheme": ["random", "leastloaded", "ideal", "perfect"], #[lb, "ideal", "leastloaded"],   
-        # "timing-scheme": ["zero", "farid", "random", "inc_100", "inc_200", "inc_400", "inc_500", "cassini"],
-        "timing-scheme": ["cassini", "farid", "random", "zero"], #["cassini", "farid", "random"],
+        "timing-scheme": ["cassini", "farid", "random", "zero"],    #["cassini", "farid", "random"],
         "ring-mode": ["random"],
         "subflows": [1, core_count],
 
@@ -89,10 +88,10 @@ def main():
         "ft-core-count": [core_count],
         "placement-seed": list(range(1, selected_setting["placement-seed-range"] + 1)),
         
+        # parameters for the scheduling algorithm. 
         "routing-fit-strategy": ["first"],
         "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
         "throttle-search": [True, False],
-        
     } 
     
     
@@ -126,15 +125,15 @@ def main():
         "comparisons": [
             ("farid-throt", {"timing-scheme": "farid", "throttle-search": True}),   
             ("farid-nothrot", {"timing-scheme": "farid", "throttle-search": False}),   
-            ("farid-throt-subf", {"timing-scheme": "farid", "throttle-search": True, "subflows": core_count}),
-            ("farid-nothrot-subf", {"timing-scheme": "farid", "throttle-search": False, "subflows": core_count}),
+            # ("farid-throt-subf", {"timing-scheme": "farid", "throttle-search": True, "subflows": core_count}),
+            # ("farid-nothrot-subf", {"timing-scheme": "farid", "throttle-search": False, "subflows": core_count}),
             ("cassini", {"timing-scheme": "cassini"}),
             ("zero", {"timing-scheme": "zero"}),  
             ("cassinLB", {"timing-scheme": "cassini", "lb-scheme": "leastloaded"}),
-            ("subf", {"subflows": core_count}),
+            # ("subf", {"subflows": core_count}),
             ("ideal", {"lb-scheme": "ideal", "timing-scheme": "zero"}), 
-            ("randomLL", {"lb-scheme": "leastloaded", "timing-scheme": "random"}), 
-            ("randomPerfect", {"lb-scheme": "perfect", "timing-scheme": "random"}), 
+            # ("randomLL", {"lb-scheme": "leastloaded", "timing-scheme": "random"}), 
+            # ("randomPerfect", {"lb-scheme": "perfect", "timing-scheme": "random"}), 
         ]
     } 
     
@@ -143,7 +142,6 @@ def main():
         print("turn off print-flow-progress-history or enable visualize-timing.")
         return
         
-    exp_context["visualize-timing"]
     sane, reason = check_comparison_sanity(exp_context, exp_sweep_config)
 
     if not sane:
