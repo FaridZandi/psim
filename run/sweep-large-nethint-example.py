@@ -45,22 +45,11 @@ def main():
     }
 
     interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-    placement_modes = ["random"]
+    placement_modes = ["manual_1"]
     # placement_modes = ["random", "compact"] 
     
     oversub = 4
-    
-    cassini_parameters = {  
-        "link-solution-candidate-count": 50,
-        "link-solution-random-quantum": 10,
-        "link-solution-top-candidates": 5,    
-        "overall-solution-candidate-count": 3,
-        "rounds": 10,    
-        "save-profiles": True,
-    }    
-    
-    routing_parameters = {
-    } 
+
     
     random.seed(experiment_seed)
     
@@ -92,6 +81,8 @@ def main():
         "routing-fit-strategy": ["first"],
         "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
         "throttle-search": [True, False],
+        
+        "farid-rounds": [1, 5, 10, 15],
     } 
     
     
@@ -99,7 +90,8 @@ def main():
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
     exp_context = {
-        "sim-length": 5000,
+        "sim-length": 10000,
+        
         
         "visualize-timing": False, 
         "visualize-routing": False, 
@@ -112,24 +104,40 @@ def main():
         "experiment-seed": experiment_seed,
         "oversub": oversub,
         
-        "cassini-parameters": cassini_parameters,
-        "routing-parameters": routing_parameters,   
+        "cassini-parameters": {  
+            "link-solution-candidate-count": 100,
+            "link-solution-random-quantum": 10,
+            "link-solution-top-candidates": 5,    
+            "overall-solution-candidate-count": 10,
+            "rounds": 10,    
+            "save-profiles": True,
+        },
+        "routing-parameters": {},
+        "placement-parameters": {
+            "placement-seed-limit": 3    
+        },   
         "selected-setting": selected_setting,
         
         "comparison-base": {"timing-scheme": "random", 
                             "ring-mode": "random",  
                             "lb-scheme": "random", 
                             "subflows": 1, 
-                            "throttle-search": False},              
+                            "throttle-search": False, 
+                            "farid-rounds": 1},              
         
         "comparisons": [
-            ("farid-throt", {"timing-scheme": "farid", "throttle-search": True}),   
-            ("farid-nothrot", {"timing-scheme": "farid", "throttle-search": False}),   
+            ("farid-1", {"timing-scheme": "farid", "farid-rounds": 1}), 
+            ("farid-5", {"timing-scheme": "farid", "farid-rounds": 5}), 
+            ("farid-10", {"timing-scheme": "farid", "farid-rounds": 10}), 
+            ("farid-15", {"timing-scheme": "farid", "farid-rounds": 15}), 
+            
+            # ("farid-throt", {"timing-scheme": "farid", "throttle-search": True}),   
+            # ("farid-nothrot", {"timing-scheme": "farid", "throttle-search": False}),   
             # ("farid-throt-subf", {"timing-scheme": "farid", "throttle-search": True, "subflows": core_count}),
             # ("farid-nothrot-subf", {"timing-scheme": "farid", "throttle-search": False, "subflows": core_count}),
-            ("cassini", {"timing-scheme": "cassini"}),
-            ("zero", {"timing-scheme": "zero"}),  
-            ("cassinLB", {"timing-scheme": "cassini", "lb-scheme": "leastloaded"}),
+            # ("cassini", {"timing-scheme": "cassini"}),
+            # ("zero", {"timing-scheme": "zero"}),  
+            # ("cassinLB", {"timing-scheme": "cassini", "lb-scheme": "leastloaded"}),
             # ("subf", {"subflows": core_count}),
             ("ideal", {"lb-scheme": "ideal", "timing-scheme": "zero"}), 
             # ("randomLL", {"lb-scheme": "leastloaded", "timing-scheme": "random"}), 

@@ -1106,7 +1106,7 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
         starting_iterations[job_id] = 0
         
             
-    for i in range(run_context["cassini-parameters"]["rounds"]):    
+    for i in range(run_context["farid-rounds"]):    
         sys.stderr.write("starting round: {}".format(i))
         job_timings, good_until = get_timeshifts(jobs, options, run_context, job_profiles, 
                                                  starting_iterations=starting_iterations, 

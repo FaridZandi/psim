@@ -223,43 +223,43 @@ def generate_manual_1_placement_file(options, run_context):
 
 
 def generate_manual_2_placement_file(options, run_context):   
-    assert options["machine-count"] == 64, "Error: machine count does not match."        
-    
+    assert options["machine-count"] == 32, "Error: machine count does not match."        
+    # 
     jobs = [
         {
             "job_id": 1,
-            "machine_count": 4,
+            "machine_count": 8,
             "comm_size": 10000,
-            "comp_size": 175,
+            "comp_size": 275,
             "layer_count": 1,
-            "machines": [14, 15, 0, 1],
+            "machines": [4, 11, 5, 10, 6, 9, 7, 8],
             "iter_count": 1 
         },
         {
             "job_id": 2,
-            "machine_count": 4,
+            "machine_count": 8,
             "comm_size": 10000,
-            "comp_size": 275,
+            "comp_size": 375,
             "layer_count": 1,
-            "machines": [2, 3, 4, 5],
+            "machines": [12, 19, 13, 18, 14, 17, 15, 16],
             "iter_count": 1 
         },
         {
             "job_id": 3,
-            "machine_count": 4,
+            "machine_count": 8,
             "comm_size": 10000,
-            "comp_size": 75,
+            "comp_size": 275,
             "layer_count": 1,
-            "machines": [6, 7, 8, 9],
+            "machines": [20, 21, 27, 26, 22, 23, 24, 25],
             "iter_count": 1 
         },
         {
             "job_id": 4,
             "machine_count": 4,
             "comm_size": 10000,
-            "comp_size": 375,
+            "comp_size": 475,
             "layer_count": 1,
-            "machines": [10, 11, 12, 13],
+            "machines": [0, 1, 31, 30, 2, 3, 28, 29],
             "iter_count": 1 
         }
     ]
@@ -334,6 +334,12 @@ def generate_placement_file(placement_path, placement_seed,
     
     # the seed will be set at this point everything from here on will be deterministic.
     # for the same experiment seed and placement seed. 
+    if "placement-parameters" in run_context:
+        placement_parameters = run_context["placement-parameters"]
+        if "placement-seed-limit" in placement_parameters:
+            seed_limit = placement_parameters["placement-seed-limit"]
+            placement_seed = placement_seed % seed_limit
+            
     random.seed(run_context["experiment-seed"] + placement_seed + placement_magic)
     
     placement_mode = run_context["placement-mode"] 
@@ -370,7 +376,7 @@ def generate_placement_file(placement_path, placement_seed,
     random.seed(run_context["experiment-seed"] + placement_seed + ring_magic)
         
     ring_mode = run_context["ring-mode"]    
-    if placement_mode != "manual":
+    if not placement_mode.startswith("manual"):
         if ring_mode == "random":
             for job in jobs:
                 random.shuffle(job["machines"]) 
