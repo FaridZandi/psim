@@ -7,7 +7,7 @@ random_rep_count = 1
 
 def main():
     # choose one of the settings to run the experiments with.     
-    selected_setting = nethint_settings[7]
+    selected_setting = nethint_settings[9]
     
     base_options = {
         "step-size": 1,
@@ -40,15 +40,20 @@ def main():
 
         "simulation-seed": experiment_seed, 
         
-        "print-flow-progress-history": False,
+        "print-flow-progress-history": True,
         # "export-dot": True,    
     }
 
-    interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
-    placement_modes = ["manual_1"]
+    interesting_metrics = ["avg_ar_time", 
+                           "avg_iter_time", 
+                           "rolling_iter_time", 
+                           "rolling_ar_time", 
+                           "time_deltas"] # "iter_minus_ar_time", 
+    
+    placement_modes = ["manual_3"]
     # placement_modes = ["random", "compact"] 
     
-    oversub = 4
+    oversub = 2
 
     
     random.seed(experiment_seed)
@@ -92,8 +97,7 @@ def main():
     exp_context = {
         "sim-length": 10000,
         
-        
-        "visualize-timing": False, 
+        "visualize-timing": True, 
         "visualize-routing": False, 
         "profiled-throttle-factors": [1.0, 0.75, 0.5], 
         
@@ -118,7 +122,7 @@ def main():
         },   
         "selected-setting": selected_setting,
         
-        "comparison-base": {"timing-scheme": "random", 
+        "comparison-base": {"timing-scheme": "zero", 
                             "ring-mode": "random",  
                             "lb-scheme": "random", 
                             "subflows": 1, 
@@ -128,8 +132,8 @@ def main():
         "comparisons": [
             ("farid-1", {"timing-scheme": "farid", "farid-rounds": 1}), 
             ("farid-5", {"timing-scheme": "farid", "farid-rounds": 5}), 
-            ("farid-10", {"timing-scheme": "farid", "farid-rounds": 10}), 
-            ("farid-15", {"timing-scheme": "farid", "farid-rounds": 15}), 
+            ("farid-10", {"timing-scheme": "farid", "farid-rounds": 10}),
+            # ("farid-15", {"timing-scheme": "farid", "farid-rounds": 15}), 
             
             # ("farid-throt", {"timing-scheme": "farid", "throttle-search": True}),   
             # ("farid-nothrot", {"timing-scheme": "farid", "throttle-search": False}),   
@@ -138,7 +142,8 @@ def main():
             # ("cassini", {"timing-scheme": "cassini"}),
             # ("zero", {"timing-scheme": "zero"}),  
             # ("cassinLB", {"timing-scheme": "cassini", "lb-scheme": "leastloaded"}),
-            # ("subf", {"subflows": core_count}),
+            ("subf", {"subflows": core_count}),
+            ("subfLL", {"subflows": core_count, "lb-scheme": "leastloaded"}), 
             ("ideal", {"lb-scheme": "ideal", "timing-scheme": "zero"}), 
             # ("randomLL", {"lb-scheme": "leastloaded", "timing-scheme": "random"}), 
             # ("randomPerfect", {"lb-scheme": "perfect", "timing-scheme": "random"}), 

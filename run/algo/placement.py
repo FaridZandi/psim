@@ -267,6 +267,37 @@ def generate_manual_2_placement_file(options, run_context):
     return jobs
 
 
+
+def generate_manual_3_placement_file(options, run_context):   
+    assert options["machine-count"] == 8, "Error: machine count does not match."        
+    # 
+    jobs = [
+        {
+            "job_id": 1,
+            "machine_count": 8,
+            "comm_size": 10000,
+            "comp_size": 275,
+            "layer_count": 1,
+            "machines": [1, 5, 3, 7],
+            "iter_count": 1 
+        },
+        {
+            "job_id": 2,
+            "machine_count": 8,
+            "comm_size": 10000,
+            "comp_size": 375,
+            "layer_count": 1,
+            "machines": [0, 4, 2, 6],
+            "iter_count": 1 
+        }
+        # maybe a third job as well later on? 
+    ]
+    
+    return jobs
+
+
+
+
 def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path, stretch_factor=1):
     for job in jobs:
         if "profiled-throttle-factors" not in run_context:  
@@ -370,6 +401,8 @@ def generate_placement_file(placement_path, placement_seed,
         jobs = generate_manual_1_placement_file(options, run_context) 
     elif placement_mode == "manual_2":
         jobs = generate_manual_2_placement_file(options, run_context)
+    elif placement_mode == "manual_3":
+        jobs = generate_manual_3_placement_file(options, run_context)
     else: 
         rage_quit("Error: unknown placement mode: " + placement_mode)
         

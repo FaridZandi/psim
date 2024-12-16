@@ -111,18 +111,29 @@ nethint_settings = [
         "ft-server-per-rack": 4,
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 4,
-        "placement-seed-range": 20,
+        "placement-seed-range": 6,
         "comm-size": [8000, 4000, 2000],
         "comp-size": [200, 100, 400],
         "layer-count": [1, 2],
         "iter-count": [30], # iteration count
     },
-    { #7 manual_2
+    { #8 manual_2
         "machine-count": 32,
         "ft-server-per-rack": 8,
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 8,
-        "placement-seed-range": 3,
+        "placement-seed-range": 30,
+        "comm-size": [8000, 4000, 2000],
+        "comp-size": [200, 100, 400],
+        "layer-count": [1, 2],
+        "iter-count": [30], # iteration count
+    },
+    { #9 manual_2
+        "machine-count": 8,
+        "ft-server-per-rack": 4,
+        "jobs-machine-count-low": 4,
+        "jobs-machine-count-high": 4,
+        "placement-seed-range": 1,
         "comm-size": [8000, 4000, 2000],
         "comp-size": [200, 100, 400],
         "layer-count": [1, 2],
@@ -506,18 +517,56 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
     printed_metrics = [] 
     run_context["job_numbers"] = {}    
      
+    def get_rolling_numbers(job_numbers):
+        new_job_numbers = []     
+        for rep in range(options["rep-count"]):
+            rep_job_numbers = job_numbers[rep]
+            new_rep_job_numbers = {}
+            
+            for job, numbers in rep_job_numbers.items():
+                new_rep_job_numbers[job] = []
+                for i in range(len(numbers)):
+                    new_rep_job_numbers[job].append(np.mean(numbers[:i+1]))
+                    
+            new_job_numbers.append(new_rep_job_numbers)
+            
+        return new_job_numbers
+        
+    
     for metric in run_context["interesting-metrics"]:
         all_jobs_running = False
-        if metric == "avg_ar_time":
+        
+        if metric == "time_deltas":
+            timing_data = run_context["job-timings"]
+            rep_numbers = {}
+            for job_timing in timing_data:
+                job_id = job_timing["job_id"] 
+                deltas = job_timing["deltas"]
+                rep_numbers[job_id] = deltas     
+            job_numbers = [rep_numbers]
+            job_numbers = get_rolling_numbers(job_numbers)
+
+        elif metric == "avg_ar_time":
+            job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], 
+                                                       all_jobs_running=all_jobs_running)
+            # with config_sweeper.thread_lock:
+            #     plot_job_numbers(job_numbers, run_context, metric)
+        
+        elif metric == "rolling_ar_time":   
             job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], 
                                                        all_jobs_running=all_jobs_running)
             
-            # with config_sweeper.thread_lock:
-            #     plot_job_numbers(job_numbers, run_context, metric)
-                    
+            job_numbers = get_rolling_numbers(job_numbers)  
+            
         elif metric == "avg_iter_time": 
             job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], 
                                                    all_jobs_running=all_jobs_running)
+
+        elif metric == "rolling_iter_time":
+            job_numbers = get_all_rep_iter_lengths(output, options["rep-count"],
+                                                   all_jobs_running=all_jobs_running)
+
+            job_numbers = get_rolling_numbers(job_numbers)   
             
         elif metric == "iter_minus_ar_time":
             ar_times = get_all_rep_all_reduce_times(output, options["rep-count"], 
@@ -525,6 +574,7 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             
             iter_times = get_all_rep_iter_lengths(output, options["rep-count"], 
                                                   all_jobs_running=all_jobs_running)
+
             job_numbers = [] 
             
             for rep in range(options["rep-count"]):
@@ -655,7 +705,7 @@ def plot_cdfs(separating_params, cdf_params,
         f.write("\n")   
                 
 
-def plot_all_stuff_3(exp_results_df, config_sweeper, global_context):
+def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
     import matplotlib.pyplot as plt 
     import seaborn as sns   
     
@@ -717,6 +767,35 @@ def plot_all_stuff_3(exp_results_df, config_sweeper, global_context):
     all_columns_but_value.remove("value")    
     all_data_df = all_data_df.groupby(all_columns_but_value).mean().reset_index()
     
+    
+    # for each metric, placement, job, iteration, 
+    # normalize with respect to the base comparison.
+    # stort the results in the "normalized" column. 
+    for metric in global_context["interesting-metrics"]:
+        metric_group = all_data_df[all_data_df["metric"] == metric]
+        
+        for placement_hash in all_data_df["placement-hash"].unique():
+            placement_group = metric_group[metric_group["placement-hash"] == placement_hash]
+            
+            for job_id in placement_group["job_id"].unique():
+                job_group = placement_group[placement_group["job_id"] == job_id]
+                
+                for iter_id in job_group["iter_id"].unique():
+                    iter_group = job_group[job_group["iter_id"] == iter_id]
+                    
+                    base_value = iter_group[iter_group["comparison"] == "base"].iloc[0]["value"]
+                    
+                    for i, row in iter_group.iterrows():
+                        value = row["value"]
+                        
+                        if metric == "time_deltas":
+                            normalized_value = value
+                        else:
+                            normalized_value = value / base_value
+                        
+                        all_data_df.loc[i, "normalized"] = normalized_value
+        
+    
     csv_path = config_sweeper.plots_dir + f"reduced-{metric}.csv"
     all_data_df.to_csv(csv_path, index=False)
     
@@ -744,8 +823,8 @@ def plot_all_stuff_3(exp_results_df, config_sweeper, global_context):
             job_plot_index = {job_id: j for j, job_id in enumerate(job_ids)}
             
             # average value for each comparison 
-            comparison_mean = placement_group.groupby(["comparison"])["value"].mean().reset_index()
-            comparison_mean_dict = {row["comparison"]: row["value"] for i, row in comparison_mean.iterrows()}
+            comparison_mean = placement_group.groupby(["comparison"])["normalized"].mean().reset_index()
+            comparison_mean_dict = {row["comparison"]: row["normalized"] for i, row in comparison_mean.iterrows()}
             # sort the comparisons by the mean value.
             sorted_comparisons = sorted(comparison_mean_dict.items(), key=lambda x: x[1])
             sorted_comparisons = [comp for comp, _ in sorted_comparisons]
@@ -758,7 +837,7 @@ def plot_all_stuff_3(exp_results_df, config_sweeper, global_context):
                 print("plotting the ax: ", i, j, job_id)    
                 legend = (j == height - 1)
                 sns.lineplot(data=job_group, ax=ax,
-                             x="iter_id", y="value", 
+                             x="iter_id", y="normalized", 
                              hue="comparison", hue_order=sorted_comparisons,
                              style="comparison", markers=True,  
                              legend=legend)
@@ -779,7 +858,7 @@ def plot_all_stuff_3(exp_results_df, config_sweeper, global_context):
 
 
 def custom_save_results_func(exp_results_df, config_sweeper, global_context, plot=False): 
-    plot_all_stuff_3(exp_results_df, config_sweeper, global_context)
+    plot_job_iteration_times(exp_results_df, config_sweeper, global_context)
     
     print("Saving the results ...") 
     
@@ -921,7 +1000,6 @@ def check_comparison_sanity(exp_context, sweep_config):
         
     pprint(comparison_reqs)    
     reasons = [] 
-    
     
     for key, value in sweep_config.items():
         if len(value) > 1: 

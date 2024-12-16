@@ -188,11 +188,13 @@ def evaluate_candidate(job_loads, deltas, throttle_rates, run_context,
         return evaluate_candidate_cpp(job_loads, deltas, throttle_rates, run_context, 
                                       link_logical_bandwidth, compat_score_mode, 
                                       eval_length)
+    
     else:
         return evaluate_candidate_python_2(job_loads, deltas, throttle_rates, run_context,    
                                              link_logical_bandwidth, compat_score_mode, 
                                              eval_length)
-
+        
+    
 
 def evaluate_candidate_cpp(job_loads, deltas, throttle_rates, run_context, 
                            link_logical_bandwidth, compat_score_mode, eval_length):
