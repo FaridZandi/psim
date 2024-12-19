@@ -271,23 +271,41 @@ def generate_manual_2_placement_file(options, run_context):
 def generate_manual_3_placement_file(options, run_context):   
     assert options["machine-count"] == 8, "Error: machine count does not match."        
     # 
+    job1_machines = [1, 5, 3, 7] 
+    job2_machines = [2, 6, 4, 0]
+    
+    # select a random number between 0 and 4
+    r = random.randint(0, 3) 
+    
+    if r == 0:
+        job1_machines = [1, 5, 3, 7] # 2  
+        job2_machines = [2, 6, 0, 4] # 2   
+        
+    elif r == 1:
+        job1_machines = [1, 5, 3, 7] # 2
+        job2_machines = [2, 6, 4, 0] # 1
+        
+    elif r == 2:
+        job1_machines = [1, 5, 7, 3] # 1
+        job2_machines = [2, 4, 6, 0] # 1
+    
     jobs = [
         {
             "job_id": 1,
-            "machine_count": 8,
+            "machine_count": 4,
             "comm_size": 10000,
-            "comp_size": 275,
+            "comp_size": 75,
             "layer_count": 1,
-            "machines": [1, 5, 3, 7],
+            "machines": job1_machines,
             "iter_count": 1 
         },
         {
             "job_id": 2,
-            "machine_count": 8,
+            "machine_count": 4,
             "comm_size": 10000,
-            "comp_size": 375,
+            "comp_size": 125,
             "layer_count": 1,
-            "machines": [0, 4, 2, 6],
+            "machines": job2_machines,     
             "iter_count": 1 
         }
         # maybe a third job as well later on? 
@@ -297,6 +315,35 @@ def generate_manual_3_placement_file(options, run_context):
 
 
 
+def generate_manual_4_placement_file(options, run_context):   
+    assert options["machine-count"] == 12, "Error: machine count does not match."        
+    # 
+    job2_machines = [0, 6, 1, 7, 2, 8]   # load: 3
+    job1_machines = [3, 4, 5, 9, 10, 11] # load: 1
+    
+    
+    jobs = [
+        {
+            "job_id": 1,
+            "machine_count": 6,
+            "comm_size": 30000,
+            "comp_size": 225,
+            "layer_count": 1,
+            "machines": job1_machines,
+            "iter_count": 1 
+        },
+        {
+            "job_id": 2,
+            "machine_count": 6,
+            "comm_size": 10000,
+            "comp_size": 175,
+            "layer_count": 1,
+            "machines": job2_machines,     
+            "iter_count": 1 
+        }
+    ]
+    
+    return jobs
 
 def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path, stretch_factor=1):
     for job in jobs:
@@ -403,6 +450,8 @@ def generate_placement_file(placement_path, placement_seed,
         jobs = generate_manual_2_placement_file(options, run_context)
     elif placement_mode == "manual_3":
         jobs = generate_manual_3_placement_file(options, run_context)
+    elif placement_mode == "manual_4":
+        jobs = generate_manual_4_placement_file(options, run_context)
     else: 
         rage_quit("Error: unknown placement mode: " + placement_mode)
         

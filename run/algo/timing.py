@@ -31,20 +31,20 @@ def log_results(run_context, key, value):
         f.write("\n\n---------------------------------\n\n")   
 
 
-def visualize_final_timing(jobs, options, run_context, job_timings):
+def visualize_final_timing(jobs, options, run_context, job_timings, job_profiles, lb_decisions):
     if "visualize-timing" not in run_context or not run_context["visualize-timing"]:    
         return
     
-    job_profiles = load_job_profiles(jobs, run_context)
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)
+
     deltas = {}
     throttle_rates = {} 
-    link_logical_bandwidth = options["ft-core-count"]
-    
     for job_timing in job_timings:
         deltas[job_timing["job_id"]] = job_timing["deltas"]
         throttle_rates[job_timing["job_id"]] = job_timing["throttle_rates"]
-        
+    
+    link_logical_bandwidth = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
+    
     visualize_link_loads(link_loads, 
                          run_context, 
                          deltas=deltas, 
@@ -54,7 +54,7 @@ def visualize_final_timing(jobs, options, run_context, job_timings):
 
 # all the workloads will be starting at the same time, at time 0.
 # this is technically the worst case scenario.
-def zero_timing(jobs, options, run_context, timing_scheme):
+def zero_timing(jobs, options, run_context, timing_scheme, job_profiles):
     job_timings = [] 
     
     for job in jobs:
@@ -64,14 +64,14 @@ def zero_timing(jobs, options, run_context, timing_scheme):
             "job_id": job["job_id"]
         })     
         
-    return job_timings, None 
+    return job_timings 
 
 
 # trying to spread the jobs out a bit in time. The number 400 is arbitrary.
 # it's chosen based on the curren numbers. 
 # TODO: make this number something that could be found based on the job profiles.
 # in some way, a much much simpler version of the cassini timing.
-def inc_timing(jobs, options, run_context, timing_scheme):
+def inc_timing(jobs, options, run_context, timing_scheme, job_profiles):
     job_timings = [] 
     
     timing_scheme_split = timing_scheme.split("_") 
@@ -94,13 +94,13 @@ def inc_timing(jobs, options, run_context, timing_scheme):
             "job_id": job["job_id"]
         })     
     
-    return job_timings, None
+    return job_timings
 
 
 # all the jobs will start at a random time, somewhere between 0 and the period of the job.
 # this is what we should assume to be happening in the real world, where the jobs are not
 # synchronized in any sense. 
-def random_timing(jobs, options, run_context, timing_scheme):
+def random_timing(jobs, options, run_context, timing_scheme, job_profiles):
     job_timings = [] 
 
     for job in jobs:
@@ -118,7 +118,7 @@ def random_timing(jobs, options, run_context, timing_scheme):
             "job_id": job_id
         })     
     
-    return job_timings, None 
+    return job_timings 
     
 
 ################################################################################################
@@ -807,7 +807,6 @@ def get_good_until(jobs, link_loads_list, run_context, deltas, throttle_rates, l
         current_time = 0    
         
         for iter_id in range(job_iter_count):
-            
             iter_throttle_rate = throttle_rates[job_id][iter_id] 
             
             job_iter_period = job["period"][str(iter_throttle_rate)]
@@ -937,7 +936,7 @@ def get_timeshifts(jobs, options, run_context, job_profiles,
     overall_solution_candidate_count = run_context["cassini-parameters"]["overall-solution-candidate-count"]
     servers_per_rack = options["ft-server-per-rack"]
     rack_count = options["machine-count"] // servers_per_rack       
-    link_logical_bandwidth = options["ft-core-count"]
+    link_logical_bandwidth = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
     
     start_time = time.time()
     
@@ -1075,13 +1074,10 @@ def load_job_profiles(jobs, run_context):
     return job_profiles
         
 
-def cassini_timing(jobs, options, run_context, timing_scheme):
-    # job_profiles = profile_all_jobs(jobs, options, run_context)
-    job_profiles = load_job_profiles(jobs, run_context) 
-
+def cassini_timing(jobs, options, run_context, timing_scheme, job_profiles):
     job_timings, good_until = get_timeshifts(jobs, options, run_context, job_profiles)
 
-    return job_timings, None
+    return job_timings
 
 ################################################################################################
 ################ Farid TIMING #################################################################
@@ -1106,10 +1102,12 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
         base_throttle_rates[job_id] = [1.0] * job["iter_count"]
         weights[job_id] = 0
         starting_iterations[job_id] = 0
-        
             
+    rounds_no_progress = 0 
     for i in range(run_context["farid-rounds"]):    
         sys.stderr.write("starting round: {}".format(i))
+        any_progress = False
+        
         job_timings, good_until = get_timeshifts(jobs, options, run_context, job_profiles, 
                                                  starting_iterations=starting_iterations, 
                                                  base_deltas=base_deltas, weights=weights, 
@@ -1117,6 +1115,10 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
         
         for job in jobs:
             job_id = job["job_id"]
+            
+            if starting_iterations[job_id] < good_until[job_id] + 1:
+                any_progress = True
+                
             starting_iterations[job_id] = good_until[job_id] + 1    
             
             for timing in job_timings:
@@ -1124,9 +1126,16 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
                     base_deltas[job_id] = timing["deltas"]
                     base_throttle_rates[job_id] = timing["throttle_rates"]
                     break  
+            
             # print("job_id: {}, good until: {}, sum_deltas: {}, period: {}, missed iters: {}".format(
             #         job_id, good_until[job_id], sum_deltas[job_id], job["period"], 
             #         int(math.ceil(sum_deltas[job_id] / job["period"]))))
+        
+        if not any_progress:
+            rounds_no_progress += 1
+            log_results(run_context, "round_no_progress", rounds_no_progress)
+        else:   
+            rounds_no_progress = 0
         
         job_costs = {} 
         for job in jobs:
@@ -1139,8 +1148,11 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
                 
         for job in jobs:
             job_id = job["job_id"]
-            weights[job_id] = avg_job_cost - job_costs[job_id]
-                
+            weights[job_id] = avg_job_cost - job_costs[job_id] + rounds_no_progress * 1000
+            
+        log_results(run_context, "job_costs", job_costs)
+        log_results(run_context, "weights", weights)    
+        
         are_we_done = True 
         for job in jobs:    
             if starting_iterations[job["job_id"]] < job["iter_count"]:
@@ -1154,37 +1166,23 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
     
     return job_timings 
 
-def farid_timing(jobs, options, run_context, timing_scheme):
-    # step 1: profile the jobs 
-    job_profiles = load_job_profiles(jobs, run_context)
-    sys.stderr.write("job_profiles are loaded") 
-    
+def farid_timing(jobs, options, run_context, timing_scheme, job_profiles):
     # step 2: run cassini timing with the job profiles, find some timings for the jobs.  
     job_timings = get_extended_time_shifts(jobs, options, run_context, job_profiles)
-    sys.stderr.write("job timing decisions are made") 
-
-    # step 3: do the routing for the flows. 
-    lb_decisions = route_flows(jobs, options, run_context, job_profiles, job_timings)
-    sys.stderr.write("lb decisions are made") 
     
     # step 4: return the full schedule.  
-    return job_timings, lb_decisions
+    return job_timings
 
 ############################################################################
 ################ MAIN FUCTION  #############################################
 ############################################################################
 
-def generate_timing_file(timing_file_path, routing_file_path, placement_seed, 
-                         jobs, options, run_context):
-
-    sys.stderr.write("generate_timing_file is called")
-    
-    random.seed(run_context["experiment-seed"] + placement_seed)
-    
+def get_job_timings(jobs, options, run_context, job_profiles, ):
     if "timing-scheme" not in run_context:
         raise ValueError("timing-scheme option is required")
 
-    timing_scheme = run_context["timing-scheme"]    
+    timing_scheme = run_context["timing-scheme"]
+    # call the right function to do the timing schedule.
     timing_funcions = {
         "inc": inc_timing,
         "random": random_timing,
@@ -1192,15 +1190,41 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
         "cassini": cassini_timing, 
         "farid": farid_timing, 
     }
-    
     if timing_scheme.split("_")[0] not in timing_funcions:
         raise ValueError(f"Invalid timing-scheme: {timing_scheme}")
-    
     timing_func = timing_funcions[timing_scheme.split("_")[0]] 
-    job_timings, lb_decisions = timing_func(jobs, options, run_context, timing_scheme)
+    job_timings = timing_func(jobs, options, run_context, timing_scheme, job_profiles)
+
+    return job_timings
+
+def get_job_routings(jobs, options, run_context, job_profiles, job_timings):    
+    lb_scheme = options["lb-scheme"]
+     
+    if lb_scheme == "readprotocol":
+        lb_decisions = route_flows(jobs, options, run_context, job_profiles, job_timings)
+    else: 
+        lb_decisions = None
+        
+    return lb_decisions
     
-    visualize_final_timing(jobs, options, run_context, job_timings) 
+def generate_timing_file(timing_file_path, routing_file_path, placement_seed, 
+                         jobs, options, run_context):
+
+    random.seed(run_context["experiment-seed"] + placement_seed)
+
+    # load the job profiles. Might be a bit unnecassary in some cases, but anyway. 
+    job_profiles = load_job_profiles(jobs, run_context)
     
+    # do the timing.
+    job_timings = get_job_timings(jobs, options, run_context, job_profiles)
+    
+    # do the routing.   
+    lb_decisions = get_job_routings(jobs, options, run_context, job_profiles, job_timings)   
+
+    # visualize
+    visualize_final_timing(jobs, options, run_context, job_timings, job_profiles, lb_decisions) 
+        
+    # writing the results to the files. 
     with open(timing_file_path, "w") as f:
         json.dump(job_timings, f, indent=4)
         f.flush() 
@@ -1213,6 +1237,7 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
             f.write("[]")
             f.flush()   
         
+    # returning the results just in case as well. 
     return job_timings, lb_decisions    
 
 if __name__ == "__main__":

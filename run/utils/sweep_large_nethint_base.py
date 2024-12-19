@@ -128,11 +128,22 @@ nethint_settings = [
         "layer-count": [1, 2],
         "iter-count": [30], # iteration count
     },
-    { #9 manual_2
+    { #9 manual_3
         "machine-count": 8,
         "ft-server-per-rack": 4,
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 4,
+        "placement-seed-range": 5,
+        "comm-size": [8000, 4000, 2000],
+        "comp-size": [200, 100, 400],
+        "layer-count": [1, 2],
+        "iter-count": [30], # iteration count
+    },
+    { #10 manual_4
+        "machine-count": 12,
+        "ft-server-per-rack": 6,
+        "jobs-machine-count-low": 5,
+        "jobs-machine-count-high": 3,
         "placement-seed-range": 1,
         "comm-size": [8000, 4000, 2000],
         "comp-size": [200, 100, 400],
@@ -144,7 +155,7 @@ nethint_settings = [
 placement_related_keys = ["placement-mode", "ring-mode", "placement-seed"]
 
 scheduling_related_keys = ["timing-scheme", "subflows", "throttle-search", 
-                           "routing-fit-strategy", "compat-score-mode", "farid-rounds"] 
+                           "routing-fit-strategy", "compat-score-mode", "farid-rounds", "lb-scheme"] 
 
 def summarize_key_ids(key): 
     s = key.split("-")
@@ -190,10 +201,10 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
             output = json.loads(stdout.decode("utf-8")) 
         except json.JSONDecodeError as e:
             print("Error in the subprocess: ", e)
-            print("stdout: ", stdout)
-            print("stderr: ", stderr)
+            print("stdout: ", stdout.decode("utf-8"))
+            print("stderr: ", stderr.decode("utf-8"))   
             
-            print("input_data: ", input_data)
+            print("input_data: ", input_data.decode("utf-8"))   
             rage_quit("Error in the subprocess")    
         
         job_timings = output["job_timings"] 
@@ -261,11 +272,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         # options["timing-scheme"] = run_context["comparison-base"]["timing-scheme"]
         options["timing-scheme"] = "zero"
     
-    # if it's farid, then we will feed the routing decisions to the simulator, 
-    # through the input files. So the lb scheme should be readprotocol. 
     if options["timing-scheme"] == "farid":
         run_context["farid_timing"] = True
-        options["lb-scheme"] = "readprotocol"
         
     if "compat-score-mode" in options: 
         run_context["compat-score-mode"] = options["compat-score-mode"]
@@ -759,14 +767,13 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
     with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
         print(all_data_df)
         
-    csv_path = config_sweeper.plots_dir + f"metric-{metric}.csv"
+    csv_path = config_sweeper.csv_dir + f"metric-{metric}.csv"
     all_data_df.to_csv(csv_path, index=False)
 
     # reduce mean over placement-seed
     all_columns_but_value = list(all_data_df.columns).copy()
     all_columns_but_value.remove("value")    
     all_data_df = all_data_df.groupby(all_columns_but_value).mean().reset_index()
-    
     
     # for each metric, placement, job, iteration, 
     # normalize with respect to the base comparison.
@@ -796,63 +803,87 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
                         all_data_df.loc[i, "normalized"] = normalized_value
         
     
-    csv_path = config_sweeper.plots_dir + f"reduced-{metric}.csv"
+    csv_path = config_sweeper.csv_dir + f"reduced-{metric}.csv"
     all_data_df.to_csv(csv_path, index=False)
     
-    for metric in global_context["interesting-metrics"]:
-        metric_group = all_data_df[all_data_df["metric"] == metric] 
-        # number of unique placement hashes.    
-        placement_hashes = metric_group["placement-hash"].unique()
-        plot_width = len(placement_hashes) 
-        
-        max_height = 0 
-        for placement_hash in placement_hashes:  
-            placement_group = metric_group[metric_group["placement-hash"] == placement_hash]
-            jobs = placement_group["job_id"].unique() 
-            plot_height = len(jobs)
-            max_height = max(max_height, plot_height)    
-        
-        fig, axs = plt.subplots(max_height, plot_width, figsize=(5 * plot_width, 5 * max_height), squeeze=False)
-        
-        for i, placement_hash in enumerate(placement_hashes):
-            placement_group = metric_group[metric_group["placement-hash"] == placement_hash]
-            job_ids = placement_group["job_id"].unique() 
-            job_ids.sort()
-            height = len(job_ids) 
+    for plot_type in ["line", "bar"]:
+        for metric in global_context["interesting-metrics"]:
+            metric_group = all_data_df[all_data_df["metric"] == metric] 
+            # number of unique placement hashes.    
+            placement_hashes = metric_group["placement-hash"].unique()
+            plot_width = len(placement_hashes) 
             
-            job_plot_index = {job_id: j for j, job_id in enumerate(job_ids)}
+            max_height = 0 
+            for placement_hash in placement_hashes:  
+                placement_group = metric_group[metric_group["placement-hash"] == placement_hash]
+                jobs = placement_group["job_id"].unique() 
+                plot_height = len(jobs)
+                max_height = max(max_height, plot_height)    
             
-            # average value for each comparison 
-            comparison_mean = placement_group.groupby(["comparison"])["normalized"].mean().reset_index()
-            comparison_mean_dict = {row["comparison"]: row["normalized"] for i, row in comparison_mean.iterrows()}
-            # sort the comparisons by the mean value.
-            sorted_comparisons = sorted(comparison_mean_dict.items(), key=lambda x: x[1])
-            sorted_comparisons = [comp for comp, _ in sorted_comparisons]
+            fig, axs = plt.subplots(max_height, plot_width, figsize=(5 * plot_width, 3 * max_height), squeeze=False)
             
-            for job_id in job_ids:
-                j = job_plot_index[job_id]
-                ax = axs[j, i]  
-                job_group = placement_group[placement_group["job_id"] == job_id]
+            for i, placement_hash in enumerate(placement_hashes):
+                placement_group = metric_group[metric_group["placement-hash"] == placement_hash]
+                job_ids = placement_group["job_id"].unique() 
+                job_ids.sort()
+                height = len(job_ids) 
                 
-                print("plotting the ax: ", i, j, job_id)    
-                legend = (j == height - 1)
-                sns.lineplot(data=job_group, ax=ax,
-                             x="iter_id", y="normalized", 
-                             hue="comparison", hue_order=sorted_comparisons,
-                             style="comparison", markers=True,  
-                             legend=legend)
-                if legend: 
-                    ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05))
-                                        
-                ax.set_xlabel("Iteration")
-                ax.set_ylabel("Time (ms)")  
+                job_plot_index = {job_id: j for j, job_id in enumerate(job_ids)}
+                
+                # average value for each comparison 
+                comparison_mean = placement_group.groupby(["comparison"])["normalized"].mean().reset_index()
+                comparison_mean_dict = {row["comparison"]: row["normalized"] for i, row in comparison_mean.iterrows()}
+                # sort the comparisons by the mean value.
+                sorted_comparisons = sorted(comparison_mean_dict.items(), key=lambda x: x[1])
+                sorted_comparisons = [comp for comp, _ in sorted_comparisons]
+                
+                for job_id in job_ids:
+                    j = job_plot_index[job_id]
+                    ax = axs[j, i]  
+                    job_group = placement_group[placement_group["job_id"] == job_id]
                     
-        plt.tight_layout()
-        plot_path = config_sweeper.plots_dir + f"metric-{metric}.png"
-        plt.savefig(plot_path)
-        plt.close()
-        plt.clf()
-        plt.cla()
+                    print("plotting the ax: ", i, j, job_id)    
+                    legend = (j == height - 1)
+                    
+                    if plot_type == "line": 
+                        sns.lineplot(data=job_group, ax=ax,
+                                    x="iter_id", y="normalized", 
+                                    hue="comparison", hue_order=sorted_comparisons,
+                                    style="comparison", markers=True,  
+                                    legend=legend)
+                        
+                    elif plot_type == "bar":    
+                        # sns.boxplot(data=job_group, ax=ax,
+                        #             x="iter_id", y="normalized",
+                        #             hue="comparison", hue_order=sorted_comparisons,
+                        #             showmeans=True, meanprops={"marker":"o", 
+                        #                                        "markerfacecolor":"white", 
+                        #                                        "markeredgecolor":"black"},
+                        #             showcaps=False, showfliers=False)
+
+                        sns.barplot(data=job_group, ax=ax,
+                                    x="iter_id", y="normalized",
+                                    hue="comparison", hue_order=sorted_comparisons,
+                                    dodge=True, alpha=0.75, 
+                                    errorbar=None)
+                        
+                        
+                    if legend: 
+                        ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05))
+                                            
+                    ax.set_xlabel("Iteration")
+                    ax.set_ylabel("Time (ms)")  
+                        
+            plt.tight_layout()
+            
+            plot_dir = "{}/iterations/{}/".format(config_sweeper.plots_dir, plot_type)
+            os.makedirs(plot_dir, exist_ok=True)
+            plot_path = plot_dir + f"{metric}.png"
+            
+            plt.savefig(plot_path)
+            plt.close()
+            plt.clf()
+            plt.cla()
         
     return 
 
@@ -871,7 +902,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
     for metric in global_context["interesting-metrics"]:
         avg_metric_key = "avg_{}".format(metric)
         metric_csv_dir = config_sweeper.csv_dir + metric + "/" 
-        metric_plots_dir = config_sweeper.plots_dir + metric + "/" 
+        metric_plots_dir = config_sweeper.plots_dir + "/cdfs/" + metric  
         
         os.makedirs(metric_csv_dir, exist_ok=True)
         os.makedirs(metric_plots_dir, exist_ok=True)
@@ -910,7 +941,10 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 base_avg_metric_key = "{}_base".format(avg_metric_key)
                 compared_avg_metric_key = "{}_compared".format(avg_metric_key)
                 
-                merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], rounding_precision)
+                if metric == "time_deltas":
+                    merged_df["speedup"] = merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key]
+                else:
+                    merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], rounding_precision)
                 
                 saved_columns = merge_on + ["speedup"]
 

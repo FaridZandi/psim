@@ -89,7 +89,7 @@ void MaxMinFairShareBandwidthAllocator::compute_allocations(){
 
     std::sort(register_list.begin(), register_list.end(), 
         [](const std::pair<int, double>& a, const std::pair<int, double>& b) -> bool {
-            return a.second > b.second;
+            return a.second < b.second;
         }
     );
 

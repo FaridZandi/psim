@@ -4,7 +4,7 @@ import numpy as np
 import os
 from copy import deepcopy
 import random 
-
+import sys 
 
 
 ############################################################################################################
@@ -42,7 +42,7 @@ def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time,
     if "visualize-routing" in run_context and not run_context["visualize-routing"]:
         return  
     
-    print("plotting for smoothing window {} ...".format(smoothing_window)) 
+    sys.stderr.write("plotting for smoothing window {} ...\n".format(smoothing_window)) 
     
     time_range = range(routing_time)
     smoothed_rem = deepcopy(rem) 
@@ -88,7 +88,7 @@ def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time,
     plt.savefig(plt_path)
     plt.close(fig)
 
-    print("Combined subplot figure has been saved in the directory:", plots_dir)
+    sys.stderr.write("Combined subplot figure has been saved in the directory: {}\n".format(plots_dir))
 
 
 

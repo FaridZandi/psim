@@ -7,7 +7,7 @@ random_rep_count = 1
 
 def main():
     # choose one of the settings to run the experiments with.     
-    selected_setting = nethint_settings[9]
+    selected_setting = nethint_settings[10]
     
     base_options = {
         "step-size": 1,
@@ -50,7 +50,7 @@ def main():
                            "rolling_ar_time", 
                            "time_deltas"] # "iter_minus_ar_time", 
     
-    placement_modes = ["manual_3"]
+    placement_modes = ["manual_4"]
     # placement_modes = ["random", "compact"] 
     
     oversub = 2
@@ -94,11 +94,11 @@ def main():
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
     exp_context = {
-        "sim-length": 10000,
+        "sim-length": 5000,
         
         "visualize-timing": True, 
-        "visualize-routing": False, 
-        "profiled-throttle-factors": [1.0, 0.75, 0.5], 
+        "visualize-routing": True, 
+        "profiled-throttle-factors": [1.0, 0.66], 
         
         # other stuff
         "random-rep-count": random_rep_count,
@@ -108,7 +108,7 @@ def main():
         "oversub": oversub,
         
         "cassini-parameters": {  
-            "link-solution-candidate-count": 100,
+            "link-solution-candidate-count": 200,
             "link-solution-random-quantum": 10,
             "link-solution-top-candidates": 5,    
             "overall-solution-candidate-count": 10,
@@ -134,6 +134,7 @@ def main():
             ("farid-10-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol"}), 
             ("farid-10-throt", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "random", "throttle-search": True}),
             ("farid-10-throt-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True}), 
+            ("farid-10-throt-routed-subf", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count}),     
             # ("subf", {"subflows": core_count}),
             # ("subfLL", {"subflows": core_count, "lb-scheme": "leastloaded"}), 
             ("perfectLB", {"lb-scheme": "perfect", "timing-scheme": "zero"}), 
