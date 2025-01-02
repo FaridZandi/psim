@@ -61,8 +61,8 @@ class ConfigSweeper:
         self.build_path = self.base_dir + "/build"
         self.run_path = self.base_dir + "/run"
         self.base_executable = self.build_path + "/psim"
-        self.run_executable = self.build_path + "/psim-" + self.run_id
         self.results_dir = "results/sweep/{}-{}/".format(self.run_id, exp_name)
+        self.run_executable = self.results_dir + "/psim-" + self.run_id
         self.csv_dir = self.results_dir + "/csv/"
         self.raw_csv_path = self.csv_dir + "raw_results.csv"    
         self.plots_dir = self.results_dir + "/plots/" 
@@ -166,9 +166,6 @@ class ConfigSweeper:
             print(e)
             
         finally:   
-            print("cleaning up the run executable: ", self.run_executable)
-            os.system("rm {}".format(self.run_executable))
-
             print("killing the watchdog with pid: ", self.watchdog_pid)
             os.system("kill -9 {}".format(self.watchdog_pid))        
         

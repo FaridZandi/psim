@@ -5,9 +5,24 @@ from utils.sweep_base import ConfigSweeper
 experiment_seed = 74
 random_rep_count = 1
 
+viz = False
+sim_length = 20000
+seed_range = 13
+placement_options = 100
+
 def main():
     # choose one of the settings to run the experiments with.     
-    selected_setting = nethint_settings[10]
+    selected_setting = { 
+        "machine-count": 12,
+        "ft-server-per-rack": 6,
+        "jobs-machine-count-low": 5,
+        "jobs-machine-count-high": 3,
+        "placement-seed-range": seed_range,
+        "comm-size": [8000, 4000, 2000],
+        "comp-size": [200, 100, 400],
+        "layer-count": [1, 2],
+        "iter-count": [30], # iteration count
+    }
     
     base_options = {
         "step-size": 1,
@@ -17,12 +32,14 @@ def main():
         "file-log-level": 1,
         
         "initial-rate": 100,
-        "min-rate": 100,
-        "drop-chance-multiplier": 0, 
-        "rate-increase": 1, 
+        # "min-rate": 10,
+        "drop-chance-multiplier": 1, 
+        "rate-increase": 1.1, 
+        
         
         "priority-allocator": "maxmin", # "fairshare",
-
+        "punish-oversubscribed": False,
+        
         "network-type": "leafspine",    
         "link-bandwidth": 100,
         "ft-rack-per-pod": 1,
@@ -40,7 +57,7 @@ def main():
 
         "simulation-seed": experiment_seed, 
         
-        "print-flow-progress-history": True,
+        "print-flow-progress-history": viz,
         # "export-dot": True,    
     }
 
@@ -48,7 +65,8 @@ def main():
                            "avg_iter_time", 
                            "rolling_iter_time", 
                            "rolling_ar_time", 
-                           "time_deltas"] # "iter_minus_ar_time", 
+                           "rolling_costs",
+                           "rolling_ar_plus_cost"] 
     
     placement_modes = ["manual_4"]
     # placement_modes = ["random", "compact"] 
@@ -73,6 +91,8 @@ def main():
         "timing-scheme": ["cassini", "farid", "random", "zero"],    #["cassini", "farid", "random"],
         "ring-mode": ["random"],
         "subflows": [1, core_count],
+        "min-rate": [10, 100],  
+        "punish-oversubscribed": [False, True],   
 
         # each placement strategy will be a different plot, drawn next to each other.
         "placement-mode": placement_modes, 
@@ -86,7 +106,7 @@ def main():
         "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
         "throttle-search": [True, False],
         
-        "farid-rounds": [1, 5, 10, 15],
+        "farid-rounds": [1, 3, 5, 10, 15],
     } 
     
     
@@ -94,11 +114,11 @@ def main():
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
     exp_context = {
-        "sim-length": 5000,
+        "sim-length": sim_length,
         
-        "visualize-timing": True, 
-        "visualize-routing": True, 
-        "profiled-throttle-factors": [1.0, 0.66], 
+        "visualize-timing": viz, 
+        "visualize-routing": False, 
+        "profiled-throttle-factors": [1.0, 0.66, 0.33], 
         
         # other stuff
         "random-rep-count": random_rep_count,
@@ -117,7 +137,7 @@ def main():
         },
         "routing-parameters": {},
         "placement-parameters": {
-            "placement-seed-limit": 10    
+            "placement-seed-limit": placement_options,
         },   
         "selected-setting": selected_setting,
         
@@ -126,21 +146,29 @@ def main():
                             "lb-scheme": "random", 
                             "subflows": 1, 
                             "throttle-search": False, 
-                            "farid-rounds": 1, },              
+                            "farid-rounds": 1, 
+                            "punish-oversubscribed": True, 
+                            "min-rate": 100},              
         
         "comparisons": [
-            ("zeroLL", {"timing-scheme": "zero", "lb-scheme": "readprotocol"}), 
-            ("farid-10", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "random"}),
-            ("farid-10-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol"}), 
-            ("farid-10-throt", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "random", "throttle-search": True}),
-            ("farid-10-throt-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True}), 
+            ("zero-routed", {"timing-scheme": "zero", "lb-scheme": "readprotocol"}), 
+            # ("farid-10-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol"}), 
+            # ("farid-10-throt-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True}), 
+            ("farid-10-throt-random", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "random", "throttle-search": True, "subflows": 1}),     
+            ("farid-10-throt-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": 1}),     
             ("farid-10-throt-routed-subf", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count}),     
-            # ("subf", {"subflows": core_count}),
-            # ("subfLL", {"subflows": core_count, "lb-scheme": "leastloaded"}), 
             ("perfectLB", {"lb-scheme": "perfect", "timing-scheme": "zero"}), 
-            ("ideal", {"lb-scheme": "ideal", "timing-scheme": "zero"}), 
-            # ("randomLL", {"lb-scheme": "leastloaded", "timing-scheme": "random"}), 
-            # ("randomPerfect", {"lb-scheme": "perfect", "timing-scheme": "random"}), 
+            
+            # all the same with min rate 100
+            # ("base-GoodNW", {"timing-scheme": "zero", "lb-scheme": "random", "min-rate": 100, "punish-oversubscribed": False}),    
+            # ("zero-routed-GoodNW", {"timing-scheme": "zero", "lb-scheme": "readprotocol", "min-rate": 100, "punish-oversubscribed": False}),    
+            # ("farid-10-throt-routed-subf-GoodNW", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count, "min-rate": 100, "punish-oversubscribed": False}),
+            # ("perfectLB-GoodNW", {"lb-scheme": "perfect", "timing-scheme": "zero", "min-rate": 100, "punish-oversubscribed": False}), 
+            
+            # ("farid-10-routed-100", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "min-rate": 100, "punish-oversubscribed": False}),
+            # ("farid-10-throt-routed-100", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True, "min-rate": 100, "punish-oversubscribed": False}),
+            # ("farid-1-throt-routed-subf-GoodNW", {"timing-scheme": "farid", "farid-rounds": 1, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count, "min-rate": 100, "punish-oversubscribed": False}),
+            # ("farid-5-throt-routed-subf-GoodNW", {"timing-scheme": "farid", "farid-rounds": 5, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count, "min-rate": 100, "punish-oversubscribed": False}),
         ]
     } 
     

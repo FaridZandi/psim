@@ -341,6 +341,8 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
         random_deltas = [] 
         random_throttle_rates = [] 
         
+        max_job_period = max([job["profiles"][1.0]["period"] for job in job_loads]) 
+        
         for job in job_loads: 
             job_id = job["job_id"]
             
@@ -354,14 +356,20 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
                 
             random_throttle_rates.append((job["job_id"], throttle_rate))
             
-            job_period = job["profiles"][throttle_rate]["period"]
-            weighted_job_period = job_period + weights[job_id]
-            if weighted_job_period < 0: 
-                weighted_job_period = 0
+            # ####################################################
+            # trying to see if we should use the max job period
+            # ####################################################
+            # job_period = job["profiles"][throttle_rate]["period"]
+            job_period = max_job_period
+            # ####################################################
+             
+            rand_max = job_period + weights[job_id]
+            if rand_max < 0: 
+                rand_max = 0
             
-            rand_options = int(math.ceil((weighted_job_period) / ls_rand_quantum))
-            r = random.randint(0, rand_options) * ls_rand_quantum        
-            random_deltas.append((job["job_id"], r)) 
+            quantized_rand_max = int(math.ceil((rand_max) / ls_rand_quantum))
+            random_delta = random.randint(0, quantized_rand_max) * ls_rand_quantum        
+            random_deltas.append((job["job_id"], random_delta)) 
             
         min_delta = min([x[1] for x in random_deltas])
         random_deltas = [(x[0], x[1] - min_delta) for x in random_deltas]
@@ -687,7 +695,9 @@ def visualize_link_loads(link_loads, run_context,
 
 
 def visualize_link_loads_runtime(link_loads, run_context, 
-                                 suffix="", plot_dir=None):    
+                                 suffix="", plot_dir=None, 
+                                 smoothing_window=1):      
+        
     if "visualize-timing" not in run_context or not run_context["visualize-timing"]:    
         return  
 
@@ -697,6 +707,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
 
     num_racks = len(link_loads)
     num_directions = 2  # "up" and "down"
+
 
     # Create a figure and subplots
     fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), 
@@ -743,6 +754,16 @@ def visualize_link_loads_runtime(link_loads, run_context,
             # Convert the padded job loads to a 2D array
             job_loads_array = np.array(padded_job_loads)
 
+            # smooth the signal
+            if smoothing_window > 1:
+                smoothed_job_loads = []  
+                for job_load in job_loads_array:
+                    # np.convolve 
+                    smoothed = np.convolve(job_load, np.ones(smoothing_window) / smoothing_window, mode='same') 
+                    smoothed_job_loads.append(smoothed)
+                
+                job_loads_array = np.array(smoothed_job_loads)
+                            
             ax.stackplot(range(max_length), job_loads_array, 
                          labels=[f"Job: {job_id}" for job_id in job_ids], 
                          colors=[get_job_color(job_id, assigned_job_colors) for job_id in job_ids])
@@ -1148,7 +1169,7 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
                 
         for job in jobs:
             job_id = job["job_id"]
-            weights[job_id] = avg_job_cost - job_costs[job_id] + rounds_no_progress * 1000
+            weights[job_id] = avg_job_cost - job_costs[job_id]
             
         log_results(run_context, "job_costs", job_costs)
         log_results(run_context, "weights", weights)    

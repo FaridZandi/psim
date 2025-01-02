@@ -275,7 +275,7 @@ def generate_manual_3_placement_file(options, run_context):
     job2_machines = [2, 6, 4, 0]
     
     # select a random number between 0 and 4
-    r = random.randint(0, 3) 
+    r = random.randint(0, 2) 
     
     if r == 0:
         job1_machines = [1, 5, 3, 7] # 2  
@@ -317,17 +317,27 @@ def generate_manual_3_placement_file(options, run_context):
 
 def generate_manual_4_placement_file(options, run_context):   
     assert options["machine-count"] == 12, "Error: machine count does not match."        
-    # 
-    job2_machines = [0, 6, 1, 7, 2, 8]   # load: 3
-    job1_machines = [3, 4, 5, 9, 10, 11] # load: 1
     
+    r = random.randint(0, 2)
+    
+    if r == 0: 
+        job2_machines = [0, 6, 1, 7, 2, 8]   # load: 3
+        job1_machines = [3, 4, 5, 9, 10, 11] # load: 1
+    if r == 1:
+        job2_machines = [0, 6, 1, 7, 2, 8]   # load: 3
+        job1_machines = [3, 9, 5, 4, 10, 11] # load: 2
+    if r == 2:
+        job2_machines = [0, 6, 1, 7, 2, 8]   # load: 3
+        job1_machines = [3, 9, 4, 10, 5, 11] # load: 3 
     
     jobs = [
         {
             "job_id": 1,
             "machine_count": 6,
-            "comm_size": 30000,
-            "comp_size": 225,
+            "comm_size": random.randint(10, 30) * 1000,
+            "comp_size": random.randint(5, 15) * 25,
+            # "comm_size": 30000,
+            # "comp_size": 225,
             "layer_count": 1,
             "machines": job1_machines,
             "iter_count": 1 
@@ -335,8 +345,10 @@ def generate_manual_4_placement_file(options, run_context):
         {
             "job_id": 2,
             "machine_count": 6,
-            "comm_size": 10000,
-            "comp_size": 175,
+            "comm_size": random.randint(10, 30) * 1000,
+            "comp_size": random.randint(5, 15) * 25,
+            # "comm_size": 10000,
+            # "comp_size": 175,
             "layer_count": 1,
             "machines": job2_machines,     
             "iter_count": 1 

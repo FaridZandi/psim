@@ -152,8 +152,10 @@ nethint_settings = [
     }
 ]
 
-placement_related_keys = ["placement-mode", "ring-mode", "placement-seed"]
+# things that would affect the profiling. 
+placement_related_keys = ["placement-mode", "ring-mode", "placement-seed", "min-rate"]
 
+# things that would affect the scheduling.  
 scheduling_related_keys = ["timing-scheme", "subflows", "throttle-search", 
                            "routing-fit-strategy", "compat-score-mode", "farid-rounds", "lb-scheme"] 
 
@@ -460,150 +462,152 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     run_context["runtime-dir"] = runtime_related_base_path
     os.makedirs(runtime_related_base_path, exist_ok=True)    
     
-    
-def plot_job_numbers(job_numbers, run_context, metric_name):   
-    # job_numbers look like this.   
 
-    # [{1: [228.0, 224.0, 150.0, 300.0, 196.0, 206.0, 203.0, 224.0, 150.0],
-    #     2: [300.0, 300.0, 300.0, 264.0, 289.0, 300.0],
-    #     3: [150.0, 260.0, 290.0, 150.0],
-    #     4: [300.0, 300.0, 206.0, 273.0]}] 
-    
-    # let's assume that it has one item in the top level 
-    numbers = job_numbers[0]
-    
-    # let's plot the numbers.
-    import matplotlib.pyplot as plt
-    
-    # one subplot for each job.  
-    fig, axs = plt.subplots(len(numbers), 1, figsize=(10, 5 * len(numbers)))
-    
-    for i, (job, numbers) in enumerate(numbers.items()):
-        axs[i].plot(numbers)
-        axs[i].set_title("Job {}".format(job))
-        axs[i].set_xlabel("Iteration")
-        axs[i].set_ylabel("Time (ms)")
-        
-    plt.tight_layout()
-    
-    plot_path = run_context["runtime-dir"] + "/iterations-{}.png".format(metric_name)
-    plt.savefig(plot_path)
-    plt.close()
-    plt.clf()   
-    plt.cla()
-    
-    
 
-def result_extractor_function(output, options, this_exp_results, run_context, config_sweeper):
-    if "visualize-timing" in run_context and run_context["visualize-timing"]:   
-        run_path = "{}/worker-{}/run-1".format(config_sweeper.workers_dir,
+def plot_runtime(output, options, this_exp_results, run_context, config_sweeper):
+    if "visualize-timing" not in run_context or not run_context["visualize-timing"]:   
+        return 
+
+    # where are the flow files? Make a backup for easy access.
+    run_path = "{}/worker-{}/run-1".format(config_sweeper.workers_dir,
                                             run_context["worker-id-for-profiling"])
-        flow_files_path = "{}/flow-info.txt".format(run_path)   
+    flow_files_path = "{}/flow-info.txt".format(run_path)   
 
-        shutil.copy(flow_files_path, run_context["runtime-dir"] + "/flow-info.txt") 
-        summarized_job_profiles, _, _ = get_job_profiles(flow_files_path, only_summary=True)
+    shutil.copy(flow_files_path, run_context["runtime-dir"] + "/flow-info.txt") 
 
-        link_loads, _ = timing.get_link_loads_runtime(
-            jobs=run_context["jobs"],
-            options=options, 
-            run_context=run_context,
-            summarized_job_profiles=summarized_job_profiles 
-        )
-        
-        # the stupid matplotlib doesn't work in a thread.   
-        with config_sweeper.thread_lock:
+
+    # copy the flow files to the runtime dir, get the link loads.
+    summarized_job_profiles, _, _ = get_job_profiles(flow_files_path, only_summary=True)
+
+    link_loads, _ = timing.get_link_loads_runtime(
+        jobs=run_context["jobs"],
+        options=options, 
+        run_context=run_context,
+        summarized_job_profiles=summarized_job_profiles 
+    )
+    
+    
+    # the stupid matplotlib doesn't work in a thread.   
+    with config_sweeper.thread_lock:
+        for smoothing_window in [1, 100]:
             timing.visualize_link_loads_runtime(
                 link_loads=link_loads,
                 run_context=run_context,
-                suffix="_runtime",        
-                plot_dir=run_context["runtime-dir"]
+                smoothing_window=smoothing_window, 
+                plot_dir=run_context["runtime-dir"],
+                suffix="_runtime_{}".format(smoothing_window)
             )
-            
-        final_timing_output = run_context["timings-dir"] + "/demand_final.png"   
-        shutil.copy(final_timing_output, run_context["runtime-dir"] + "/demand_final.png")   
+    
+    # copy the final timing output to the runtime dir.
+    final_timing_output = run_context["timings-dir"] + "/demand_final.png"   
+    shutil.copy(final_timing_output, run_context["runtime-dir"] + "/demand_final.png")   
+    
+    
+def get_rolling_numbers(job_numbers, options):
+    new_job_numbers = []     
+    for rep in range(options["rep-count"]):
+        rep_job_numbers = job_numbers[rep]
+        new_rep_job_numbers = {}
         
+        for job, numbers in rep_job_numbers.items():
+            new_rep_job_numbers[job] = []
+            for i in range(len(numbers)):
+                new_rep_job_numbers[job].append(np.mean(numbers[:i+1]))
+                
+        new_job_numbers.append(new_rep_job_numbers)
+        
+    return new_job_numbers
+
+
+def get_rolling_costs(output, options, this_exp_results, run_context, config_sweeper):
+    timing_data = run_context["job-timings"]
+    rep_numbers = {}
+
+    for job_timing in timing_data:
+        job_id = job_timing["job_id"] 
+
+        # the cost that have been added because of the dalays. 
+        delta_costs = job_timing["deltas"]
+
+        # the cost that have been added because of the throttling. 
+        throttle_costs = [] 
+        this_job = None
+        for job in run_context["jobs"]:
+            if job["job_id"] == job_id:
+                this_job = job
+                break 
+                
+        for throttle_rate in job_timing["throttle_rates"]:    
+            base_period = this_job["base_period"]   
+            throttled_period = this_job["period"][str(throttle_rate)]
+            throttle_cost = throttled_period - base_period
+            throttle_costs.append(throttle_cost)    
+
+        # adding the two costs together.    
+        total_costs = [delta + throttle for delta, throttle in zip(delta_costs, throttle_costs)] 
+        rep_numbers[job_id] = total_costs
+        
+    job_numbers = [rep_numbers]
+    job_numbers = get_rolling_numbers(job_numbers, options)
+    
+    return job_numbers
+
+def add_up_job_numbers(numbers1, numbers2): 
+    new_numbers = [] 
+    for rep in range(len(numbers1)):
+        rep_numbers1 = numbers1[rep]
+        rep_numbers2 = numbers2[rep]
+        new_rep_numbers = {}
+        
+        for job in rep_numbers1.keys():
+            new_rep_numbers[job] = [x + y for x, y in zip(rep_numbers1[job], rep_numbers2[job])]
+        
+        new_numbers.append(new_rep_numbers)
+        
+    return new_numbers
+
+def result_extractor_function(output, options, this_exp_results, run_context, config_sweeper):
+    plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
+    
     printed_metrics = [] 
     run_context["job_numbers"] = {}    
-     
-    def get_rolling_numbers(job_numbers):
-        new_job_numbers = []     
-        for rep in range(options["rep-count"]):
-            rep_job_numbers = job_numbers[rep]
-            new_rep_job_numbers = {}
-            
-            for job, numbers in rep_job_numbers.items():
-                new_rep_job_numbers[job] = []
-                for i in range(len(numbers)):
-                    new_rep_job_numbers[job].append(np.mean(numbers[:i+1]))
-                    
-            new_job_numbers.append(new_rep_job_numbers)
-            
-        return new_job_numbers
-        
     
     for metric in run_context["interesting-metrics"]:
         all_jobs_running = False
         
-        if metric == "time_deltas":
-            timing_data = run_context["job-timings"]
-            rep_numbers = {}
-            for job_timing in timing_data:
-                job_id = job_timing["job_id"] 
-                deltas = job_timing["deltas"]
-                rep_numbers[job_id] = deltas     
-            job_numbers = [rep_numbers]
-            job_numbers = get_rolling_numbers(job_numbers)
+        if metric == "rolling_costs":
+            job_numbers = get_rolling_costs(output, options, this_exp_results, run_context, config_sweeper)  
 
         elif metric == "avg_ar_time":
             job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], 
                                                        all_jobs_running=all_jobs_running)
-            # with config_sweeper.thread_lock:
-            #     plot_job_numbers(job_numbers, run_context, metric)
         
         elif metric == "rolling_ar_time":   
-            job_numbers = get_all_rep_all_reduce_times(output, options["rep-count"], 
-                                                       all_jobs_running=all_jobs_running)
+            ar_times = get_all_rep_all_reduce_times(output, options["rep-count"], 
+                                                    all_jobs_running=all_jobs_running)
             
-            job_numbers = get_rolling_numbers(job_numbers)  
+            job_numbers = get_rolling_numbers(ar_times, options)  
             
         elif metric == "avg_iter_time": 
             job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], 
                                                    all_jobs_running=all_jobs_running)
 
         elif metric == "rolling_iter_time":
-            job_numbers = get_all_rep_iter_lengths(output, options["rep-count"],
-                                                   all_jobs_running=all_jobs_running)
-
-            job_numbers = get_rolling_numbers(job_numbers)   
-            
-        elif metric == "iter_minus_ar_time":
-            ar_times = get_all_rep_all_reduce_times(output, options["rep-count"], 
-                                                    all_jobs_running=all_jobs_running)
-            
-            iter_times = get_all_rep_iter_lengths(output, options["rep-count"], 
+            iter_times = get_all_rep_iter_lengths(output, options["rep-count"],
                                                   all_jobs_running=all_jobs_running)
 
-            job_numbers = [] 
+            job_numbers = get_rolling_numbers(iter_times, options)   
             
-            for rep in range(options["rep-count"]):
-                ar_time = ar_times[rep]
-                iter_time = iter_times[rep]
-                
-                rep_numbers = {} 
-                
-                for job in ar_time.keys():
-                    rep_job_iter_times = iter_time[job]
-                    rep_job_ar_times = ar_time[job]
-                    rep_numbers[job] = []
-                    
-                    for i in range(len(rep_job_iter_times)):
-                        rep_job_iter_time = rep_job_iter_times[i]
-                        rep_job_ar_time = rep_job_ar_times[i]
-                        diff = rep_job_iter_time - rep_job_ar_time 
-                        rep_numbers[job].append(diff)
-                        
-                job_numbers.append(rep_numbers)
-        
+        elif metric == "rolling_ar_plus_cost":
+            ar_times = get_all_rep_all_reduce_times(output, options["rep-count"], 
+                                                    all_jobs_running=all_jobs_running)
+
+            rollied_ar_times = get_rolling_numbers(ar_times, options)   
+            
+            job_costs = get_rolling_costs(output, options, this_exp_results, run_context, config_sweeper)   
+            
+            job_numbers = add_up_job_numbers(rollied_ar_times, job_costs)   
+
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 
@@ -764,8 +768,8 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
     all_data_df = pd.DataFrame(all_data_list)
     
     # merge placement-mode and ring-mode into one column. 
-    with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
-        print(all_data_df)
+    # with pd.option_context('display.max_rows', None, 'display.max_columns', None):  
+    #     print(all_data_df)
         
     csv_path = config_sweeper.csv_dir + f"metric-{metric}.csv"
     all_data_df.to_csv(csv_path, index=False)
@@ -795,7 +799,7 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
                     for i, row in iter_group.iterrows():
                         value = row["value"]
                         
-                        if metric == "time_deltas":
+                        if metric == "rolling_costs":
                             normalized_value = value
                         else:
                             normalized_value = value / base_value
@@ -853,20 +857,11 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
                                     legend=legend)
                         
                     elif plot_type == "bar":    
-                        # sns.boxplot(data=job_group, ax=ax,
-                        #             x="iter_id", y="normalized",
-                        #             hue="comparison", hue_order=sorted_comparisons,
-                        #             showmeans=True, meanprops={"marker":"o", 
-                        #                                        "markerfacecolor":"white", 
-                        #                                        "markeredgecolor":"black"},
-                        #             showcaps=False, showfliers=False)
-
                         sns.barplot(data=job_group, ax=ax,
                                     x="iter_id", y="normalized",
                                     hue="comparison", hue_order=sorted_comparisons,
                                     dodge=True, alpha=0.75, 
                                     errorbar=None)
-                        
                         
                     if legend: 
                         ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05))
@@ -889,7 +884,8 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
 
 
 def custom_save_results_func(exp_results_df, config_sweeper, global_context, plot=False): 
-    plot_job_iteration_times(exp_results_df, config_sweeper, global_context)
+    # if plot: 
+    #     plot_job_iteration_times(exp_results_df, config_sweeper, global_context)
     
     print("Saving the results ...") 
     
@@ -941,7 +937,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 base_avg_metric_key = "{}_base".format(avg_metric_key)
                 compared_avg_metric_key = "{}_compared".format(avg_metric_key)
                 
-                if metric == "time_deltas":
+                if metric == "rolling_costs":
                     merged_df["speedup"] = merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key]
                 else:
                     merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], rounding_precision)

@@ -84,6 +84,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("isolate-job-id", po::value<int>(), "isolate job id") 
         ("stretch-factor", po::value<double>(), "stretch factor")
         ("throttle_factor", po::value<double>(), "throttle the workload transmission rate")
+        ("punish-oversubscribed", po::value<int>()->implicit_value(1), "punish oversubscribed")
     ;
 
     po::variables_map vm;
@@ -160,6 +161,9 @@ void psim::process_arguments(po::variables_map vm){
             spdlog::error("Invalid load metric: {}", load_metric_str);
             exit(1);
         }
+    }
+    if(vm.count("punish-oversubscribed")){
+        GConf::inst().punish_oversubscribed = true;
     }
     if(vm.count("isolate-job-id")){
         GConf::inst().isolate_job_id = vm["isolate-job-id"].as<int>();
@@ -479,6 +483,7 @@ void psim::log_config() {
     spdlog::info("==== isolate_job_id: {}", GConf::inst().isolate_job_id);
     spdlog::info("==== stretch_factor: {}", GConf::inst().stretch_factor);  
     spdlog::info("==== throttle_factor: {}", GConf::inst().throttle_factor);    
+    spdlog::info("==== punish_oversubscribed: {}", GConf::inst().punish_oversubscribed);    
     spdlog::info("==== general_param_1: {}", GConf::inst().general_param_1);
     spdlog::info("==== general_param_2: {}", GConf::inst().general_param_2);
     spdlog::info("==== general_param_3: {}", GConf::inst().general_param_3);
@@ -489,7 +494,6 @@ void psim::log_config() {
     spdlog::info("==== general_param_8: {}", GConf::inst().general_param_8);
     spdlog::info("==== general_param_9: {}", GConf::inst().general_param_9);
     spdlog::info("==== general_param_10: {}", GConf::inst().general_param_10);
-
     spdlog::info("---------------------------------------------");
     spdlog::info("---------------------------------------------");
 }

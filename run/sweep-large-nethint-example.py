@@ -48,7 +48,7 @@ def main():
                            "avg_iter_time", 
                            "rolling_iter_time", 
                            "rolling_ar_time", 
-                           "time_deltas"] # "iter_minus_ar_time", 
+                           "rolling_costs"] 
     
     placement_modes = ["manual_3"]
     # placement_modes = ["random", "compact"] 

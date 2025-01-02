@@ -41,7 +41,7 @@ def main():
         "simulation-seed": experiment_seed, 
     }
 
-    interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
+    interesting_metrics = ["avg_ar_time", "avg_iter_time"] 
     placement_modes = ["sim_firstfit", "random", "compact"] #["random", "semirandom_4", "semirandom_2", "compact"]
     # placement_modes = ["random", "compact"] 
     

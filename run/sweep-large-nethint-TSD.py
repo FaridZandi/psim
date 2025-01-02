@@ -44,7 +44,7 @@ def main():
         # "export-dot": True,    
     }
 
-    interesting_metrics = ["avg_ar_time", "avg_iter_time"] # "iter_minus_ar_time", 
+    interesting_metrics = ["avg_ar_time", "avg_iter_time"]
     placement_modes = ["random", "semirandom_4", "sim", "compact"]
     # placement_modes = ["random", "compact"] 
     

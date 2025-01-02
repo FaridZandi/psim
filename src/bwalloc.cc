@@ -93,11 +93,23 @@ void MaxMinFairShareBandwidthAllocator::compute_allocations(){
         }
     );
 
-    double available = total_available;
+    
+    double total_registered = 0; 
+    for (auto& item : register_list) {
+        total_registered += item.second;
+    }
+
+    bool punish = GConf::inst().punish_oversubscribed;     
+
     int remaining_item_count = register_list.size();
+    double exceed_availablity = std::max(0.0, total_registered - total_available);
+
+    double available = total_available;
+    if (punish) {
+        available -= exceed_availablity;
+    }       
 
     for (auto& item : register_list) {
-
         double rate = item.second;
         double remaining_fair_share = available / remaining_item_count;
         double allocated_rate = std::min(rate, remaining_fair_share);
