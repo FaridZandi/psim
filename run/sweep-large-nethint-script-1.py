@@ -6,21 +6,21 @@ experiment_seed = 74
 random_rep_count = 1
 
 viz = False
-sim_length = 20000
-seed_range = 1
+sim_length = 10000
+seed_range = 20
 placement_options = 100
 
 def main():
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
-        "machine-count": 32,
-        "ft-server-per-rack": 8,
-        "jobs-machine-count-low": 4,
-        "jobs-machine-count-high": 8,
+        "machine-count": 18,
+        "ft-server-per-rack": 6,
+        "jobs-machine-count-low": 3,
+        "jobs-machine-count-high": 5,
         "placement-seed-range": seed_range,
-        "comm-size": [8000, 4000, 2000],
-        "comp-size": [200, 100, 400],
-        "layer-count": [1, 2],
+        "comm-size": [8000, 4000, 16000],
+        "comp-size": [200, 100],
+        "layer-count": [1],
         "iter-count": [30], # iteration count
     }
     
@@ -68,7 +68,7 @@ def main():
                            "rolling_costs",
                            "rolling_ar_plus_cost"] 
     
-    oversub = 2
+    oversub = 3
     placement_modes = ["random", "compact"]
     
     random.seed(experiment_seed)
@@ -127,10 +127,10 @@ def main():
         "oversub": oversub,
         
         "cassini-parameters": {  
-            "link-solution-candidate-count": 200,
+            "link-solution-candidate-count": 50,
             "link-solution-random-quantum": 10,
-            "link-solution-top-candidates": 5,    
-            "overall-solution-candidate-count": 10,
+            "link-solution-top-candidates": 3,    
+            "overall-solution-candidate-count": 1,
             "rounds": 10,    
             "save-profiles": True,
         },
@@ -150,9 +150,11 @@ def main():
                             "min-rate": 10},              
         
         "comparisons": [
+            ("zero-subf", {"timing-scheme": "zero", "subflows": core_count}), 
             ("zero-routed", {"timing-scheme": "zero", "lb-scheme": "readprotocol"}), 
             # ("farid-10-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol"}), 
             # ("farid-10-throt-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True}), 
+            ("farid-10-nothr-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": False, "subflows": 1}),     
             ("farid-10-throt-random", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "random", "throttle-search": True, "subflows": 1}),     
             ("farid-10-throt-routed", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": 1}),     
             ("farid-10-throt-routed-subf", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count}),     
