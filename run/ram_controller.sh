@@ -1,8 +1,10 @@
 #!/bin/bash
 
 # Maximum allowed memory usage in GB
-MAX_MEMORY=62
+MAX_MEMORY=10
+PYTHON_NAME="python3"
 WHAT_TO_KILL="python3"
+
 
 if [ $# -eq 1 ]; then
   MAX_MEMORY=$(($1))
@@ -24,6 +26,7 @@ while true; do
 
     # Kill all python3 processes
     killall $WHAT_TO_KILL
+    killall $PYTHON_NAME
 
     echo "All $WHAT_TO_KILL processes killed."
     exit 0

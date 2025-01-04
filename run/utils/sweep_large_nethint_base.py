@@ -884,8 +884,9 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
 
 
 def custom_save_results_func(exp_results_df, config_sweeper, global_context, plot=False): 
-    # if plot: 
-    #     plot_job_iteration_times(exp_results_df, config_sweeper, global_context)
+    if plot: 
+        if "plot-iteration-graphs" in global_context and global_context["plot-iteration-graphs"]:
+            plot_job_iteration_times(exp_results_df, config_sweeper, global_context)
     
     print("Saving the results ...") 
     

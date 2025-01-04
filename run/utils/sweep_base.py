@@ -15,7 +15,7 @@ import time
 # pd.set_option('display.max_columns', 500)
 
 DEFAULT_WORKER_THREAD_COUNT = 40
-MEMORY_LIMIT = 55
+MEMORY_LIMIT = 40
 
 class ConfigSweeper: 
     def __init__(self, 
@@ -97,6 +97,9 @@ class ConfigSweeper:
         os.system("touch {}".format(self.plot_commands_script))
         os.system("chmod +x {}".format(self.plot_commands_script))
         
+        # make a symbolic link to the results directory in the run_path
+        os.system("rm -f {}/last-sweep-results".format(self.run_path))  
+        os.system("ln -s {} {}".format(self.results_dir, self.run_path + "/last-sweep-results"))
         # set up the watchdog. Run the "./ram_controller.sh 18 python3" in background,
         # keep pid and kill it when the program ends.
         # kill all the ram_controller.sh processes that are running.     
@@ -106,7 +109,7 @@ class ConfigSweeper:
         self.watchdog_pid = subprocess.Popen([
                                 "./ram_controller.sh", 
                                 str(MEMORY_LIMIT), 
-                                "python3"
+                                self.run_executable
                             ]).pid
         
     def __del__(self):
@@ -378,7 +381,8 @@ class ConfigSweeper:
                 duration = 0 
                 
         else:     
-            self.thread_states[worker_id] = "exp-{}-running".format(this_exp_uuid) 
+            self.thread_states[worker_id] = "exp-{}-running-{}".format(this_exp_uuid,
+                                                                       run_context["runtime-dir"])     
                     
             options["worker-id"] = worker_id
             cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)

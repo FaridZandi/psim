@@ -107,6 +107,10 @@ void MaxMinFairShareBandwidthAllocator::compute_allocations(){
     double available = total_available;
     if (punish) {
         available -= exceed_availablity;
+
+        if (available < total_available * 0.8) {
+            available = total_available * 0.8;  
+        }
     }       
 
     for (auto& item : register_list) {
