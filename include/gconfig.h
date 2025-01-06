@@ -163,6 +163,7 @@ public:
     double throttle_factor = -1;   
 
     double punish_oversubscribed = false;
+    double punish_oversubscribed_min = 0.8;
 
     GConf() {}
 };

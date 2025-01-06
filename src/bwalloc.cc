@@ -108,8 +108,9 @@ void MaxMinFairShareBandwidthAllocator::compute_allocations(){
     if (punish) {
         available -= exceed_availablity;
 
-        if (available < total_available * 0.8) {
-            available = total_available * 0.8;  
+        double punish_threshold = total_available * GConf::inst().punish_oversubscribed_min;   
+        if (available < punish_threshold) {    
+            available = punish_threshold;  
         }
     }       
 

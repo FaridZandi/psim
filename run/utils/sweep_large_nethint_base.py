@@ -152,10 +152,12 @@ nethint_settings = [
     }
 ]
 
-# things that would affect the profiling. 
-placement_related_keys = ["placement-mode", "ring-mode", "placement-seed", "min-rate"]
+# things that would affect the profiling and the placement. 
+placement_related_keys = ["placement-mode", "ring-mode", 
+                          "placement-seed", "min-rate", 
+                          "punish-oversubscribed", "punish-oversubscribed-min"]
 
-# things that would affect the scheduling.  
+# things that would affect the scheduling, the timing and the routing.
 scheduling_related_keys = ["timing-scheme", "subflows", "throttle-search", 
                            "routing-fit-strategy", "compat-score-mode", "farid-rounds", "lb-scheme"] 
 
@@ -465,8 +467,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
 
 
 def plot_runtime(output, options, this_exp_results, run_context, config_sweeper):
-    if "visualize-timing" not in run_context or not run_context["visualize-timing"]:   
-        return 
+    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
+        return   
 
     # where are the flow files? Make a backup for easy access.
     run_path = "{}/worker-{}/run-1".format(config_sweeper.workers_dir,

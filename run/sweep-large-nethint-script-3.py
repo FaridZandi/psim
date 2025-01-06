@@ -7,14 +7,14 @@ random_rep_count = 1
 
 viz = False
 sim_length = 20000
-seed_range = 10
+seed_range = 5
 placement_options = 100
 farid_rounds = 10 
 
 def main():
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
-        "machine-count": 18,
+        "machine-count": 12,
         "ft-server-per-rack": 6,
         "jobs-machine-count-low": 3,
         "jobs-machine-count-high": 5,
@@ -69,8 +69,8 @@ def main():
                            "rolling_costs",
                            "rolling_ar_plus_cost"] 
     
-    oversub = 3
-    placement_modes = ["random", "compact"]
+    oversub = 2
+    placement_modes = ["manual_4"]
     
     random.seed(experiment_seed)
     
@@ -81,6 +81,8 @@ def main():
     # higher oversub means less uplinks 
     core_count = base_options["ft-server-per-rack"] // oversub
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
+    
+    punish_oversubscribed_min_values = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1]  
     
     exp_sweep_config = {
         "protocol-file-name": ["nethint-test"],
@@ -106,7 +108,9 @@ def main():
         "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
         "throttle-search": [True, False],
         
-        "farid-rounds": [1, 3, 5, 10, 15, 20],
+        "farid-rounds": [10], 
+        
+        "punish-oversubscribed-min" : punish_oversubscribed_min_values,
     } 
     
     timing_viz = []
@@ -114,6 +118,40 @@ def main():
         timing_viz = placement_seeds
     else:
         timing_viz = []    
+    
+    comparison_base = {
+        "timing-scheme": "zero", 
+        "ring-mode": "random",  
+        "lb-scheme": "random", 
+        "subflows": 1, 
+        "throttle-search": False, 
+        "farid-rounds": farid_rounds, 
+        "punish-oversubscribed": True, 
+        "punish-oversubscribed-min": 1, 
+        "min-rate": 100
+    }
+
+    comparisons = [
+        ("perfectLB", {"lb-scheme": "perfect"})
+    ]
+    
+    for i in punish_oversubscribed_min_values:
+        comparisons.append(("random-{}-routed-subf".format(i), 
+                            {"timing-scheme": "random", 
+                             "lb-scheme": "readprotocol", 
+                             "subflows": core_count, 
+                             "punish-oversubscribed": True, 
+                             "punish-oversubscribed-min": i}))  
+
+
+        comparisons.append(("farid-{}-throt-routed-subf".format(i),
+                            {"timing-scheme": "farid", 
+                             "farid-rounds": farid_rounds, 
+                             "lb-scheme": "readprotocol", 
+                             "throttle-search": True, 
+                             "subflows": core_count, 
+                             "punish-oversubscribed": True,
+                             "punish-oversubscribed-min": i}))  
         
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
@@ -137,7 +175,7 @@ def main():
             "link-solution-candidate-count": 50,
             "link-solution-random-quantum": 10,
             "link-solution-top-candidates": 3,    
-            "overall-solution-candidate-count": 1,
+            "overall-solution-candidate-count": 4,
             "rounds": 10,    
             "save-profiles": True,
         },
@@ -147,44 +185,9 @@ def main():
         },   
         "selected-setting": selected_setting,
         
-        "comparison-base": {"timing-scheme": "zero", 
-                            "ring-mode": "random",  
-                            "lb-scheme": "random", 
-                            "subflows": 1, 
-                            "throttle-search": False, 
-                            "farid-rounds": 1, 
-                            "punish-oversubscribed": True, 
-                            "min-rate": 10},              
+        "comparison-base": comparison_base,              
         
-        "comparisons": [
-            ("random-start", {"timing-scheme": "random"}),   
-            ("zero-subf", {"timing-scheme": "zero", "subflows": core_count}), 
-            ("zero-routed", {"timing-scheme": "zero", "lb-scheme": "readprotocol"}), 
-            ("perfectLB", {"lb-scheme": "perfect", "timing-scheme": "zero"}), 
-
-            ("farid-10-nothr-routed", {"timing-scheme": "farid", "farid-rounds": farid_rounds, 
-                                       "lb-scheme": "readprotocol", "throttle-search": False, "subflows": 1}), 
-                
-            ("farid-10-throt-random", {"timing-scheme": "farid", "farid-rounds": farid_rounds, 
-                                       "lb-scheme": "random", "throttle-search": True, "subflows": 1}),     
-            
-            ("farid-10-throt-routed", {"timing-scheme": "farid", "farid-rounds": farid_rounds, 
-                                       "lb-scheme": "readprotocol", "throttle-search": True, "subflows": 1}), 
-            
-            ("farid-10-throt-routed-subf", {"timing-scheme": "farid", "farid-rounds": farid_rounds, 
-                                            "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count}),     
-            
-            # all the same with min rate 100
-            # ("base-GoodNW", {"timing-scheme": "zero", "lb-scheme": "random", "min-rate": 100, "punish-oversubscribed": False}),    
-            # ("zero-routed-GoodNW", {"timing-scheme": "zero", "lb-scheme": "readprotocol", "min-rate": 100, "punish-oversubscribed": False}),    
-            # ("farid-10-throt-routed-subf-GoodNW", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count, "min-rate": 100, "punish-oversubscribed": False}),
-            # ("perfectLB-GoodNW", {"lb-scheme": "perfect", "timing-scheme": "zero", "min-rate": 100, "punish-oversubscribed": False}), 
-            
-            # ("farid-10-routed-100", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "min-rate": 100, "punish-oversubscribed": False}),
-            # ("farid-10-throt-routed-100", {"timing-scheme": "farid", "farid-rounds": 10, "lb-scheme": "readprotocol", "throttle-search": True, "min-rate": 100, "punish-oversubscribed": False}),
-            # ("farid-1-throt-routed-subf-GoodNW", {"timing-scheme": "farid", "farid-rounds": 1, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count, "min-rate": 100, "punish-oversubscribed": False}),
-            # ("farid-5-throt-routed-subf-GoodNW", {"timing-scheme": "farid", "farid-rounds": 5, "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count, "min-rate": 100, "punish-oversubscribed": False}),
-        ]
+        "comparisons": comparisons,
     } 
     
     sane, reason = check_comparison_sanity(exp_context, exp_sweep_config)

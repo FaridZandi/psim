@@ -32,16 +32,20 @@ for placement_name, placement_csv_path in zip(placement_names, placement_csv_pat
 unique_combined = placement_dfs[0][1]["combined"].unique()
 
 marker_cache = {} 
-marker_options = ["o", "s", "D", "v", "^", "<", ">", "p", "P", "*", "h", "H", "+", "x", "X", "|", "_"]
+marker_options_base = ["o", "s", "D", "v", "^", "<", ">", "p", "P", "*", "h", "H", "+", "x", "X", "|", "_"]
+marker_options = marker_options_base.copy() 
 
 def get_marker(param):
-    global marker_cache
+    global marker_cache, marker_options
     if param not in marker_cache:
         marker_cache[param] = marker_options.pop(0)
+        if len(marker_options) == 0:
+            marker_options = marker_options_base.copy() 
+            
     return marker_cache[param]
 
 style_cache = {}
-linestyle_tuple = [
+linestyle_tuple_base = [
      ('loosely dotted',        (0, (1, 10))),
      ('dotted',                (0, (1, 1))),
      ('densely dotted',        (0, (1, 1))),
@@ -58,13 +62,32 @@ linestyle_tuple = [
      ('loosely dashdotdotted', (0, (3, 10, 1, 10, 1, 10))),
      ('densely dashdotdotted', (0, (3, 1, 1, 1, 1, 1)))]
 
+linestyle_tuple = linestyle_tuple_base.copy()   
+
 def get_style(param):
-    global style_cache
+    global style_cache, linestyle_tuple
     if param not in style_cache:
         style_cache[param] = linestyle_tuple.pop(0)[1]
+        if len(linestyle_tuple) == 0:
+            linestyle_tuple = linestyle_tuple_base.copy()
+            
     return style_cache[param]
 
-    
+
+# colors. 
+color_cache = {}    
+color_options_base = ["blue", "red", "green", "orange", "purple", "brown", "pink", "gray", "olive", "cyan", "black", "yellow"]
+color_options = color_options_base.copy()   
+
+def get_color(param):
+    global color_cache, color_options
+    if param not in color_cache:
+        color_cache[param] = color_options.pop(0)
+        if len(color_options) == 0:
+            color_options = color_options_base.copy() 
+            
+    return color_cache[param]   
+
 # for each unique value, plot the cdf
 for combined in unique_combined:
     filtered_placement_dfs = [] 
@@ -74,7 +97,7 @@ for combined in unique_combined:
     
     placement_count = len(filtered_placement_dfs) 
     
-    fig, axes = plt.subplots(1, placement_count, figsize=(3 * placement_count * 1.5, 3), sharey=True, sharex=True)
+    fig, axes = plt.subplots(2, placement_count, figsize=(3 * placement_count * 1.5, 3), squeeze=False)   
     
     max_value = 1
     min_value = 1
@@ -82,18 +105,15 @@ for combined in unique_combined:
     for i, exp in enumerate(filtered_placement_dfs): 
         placement_name, placement_df = exp
         
-        if placement_count == 1:
-            this_ax = axes
-        else:
-            this_ax = axes[i]
-
+        this_ax = axes[0, i]    
+        this_ax_avg = axes[1, i]    
+        
         # how many items are in the placement_df? print: 
         if placement_df.shape[0] != 1:
             print(f"Error: {placement_name} has more than one row for {combined}")
         
         # get the first line 
         first_line = placement_df.iloc[0]
-            
         
         avg_values = {} 
         
@@ -127,6 +147,7 @@ for combined in unique_combined:
             this_ax.plot(values, yvals, 
                          label=label, 
                          marker=get_marker(cdf_param),
+                         color=get_color(cdf_param), 
                          markevery=markevery,
                          markersize=3,
                          linewidth=1,
@@ -144,10 +165,24 @@ for combined in unique_combined:
         this_ax.set_ylabel("CDF")
         
         
+
+        avg_values_copy = avg_values.copy() 
+        #sort the avg_values based on the name
+        avg_value_copy = dict(sorted(avg_values_copy.items(), key=lambda item: item[0]))
+        
+        # plot the average values in the second row 
+        
+        for j, (label, avg_value) in enumerate(avg_value_copy.items()):
+            this_ax_avg.bar(j, avg_value, label=label, color=get_color(label))
+        # this_ax_avg.set_xticks(range(len(avg_values)))
+        # this_ax_avg.set_xticklabels(avg_values.keys(), rotation=45)
+        # this_ax_avg.set_title("Average values")
+        # this_ax_avg.set_ylabel("Value")
+        
         # sort the legend iterms based on the average value (that was calculated above with an X mark)
         handles, labels = this_ax.get_legend_handles_labels()
         labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: avg_values[t[0]]))
-        this_ax.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.25))
+        this_ax_avg.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.25))
         
         # if this is the last: 
         if i == placement_count - 1:

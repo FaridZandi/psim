@@ -85,6 +85,7 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("stretch-factor", po::value<double>(), "stretch factor")
         ("throttle_factor", po::value<double>(), "throttle the workload transmission rate")
         ("punish-oversubscribed", po::value<int>()->implicit_value(1), "punish oversubscribed")
+        ("punish-oversubscribed-min", po::value<double>(), "punish oversubscribed min")
     ;
 
     po::variables_map vm;
@@ -161,6 +162,9 @@ void psim::process_arguments(po::variables_map vm){
             spdlog::error("Invalid load metric: {}", load_metric_str);
             exit(1);
         }
+    }
+    if(vm.count("punish-oversubscribed-min")){
+        GConf::inst().punish_oversubscribed_min = vm["punish-oversubscribed-min"].as<double>();
     }
     if(vm.count("punish-oversubscribed")){
         GConf::inst().punish_oversubscribed = true;
@@ -484,6 +488,7 @@ void psim::log_config() {
     spdlog::info("==== stretch_factor: {}", GConf::inst().stretch_factor);  
     spdlog::info("==== throttle_factor: {}", GConf::inst().throttle_factor);    
     spdlog::info("==== punish_oversubscribed: {}", GConf::inst().punish_oversubscribed);    
+    spdlog::info("==== punish_oversubscribed_min: {}", GConf::inst().punish_oversubscribed_min);
     spdlog::info("==== general_param_1: {}", GConf::inst().general_param_1);
     spdlog::info("==== general_param_2: {}", GConf::inst().general_param_2);
     spdlog::info("==== general_param_3: {}", GConf::inst().general_param_3);

@@ -32,7 +32,7 @@ def log_results(run_context, key, value):
 
 
 def visualize_final_timing(jobs, options, run_context, job_timings, job_profiles, lb_decisions):
-    if "visualize-timing" not in run_context or not run_context["visualize-timing"]:    
+    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
         return
     
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)
@@ -608,7 +608,7 @@ def visualize_link_loads(link_loads, run_context,
                          link_logical_bandwidth = None, 
                          suffix=""): 
     
-    if "visualize-timing" not in run_context or not run_context["visualize-timing"]:    
+    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
         return  
 
     import matplotlib.pyplot as plt
@@ -698,7 +698,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
                                  suffix="", plot_dir=None, 
                                  smoothing_window=1):      
         
-    if "visualize-timing" not in run_context or not run_context["visualize-timing"]:    
+    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
         return  
 
     import matplotlib.pyplot as plt
