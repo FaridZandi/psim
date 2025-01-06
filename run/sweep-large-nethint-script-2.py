@@ -6,15 +6,12 @@ experiment_seed = 74
 random_rep_count = 1
 
 viz = False
-sim_length = 5000
-seed_range = 1
+sim_length = 20000
+seed_range = 5
 placement_options = 100
-farid_rounds = 30 
+farid_rounds = 10 
 
 def main():
-    random.seed(experiment_seed)
-    
-
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
         "machine-count": 12,
@@ -74,16 +71,16 @@ def main():
     
     oversub = 2
     placement_modes = ["manual_4"]
-    placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
-    punish_oversubscribed_min_values = [0.25, 0.5, 0.75, 1]  
+    
+    random.seed(experiment_seed)
     
     # iterating over the different settings. Each setting will create a different experiment. 
     # the results is one plot for each setting.
     
     # to control the ratio of uplinks and downlinks.
     # higher oversub means less uplinks 
-
     core_count = base_options["ft-server-per-rack"] // oversub
+    placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
     exp_sweep_config = {
         "protocol-file-name": ["nethint-test"],
@@ -109,9 +106,7 @@ def main():
         "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
         "throttle-search": [True, False],
         
-        "farid-rounds": [1, farid_rounds], 
-        
-        "punish-oversubscribed-min" : punish_oversubscribed_min_values,
+        "farid-rounds": list(range(1, 20)),   
     } 
     
     timing_viz = []
@@ -119,66 +114,20 @@ def main():
         timing_viz = placement_seeds
     else:
         timing_viz = [1]    
-    
-    comparison_base = {
-        "timing-scheme": "zero", 
-        "ring-mode": "random",  
-        "lb-scheme": "random", 
-        "subflows": 1, 
-        "throttle-search": False, 
-        "farid-rounds": farid_rounds, 
-        "punish-oversubscribed": True, 
-        "punish-oversubscribed-min": 1, 
-        "min-rate": 100
-    }
-
+        
     comparisons = [
+        ("random-routed-subf", {"timing-scheme": "random", "lb-scheme": "readprotocol", "subflows": core_count}),
+        ("perfectLB", {"lb-scheme": "perfect"})
     ]
-    subflows = 1 # core_count
     
-    for i in punish_oversubscribed_min_values:
-        comparisons.append(("zero-{}-perfect".format(i), 
-                            {"timing-scheme": "random", 
-                             "lb-scheme": "perfect", 
-                             "subflows": subflows, 
-                             "punish-oversubscribed": True, 
-                             "punish-oversubscribed-min": i}))  
+    for i in range(1, 8, 5):
+        comparisons.append(("farid-{}-throt-routed-subf".format(i), 
+                            {"timing-scheme": "farid", "farid-rounds": i, 
+                             "lb-scheme": "readprotocol", "throttle-search": True, "subflows": core_count}))    
         
-    for i in punish_oversubscribed_min_values:
-        comparisons.append(("random-{}-routed".format(i), 
-                            {"timing-scheme": "random", 
-                             "lb-scheme": "readprotocol", 
-                             "subflows": subflows, 
-                             "punish-oversubscribed": True, 
-                             "punish-oversubscribed-min": i}))  
-    
-    for i in punish_oversubscribed_min_values:
-        comparisons.append(("farid-{}-routed".format(i),
-                            {"timing-scheme": "farid", 
-                             "farid-rounds": farid_rounds, 
-                             "lb-scheme": "readprotocol", 
-                             "throttle-search": True, 
-                             "subflows": subflows, 
-                             "punish-oversubscribed": True,
-                             "punish-oversubscribed-min": i})) 
-        
-    for i in punish_oversubscribed_min_values:
-        comparisons.append(("farid-{}-ecmp".format(i),
-                            {"timing-scheme": "farid", 
-                             "farid-rounds": farid_rounds, 
-                             "lb-scheme": "random", 
-                             "throttle-search": True, 
-                             "subflows": subflows, 
-                             "punish-oversubscribed": True,
-                             "punish-oversubscribed-min": i}))  
-    
-    for i in punish_oversubscribed_min_values:
-        comparisons.append(("random-{}".format(i),
-                            {"timing-scheme": "random", 
-                             "lb-scheme": "random", 
-                             "subflows": subflows, 
-                             "punish-oversubscribed": True,
-                             "punish-oversubscribed-min": i}))  
+        comparisons.append(("farid-{}-throt-routed".format(i), 
+                            {"timing-scheme": "farid", "farid-rounds": i, 
+                             "lb-scheme": "readprotocol", "throttle-search": True}))    
         
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
@@ -212,7 +161,14 @@ def main():
         },   
         "selected-setting": selected_setting,
         
-        "comparison-base": comparison_base,              
+        "comparison-base": {"timing-scheme": "zero", 
+                            "ring-mode": "random",  
+                            "lb-scheme": "random", 
+                            "subflows": 1, 
+                            "throttle-search": False, 
+                            "farid-rounds": 1, 
+                            "punish-oversubscribed": True, 
+                            "min-rate": 10},              
         
         "comparisons": comparisons,
     } 

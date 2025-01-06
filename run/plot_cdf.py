@@ -97,7 +97,9 @@ for combined in unique_combined:
     
     placement_count = len(filtered_placement_dfs) 
     
-    fig, axes = plt.subplots(2, placement_count, figsize=(3 * placement_count * 1.5, 3), squeeze=False)   
+    fig, axes = plt.subplots(2, placement_count, figsize=(3 * placement_count * 1.5, 3), squeeze=False) 
+    plt.subplots_adjust(hspace=1)
+      
     
     max_value = 1
     min_value = 1
@@ -116,6 +118,7 @@ for combined in unique_combined:
         first_line = placement_df.iloc[0]
         
         avg_values = {} 
+        avg_values_list = [] 
         
         # plot the cdf
         for cdf_param in cdf_params:
@@ -139,6 +142,7 @@ for combined in unique_combined:
                 label = cdf_param[:-7]
             label = f"{label} ({avg_value:.2f} X)"
             avg_values[label] = avg_value
+            avg_values_list.append((label, avg_value))  
             
             markevery = len(values) // 10 
             if markevery == 0:
@@ -146,8 +150,8 @@ for combined in unique_combined:
                 
             this_ax.plot(values, yvals, 
                          label=label, 
-                         marker=get_marker(cdf_param),
-                         color=get_color(cdf_param), 
+                         marker=get_marker(label),
+                         color=get_color(label), 
                          markevery=markevery,
                          markersize=3,
                          linewidth=1,
@@ -166,23 +170,19 @@ for combined in unique_combined:
         
         
 
-        avg_values_copy = avg_values.copy() 
-        #sort the avg_values based on the name
-        avg_value_copy = dict(sorted(avg_values_copy.items(), key=lambda item: item[0]))
-        
         # plot the average values in the second row 
-        
-        for j, (label, avg_value) in enumerate(avg_value_copy.items()):
+        for j, (label, avg_value) in enumerate(avg_values_list):
             this_ax_avg.bar(j, avg_value, label=label, color=get_color(label))
-        # this_ax_avg.set_xticks(range(len(avg_values)))
-        # this_ax_avg.set_xticklabels(avg_values.keys(), rotation=45)
-        # this_ax_avg.set_title("Average values")
-        # this_ax_avg.set_ylabel("Value")
+            
+        this_ax_avg.set_xticks(range(len(avg_values_list)))
+        this_ax_avg.set_xticklabels([x[0] for x in avg_values_list], rotation=90)
+        this_ax_avg.set_title("Average values")
+        this_ax_avg.set_ylabel("Value")
         
         # sort the legend iterms based on the average value (that was calculated above with an X mark)
         handles, labels = this_ax.get_legend_handles_labels()
         labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: avg_values[t[0]]))
-        this_ax_avg.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -0.25))
+        this_ax_avg.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -4))
         
         # if this is the last: 
         if i == placement_count - 1:
