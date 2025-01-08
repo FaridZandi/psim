@@ -138,7 +138,6 @@ def main():
             "link-solution-random-quantum": 10,
             "link-solution-top-candidates": 3,    
             "overall-solution-candidate-count": 1,
-            "rounds": 10,    
             "save-profiles": True,
         },
         "routing-parameters": {},

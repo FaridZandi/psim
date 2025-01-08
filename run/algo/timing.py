@@ -31,17 +31,29 @@ def log_results(run_context, key, value):
         f.write("\n\n---------------------------------\n\n")   
 
 
-def visualize_final_timing(jobs, options, run_context, job_timings, job_profiles, lb_decisions):
+def visualize_workload_timing(jobs, options, run_context, 
+                              job_timings, job_profiles, lb_decisions, 
+                              mode):
+    
     if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
         return
     
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)
-
     deltas = {}
     throttle_rates = {} 
-    for job_timing in job_timings:
-        deltas[job_timing["job_id"]] = job_timing["deltas"]
-        throttle_rates[job_timing["job_id"]] = job_timing["throttle_rates"]
+    suffix = ""
+    
+    if mode == "final":
+        suffix = "_final"
+        for job_timing in job_timings:
+            deltas[job_timing["job_id"]] = job_timing["deltas"]
+            throttle_rates[job_timing["job_id"]] = job_timing["throttle_rates"]
+    elif mode == "initial":
+        suffix = "_initial"
+        # job_timings is None. we want to visualize with all zeros. 
+        for job in jobs:
+            deltas[job["job_id"]] = [0] * job["iter_count"]
+            throttle_rates[job["job_id"]] = [1.0] * job["iter_count"]   
     
     link_logical_bandwidth = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
     
@@ -50,7 +62,7 @@ def visualize_final_timing(jobs, options, run_context, job_timings, job_profiles
                          deltas=deltas, 
                          throttle_rates=throttle_rates,
                          link_logical_bandwidth=link_logical_bandwidth, 
-                         suffix="_final")
+                         suffix=suffix)
 
 # all the workloads will be starting at the same time, at time 0.
 # this is technically the worst case scenario.
@@ -963,9 +975,11 @@ def get_timeshifts(jobs, options, run_context, job_profiles,
     
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)   
 
-    # visualize_link_loads(link_loads, run_context, base_deltas, base_throttle_rates,
+
+    # visualize_link_loads(link_loads, run_context, base_deltas, 
+    #                      base_throttle_rates,    
     #                      link_logical_bandwidth=link_logical_bandwidth, 
-    #                      suffix=f"_round_{round}_base")
+    #                      suffix=f"_round_base")
     
     best_candidate_score = -1e9 
     best_candidate_deltas = None
@@ -1045,7 +1059,7 @@ def get_timeshifts(jobs, options, run_context, job_profiles,
     visualize_link_loads(link_loads, run_context, best_candidate_deltas, 
                          best_candidate_throttle_rates,    
                          link_logical_bandwidth=link_logical_bandwidth, 
-                         suffix=f"_round_{round}_best")
+                         suffix=f"_round_{round + 1}_best")
 
     job_timings = [] 
     log_results(run_context, "best_candidate", (best_candidate_deltas, 
@@ -1128,7 +1142,7 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
     for i in range(run_context["farid-rounds"]):    
         sys.stderr.write("starting round: {}".format(i))
         any_progress = False
-        
+
         job_timings, good_until = get_timeshifts(jobs, options, run_context, job_profiles, 
                                                  starting_iterations=starting_iterations, 
                                                  base_deltas=base_deltas, weights=weights, 
@@ -1236,6 +1250,10 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     # load the job profiles. Might be a bit unnecassary in some cases, but anyway. 
     job_profiles = load_job_profiles(jobs, run_context)
     
+    visualize_workload_timing(jobs, options, run_context, 
+                              None, job_profiles, None, 
+                              mode="initial") 
+    
     # do the timing.
     job_timings = get_job_timings(jobs, options, run_context, job_profiles)
     
@@ -1243,7 +1261,9 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     lb_decisions = get_job_routings(jobs, options, run_context, job_profiles, job_timings)   
 
     # visualize
-    visualize_final_timing(jobs, options, run_context, job_timings, job_profiles, lb_decisions) 
+    visualize_workload_timing(jobs, options, run_context, 
+                              job_timings, job_profiles, 
+                              lb_decisions, mode="final") 
         
     # writing the results to the files. 
     with open(timing_file_path, "w") as f:

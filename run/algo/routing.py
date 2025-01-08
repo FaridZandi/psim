@@ -37,7 +37,7 @@ def plot_link_capacity(ax, time_range, base_rem, smoothed_rem, link_label, direc
     
 
 def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time, 
-               min_affected_time, max_affected_time, plots_dir, smoothing_window=1):
+               min_affected_time, max_affected_time, plots_dir, smoothing_window=1, suffix=""): 
     
     if "visualize-routing" in run_context and not run_context["visualize-routing"]:
         return  
@@ -84,7 +84,7 @@ def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time,
     fig.suptitle('Remaining Bandwidth for Each Link (Up and Down)', fontsize=16)
 
     # Save the entire subplot grid
-    plt_path = os.path.join(plots_dir, 'remaining_{}.png'.format(smoothing_window))    
+    plt_path = os.path.join(plots_dir, 'remaining_{}_{}.png'.format(smoothing_window, suffix))    
     plt.savefig(plt_path)
     plt.close(fig)
 
@@ -127,6 +127,12 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             iter_throttle_rate = job_throttle_rates[job["job_id"]][i]
             job_periods[job["job_id"]].append(job["period"][str(iter_throttle_rate)])
             
+            
+    
+    routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
+    os.makedirs(routing_plot_dir, exist_ok=True)   
+    plot_counter = 0  
+    
     # routing_time = run_context["sim-length"]  
     # it might actually be more than that.     
     routing_time = 0
@@ -145,8 +151,8 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             rem[i].append({"up": [link_bandwidth] * routing_time, 
                            "down": [link_bandwidth] * routing_time})
             
-            
     all_flows = [] 
+    
     
     for job_id, job_profile in job_profiles.items():
         shift = 0 
@@ -207,46 +213,109 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                 
             spine_availablity.append((s, spine_min_max_availble_mult))
         
+        
+        ###########################################################################
+        ### routing v1: ###########################################################
+        ###########################################################################
         # sort the spines by their availability.
-        spine_availablity.sort(key=lambda x: x[1], reverse=True)
-        # print ("Spine availability: ", spine_availablity)   
-        
-        good_spines = [] 
+        # TODO: do I need this here? 
+        # spine_availablity.sort(key=lambda x: x[1], reverse=True)
 
-        for s, spine_min_max_availble_mult in spine_availablity:
-            if spine_min_max_availble_mult >= min_subflow_mult:
-                good_spines.append((s, spine_min_max_availble_mult))    
-        
-        # print ("Good spines: ", good_spines)
-        selected_spines = []
-        selection_strategy = run_context["routing-fit-strategy"]
-        
-        if selection_strategy == "ecmp": 
-            selected_spines_samples = random.sample(range(num_spines), max_subflow_count)
-            for s in selected_spines_samples:
-                selected_spines.append((s, min_subflow_mult))
+        # good_spines = [] 
 
-        if len(good_spines) == 0:
-            message = "No spine found for the flow: {}-{}-{}, Start: {}, Src: {}, Dst: {}".format(
-                      job_id, flow_id, iteration, start_time, src_leaf, dst_leaf) 
-            # print (message)
-            selected_spines_samples = random.sample(range(num_spines), max_subflow_count)
-            for s in selected_spines_samples:
-                selected_spines.append((s, min_subflow_mult))
-        else:
-            if len(good_spines) == 1:
-                selected_spines = [(good_spines[0][0], 1.0)]
-            else: 
-                if selection_strategy == "first":
-                    selected_spines_samples = good_spines[:max_subflow_count]
-                elif selection_strategy == "random":
-                    selected_spines_samples = random.sample(good_spines, max_subflow_count)
+        # for s, spine_min_max_availble_mult in spine_availablity:
+        #     if spine_min_max_availble_mult >= min_subflow_mult:
+        #         good_spines.append((s, spine_min_max_availble_mult))    
+        
+        # # print ("Good spines: ", good_spines)
+        # selected_spines = []
+        # selection_strategy = run_context["routing-fit-strategy"]
+        
+        # if selection_strategy == "ecmp": 
+        #     selected_spines_samples = random.sample(range(num_spines), max_subflow_count)
+        #     for s in selected_spines_samples:
+        #         selected_spines.append((s, min_subflow_mult))
+
+        # if len(good_spines) == 0:
+        #     message = "No spine found for the flow: {}-{}-{}, Start: {}, Src: {}, Dst: {}".format(
+        #               job_id, flow_id, iteration, start_time, src_leaf, dst_leaf) 
+        #     # print (message)
+        #     selected_spines_samples = random.sample(range(num_spines), max_subflow_count)
+        #     for s in selected_spines_samples:
+        #         selected_spines.append((s, min_subflow_mult))
+        # else:
+        #     if len(good_spines) == 1:
+        #         selected_spines = [(good_spines[0][0], 1.0)]
+        #     else: 
+        #         if selection_strategy == "first":
+        #             selected_spines_samples = good_spines[:max_subflow_count]
+        #         elif selection_strategy == "random":
+        #             selected_spines_samples = random.sample(good_spines, max_subflow_count)
                 
-                for s, spine_min_max_availble_mult in selected_spines_samples:
-                    selected_spines.append((s, min_subflow_mult))
+        #         for s, spine_min_max_availble_mult in selected_spines_samples:
+        #             selected_spines.append((s, min_subflow_mult))
+        ###########################################################################
         
+        
+        
+        ###########################################################################
+        ### routing v2: ###########################################################
+        ###########################################################################
+        # sort the spines by their availability.
+        selection_strategy = run_context["routing-fit-strategy"]
+        if selection_strategy == "first": 
+            spine_availablity.sort(key=lambda x: x[1], reverse=True)
+        
+        # assuming we want to make at most max_subflow_count subflows, 
+        # how much of the flow can we actually serve?
+        max_subf_availablity = sum([mult for s, mult in spine_availablity[:max_subflow_count]]) 
+        
+        selected_spines = [] 
+
+        remaining = 1.0 
+        epsilon = 1e-3 
+        
+        # if we can serve the entire flow, then we can just use the spines as they are.
+        if max_subf_availablity >= 1.0 - epsilon:
+            min_available_mult = 1.0 
+            for s, mult in spine_availablity:
+                min_available_mult = min(min_available_mult, mult)   
+                selected_spines.append((s, min(remaining, mult)))   
+                remaining -= mult
+                if remaining < epsilon:
+                    break
+            
+            ####################################################################
+            # trying this but not sure if it's a good idea. 
+            ####################################################################
+            assigned_spines_count = len(selected_spines)    
+            fair_assigned_mult = 1.0 / assigned_spines_count    
+            
+            sys.stderr.write("Assigned spines count: {}, Fair assigned mult: {}, Min available mult: {}\n".format(
+                assigned_spines_count, fair_assigned_mult, min_available_mult))
+            
+            if fair_assigned_mult <= min_available_mult:
+                spines = [s for s, _ in selected_spines]    
+                selected_spines = [] 
+                for s in spines:
+                    selected_spines.append((s, fair_assigned_mult))
+                    
+                
+            ####################################################################
+            
+        # otherwise, we need to distribute the flow among the spines.
+        # TODO: there might be better ways to do this. 
+        # like if there's a spine that can serve more than the equal_mult,
+        # we can give it more. 
+        # For now, we just distribute the flow equally among the spines.
+        else: 
+            equal_mult = 1.0 / max_subflow_count    
+            for s, _ in spine_availablity[:max_subflow_count]:  
+                selected_spines.append((s, equal_mult))
+                
+        ###########################################################################
+
         # print ("Selected spines: ", selected_spines)
-        
         lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
         
         if start_time < min_affected_time:
@@ -260,8 +329,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                 rem[src_leaf][s]["up"][t]   -= time_req
                 rem[dst_leaf][s]["down"][t] -= time_req    
     
-    routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
-    os.makedirs(routing_plot_dir, exist_ok=True)    
+ 
 
     for smoothing_window in [1, 1000]: 
         draw_stuff(run_context, 

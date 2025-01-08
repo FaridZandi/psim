@@ -203,6 +203,11 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         stdout, stderr = process.communicate(input=input_data)
         try:
             output = json.loads(stdout.decode("utf-8")) 
+
+            err_output = stderr.decode("utf-8") 
+            with open(run_context["output-file"], "w") as f:
+                f.write(err_output) 
+                
         except json.JSONDecodeError as e:
             print("Error in the subprocess: ", e)
             print("stdout: ", stdout.decode("utf-8"))
@@ -435,6 +440,17 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                                                                  placement_seed, jobs, options, 
                                                                  run_context, run_cassini_timing_in_subprocess))
     
+    if lb_decisions is not None:
+        total_subflows = 0
+        total_flows = 0   
+        for lb_decision in lb_decisions:    
+            total_subflows += lb_decision["spine_count"]
+            total_flows += 1 
+            
+        run_context["subflow_ratio"] = total_subflows / total_flows
+    else:
+        run_context["subflow_ratio"] = 1.0  
+        
     options["timing-file"] = timing_file_path
     options["routing-file"] = routing_file_path 
     
@@ -571,10 +587,17 @@ def add_up_job_numbers(numbers1, numbers2):
 def result_extractor_function(output, options, this_exp_results, run_context, config_sweeper):
     plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
     
+
+    # copy the output_file to the runtime dir.
+    if "output-file" in run_context:
+        shutil.copy(run_context["output-file"],  
+                    run_context["runtime-dir"] + "/output.txt")
+                        
     printed_metrics = [] 
     run_context["job_numbers"] = {}    
     
     for metric in run_context["interesting-metrics"]:
+        is_single_number = False
         all_jobs_running = False
         
         if metric == "rolling_costs":
@@ -610,6 +633,10 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             
             job_numbers = add_up_job_numbers(rollied_ar_times, job_costs)   
 
+        elif metric == "subflow_ratio":
+            job_numbers = run_context["subflow_ratio"]   
+            is_single_number = True
+            
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 
@@ -619,28 +646,38 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             results_path = "{}/results-{}.json".format(run_context["runtime-dir"], metric)
             with open(results_path, "w") as f:
                 json.dump(job_numbers, f, indent=4)
-                
-        avg_job_numbers = [] 
-        for rep in job_numbers:
-            sum_job_numbers = 0 
-            number_count = 0
             
-            for job, numbers in rep.items():
-                sum_job_numbers += sum(numbers) 
-                number_count += len(numbers)    
+        if is_single_number:
+            printed_metrics.append(metric)
+            this_exp_results.update({   
+                "min_{}".format(metric): job_numbers,   
+                "max_{}".format(metric): job_numbers,
+                "last_{}".format(metric): job_numbers,
+                "avg_{}".format(metric): job_numbers,
+                "all_{}".format(metric): job_numbers,
+            })
+        else:
+            avg_job_numbers = [] 
+            for rep in job_numbers:
+                sum_job_numbers = 0 
+                number_count = 0
                 
-            avg_job_number = round(sum_job_numbers / number_count, rounding_precision) 
-            avg_job_numbers.append(avg_job_number)    
-        
-        printed_metrics.append("avg_{}".format(metric)) 
-        
-        this_exp_results.update({
-            "min_{}".format(metric): min(avg_job_numbers),
-            "max_{}".format(metric): max(avg_job_numbers),
-            "last_{}".format(metric): avg_job_numbers[-1],
-            "avg_{}".format(metric): round(np.mean(avg_job_numbers), rounding_precision),
-            "all_{}".format(metric): avg_job_numbers,  
-        })
+                for job, numbers in rep.items():
+                    sum_job_numbers += sum(numbers) 
+                    number_count += len(numbers)    
+                    
+                avg_job_number = round(sum_job_numbers / number_count, rounding_precision) 
+                avg_job_numbers.append(avg_job_number)    
+            
+            printed_metrics.append("avg_{}".format(metric)) 
+            
+            this_exp_results.update({
+                "min_{}".format(metric): min(avg_job_numbers),
+                "max_{}".format(metric): max(avg_job_numbers),
+                "last_{}".format(metric): avg_job_numbers[-1],
+                "avg_{}".format(metric): round(np.mean(avg_job_numbers), rounding_precision),
+                "all_{}".format(metric): avg_job_numbers,  
+            })
     
     return printed_metrics  
 

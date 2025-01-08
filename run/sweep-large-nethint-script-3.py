@@ -7,7 +7,7 @@ random_rep_count = 1
 
 viz = False
 sim_length = 5000
-seed_range = 1
+seed_range = 5
 placement_options = 100
 farid_rounds = 30 
 
@@ -70,7 +70,9 @@ def main():
                            "rolling_iter_time", 
                            "rolling_ar_time", 
                            "rolling_costs",
-                           "rolling_ar_plus_cost"] 
+                           "rolling_ar_plus_cost",
+                           "subflow_ratio"
+                           ] 
     
     oversub = 2
     placement_modes = ["manual_4"]
@@ -118,7 +120,7 @@ def main():
     if viz: 
         timing_viz = placement_seeds
     else:
-        timing_viz = [1]    
+        timing_viz = []    
     
     comparison_base = {
         "timing-scheme": "zero", 
@@ -134,7 +136,7 @@ def main():
 
     comparisons = [
     ]
-    subflows = 1 # core_count
+    subflows = 3 # core_count
     
     for i in punish_oversubscribed_min_values:
         comparisons.append(("zero-{}-perfect".format(i), 
@@ -158,7 +160,7 @@ def main():
                              "farid-rounds": farid_rounds, 
                              "lb-scheme": "readprotocol", 
                              "throttle-search": True, 
-                             "subflows": subflows, 
+                             "subflows": core_count, 
                              "punish-oversubscribed": True,
                              "punish-oversubscribed-min": i})) 
         
@@ -203,7 +205,6 @@ def main():
             "link-solution-random-quantum": 10,
             "link-solution-top-candidates": 3,    
             "overall-solution-candidate-count": 4,
-            "rounds": 10,    
             "save-profiles": True,
         },
         "routing-parameters": {},
