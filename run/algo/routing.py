@@ -5,7 +5,7 @@ import os
 from copy import deepcopy
 import random 
 import sys 
-
+import itertools
 
 ############################################################################################################
 ############################################################################################################
@@ -59,27 +59,35 @@ def draw_stuff(run_context, rem, num_leaves, num_spines, routing_time,
 
     # Create a figure with multiple subplots
     total_subplots = num_leaves * num_spines * 2  # Two plots (up and down) per leaf-spine pair
-    fig, axes = plt.subplots(num_leaves, num_spines * 2, figsize=(num_spines * 8, num_leaves * 3), constrained_layout=True)
+    fig, axes = plt.subplots(num_leaves, num_spines * 2, 
+                             figsize=(num_spines * 8, num_leaves * 3), 
+                             constrained_layout=True, squeeze=False)
 
     # Iterate over each leaf, spine pair to plot its remaining capacity
     for leaf in range(num_leaves):
         for spine in range(num_spines):
             # Plot "up" direction
-            ax_up = axes[leaf, spine * 2] if num_leaves > 1 else axes[spine * 2]
+            ax_up = axes[leaf, spine * 2]
+            
             plot_link_capacity(ax_up, time_range, 
                                rem[leaf][spine]["up"],
                                smoothed_rem[leaf][spine]["up"], 
                                f'Leaf {leaf}, Spine {spine}', 'Up', 'blue', 
                                min_affected_time, max_affected_time)
 
+
             # Plot "down" direction
-            ax_down = axes[leaf, spine * 2 + 1] if num_leaves > 1 else axes[spine * 2 + 1]
+            ax_down = axes[leaf, spine * 2 + 1] 
+            
             plot_link_capacity(ax_down, time_range, 
                                rem[leaf][spine]["down"],    
                                smoothed_rem[leaf][spine]["down"], 
                                f'Leaf {leaf}, Spine {spine}', 'Down', 'red', 
                                min_affected_time, max_affected_time)
 
+            ax_up.invert_yaxis()
+            ax_down.invert_yaxis()
+            
     # Give a super title to the whole figure
     fig.suptitle('Remaining Bandwidth for Each Link (Up and Down)', fontsize=16)
 
@@ -214,6 +222,9 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             spine_availablity.append((s, spine_min_max_availble_mult))
         
         
+        selected_spines = [] 
+        
+        
         ###########################################################################
         ### routing v1: ###########################################################
         ###########################################################################
@@ -228,7 +239,6 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
         #         good_spines.append((s, spine_min_max_availble_mult))    
         
         # # print ("Good spines: ", good_spines)
-        # selected_spines = []
         # selection_strategy = run_context["routing-fit-strategy"]
         
         # if selection_strategy == "ecmp": 
@@ -261,58 +271,110 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
         ###########################################################################
         ### routing v2: ###########################################################
         ###########################################################################
-        # sort the spines by their availability.
+        
         selection_strategy = run_context["routing-fit-strategy"]
-        if selection_strategy == "first": 
+        
+        if selection_strategy == "best": 
+            # sort the spines by their availability.
             spine_availablity.sort(key=lambda x: x[1], reverse=True)
         
-        # assuming we want to make at most max_subflow_count subflows, 
-        # how much of the flow can we actually serve?
-        max_subf_availablity = sum([mult for s, mult in spine_availablity[:max_subflow_count]]) 
-        
-        selected_spines = [] 
+            # assuming we want to make at most max_subflow_count subflows, 
+            # how much of the flow can we actually serve?
+            max_subf_availablity = sum([mult for s, mult in spine_availablity[:max_subflow_count]]) 
 
-        remaining = 1.0 
-        epsilon = 1e-3 
-        
-        # if we can serve the entire flow, then we can just use the spines as they are.
-        if max_subf_availablity >= 1.0 - epsilon:
-            min_available_mult = 1.0 
-            for s, mult in spine_availablity:
-                min_available_mult = min(min_available_mult, mult)   
-                selected_spines.append((s, min(remaining, mult)))   
-                remaining -= mult
-                if remaining < epsilon:
-                    break
+            remaining = 1.0 
+            epsilon = 1e-3 
             
-            ####################################################################
-            # trying this but not sure if it's a good idea. 
-            ####################################################################
-            assigned_spines_count = len(selected_spines)    
-            fair_assigned_mult = 1.0 / assigned_spines_count    
-            
-            sys.stderr.write("Assigned spines count: {}, Fair assigned mult: {}, Min available mult: {}\n".format(
-                assigned_spines_count, fair_assigned_mult, min_available_mult))
-            
-            if fair_assigned_mult <= min_available_mult:
-                spines = [s for s, _ in selected_spines]    
-                selected_spines = [] 
-                for s in spines:
-                    selected_spines.append((s, fair_assigned_mult))
+            # if we can serve the entire flow, then we can just use the spines as they are.
+            if max_subf_availablity >= 1.0 - epsilon:
+                min_available_mult = 1.0 
+                for s, mult in spine_availablity:
+                    min_available_mult = min(min_available_mult, mult)   
+                    selected_spines.append((s, min(remaining, mult)))   
+                    remaining -= mult
+                    if remaining < epsilon:
+                        break
+                
+                ####################################################################
+                # trying this but not sure if it's a good idea. 
+                ####################################################################
+                assigned_spines_count = len(selected_spines)    
+                fair_assigned_mult = 1.0 / assigned_spines_count    
+                
+                sys.stderr.write("Assigned spines count: {}, Fair assigned mult: {}, Min available mult: {}\n".format(
+                    assigned_spines_count, fair_assigned_mult, min_available_mult))
+                
+                if fair_assigned_mult <= min_available_mult:
+                    spines = [s for s, _ in selected_spines]    
+                    selected_spines = [] 
+                    for s in spines:
+                        selected_spines.append((s, fair_assigned_mult))
                     
+                ####################################################################
                 
-            ####################################################################
+            # otherwise, we need to distribute the flow among the spines.
+            # TODO: there might be better ways to do this. 
+            # like if there's a spine that can serve more than the equal_mult,
+            # we can give it more. 
+            # For now, we just distribute the flow equally among the spines.
+            else: 
+                equal_mult = 1.0 / max_subflow_count    
+                for s, _ in spine_availablity[:max_subflow_count]:  
+                    selected_spines.append((s, equal_mult))
+
+        elif selection_strategy == "first": 
             
-        # otherwise, we need to distribute the flow among the spines.
-        # TODO: there might be better ways to do this. 
-        # like if there's a spine that can serve more than the equal_mult,
-        # we can give it more. 
-        # For now, we just distribute the flow equally among the spines.
-        else: 
-            equal_mult = 1.0 / max_subflow_count    
-            for s, _ in spine_availablity[:max_subflow_count]:  
-                selected_spines.append((s, equal_mult))
+            total_avail = sum([mult for s, mult in spine_availablity]) 
+            availability_map = {s: mult for s, mult in spine_availablity} 
+
+            if total_avail < 1.0:
+                equal_mult = 1.0 / max_subflow_count    
+                for s, _ in spine_availablity[:max_subflow_count]:  
+                    selected_spines.append((s, equal_mult))
                 
+            else: 
+                # start
+                found = False                 
+
+                # for current_subflow_count in range(1, max_subflow_count + 1):
+                for current_subflow_count in [max_subflow_count]:
+                    
+                    spine_range = range(num_spines) 
+                    for spine_comb in itertools.combinations(spine_range, current_subflow_count):
+
+                        current_comb_avail = sum([availability_map[s] for s in spine_comb]) 
+
+                        if current_comb_avail >= 1.0:
+                            # tap out until we nothing remains. 
+                            found = True    
+                            remaining = 1.0 
+                            epsilon = 1e-3 
+
+                            for s in spine_comb:    
+                                if availability_map[s] < epsilon:   
+                                    continue
+                                
+                                selected_spines.append((s, min(remaining, availability_map[s])))
+                                
+                                remaining -= availability_map[s]
+                                if remaining < epsilon:
+                                    break
+                                
+                            break
+                    if found:
+                        break
+                    
+                if not found:   
+                    equal_mult = 1.0 / max_subflow_count    
+                    random_sample = random.sample(range(num_spines), max_subflow_count) 
+                    for s in random_sample:
+                        selected_spines.append((s, equal_mult))
+        
+        elif selection_strategy == "random":
+            random_sample = random.sample(range(num_spines), max_subflow_count) 
+            for s in random_sample:
+                selected_spines.append((s, min_subflow_mult))
+                              
         ###########################################################################
 
         # print ("Selected spines: ", selected_spines)
@@ -322,14 +384,27 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             min_affected_time = start_time 
         if end_time > max_affected_time:     
             max_affected_time = end_time
-            
+        
+        insufficient_capacity = False   
+        
         for t in range(start_time, end_time + 1):
             for s, mult in selected_spines:
                 time_req = flow["progress_history"][t - flow["progress_shift"]] * mult
                 rem[src_leaf][s]["up"][t]   -= time_req
                 rem[dst_leaf][s]["down"][t] -= time_req    
+                
+                if rem[src_leaf][s]["up"][t] < 0 or rem[dst_leaf][s]["down"][t] < 0:
+                    insufficient_capacity = True 
+                    break        
+                
     
- 
+        # if insufficient_capacity:
+        #     draw_stuff(run_context, 
+        #         rem, num_leaves, num_spines, routing_time, 
+        #         min_affected_time, max_affected_time, 
+        #         routing_plot_dir, smoothing_window=1, suffix=plot_counter)
+        
+        plot_counter += 1
 
     for smoothing_window in [1, 1000]: 
         draw_stuff(run_context, 

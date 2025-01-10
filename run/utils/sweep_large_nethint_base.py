@@ -449,7 +449,10 @@ def run_command_options_modifier(options, config_sweeper, run_context):
             
         run_context["subflow_ratio"] = total_subflows / total_flows
     else:
-        run_context["subflow_ratio"] = 1.0  
+        if run_context["perfect_lb"]:
+            run_context["subflow_ratio"] = run_context["original_core_count"]
+        else:
+            run_context["subflow_ratio"] = options["subflows"]   
         
     options["timing-file"] = timing_file_path
     options["routing-file"] = routing_file_path 

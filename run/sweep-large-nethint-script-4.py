@@ -174,10 +174,13 @@ def main():
             "overall-solution-candidate-count": 4,
             "save-profiles": True,
         },
+        
         "routing-parameters": {},
+        
         "placement-parameters": {
             "placement-seed-limit": placement_options,
         },   
+        
         "selected-setting": selected_setting,
         
         "comparison-base": comparison_base,              
