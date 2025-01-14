@@ -6,8 +6,8 @@ experiment_seed = 75
 random_rep_count = 1
 
 viz = False
-sim_length = 1500
-seed_range = 1
+sim_length = 10000
+seed_range = 10
 placement_options = 100
 farid_rounds = 30 
 
@@ -16,13 +16,13 @@ def main():
 
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
-        "machine-count": 18,
+        "machine-count": 12,
         "ft-server-per-rack": 6,
         "jobs-machine-count-low": 6,
         "jobs-machine-count-high": 6,
         "placement-seed-range": seed_range,
         "comm-size": [16000],
-        "comp-size": [200],
+        "comp-size": [200, 400],
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }
@@ -73,7 +73,7 @@ def main():
                            "subflow_ratio"
                            ] 
 
-    placement_modes = ["random"]
+    placement_modes = ["semirandom_1", "semirandom_2", "semirandom_4"]
     punish_oversubscribed_min_values = [1]  
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     profiled_throttle_factors = [1.0, 0.60]
@@ -87,7 +87,7 @@ def main():
     if viz: 
         timing_viz = placement_seeds
     else:
-        timing_viz = [0]  
+        timing_viz = []  
         
     exp_sweep_config = {
         "protocol-file-name": ["nethint-test"],
@@ -131,7 +131,15 @@ def main():
     }
 
     comparisons = []
-    
+
+    for i in punish_oversubscribed_min_values:
+        comparisons.append(("zero-{}-perfect".format(i), 
+                            {"timing-scheme": "zero", 
+                             "lb-scheme": "perfect", 
+                             "subflows": 1, 
+                             "punish-oversubscribed": True, 
+                             "punish-oversubscribed-min": i})) 
+             
     for i in punish_oversubscribed_min_values:
         comparisons.append(("random-{}-perfect".format(i), 
                             {"timing-scheme": "random", 

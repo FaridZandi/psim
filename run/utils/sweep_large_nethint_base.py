@@ -446,8 +446,11 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         for lb_decision in lb_decisions:    
             total_subflows += lb_decision["spine_count"]
             total_flows += 1 
-            
-        run_context["subflow_ratio"] = total_subflows / total_flows
+        
+        if total_flows == 0:
+            run_context["subflow_ratio"] = 1
+        else:
+            run_context["subflow_ratio"] = total_subflows / total_flows
     else:
         if run_context["perfect_lb"]:
             run_context["subflow_ratio"] = run_context["original_core_count"]

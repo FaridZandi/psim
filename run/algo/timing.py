@@ -13,6 +13,8 @@ import os
 import pickle as pkl 
 import numpy as np 
 from utils.util import rage_quit
+from scipy.ndimage.filters import gaussian_filter1d
+from scipy.interpolate import interp1d
 
 ####################################################################################
 ##################  HELPER FUNCTIONS  ##############################################
@@ -772,6 +774,10 @@ def visualize_link_loads_runtime(link_loads, run_context,
                 for job_load in job_loads_array:
                     # np.convolve 
                     smoothed = np.convolve(job_load, np.ones(smoothing_window) / smoothing_window, mode='same') 
+
+                    # gaussian filter
+                    # smoothed = gaussian_filter1d(job_load, sigma=10)
+                    
                     smoothed_job_loads.append(smoothed)
                 
                 job_loads_array = np.array(smoothed_job_loads)
