@@ -593,7 +593,6 @@ def add_up_job_numbers(numbers1, numbers2):
 def result_extractor_function(output, options, this_exp_results, run_context, config_sweeper):
     plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
     
-
     # copy the output_file to the runtime dir.
     if "output-file" in run_context:
         shutil.copy(run_context["output-file"],  
@@ -602,8 +601,9 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
     printed_metrics = [] 
     run_context["job_numbers"] = {}    
     
-    for metric in run_context["interesting-metrics"]:
-        is_single_number = False
+    for metric in run_context["interesting-metrics"].keys(): 
+        metric_info = run_context["interesting-metrics"][metric]    
+        
         all_jobs_running = False
         
         if metric == "rolling_costs":
@@ -641,49 +641,50 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
 
         elif metric == "subflow_ratio":
             job_numbers = run_context["subflow_ratio"]   
-            is_single_number = True
-            
+                        
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 
-        # print the values of the relevant keys either from run_context or from the options.            
-        run_context["job_numbers"][metric] = job_numbers    
-        if "output-file" in run_context:
-            results_path = "{}/results-{}.json".format(run_context["runtime-dir"], metric)
-            with open(results_path, "w") as f:
-                json.dump(job_numbers, f, indent=4)
+        if metric_info["iter_avg_plot"]:
+            run_context["job_numbers"][metric] = job_numbers    
             
-        if is_single_number:
-            printed_metrics.append(metric)
-            this_exp_results.update({   
-                "min_{}".format(metric): job_numbers,   
-                "max_{}".format(metric): job_numbers,
-                "last_{}".format(metric): job_numbers,
-                "avg_{}".format(metric): job_numbers,
-                "all_{}".format(metric): job_numbers,
-            })
-        else:
-            avg_job_numbers = [] 
-            for rep in job_numbers:
-                sum_job_numbers = 0 
-                number_count = 0
-                
-                for job, numbers in rep.items():
-                    sum_job_numbers += sum(numbers) 
-                    number_count += len(numbers)    
+            if "output-file" in run_context:
+                results_path = "{}/results-{}.json".format(run_context["runtime-dir"], metric)
+                with open(results_path, "w") as f:
+                    json.dump(job_numbers, f, indent=4)
+        
+        if metric_info["avg_cdf_plot"]:
+            if metric_info["type"] == "single_number":
+                printed_metrics.append(metric)
+                this_exp_results.update({   
+                    "min_{}".format(metric): job_numbers,   
+                    "max_{}".format(metric): job_numbers,
+                    "last_{}".format(metric): job_numbers,
+                    "avg_{}".format(metric): job_numbers,
+                    "all_{}".format(metric): job_numbers,
+                })
+            elif metric_info["type"] == "per_iter":
+                avg_job_numbers = [] 
+                for rep in job_numbers:
+                    sum_job_numbers = 0 
+                    number_count = 0
                     
-                avg_job_number = round(sum_job_numbers / number_count, rounding_precision) 
-                avg_job_numbers.append(avg_job_number)    
-            
-            printed_metrics.append("avg_{}".format(metric)) 
-            
-            this_exp_results.update({
-                "min_{}".format(metric): min(avg_job_numbers),
-                "max_{}".format(metric): max(avg_job_numbers),
-                "last_{}".format(metric): avg_job_numbers[-1],
-                "avg_{}".format(metric): round(np.mean(avg_job_numbers), rounding_precision),
-                "all_{}".format(metric): avg_job_numbers,  
-            })
+                    for job, numbers in rep.items():
+                        sum_job_numbers += sum(numbers) 
+                        number_count += len(numbers)    
+                        
+                    avg_job_number = round(sum_job_numbers / number_count, rounding_precision) 
+                    avg_job_numbers.append(avg_job_number)    
+                
+                printed_metrics.append("avg_{}".format(metric)) 
+                
+                this_exp_results.update({
+                    "min_{}".format(metric): min(avg_job_numbers),
+                    "max_{}".format(metric): max(avg_job_numbers),
+                    "last_{}".format(metric): avg_job_numbers[-1],
+                    "avg_{}".format(metric): round(np.mean(avg_job_numbers), rounding_precision),
+                    "all_{}".format(metric): avg_job_numbers,  
+                })
     
     return printed_metrics  
 
@@ -761,15 +762,33 @@ def plot_cdfs(separating_params, cdf_params,
         f.write(plot_command)
         f.write("\n")   
                 
+comparison_color_options_base = ["#1f77b4", "#ff7f0e", "#2ca02c", "#d62728", "#9467bd", "#8c564b", "#e377c2", "#7f7f7f", "#bcbd22", "#17becf"]
+comparison_color_options = comparison_color_options_base.copy()  
+comparison_color_cache = {} 
+
+def get_comparison_color(comparison):
+    global comparison_color_options
+    if comparison not in comparison_color_cache:
+        comparison_color_cache[comparison] = comparison_color_options.pop(0)
+        if len(comparison_color_options) == 0:
+            comparison_color_options = comparison_color_options_base.copy() 
+    return comparison_color_cache[comparison]   
+
 
 def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
     import matplotlib.pyplot as plt 
     import seaborn as sns   
     
+    iter_avg_plot_metrics = [] 
+    for metric in global_context["interesting-metrics"].keys(): 
+        metric_info = global_context["interesting-metrics"][metric] 
+        if metric_info["iter_avg_plot"]:    
+            iter_avg_plot_metrics.append(metric)
+    
     exp_results_df = exp_results_df.copy()
     
     all_data_df = pd.DataFrame(
-        columns=["placement-hash", "comparison", "metric", "job_id", "iter_id", "value"]    
+        columns=["placement-hash", "placement-mode", "placement-seed", "ring-mode", "comparison", "metric", "job_id", "iter_id", "value"]    
     )
     all_data_list = []
     
@@ -792,16 +811,21 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
             
         for i, row in compared_df.iterrows():
             placement_hash = row["placement-hash"] 
-            
+            placement_mode = row["placement-mode"] 
+            placement_seed = row["placement-seed"] 
+            ring_mode = row["ring-mode"]   
             job_numbers = row["job_numbers"]
                     
-            for metric in global_context["interesting-metrics"]:
+            for metric in iter_avg_plot_metrics:
                 metric_numbers = job_numbers[metric][0]
                 
                 for job_id, numbers in metric_numbers.items():
                     for iter_id, number in enumerate(numbers):  
                         all_data_list.append({
-                            "placement-hash": placement_hash,   
+                            "placement-hash": placement_hash,
+                            "placement-mode": placement_mode,
+                            "placement-seed": placement_seed,   
+                            "ring-mode": ring_mode, 
                             "comparison": comparison_name,
                             "metric": metric,
                             "job_id": job_id,
@@ -827,7 +851,7 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
     # for each metric, placement, job, iteration, 
     # normalize with respect to the base comparison.
     # stort the results in the "normalized" column. 
-    for metric in global_context["interesting-metrics"]:
+    for metric in iter_avg_plot_metrics:
         metric_group = all_data_df[all_data_df["metric"] == metric]
         
         for placement_hash in all_data_df["placement-hash"].unique():
@@ -844,19 +868,25 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
                     for i, row in iter_group.iterrows():
                         value = row["value"]
                         
-                        if metric == "rolling_costs":
-                            normalized_value = value
-                        else:
-                            normalized_value = value / base_value
+                        metric_info = global_context["interesting-metrics"][metric]  
                         
+                        if metric_info["compare_mode"] == "self":
+                            normalized_value = value
+                        elif metric_info["compare_mode"] == "divide": 
+                            normalized_value = value / base_value
+                        elif metric_info["compare_mode"] == "subtract":
+                            normalized_value = value - base_value
+                                
                         all_data_df.loc[i, "normalized"] = normalized_value
-        
     
     csv_path = config_sweeper.csv_dir + f"reduced-{metric}.csv"
     all_data_df.to_csv(csv_path, index=False)
     
+
+    
+    
     for plot_type in ["line", "bar"]:
-        for metric in global_context["interesting-metrics"]:
+        for metric in iter_avg_plot_metrics:
             metric_group = all_data_df[all_data_df["metric"] == metric] 
             # number of unique placement hashes.    
             placement_hashes = metric_group["placement-hash"].unique()
@@ -865,6 +895,7 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
             max_height = 0 
             for placement_hash in placement_hashes:  
                 placement_group = metric_group[metric_group["placement-hash"] == placement_hash]
+                
                 jobs = placement_group["job_id"].unique() 
                 plot_height = len(jobs)
                 max_height = max(max_height, plot_height)    
@@ -873,6 +904,12 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
             
             for i, placement_hash in enumerate(placement_hashes):
                 placement_group = metric_group[metric_group["placement-hash"] == placement_hash]
+                
+                placement_mode = placement_group["placement-mode"].iloc[0] 
+                ring_mode = placement_group["ring-mode"].iloc[0]
+                placement_seed = placement_group["placement-seed"].iloc[0] 
+                column_title = f"{placement_mode}-{ring_mode}-{placement_seed}"
+                
                 job_ids = placement_group["job_id"].unique() 
                 job_ids.sort()
                 height = len(job_ids) 
@@ -885,6 +922,7 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
                 # sort the comparisons by the mean value.
                 sorted_comparisons = sorted(comparison_mean_dict.items(), key=lambda x: x[1])
                 sorted_comparisons = [comp for comp, _ in sorted_comparisons]
+                colors = [get_comparison_color(comp) for comp in sorted_comparisons]    
                 
                 for job_id in job_ids:
                     j = job_plot_index[job_id]
@@ -898,21 +936,33 @@ def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
                         sns.lineplot(data=job_group, ax=ax,
                                     x="iter_id", y="normalized", 
                                     hue="comparison", hue_order=sorted_comparisons,
+                                    palette=colors,
                                     style="comparison", markers=True,  
                                     legend=legend)
                         
                     elif plot_type == "bar":    
                         sns.barplot(data=job_group, ax=ax,
                                     x="iter_id", y="normalized",
-                                    hue="comparison", hue_order=sorted_comparisons,
+                                    hue="comparison", 
+                                    hue_order=sorted_comparisons,
+                                    palette=colors,
                                     dodge=True, alpha=0.75, 
                                     errorbar=None)
-                        
+                        if not legend:
+                            ax.get_legend().remove()    
+
                     if legend: 
                         ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.05))
-                                            
+                        
                     ax.set_xlabel("Iteration")
                     ax.set_ylabel("Time (ms)")  
+                
+                    if j == 0:
+                        ax.set_title(column_title)
+                    if i == 0:
+                        ax.set_ylabel(f"{job_id}") 
+                    
+                    
                         
             plt.tight_layout()
             
@@ -941,7 +991,11 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         
     all_placement_modes = global_context["all-placement-modes"]
     
-    for metric in global_context["interesting-metrics"]:
+    for metric in global_context["interesting-metrics"].keys():
+        metric_info = global_context["interesting-metrics"][metric]
+        if not metric_info["avg_cdf_plot"]:
+            continue
+        
         avg_metric_key = "avg_{}".format(metric)
         metric_csv_dir = config_sweeper.csv_dir + metric + "/" 
         metric_plots_dir = config_sweeper.plots_dir + "/cdfs/" + metric  
@@ -983,11 +1037,20 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 base_avg_metric_key = "{}_base".format(avg_metric_key)
                 compared_avg_metric_key = "{}_compared".format(avg_metric_key)
                 
-                if metric == "rolling_costs":
-                    merged_df["speedup"] = merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key]
-                else:
-                    merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], rounding_precision)
-                
+                if metric_info["compare_mode"] == "self":
+                    merged_df["speedup"] = merged_df[compared_avg_metric_key]
+                elif metric_info["compare_mode"] == "divide":
+                    if metric_info["better"] == "lower":    
+                        merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], rounding_precision)
+                    elif metric_info["better"] == "higher": 
+                        merged_df["speedup"] = round(merged_df[compared_avg_metric_key] / merged_df[base_avg_metric_key], rounding_precision)
+                elif metric_info["compare_mode"] == "subtract":
+                    # merged_df["speedup"] = merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key]
+                    if metric_info["better"] == "lower":    
+                        merged_df["speedup"] = round(merged_df[base_avg_metric_key] - merged_df[compared_avg_metric_key], rounding_precision)
+                    elif metric_info["better"] == "higher": 
+                        merged_df["speedup"] = round(merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key], rounding_precision)
+                        
                 saved_columns = merge_on + ["speedup"]
 
                 csv_path = metric_placement_csv_dir + f"speedup_{comparison_name}.csv"

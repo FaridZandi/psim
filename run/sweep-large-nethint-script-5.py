@@ -16,13 +16,13 @@ def main():
 
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
-        "machine-count": 12,
+        "machine-count": 24,
         "ft-server-per-rack": 6,
         "jobs-machine-count-low": 6,
         "jobs-machine-count-high": 6,
         "placement-seed-range": seed_range,
         "comm-size": [16000],
-        "comp-size": [200, 400],
+        "comp-size": [200],
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }
@@ -64,22 +64,64 @@ def main():
         # "export-dot": True,    
     }
 
-    interesting_metrics = ["avg_ar_time", 
-                           "avg_iter_time", 
-                           "rolling_iter_time", 
-                           "rolling_ar_time", 
-                           "rolling_costs",
-                           "rolling_ar_plus_cost",
-                           "subflow_ratio"
-                           ] 
+    interesting_metrics = {
+        "avg_ar_time": {
+            "avg_cdf_plot": True,   
+            "iter_avg_plot": False,  
+            "compare_mode": "divide",
+            "better": "lower",
+            "type": "per_iter",
+        },
+        "avg_iter_time": {
+            "avg_cdf_plot": True,   
+            "iter_avg_plot": False,  
+            "compare_mode": "divide",
+            "better": "lower",
+            "type": "per_iter",
+        }, 
+        "rolling_iter_time": {
+            "avg_cdf_plot": False,   
+            "iter_avg_plot": True,  
+            "compare_mode": "divide",
+            "better": "lower",
+            "type": "per_iter",
+        }, 
+        "rolling_ar_time": {
+            "avg_cdf_plot": False,   
+            "iter_avg_plot": True,  
+            "compare_mode": "divide",
+            "better": "lower",
+            "type": "per_iter",
+        }, 
+        "rolling_costs": {
+            "avg_cdf_plot": False,   
+            "iter_avg_plot": True,  
+            "compare_mode": "subtract",
+            "better": "lower",
+            "type": "per_iter",
+        },
+        "rolling_ar_plus_cost": {
+            "avg_cdf_plot": False,   
+            "iter_avg_plot": True,  
+            "compare_mode": "divide",
+            "better": "lower",
+            "type": "per_iter",
+        },
+        "subflow_ratio": {
+            "avg_cdf_plot": True,   
+            "iter_avg_plot": False,  
+            "compare_mode": "divide",
+            "better": "lower",
+            "type": "single_number", 
+        },
+    } 
 
     placement_modes = ["semirandom_1", "semirandom_2", "semirandom_4"]
     punish_oversubscribed_min_values = [1]  
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     profiled_throttle_factors = [1.0, 0.60]
     
-    oversub = 2
-    subflows = 2 # core_count
+    oversub = 3
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     core_count = base_options["ft-server-per-rack"] // oversub
     
@@ -152,7 +194,7 @@ def main():
         comparisons.append(("random-{}-routed-subf".format(i), 
                             {"timing-scheme": "random", 
                              "lb-scheme": "readprotocol", 
-                             "subflows": 3, 
+                             "subflows": core_count, 
                              "punish-oversubscribed": True, 
                              "punish-oversubscribed-min": i}))  
     

@@ -85,7 +85,7 @@ def get_color(param):
         color_cache[param] = color_options.pop(0)
         if len(color_options) == 0:
             color_options = color_options_base.copy() 
-            
+        
     return color_cache[param]   
 
 # for each unique value, plot the cdf
@@ -103,6 +103,9 @@ for combined in unique_combined:
     
     max_value = 1
     min_value = 1
+    
+    max_avg_value = 1   
+    min_avg_value = 1   
     
     for i, exp in enumerate(filtered_placement_dfs): 
         placement_name, placement_df = exp
@@ -124,25 +127,29 @@ for combined in unique_combined:
         for cdf_param in cdf_params:
             # values is a string. We need to convert it to a list of floats
             values = json.loads(first_line[cdf_param])
-            
             values = sorted(values)
-            
             if len(values) > 1:
                 yvals = np.arange(len(values)) / float(len(values) - 1)
             else: 
                 yvals = [1]
                 
-            avg_value = np.mean(values)
             max_value = max(max_value, max(values)) 
             min_value = min(min_value, min(values)) 
-                    
-            label = cdf_param 
+
+            avg_value = np.mean(values)
+            max_avg_value = max(max_avg_value, avg_value)   
+            min_avg_value = min(min_avg_value, avg_value)
+
+            short_cdf_param = cdf_param                     
             if cdf_param.endswith("_values"):
                 # remove the _values suffix
-                label = cdf_param[:-7]
+                short_cdf_param = cdf_param[:-7]
+
+            label = short_cdf_param  
             label = f"{label} ({avg_value:.2f} X)"
+            
             avg_values[label] = avg_value
-            avg_values_list.append((label, avg_value))  
+            avg_values_list.append((short_cdf_param, avg_value))  
             
             markevery = len(values) // 10 
             if markevery == 0:
@@ -150,8 +157,8 @@ for combined in unique_combined:
                 
             this_ax.plot(values, yvals, 
                          label=label, 
-                         marker=get_marker(label),
-                         color=get_color(label), 
+                         marker=get_marker(short_cdf_param),
+                         color=get_color(short_cdf_param), 
                          markevery=markevery,
                          markersize=3,
                          linewidth=1,
@@ -183,10 +190,18 @@ for combined in unique_combined:
         handles, labels = this_ax.get_legend_handles_labels()
         labels, handles = zip(*sorted(zip(labels, handles), key=lambda t: avg_values[t[0]]))
         this_ax_avg.legend(handles, labels, loc='upper center', bbox_to_anchor=(0.5, -4))
+    
+    print("min_value", min_value)   
+    print("max_value", max_value)
+    print("min_avg_value", min_avg_value)
+    print("max_avg_value", max_avg_value)
+    
+    for i, exp in enumerate(filtered_placement_dfs):
+        this_ax = axes[0, i]    
+        this_ax.set_xlim(min_value - 0.1, max_value + 0.1)    
         
-        # if this is the last: 
-        if i == placement_count - 1:
-            this_ax.set_xlim(min_value - 0.1, max_value + 0.1)    
+        this_ax_avg = axes[1, i]  
+        this_ax_avg.set_ylim(min_avg_value - 0.1, max_avg_value + 0.1)
     
     plt.suptitle(combined, y=1.05)
         

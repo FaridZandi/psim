@@ -13,8 +13,6 @@ import os
 import pickle as pkl 
 import numpy as np 
 from utils.util import rage_quit
-from scipy.ndimage.filters import gaussian_filter1d
-from scipy.interpolate import interp1d
 
 ####################################################################################
 ##################  HELPER FUNCTIONS  ##############################################
