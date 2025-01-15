@@ -70,8 +70,8 @@ class NonBlockingCache:
             
             value = self.cache[key]
 
-        print ("{} -> Hits: {}, Misses: {}, Waiting: {}, My state: {}, Time: {}".format(
-               self.name, self.hits, self.misses, self.waiting, 
+        print ("{} -> {} \n Hits: {}, Misses: {}, Waiting: {}, My state: {}, Time: {}".format(
+               self.name, key, self.hits, self.misses, self.waiting, 
                cache_status, time.time() - start_time))
         
         return value

@@ -35,7 +35,6 @@ class ConfigSweeper:
         
         # global stuff 
         self.total_jobs = 0
-        self.non_converged_jobs = 0 
         self.exp_results = []
         self.threads = []
         self.thread_states = {i: "idle" for i in range(worker_thread_count)}
@@ -74,12 +73,6 @@ class ConfigSweeper:
         self.commands_log_path = self.results_dir + "commands_log.txt"
         self.thread_output_dir = self.results_dir + "thread_outputs/"
         self.thread_state_path = self.results_dir + "thread_states.txt" 
-        
-        self.results_cache = {}
-        self.cache_lock = threading.Lock() 
-        self.cache_hits = 0 
-        self.cache_mistakes = 0 
-        self.cache_recalculations = 0 
         
         self.last_df_save_time = datetime.datetime.now() 
         self.df_save_interval_seconds = 300 
@@ -144,16 +137,6 @@ class ConfigSweeper:
 
         try: 
             self.run_all_experiments()
-
-            print("number of jobs that didn't converge:", self.non_converged_jobs)
-            print("number of cache hits:", self.cache_hits)
-            print("number of cache mistakes:", self.cache_mistakes) 
-            print("number of cache recalculations:", self.cache_recalculations) 
-            
-            if self.cache_mistakes > 0:
-                print("cache mistakes happened. This means that the results are not deterministic.")
-                print("The cache is only used to save time, not to change the results.")
-                input("Press Enter to continue...")
 
             # save the raw results to a csv file. 
             all_pd_frame = pd.DataFrame(self.exp_results)
@@ -360,67 +343,46 @@ class ConfigSweeper:
         if self.run_command_options_modifier is not None:
             self.run_command_options_modifier(options, self, run_context)
         
-        cache_hit = False 
-        cache_key = str(options)
-        
-        self.log_for_thread(run_context, "Going to acquire the lock to check the cache")
-        
-        with self.thread_lock:
-            self.log_for_thread(run_context, "Acquired the lock to check the cache")
+        options["worker-id"] = worker_id
+        self.thread_states[worker_id] = "exp-{}-running-{}".format(this_exp_uuid, run_context["runtime-dir"])     
+                
+        cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
+        if "runtime-dir" in run_context:
+            with open(run_context["runtime-dir"] + "/command.txt", "w+") as f:
+                f.write(cmd)
+                
+        try: 
+            with open(self.commands_log_path, "a+") as f:
+                f.write(cmd + "\n")
+                f.write("-"*50 + "\n")
+                
+            output = subprocess.check_output(cmd, shell=True)
+            output = output.decode("utf-8").splitlines()
             
-            if cache_key in self.results_cache:
-                cache_hit = False
-                # self.cache_hits += 1
-        
-        self.log_for_thread(run_context, "Done with the lock to check the cache")
-        
-        if cache_hit:
-            with self.thread_lock:
-                this_exp_results, output, printed_metrics = self.results_cache[cache_key]
-                this_exp_results = copy.deepcopy(this_exp_results)
-                duration = 0 
-                
-        else:     
-            self.thread_states[worker_id] = "exp-{}-running-{}".format(this_exp_uuid,
-                                                                       run_context["runtime-dir"])     
-                    
-            options["worker-id"] = worker_id
-            cmd = make_cmd(self.run_executable, options, use_gdb=False, print_cmd=False)
+            if self.do_store_outputs:
+                # store the output in a file.
+                with open(run_context["output-file"], "a+") as f:
+                    pprint(options, stream=f)
+                    f.write("\n" + "-"*50 + "\n")
+                    f.writelines("\n".join(output))
             
-            if "runtime-dir" in run_context:
-                with open(run_context["runtime-dir"] + "/command.txt", "w+") as f:
-                    f.write(cmd)
-                            
-            try: 
-                with open(self.commands_log_path, "a+") as f:
-                    f.write(cmd + "\n")
-                    f.write("-"*50 + "\n")
-                    
-                output = subprocess.check_output(cmd, shell=True)
-                output = output.decode("utf-8").splitlines()
-                
-                if self.do_store_outputs:
-                    # store the output in a file.
-                    with open(run_context["output-file"], "a+") as f:
-                        pprint(options, stream=f)
-                        f.write("\n" + "-"*50 + "\n")
-                        f.writelines("\n".join(output))
-                
-                # get the duration of the experiment.
-                end_time = datetime.datetime.now()
-                duration = end_time - start_time
-                run_context["duration"] = duration.total_seconds()
-                
-                # get the basic results from the output with the custom function.
-                this_exp_results = {
-                    "run_id": self.run_id,
-                }
-                
-                printed_metrics = [] 
+            # get the duration of the experiment.
+            end_time = datetime.datetime.now()
+            duration = end_time - start_time
+            run_context["duration"] = duration.total_seconds()
+            
+            # get the basic results from the output with the custom function.
+            this_exp_results = {
+                "run_id": self.run_id,
+            }
+            
+            printed_metrics = [] 
+            
+            if self.result_extractor_function is not None:
                 try: 
-                    if self.result_extractor_function is not None:
-                        printed_metrics = self.result_extractor_function(output, options, this_exp_results, 
-                                                                         run_context, self)        
+                    printed_metrics = self.result_extractor_function(output, options, 
+                                                                     this_exp_results, 
+                                                                     run_context, self)        
                 except Exception as e:
                     print("error in result_extractor_function")
                     print("options: ", options) 
@@ -430,42 +392,13 @@ class ConfigSweeper:
                     
                     rage_quit("error in result_extractor_function") 
                     
-                # save the results to the cache to avoid recalculating them.
-                self.log_for_thread(run_context, "Going to acquire the lock to save the results to the cache")
-                with self.thread_lock:
-                    self.log_for_thread(run_context, "Acquired the lock to save the results to the cache")
-                    new_results_copy = copy.deepcopy(this_exp_results)
-                    # sanity check: 
-                    if cache_key in self.results_cache:
-                        
-                        self.cache_recalculations += 1
-                        
-                        # all keys should be the same. 
-                        for key in new_results_copy:
-                            if new_results_copy[key] != self.results_cache[cache_key][0][key]:
-                                print("error in cache")
-                                print("key: ", key)
-                                print("cache: ", self.results_cache[cache_key][0][key])
-                                print("cache_copy: ", new_results_copy[key])
-                                
-                                # a cache mistake happens when two experimenst have the same 
-                                # options, but the results are different. This means that the 
-                                # results are not deterministic, which is against our attempt 
-                                # to make the results deterministic. So not a cache mistake, 
-                                # per se, but a mistake in the simulation itself.
-                                self.cache_mistakes += 1    
-                                                        
-                    self.results_cache[cache_key] = (new_results_copy, output, printed_metrics)
-                
-                self.log_for_thread(run_context, "Done with the lock to save the results to the cache")
-                
-            except subprocess.CalledProcessError as e:
-                print("error in running the command")
-                print("I don't know what to do here")
-                print(e)
-                traceback.print_exc()   
-                
-                rage_quit("error in running the command")   
+        except subprocess.CalledProcessError as e:
+            print("error in running the command")
+            print("I don't know what to do here")
+            print(e)
+            traceback.print_exc()   
+            
+            rage_quit("error in running the command")   
                 
         self.thread_states[worker_id] = "exp-{}-saving results".format(this_exp_uuid)  
         results = self.combine_results(this_exp_results, run_context, options)
@@ -507,6 +440,7 @@ class ConfigSweeper:
                 relevent_results = {key: results[key] for key in self.relevant_keys}   
                 relevent_metrics = {key: results[key] for key in printed_metrics}
                 relevent_results.update(relevent_metrics)
+                
                 pprint(relevent_results)
                 
                 if "runtime-dir" in run_context:    

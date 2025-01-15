@@ -6,8 +6,8 @@ experiment_seed = 75
 random_rep_count = 1
 
 viz = False
-sim_length = 10000
-seed_range = 10
+sim_length = 5000
+seed_range = 2
 placement_options = 100
 farid_rounds = 30 
 
@@ -16,7 +16,7 @@ def main():
 
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
-        "machine-count": 24,
+        "machine-count": 12,
         "ft-server-per-rack": 6,
         "jobs-machine-count-low": 6,
         "jobs-machine-count-high": 6,
@@ -139,7 +139,7 @@ def main():
         "lb-scheme": ["random", "leastloaded", "ideal", "perfect", "readprotocol"], #[lb, "ideal", "leastloaded"],   
         "timing-scheme": ["cassini", "farid", "random", "zero"],    #["cassini", "farid", "random"],
         "ring-mode": ["random"],
-        "subflows": [1, 2, 3],
+        "subflows": [1, 2, 3, 4],
         "min-rate": [10, 100],  
         "punish-oversubscribed": [False, True],   
 
