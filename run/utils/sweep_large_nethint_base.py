@@ -983,6 +983,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         if "plot-iteration-graphs" in global_context and global_context["plot-iteration-graphs"]:
             plot_job_iteration_times(exp_results_df, config_sweeper, global_context)
     
+    summary = {} 
+    
     print("Saving the results ...") 
     
     # refresh the plot commands script
@@ -996,6 +998,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         if not metric_info["avg_cdf_plot"]:
             continue
         
+        summary[metric] = {}
+        
         avg_metric_key = "avg_{}".format(metric)
         metric_csv_dir = config_sweeper.csv_dir + metric + "/" 
         metric_plots_dir = config_sweeper.plots_dir + "/cdfs/" + metric  
@@ -1008,6 +1012,9 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         placement_results = []
         
         for placement in all_placement_modes:
+            
+            summary[metric][placement] = {} 
+            
             placement_df = exp_results_df[exp_results_df["placement-mode"] == placement]
             metric_placement_csv_dir = metric_csv_dir + placement + "/"
             
@@ -1051,6 +1058,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                     elif metric_info["better"] == "higher": 
                         merged_df["speedup"] = round(merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key], rounding_precision)
                         
+                summary[metric][placement][comparison_name] = merged_df["speedup"].mean()   
+                
                 saved_columns = merge_on + ["speedup"]
 
                 csv_path = metric_placement_csv_dir + f"speedup_{comparison_name}.csv"
@@ -1119,8 +1128,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                   script_path=config_sweeper.plot_commands_script, 
                   actually_plot=plot)
 
-    print("Done with the metric: ", metric)
-
+    return summary
     
 def check_comparison_sanity(exp_context, sweep_config):
     

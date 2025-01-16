@@ -11,7 +11,7 @@ seed_range = 2
 placement_options = 100
 farid_rounds = 30 
 
-def main():
+def do_experiment():
     random.seed(experiment_seed)
 
     # choose one of the settings to run the experiments with.     
@@ -311,9 +311,13 @@ def main():
         worker_thread_count=40, 
     )
     
-    cs.sweep()
-
+    summary = cs.sweep()
+    
+    pprint(summary)
+    
 if __name__ == "__main__":
     
-    main() 
+    
+    
+    do_experiment() 
     

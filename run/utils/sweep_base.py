@@ -144,7 +144,9 @@ class ConfigSweeper:
             
             # call the custom func to do anything with the results.
             if self.custom_save_results_func is not None: 
-                self.custom_save_results_func(all_pd_frame, self, self.global_context, plot=True)
+                summary = self.custom_save_results_func(all_pd_frame, self, self.global_context, plot=True)
+            else: 
+                summary = {} 
                 
         except Exception as e:
             print("error in running the experiments")
@@ -155,6 +157,7 @@ class ConfigSweeper:
             print("killing the watchdog with pid: ", self.watchdog_pid)
             os.system("kill -9 {}".format(self.watchdog_pid))        
         
+        return summary
         
     def run_all_experiments(self):
         # each item in the sweep_config is a list of values for a parameter.
