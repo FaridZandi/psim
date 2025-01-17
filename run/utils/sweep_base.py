@@ -26,7 +26,8 @@ class ConfigSweeper:
                  result_extractor_function=None,
                  exp_filter_function=None,
                  exp_name="exp",
-                 worker_thread_count=DEFAULT_WORKER_THREAD_COUNT):
+                 worker_thread_count=DEFAULT_WORKER_THREAD_COUNT, 
+                 plot_cdfs=False):  
         
         # arguments
         self.sweep_config = sweep_config
@@ -78,6 +79,7 @@ class ConfigSweeper:
         self.df_save_interval_seconds = 300 
         
         self.do_store_outputs = False
+        self.plot_cdfs = plot_cdfs  
         self.relevant_keys = [] 
         
         os.system("mkdir -p {}".format(self.results_dir))

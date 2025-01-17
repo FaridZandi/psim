@@ -175,8 +175,7 @@ for combined in unique_combined:
         this_ax.set_xlabel("Value")
         this_ax.set_ylabel("CDF")
         
-        
-
+    
         # plot the average values in the second row 
         for j, (label, avg_value) in enumerate(avg_values_list):
             this_ax_avg.bar(j, avg_value, label=label, color=get_color(label))

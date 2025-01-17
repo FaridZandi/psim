@@ -5,6 +5,38 @@ import sys
 import numpy as np
 import traceback 
 
+
+def flatten_dict(d, parent_key='', levels=None, level_names=None):
+    """
+    Flattens a nested dictionary with detailed level information and custom level names.
+
+    :param d: Dictionary to flatten
+    :param parent_key: Key prefix for nested dictionaries (used in recursion)
+    :param levels: List to track the hierarchy of levels (used in recursion)
+    :param level_names: List of custom names for levels
+    :return: A list of dictionaries with level details and values
+    """
+    if levels is None:
+        levels = []
+
+    flat_list = []
+
+    for key, value in d.items():
+        current_levels = levels + [key]
+        if isinstance(value, dict):
+            flat_list.extend(flatten_dict(value, key, current_levels, level_names))
+        else:
+            entry = {}
+            for i, lvl in enumerate(current_levels):
+                if level_names and i < len(level_names):
+                    entry[level_names[i]] = lvl
+                else:
+                    entry[f"level{i+1}"] = lvl
+            entry["value"] = value
+            flat_list.append(entry)
+
+    return flat_list
+
 def make_shuffle(count, path):
     dir = os.path.dirname(path)
     if not os.path.exists(dir):

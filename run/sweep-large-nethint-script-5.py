@@ -7,16 +7,16 @@ random_rep_count = 1
 
 viz = False
 sim_length = 5000
-seed_range = 2
+seed_range = 1
 placement_options = 100
 farid_rounds = 30 
 
-def do_experiment():
+def do_experiment(machine_count = 6):
     random.seed(experiment_seed)
 
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
-        "machine-count": 12,
+        "machine-count": machine_count,
         "ft-server-per-rack": 6,
         "jobs-machine-count-low": 6,
         "jobs-machine-count-high": 6,
@@ -309,15 +309,32 @@ def do_experiment():
                                                             oversub, 
                                                             experiment_seed),
         worker_thread_count=40, 
+        plot_cdfs=False,
     )
     
     summary = cs.sweep()
+    return summary 
     
-    pprint(summary)
+    
+    
     
 if __name__ == "__main__":
+    exp_number = get_incremented_number()
+    level_names = ["machine_count", "metric", "placement_mode", "comparison"]
+    machine_counts = [6, 12, 18, 24, 30, 36, 42, 48, 54, 60]
+
+    all_results = {} 
     
-    
-    
-    do_experiment() 
+    for machine_count in machine_counts: 
+        # run the config.
+        summary = do_experiment(machine_count) 
+        all_results[machine_count] = summary    
+        flat_results = flatten_dict(all_results, level_names=level_names)
+        pprint(flat_results) 
+        
+        # save to csv.
+        os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
+        flat_results_df = pd.DataFrame(flat_results)    
+        flat_results_df.to_csv(f"results/exps/{exp_number}/results.csv", index=False)
+        
     

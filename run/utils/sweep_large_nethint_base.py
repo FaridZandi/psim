@@ -1119,14 +1119,15 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         placement_names = [placement for placement, _ in placement_results]
         placement_csv_paths = [csv_path for _, csv_path in placement_results]
         
-        # store the final output
-        plot_cdfs(separating_params=["machines", "cores"], 
-                  cdf_params=cdf_params, 
-                  placement_names=placement_names,
-                  placement_csv_paths=placement_csv_paths,
-                  plots_dir=metric_plots_dir, 
-                  script_path=config_sweeper.plot_commands_script, 
-                  actually_plot=plot)
+        if config_sweeper.plot_cdfs:
+            # store the final output
+            plot_cdfs(separating_params=["machines", "cores"], 
+                    cdf_params=cdf_params, 
+                    placement_names=placement_names,
+                    placement_csv_paths=placement_csv_paths,
+                    plots_dir=metric_plots_dir, 
+                    script_path=config_sweeper.plot_commands_script, 
+                    actually_plot=plot)
 
     return summary
     
