@@ -7,7 +7,7 @@ random_rep_count = 1
 
 viz = False
 sim_length = 10000
-seed_range = 10
+seed_range = 3
 placement_options = 100
 farid_rounds = 30 
 
@@ -328,14 +328,14 @@ def do_experiment(placement_mode="random",
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
 if __name__ == "__main__":
     
-    exp_number = 3169 
+    exp_number = None 
 
     if exp_number is None:
         exp_number = get_incremented_number()
-        level_names = ["machine_count", "placement", "oversub", "metric", "placement_mode", "comparison"]
-        machine_counts = [12, 18, 24]
-        oversubs = [1, 2, 3]
-        placement_modes = ["semirandom_1", "semirandom_2", "semirandom_4"]  
+        level_names = ["machine_count", "placement", "oversub", "metric", "placement_mode", "comparison", "stat"]
+        machine_counts = [12, 18]
+        oversubs = [1, 2]
+        placement_modes = ["semirandom_2", "semirandom_4"]  
         
         all_results = {} 
         

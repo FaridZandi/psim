@@ -1058,7 +1058,10 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                     elif metric_info["better"] == "higher": 
                         merged_df["speedup"] = round(merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key], rounding_precision)
                         
-                summary[metric][placement][comparison_name] = merged_df["speedup"].mean()   
+                summary[metric][placement][comparison_name] = {
+                    "mean": merged_df["speedup"].mean(),    
+                    "values": sorted(list(merged_df["speedup"]))    
+                }
                 
                 saved_columns = merge_on + ["speedup"]
 

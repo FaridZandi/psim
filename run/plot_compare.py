@@ -76,8 +76,6 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
     else:
         hue_len = 1 
         
-    ratio = plot_x_len / hue_len    
-    
     
     fig, axes = plt.subplots(subplot_x, subplot_y_len, 
                              figsize=(subplot_y_len * hue_len / 2, subplot_x * plot_x_len), 
@@ -101,16 +99,16 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
                 
             draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type)  
             
-            ax.yaxis.tick_left()  # Enable y-axis ticks
-            ax.xaxis.tick_bottom()  # Enable x-axis ticks   
-            # and the labels    
-            
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.png", bbox_inches='tight', dpi=100)        
                 
     
 def main(file_name, file_dir, plot_type): 
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
+    df = df[df["stat"] == "mean"]
+    
+    # the column value is a number 
+    df["value"] = df["value"].astype(float)     
     
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
