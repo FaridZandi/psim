@@ -6,13 +6,22 @@ experiment_seed = 75
 random_rep_count = 1
 
 viz = False
-sim_length = 5000
-seed_range = 1
+sim_length = 10000
+seed_range = 10
 placement_options = 100
 farid_rounds = 30 
 
-def do_experiment(machine_count = 6):
+
+# this is an experiment that has one base setting, and then a bunch of comparisons.
+# I'm attempting to keep the things that should be kept constant, constant.
+# then compute the speedup of the other things with respect to the base setting.
+def do_experiment(placement_mode="random", 
+                  machine_count=6,
+                  oversub=1):
     random.seed(experiment_seed)
+
+    # things to eventually remove from this function. 
+    placement_modes = [placement_mode]
 
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
@@ -116,12 +125,10 @@ def do_experiment(machine_count = 6):
         },
     } 
 
-    placement_modes = ["semirandom_1", "semirandom_2", "semirandom_4"]
     punish_oversubscribed_min_values = [1]  
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     profiled_throttle_factors = [1.0, 0.60]
     
-    oversub = 3
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     core_count = base_options["ft-server-per-rack"] // oversub
     
@@ -139,7 +146,7 @@ def do_experiment(machine_count = 6):
         "lb-scheme": ["random", "leastloaded", "ideal", "perfect", "readprotocol"], #[lb, "ideal", "leastloaded"],   
         "timing-scheme": ["cassini", "farid", "random", "zero"],    #["cassini", "farid", "random"],
         "ring-mode": ["random"],
-        "subflows": [1, 2, 3, 4],
+        "subflows": [1, core_count],
         "min-rate": [10, 100],  
         "punish-oversubscribed": [False, True],   
 
@@ -317,24 +324,70 @@ def do_experiment(machine_count = 6):
     
     
     
-    
+# Here, we iterate over things that will have different baselines to compare against.   
+# the idea is that eventually, one plot should be generate for each of these setting combinations.   
 if __name__ == "__main__":
-    exp_number = get_incremented_number()
-    level_names = ["machine_count", "metric", "placement_mode", "comparison"]
-    machine_counts = [6, 12, 18, 24, 30, 36, 42, 48, 54, 60]
-
-    all_results = {} 
     
-    for machine_count in machine_counts: 
-        # run the config.
-        summary = do_experiment(machine_count) 
-        all_results[machine_count] = summary    
-        flat_results = flatten_dict(all_results, level_names=level_names)
-        pprint(flat_results) 
+    exp_number = 3169 
+
+    if exp_number is None:
+        exp_number = get_incremented_number()
+        level_names = ["machine_count", "placement", "oversub", "metric", "placement_mode", "comparison"]
+        machine_counts = [12, 18, 24]
+        oversubs = [1, 2, 3]
+        placement_modes = ["semirandom_1", "semirandom_2", "semirandom_4"]  
         
-        # save to csv.
-        os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
-        flat_results_df = pd.DataFrame(flat_results)    
-        flat_results_df.to_csv(f"results/exps/{exp_number}/results.csv", index=False)
+        all_results = {} 
+        
+        for oversub in oversubs:    
+            for placement_mode in placement_modes: 
+                for machine_count in machine_counts: 
+                    # run the config.
+                    summary = do_experiment(placement_mode=placement_mode, 
+                                            machine_count=machine_count,
+                                            oversub=oversub)
+                    
+                    if machine_count not in all_results:
+                        all_results[machine_count] = {}
+                    
+                    if placement_mode not in all_results[machine_count]:
+                        all_results[machine_count][placement_mode] = {}
+                    
+                    if oversub not in all_results[machine_count][placement_mode]:
+                        all_results[machine_count][placement_mode][oversub] = summary
+                    
+                    flat_results = flatten_dict(all_results, level_names=level_names)
+                    
+                    # save to csv.
+                    os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
+                    flat_results_df = pd.DataFrame(flat_results)    
+                    path = f"results/exps/{exp_number}/results.csv" 
+                    flat_results_df.to_csv(path, index=False)
+    
+
+    # parser.add_argument("--file_name", type=str, required=True)
+    # parser.add_argument("--plot_params", type=str, required=False)
+    # parser.add_argument("--subplot_x_params", type=str, required=False)
+    # parser.add_argument("--subplot_y_params", type=str, required=False)
+    # parser.add_argument("--subplot_hue_params", type=str, required=False)
+    # parser.add_argument("--plot_x_params", type=str, required=False)
+    # parser.add_argument("--plot_y_param", type=str, required=False)
+    
+    path = f"results/exps/{exp_number}/results.csv" 
+    
+    plot_command = "python3 plot_compare.py \
+        --file_name {} \
+        --plot_params metric \
+        --subplot_x_params placement \
+        --subplot_y_params oversub \
+        --subplot_hue_params comparison \
+        --plot_x_params machine_count \
+        --plot_y_param value".format(path)
+            
+    print("running the plot command: ") 
+    print(plot_command) 
+      
+    os.system(plot_command)
+    
         
     
