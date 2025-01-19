@@ -14,11 +14,37 @@ plot_y_param = None
 hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
                      "pink", "gray", "olive", "cyan", "black", "yellow"] * 100
 
+
+def annotate(ax):
+    for p in ax.patches:
+        
+        # if the patch is dark, use white text color
+        # otherwise, use black text color
+        # being dark means the sum of the RGB values is less than 1
+        if p.get_facecolor()[0] + p.get_facecolor()[1] + p.get_facecolor()[2] < 1:
+            color = 'white'
+        else:
+            color = 'black'
+                    
+        ax.annotate(
+            f'{p.get_height():.2f}',  # Format to display integer
+            (p.get_x() + p.get_width() / 2., p.get_height()),  # Position above the bar
+            ha='center',  # Center horizontally
+            va='top',  # Align to bottom of text
+            rotation=90,  # Rotate text 90 degrees
+            fontsize=10,  # Font size
+            color=color,  # Font color
+        )
+        
+        
 def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type):        
     if x_value is not None: 
         df = df[df[subplot_x_params] == x_value]     
     if y_value is not None: 
         df = df[df[subplot_y_params] == y_value]
+    
+    if len(df) == 0:
+        return  
     
     if plot_type == "line": 
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
@@ -32,11 +58,20 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
         sns.barplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax)
+                    data=df, ax=ax) 
+        
+        annotate(ax)
+        
         if not legend:
             ax.get_legend().remove()
         else:    
             ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=subplot_y_len)  
+    
+    
+    # draw a horizontal line at y=1
+    ax.axhline(y=1, color='black', linestyle='--')
+    
+    
     
     if y_value is not None and subplot_y_params is not None:
         ax.set_title(f"{subplot_x_params}={x_value}\n {subplot_y_params}={y_value}")

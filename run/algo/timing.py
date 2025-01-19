@@ -13,6 +13,7 @@ import os
 import pickle as pkl 
 import numpy as np 
 from utils.util import rage_quit
+import matplotlib.pyplot as plt
 
 ####################################################################################
 ##################  HELPER FUNCTIONS  ##############################################
@@ -604,6 +605,9 @@ job_colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
 job_color_index = 0 
 
 def get_job_color(job_id, assigned_job_colors): 
+    
+    return plt.cm.tab20.colors[job_id % 20] 
+
     global job_color_index
     
     if job_id in assigned_job_colors:
