@@ -51,8 +51,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
                     data=df, ax=ax, legend=legend)
-        if legend:
-            ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=subplot_y_len)  
+        ax.axhline(y=1, color='black', linestyle='--')
 
     elif plot_type == "bar":    
         sns.barplot(x=plot_x_params, y=plot_y_param, 
@@ -61,15 +60,38 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
                     data=df, ax=ax) 
         
         annotate(ax)
+        ax.axhline(y=1, color='black', linestyle='--')
         
         if not legend:
             ax.get_legend().remove()
-        else:    
-            ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=subplot_y_len)  
     
+    elif plot_type == "box":    
+        # draw a boxplot    
+        sns.boxplot(x=plot_x_params, y=plot_y_param, 
+                    hue=subplot_hue_params, hue_order=hue_order, 
+                    palette=hue_color_options[:len(hue_order)],    
+                    data=df, ax=ax)
     
+        if not legend:
+            ax.get_legend().remove()
+    
+    elif plot_type == "cdf":
+        
+        # draw a cdf plot
+        for i, hue in enumerate(hue_order):
+            sns.kdeplot(df[df[subplot_hue_params] == hue][plot_y_param], 
+                        cumulative=True, ax=ax, label=hue, warn_singular=False, 
+                        color=hue_color_options[i], 
+                        marker='o', linestyle='-', linewidth=1, 
+                        markevery=10, markersize=2)
+        
+        ax.axvline(x=1, color='black', linestyle='--')  
+        
+    if legend:
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=subplot_y_len)  
+            
     # draw a horizontal line at y=1
-    ax.axhline(y=1, color='black', linestyle='--')
+
     
     
     
@@ -111,9 +133,13 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
     else:
         hue_len = 1 
         
+    width = subplot_y_len * 5
+    height = subplot_x * plot_x_len  
+    
+    print(f"width: {width}, height: {height}")
     
     fig, axes = plt.subplots(subplot_x, subplot_y_len, 
-                             figsize=(subplot_y_len * hue_len / 2, subplot_x * plot_x_len), 
+                             figsize=(width , height),
                              sharey=True,   
                              sharex=True,
                              squeeze=False)
@@ -134,17 +160,26 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
                 
             draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type)  
             
-    plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.png", bbox_inches='tight', dpi=100)        
+    plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.png", bbox_inches='tight', dpi=200)        
                 
     
 def main(file_name, file_dir, plot_type): 
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
-    df = df[df["stat"] == "mean"]
     
-    # the column value is a number 
-    df["value"] = df["value"].astype(float)     
-    
+    if plot_type == "cdf" or plot_type == "box":    
+        df = df[df["stat"] == "values"]
+        # the column value is a list of numbers, and its type is string
+        df["value"] = df["value"].apply(lambda x: [float(i) for i in x[1:-1].split(",")])
+        # break the list of numbers into separate rows
+        df = df.explode("value")
+        df["value"] = df["value"].astype(float)
+        
+    elif plot_type == "bar" or plot_type == "line": 
+        df = df[df["stat"] == "mean"]
+        # the column value is a number 
+        df["value"] = df["value"].astype(float)     
+
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
     else:
@@ -156,6 +191,7 @@ def main(file_name, file_dir, plot_type):
         unique_values = df[plot_params].unique()
 
     for value in unique_values: 
+        print(f"value: {value}")
         draw_plot(df, value, file_dir, hue_order, plot_type)    
         
 
@@ -188,5 +224,7 @@ if __name__ == "__main__":
     if args.plot_y_param is not None:
         plot_y_param = args.plot_y_param
         
+    main(args.file_name, file_dir, "cdf") 
+    main(args.file_name, file_dir, "box") 
     main(args.file_name, file_dir, "bar")
-    main(args.file_name, file_dir, "line")    
+    main(args.file_name, file_dir, "line")   
