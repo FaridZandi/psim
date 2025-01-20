@@ -347,8 +347,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     placement_related_base_path += (placement_identifier + "/")
     
-    config_sweeper.thread_states[run_context["worker-id-for-profiling"]] = "exp-{}-placement-{}".format(run_context["exp-uuid"], 
-                                                                                                        placement_identifier)
+    tstate = "exp-{}-placement-{}".format(run_context["exp-uuid"], placement_identifier)
+    config_sweeper.thread_states[run_context["worker-id-for-profiling"]] = tstate
     
     run_context["placement-related-dir"] = placement_related_base_path
 
@@ -645,13 +645,12 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 
-        if metric_info["iter_avg_plot"]:
-            run_context["job_numbers"][metric] = job_numbers    
-            
-            if "output-file" in run_context:
-                results_path = "{}/results-{}.json".format(run_context["runtime-dir"], metric)
-                with open(results_path, "w") as f:
-                    json.dump(job_numbers, f, indent=4)
+        run_context["job_numbers"][metric] = job_numbers    
+        
+        if "output-file" in run_context:
+            results_path = "{}/results-{}.json".format(run_context["runtime-dir"], metric)
+            with open(results_path, "w") as f:
+                json.dump(job_numbers, f, indent=4)
         
         if metric_info["avg_cdf_plot"]:
             if metric_info["type"] == "single_number":
@@ -983,7 +982,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         if "plot-iteration-graphs" in global_context and global_context["plot-iteration-graphs"]:
             plot_job_iteration_times(exp_results_df, config_sweeper, global_context)
     
-    summary = {} 
+    summary = []
     
     print("Saving the results ...") 
     
@@ -991,16 +990,13 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
     with open(config_sweeper.plot_commands_script, "w") as f:
         f.write("#!/bin/bash\n")
         
-    all_placement_modes = global_context["all-placement-modes"]
-    
     for metric in global_context["interesting-metrics"].keys():
         metric_info = global_context["interesting-metrics"][metric]
         if not metric_info["avg_cdf_plot"]:
             continue
         
-        summary[metric] = {}
-        
         avg_metric_key = "avg_{}".format(metric)
+        
         metric_csv_dir = config_sweeper.csv_dir + metric + "/" 
         metric_plots_dir = config_sweeper.plots_dir + "/cdfs/" + metric  
         
@@ -1008,129 +1004,112 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         os.makedirs(metric_plots_dir, exist_ok=True)
         
         merge_on = ["protocol-file-name", "machines", "cores", "placement-seed"]
+
+        base_setting = global_context["comparison-base"]
+        comparisons = global_context["comparisons"]
         
-        placement_results = []
+        base_df = exp_results_df 
+        for key, value in base_setting.items():
+            base_df = base_df[base_df[key] == value]    
+                            
+        for comparison_name, compared_df_setting in comparisons:
+            compared_df = exp_results_df
+            
+            full_compared_df_setting = base_setting.copy()
+            full_compared_df_setting.update(compared_df_setting)
+            
+            for key, value in full_compared_df_setting.items():
+                compared_df = compared_df[compared_df[key] == value]
+            
+            merged_df = pd.merge(base_df, compared_df, on=merge_on, 
+                                 suffixes=('_base', '_compared'))
+            
+            base_avg_metric_key = "{}_base".format(avg_metric_key)
+            compared_avg_metric_key = "{}_compared".format(avg_metric_key)
+            
+            if metric_info["compare_mode"] == "self":
+                merged_df["speedup"] = merged_df[compared_avg_metric_key]
+            elif metric_info["compare_mode"] == "divide":
+                if metric_info["better"] == "lower":    
+                    merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], rounding_precision)
+                elif metric_info["better"] == "higher": 
+                    merged_df["speedup"] = round(merged_df[compared_avg_metric_key] / merged_df[base_avg_metric_key], rounding_precision)
+            elif metric_info["compare_mode"] == "subtract":
+                # merged_df["speedup"] = merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key]
+                if metric_info["better"] == "lower":    
+                    merged_df["speedup"] = round(merged_df[base_avg_metric_key] - merged_df[compared_avg_metric_key], rounding_precision)
+                elif metric_info["better"] == "higher": 
+                    merged_df["speedup"] = round(merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key], rounding_precision)
+                    
+            summary.append({
+                "metric": metric,   
+                "comparison": comparison_name,
+                "mean": merged_df["speedup"].mean(),    
+                "values": sorted(list(merged_df["speedup"]))
+            })
+            
+            saved_columns = merge_on + ["speedup"]
+
+            csv_path = metric_csv_dir + f"speedup_{comparison_name}.csv"
+            speedup_df = merged_df[saved_columns]
+            speedup_df.to_csv(csv_path, index=False)
+
+            # comparison_results.append((comparison_name, speedup_df))
         
-        for placement in all_placement_modes:
-            
-            summary[metric][placement] = {} 
-            
-            placement_df = exp_results_df[exp_results_df["placement-mode"] == placement]
-            metric_placement_csv_dir = metric_csv_dir + placement + "/"
-            
-            os.makedirs(metric_placement_csv_dir, exist_ok=True)
-
-            base_setting = global_context["comparison-base"]
-            comparisons = global_context["comparisons"]
-            
-            base_df = placement_df 
-            for key, value in base_setting.items():
-                base_df = base_df[base_df[key] == value]    
-                                
-            comparison_results = [] 
-                                
-            for comparison_name, compared_df_setting in comparisons:
-                compared_df = placement_df
-                
-                full_compared_df_setting = base_setting.copy()
-                full_compared_df_setting.update(compared_df_setting)
-                
-                for key, value in full_compared_df_setting.items():
-                    compared_df = compared_df[compared_df[key] == value]
-                
-                merged_df = pd.merge(base_df, compared_df, 
-                                     on=merge_on, suffixes=('_base', '_compared'))
-                
-                base_avg_metric_key = "{}_base".format(avg_metric_key)
-                compared_avg_metric_key = "{}_compared".format(avg_metric_key)
-                
-                if metric_info["compare_mode"] == "self":
-                    merged_df["speedup"] = merged_df[compared_avg_metric_key]
-                elif metric_info["compare_mode"] == "divide":
-                    if metric_info["better"] == "lower":    
-                        merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], rounding_precision)
-                    elif metric_info["better"] == "higher": 
-                        merged_df["speedup"] = round(merged_df[compared_avg_metric_key] / merged_df[base_avg_metric_key], rounding_precision)
-                elif metric_info["compare_mode"] == "subtract":
-                    # merged_df["speedup"] = merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key]
-                    if metric_info["better"] == "lower":    
-                        merged_df["speedup"] = round(merged_df[base_avg_metric_key] - merged_df[compared_avg_metric_key], rounding_precision)
-                    elif metric_info["better"] == "higher": 
-                        merged_df["speedup"] = round(merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key], rounding_precision)
-                        
-                summary[metric][placement][comparison_name] = {
-                    "mean": merged_df["speedup"].mean(),    
-                    "values": sorted(list(merged_df["speedup"]))    
-                }
-                
-                saved_columns = merge_on + ["speedup"]
-
-                csv_path = metric_placement_csv_dir + f"speedup_{comparison_name}.csv"
-                speedup_df = merged_df[saved_columns]
-                speedup_df.to_csv(csv_path, index=False)
-
-                comparison_results.append((comparison_name, speedup_df))
-            
-            super_merged = comparison_results[0][1]
-            
-            column_name = "speedup_{}".format(comparison_results[0][0]) 
-            super_merged.rename(columns={"speedup": column_name}, inplace=True)              
-
-            for comparison_name, comparison_df in comparison_results[1:]:
-                super_merged = super_merged.merge(comparison_df, on=merge_on)
-                super_merged.rename(columns={"speedup": "speedup_{}".format(comparison_name)}, inplace=True)
-            
-            # reduce the dataframe on "placement-seed"
-            group_on = merge_on.copy()
-            group_on.remove("placement-seed")
-
-            agg_dict = {}
-            
-            for comparison_name, _ in comparisons:
-                agg_dict[f"speedup_{comparison_name}_min"] = (f"speedup_{comparison_name}", "min")
-                agg_dict[f"speedup_{comparison_name}_max"] = (f"speedup_{comparison_name}", "max")
-                agg_dict[f"speedup_{comparison_name}_values"] = (f"speedup_{comparison_name}", lambda x: sorted(list(x)))
-
-            cdf_params = ["speedup_{}_values".format(comparison_name) for comparison_name, _ in comparisons] 
-            
-            grouped_df = super_merged.groupby(by=group_on).agg(**agg_dict)
-                
-            # store the results for the current placement 
-            metric_placement_grouped_csv_path = "{}/{}_results.csv".format(metric_placement_csv_dir, placement)   
-            grouped_df.reset_index().to_csv(metric_placement_grouped_csv_path, index=False)
-
-            # do some plotting as well. 
-            # metric_placement_plot_path = metric_plots_dir + "{}.png".format(placement)
-
-            # title = "Speedup in {} of {} over {}".format(
-            #     metric, compared_lb_scheme, base_lb_scheme,
-            # ).replace(" ", "$") 
-            
-            # plot_results(interesting_keys=["machines" , "cores"], 
-            #              plotted_key_min="speedup_or_lb_min", 
-            #              plotted_key_max="speedup_or_lb_max", 
-            #              title=title, 
-            #              random_seed=experiment_seed,
-            #              csv_path=metric_placement_grouped_csv_path,
-            #              plot_path=metric_placement_plot_path,
-            #              script_path=config_sweeper.plot_commands_script, 
-            #              actually_plot=plot)
-            
-            placement_results.append((placement, metric_placement_grouped_csv_path))
-
-
-        placement_names = [placement for placement, _ in placement_results]
-        placement_csv_paths = [csv_path for _, csv_path in placement_results]
+        # super_merged = comparison_results[0][1]
         
-        if config_sweeper.plot_cdfs:
-            # store the final output
-            plot_cdfs(separating_params=["machines", "cores"], 
-                    cdf_params=cdf_params, 
-                    placement_names=placement_names,
-                    placement_csv_paths=placement_csv_paths,
-                    plots_dir=metric_plots_dir, 
-                    script_path=config_sweeper.plot_commands_script, 
-                    actually_plot=plot)
+        # column_name = "speedup_{}".format(comparison_results[0][0]) 
+        # super_merged.rename(columns={"speedup": column_name}, inplace=True)              
+
+        # for comparison_name, comparison_df in comparison_results[1:]:
+        #     super_merged = super_merged.merge(comparison_df, on=merge_on)
+        #     super_merged.rename(columns={"speedup": "speedup_{}".format(comparison_name)}, inplace=True)
+        
+        # # reduce the dataframe on "placement-seed"
+        # group_on = merge_on.copy()
+        # group_on.remove("placement-seed")
+
+        # agg_dict = {}
+        
+        # for comparison_name, _ in comparisons:
+        #     agg_dict[f"speedup_{comparison_name}_min"] = (f"speedup_{comparison_name}", "min")
+        #     agg_dict[f"speedup_{comparison_name}_max"] = (f"speedup_{comparison_name}", "max")
+        #     agg_dict[f"speedup_{comparison_name}_values"] = (f"speedup_{comparison_name}", lambda x: sorted(list(x)))
+
+        # cdf_params = ["speedup_{}_values".format(comparison_name) for comparison_name, _ in comparisons] 
+        
+        # grouped_df = super_merged.groupby(by=group_on).agg(**agg_dict)
+            
+        # # store the results for the current placement 
+        # metric_grouped_csv_path = "{}/results.csv".format(metric_csv_dir)   
+        # grouped_df.reset_index().to_csv(metric_grouped_csv_path, index=False)
+
+        # do some plotting as well. 
+        # metric_placement_plot_path = metric_plots_dir + "{}.png".format(placement)
+
+        # title = "Speedup in {} of {} over {}".format(
+        #     metric, compared_lb_scheme, base_lb_scheme,
+        # ).replace(" ", "$") 
+        
+        # plot_results(interesting_keys=["machines" , "cores"], 
+        #              plotted_key_min="speedup_or_lb_min", 
+        #              plotted_key_max="speedup_or_lb_max", 
+        #              title=title, 
+        #              random_seed=experiment_seed,
+        #              csv_path=metric_placement_grouped_csv_path,
+        #              plot_path=metric_placement_plot_path,
+        #              script_path=config_sweeper.plot_commands_script, 
+        #              actually_plot=plot)
+        
+        # if config_sweeper.plot_cdfs:
+        #     # store the final output
+        #     plot_cdfs(separating_params=["machines", "cores"], 
+        #             cdf_params=cdf_params, 
+        #             placement_names="placement_names",
+        #             placement_csv_paths=[metric_grouped_csv_path],
+        #             plots_dir=metric_plots_dir, 
+        #             script_path=config_sweeper.plot_commands_script, 
+        #             actually_plot=plot)
 
     return summary
     

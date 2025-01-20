@@ -1,15 +1,10 @@
 from utils.util import *
 from utils.sweep_large_nethint_base import *
 from utils.sweep_base import ConfigSweeper
+import itertools
 
-experiment_seed = 75
+experiment_seed = 76
 random_rep_count = 1
-
-viz = False
-sim_length = 20000
-seed_range = 50
-placement_options = 100
-farid_rounds = 30 
 
 
 # this is an experiment that has one base setting, and then a bunch of comparisons.
@@ -17,8 +12,14 @@ farid_rounds = 30
 # then compute the speedup of the other things with respect to the base setting.
 def do_experiment(placement_mode="random", 
                   machine_count=6,
-                  oversub=1):
+                  oversub=1, 
+                  sim_length=50000, 
+                  punish_oversubscribed_min=0.5):
     
+    viz = False
+    seed_range = 6
+    placement_options = 100
+        
     random.seed(experiment_seed)
 
     # things to eventually remove from this function. 
@@ -31,8 +32,8 @@ def do_experiment(placement_mode="random",
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 8,
         "placement-seed-range": seed_range,
-        "comm-size": [16000, 8000],
-        "comp-size": [200, 300],
+        "comm-size": [16000, 32000],
+        "comp-size": [100, 200, 300],
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }
@@ -74,6 +75,8 @@ def do_experiment(placement_mode="random",
         # "export-dot": True,    
         
         "placement-mode": placement_mode,   
+        
+        "punish-oversubscribed-min": punish_oversubscribed_min,   
     }
 
     interesting_metrics = {
@@ -128,9 +131,8 @@ def do_experiment(placement_mode="random",
         },
     } 
 
-    punish_oversubscribed_min_values = [1]  
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
-    profiled_throttle_factors = [1.0, 0.60]
+    profiled_throttle_factors = [1.0, 0.66, 0.33]
     
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     core_count = base_options["ft-server-per-rack"] // oversub
@@ -149,7 +151,7 @@ def do_experiment(placement_mode="random",
         "lb-scheme": ["random", "leastloaded", "ideal", "perfect", "readprotocol"], #[lb, "ideal", "leastloaded"],   
         "timing-scheme": ["cassini", "farid", "random", "zero"],    #["cassini", "farid", "random"],
         "ring-mode": ["random"],
-        "subflows": [1, 2],
+        "subflows": [1, 2, 3],
         "min-rate": [10, 100],  
         "punish-oversubscribed": [False, True],   
 
@@ -162,9 +164,7 @@ def do_experiment(placement_mode="random",
         "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
         "throttle-search": [True, False],
         
-        "farid-rounds": [1, farid_rounds], 
-        
-        "punish-oversubscribed-min" : punish_oversubscribed_min_values,
+        "farid-rounds": [1, 2, 3, 4, 5, 20],         
     } 
     
     comparison_base = {
@@ -173,60 +173,32 @@ def do_experiment(placement_mode="random",
         "lb-scheme": "random", 
         "subflows": 1, 
         "throttle-search": False, 
-        "farid-rounds": farid_rounds, 
+        "farid-rounds": 1, 
         "punish-oversubscribed": True, 
-        "punish-oversubscribed-min": 1, 
         "routing-fit-strategy": "first",    
-        "min-rate": 10
+        "min-rate": 100
     }
 
     comparisons = []
 
-    for i in punish_oversubscribed_min_values:
-        
-        comparisons.append(("farid-{}-random".format(i),
+    for rounds in [1, 2, 3, 4, 5]:                               
+        comparisons.append(("farid-routed-{}-rounds".format(rounds),
                             {"timing-scheme": "farid", 
-                             "farid-rounds": farid_rounds, 
-                             "lb-scheme": "random", 
-                             "throttle-search": True, 
-                             "subflows": 1, 
-                             "punish-oversubscribed": True,
-                             "punish-oversubscribed-min": i}))  
-        
-        comparisons.append(("farid-{}-random-sub2".format(i),
-                            {"timing-scheme": "farid", 
-                             "farid-rounds": farid_rounds, 
-                             "lb-scheme": "random", 
-                             "throttle-search": True, 
-                             "subflows": 2, 
-                             "punish-oversubscribed": True,
-                             "punish-oversubscribed-min": i}))
-                
-        for subflow_count in [1, 2]:   
-            for routing_fit_strategy in ["first", "best", "random", "useall"]: 
-                if subflow_count == 1 and routing_fit_strategy == "useall":
-                    continue
-                 
-                comparisons.append(("farid-{}-routed-sub{}-{}".format(i, subflow_count, routing_fit_strategy),
-                                    {"timing-scheme": "farid", 
-                                    "farid-rounds": farid_rounds, 
-                                    "lb-scheme": "readprotocol", 
-                                    "throttle-search": True, 
-                                    "subflows": subflow_count, 
-                                    "punish-oversubscribed": True,
-                                    "punish-oversubscribed-min": i,
-                                    "routing-fit-strategy": routing_fit_strategy}))
-               
-                                
-        comparisons.append(("farid-{}-perfect".format(i),
-                            {"timing-scheme": "farid", 
-                             "farid-rounds": farid_rounds, 
-                             "lb-scheme": "perfect", 
-                             "throttle-search": True, 
-                             "subflows": 1, 
-                             "punish-oversubscribed": True,
-                             "punish-oversubscribed-min": i}))
+                            "farid-rounds": rounds, 
+                            "lb-scheme": "readprotocol",
+                            "routing-fit-strategy": "first",    
+                            "throttle-search": True, 
+                            "subflows": 3, 
+                            "punish-oversubscribed": True,
+                        }))
           
+          
+    comparisons.append(("zero-perfect",
+                        {"timing-scheme": "zero", 
+                            "lb-scheme": "perfect", 
+                            "subflows": 1, 
+                            "punish-oversubscribed": True}))
+        
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
@@ -279,7 +251,7 @@ def do_experiment(placement_mode="random",
         exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format("", "", "",  
                                                             oversub, 
                                                             experiment_seed),
-        worker_thread_count=40, 
+        worker_thread_count=42, 
         plot_cdfs=False,
     )
     
@@ -293,41 +265,37 @@ def do_experiment(placement_mode="random",
 if __name__ == "__main__":
     
     exp_number = None 
+    
+    os.system("rm -f last-exp-results") 
 
     if exp_number is None:
         exp_number = get_incremented_number()
-        level_names = ["machine_count", "placement", "oversub", "metric", "placement_mode", "comparison", "stat"]
+        path = f"results/exps/{exp_number}/results.csv" 
+        os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
         
-        machine_counts = [18, 24]
-        oversubs = [2, 3]
-        placement_modes = ["semirandom_4", "semirandom_2"]  
+        exp_config = [
+            ("machine_count", [24]),
+            ("placement_mode", ["semirandom_4"]),
+            ("oversub", [2]),
+            ("sim_length", [10000]),
+            ("punish_oversubscribed_min", [0.5, 0.75, 1.0]),  
+        ]
+
+        all_results = [] 
         
-        all_results = {} 
+        # go through all the possible combinations.
+        keys, values = zip(*(dict(exp_config)).items())
+        permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
         
-        for oversub in oversubs:    
-            for placement_mode in placement_modes: 
-                for machine_count in machine_counts: 
-                    # run the config.
-                    summary = do_experiment(placement_mode=placement_mode, 
-                                            machine_count=machine_count,
-                                            oversub=oversub)
-                    
-                    if machine_count not in all_results:
-                        all_results[machine_count] = {}
-                    
-                    if placement_mode not in all_results[machine_count]:
-                        all_results[machine_count][placement_mode] = {}
-                    
-                    if oversub not in all_results[machine_count][placement_mode]:
-                        all_results[machine_count][placement_mode][oversub] = summary
-                    
-                    flat_results = flatten_dict(all_results, level_names=level_names)
-                    
-                    # save to csv.
-                    os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
-                    flat_results_df = pd.DataFrame(flat_results)    
-                    path = f"results/exps/{exp_number}/results.csv" 
-                    flat_results_df.to_csv(path, index=False)
+        for perm in permutations_dicts:
+            print("Running experiment with settings: ", perm)
+            summary = do_experiment(**perm) 
+            
+            for summary_item in summary:    
+                all_results.append({**summary_item, **perm})
+            
+            all_results_df = pd.DataFrame(all_results)    
+            all_results_df.to_csv(path, index=False)
     
 
     # parser.add_argument("--file_name", type=str, required=True)
@@ -338,16 +306,19 @@ if __name__ == "__main__":
     # parser.add_argument("--plot_x_params", type=str, required=False)
     # parser.add_argument("--plot_y_param", type=str, required=False)
     
-    path = f"results/exps/{exp_number}/results.csv" 
-    
+    exp_dir = f"results/exps/{exp_number}"
+    path = f"{exp_dir}/results.csv"     
+
+    os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
+
     plot_command = "python3 plot_compare.py \
         --file_name {} \
         --plot_params metric \
-        --subplot_x_params placement \
+        --subplot_x_params placement_mode \
         --subplot_y_params oversub \
         --subplot_hue_params comparison \
-        --plot_x_params machine_count \
-        --plot_y_param value".format(path)
+        --plot_x_params punish_oversubscribed_min \
+        --plot_y_param values".format(path)
             
     print("running the plot command: ") 
     print(plot_command) 

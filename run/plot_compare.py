@@ -14,7 +14,6 @@ plot_y_param = None
 hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
                      "pink", "gray", "olive", "cyan", "black", "yellow"] * 100
 
-
 def annotate(ax):
     for p in ax.patches:
         
@@ -50,14 +49,14 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax, legend=legend)
+                    data=df, ax=ax, legend=legend, errorbar=('ci', 50))
         ax.axhline(y=1, color='black', linestyle='--')
 
     elif plot_type == "bar":    
         sns.barplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax) 
+                    data=df, ax=ax, errorbar=None)     
         
         annotate(ax)
         ax.axhline(y=1, color='black', linestyle='--')
@@ -66,24 +65,39 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
             ax.get_legend().remove()
     
     elif plot_type == "box":    
-        # draw a boxplot    
         sns.boxplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
                     data=df, ax=ax)
+        
+        if not legend:
+            ax.get_legend().remove()
     
+    if plot_type == "violin":
+        sns.violinplot(x=plot_x_params, y=plot_y_param,
+                        hue=subplot_hue_params, hue_order=hue_order, 
+                        palette=hue_color_options[:len(hue_order)],    
+                        data=df, ax=ax, inner="quartile")
+        
         if not legend:
             ax.get_legend().remove()
     
     elif plot_type == "cdf":
-        
         # draw a cdf plot
         for i, hue in enumerate(hue_order):
-            sns.kdeplot(df[df[subplot_hue_params] == hue][plot_y_param], 
+            data = df[df[subplot_hue_params] == hue][plot_y_param]  
+            
+            # if the data has no variance, kdeplot will raise a warning
+            
+            # if len(data.unique()) == 1:
+            #     # draw a vertical line at x=1
+            #     sns.lineplot(x=[1,1], y=[0,1], ax=ax, label=hue, color=hue_color_options[i]) 
+                
+            # else:
+            
+            sns.kdeplot(data, 
                         cumulative=True, ax=ax, label=hue, warn_singular=False, 
-                        color=hue_color_options[i], 
-                        marker='o', linestyle='-', linewidth=1, 
-                        markevery=10, markersize=2)
+                        color=hue_color_options[i])
         
         ax.axvline(x=1, color='black', linestyle='--')  
         
@@ -91,9 +105,6 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
         ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=subplot_y_len)  
             
     # draw a horizontal line at y=1
-
-    
-    
     
     if y_value is not None and subplot_y_params is not None:
         ax.set_title(f"{subplot_x_params}={x_value}\n {subplot_y_params}={y_value}")
@@ -167,19 +178,10 @@ def main(file_name, file_dir, plot_type):
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
-    if plot_type == "cdf" or plot_type == "box":    
-        df = df[df["stat"] == "values"]
-        # the column value is a list of numbers, and its type is string
-        df["value"] = df["value"].apply(lambda x: [float(i) for i in x[1:-1].split(",")])
-        # break the list of numbers into separate rows
-        df = df.explode("value")
-        df["value"] = df["value"].astype(float)
-        
-    elif plot_type == "bar" or plot_type == "line": 
-        df = df[df["stat"] == "mean"]
-        # the column value is a number 
-        df["value"] = df["value"].astype(float)     
-
+    df["values"] = df["values"].apply(lambda x: [float(i) for i in x[1:-1].split(",")])
+    df = df.explode("values")
+    df["values"] = df["values"].astype(float)
+    
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
     else:
@@ -223,8 +225,9 @@ if __name__ == "__main__":
         plot_x_params = args.plot_x_params
     if args.plot_y_param is not None:
         plot_y_param = args.plot_y_param
-        
-    main(args.file_name, file_dir, "cdf") 
-    main(args.file_name, file_dir, "box") 
+
     main(args.file_name, file_dir, "bar")
+    main(args.file_name, file_dir, "box") 
+    main(args.file_name, file_dir, "violin") 
     main(args.file_name, file_dir, "line")   
+    main(args.file_name, file_dir, "cdf") 
