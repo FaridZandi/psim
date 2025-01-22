@@ -402,24 +402,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             selected_spines = route_flows_best(spine_availablity, max_subflow_count)
 
         elif selection_strategy == "first": 
-            if counter == 1:
-                selected_spines = [(0, 1.0)]
-            elif counter == 2: 
-                selected_spines = [(2, 1.0)]
-            elif counter == 3:
-                selected_spines = [(1, 1.0)]
-            elif counter == 4:
-                selected_spines = [(2, 1.0)]
-            elif counter == 5:
-                selected_spines = [(0, 1.0)]
-            elif counter == 6:
-                selected_spines = [(1, 1.0)]
-            elif counter == 7:
-                selected_spines = [(2, 1.0)]
-            elif counter == 8:
-                selected_spines = [(0, 1.0)]
-            else:
-                selected_spines = route_flows_first(spine_availablity, max_subflow_count, 
+            selected_spines = route_flows_first(spine_availablity, max_subflow_count, 
                                                 num_spines)
             
         elif selection_strategy == "random":
@@ -438,11 +421,11 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                           selected_spines, rem, usage, 
                           src_leaf, dst_leaf)       
 
-        if counter < 10: 
-            draw_stuff(run_context, 
-                   rem, usage, all_job_ids, num_leaves, num_spines, routing_time, 
-                   min_affected_time, max_affected_time, 
-                   routing_plot_dir, smoothing_window=1, suffix="{}".format(counter))
+        # if counter < 10: 
+        #     draw_stuff(run_context, 
+        #            rem, usage, all_job_ids, num_leaves, num_spines, routing_time, 
+        #            min_affected_time, max_affected_time, 
+        #            routing_plot_dir, smoothing_window=1, suffix="{}".format(counter))
             
     for smoothing_window in [1, 1000]: 
         draw_stuff(run_context, 
