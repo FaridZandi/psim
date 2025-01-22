@@ -6,7 +6,6 @@ import itertools
 experiment_seed = 76
 random_rep_count = 1
 
-
 # this is an experiment that has one base setting, and then a bunch of comparisons.
 # I'm attempting to keep the things that should be kept constant, constant.
 # then compute the speedup of the other things with respect to the base setting.
@@ -17,8 +16,7 @@ def do_experiment(placement_mode="random",
                   punish_oversubscribed_min=0.5, 
                   search_quota="a little"):
     
-    viz = False
-    seed_range = 6
+    seed_range = 1
     placement_options = 100
     
     cassini_mc_candidate_count = {
@@ -41,13 +39,13 @@ def do_experiment(placement_mode="random",
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
         "machine-count": machine_count,
-        "ft-server-per-rack": 8,
-        "jobs-machine-count-low": 4,
-        "jobs-machine-count-high": 8,
+        "ft-server-per-rack": 4,
+        "jobs-machine-count-low": machine_count,
+        "jobs-machine-count-high": machine_count,
         "placement-seed-range": seed_range,
         "comm-size": [16000, 32000],
-        "comp-size": [100, 200, 300],
-        "layer-count": [1, 2],
+        "comp-size": [100, 200, 400],
+        "layer-count": [1],
         "iter-count": [30], # iteration count
     }
     
@@ -147,6 +145,8 @@ def do_experiment(placement_mode="random",
     core_count = base_options["ft-server-per-rack"] // oversub
 
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
+    profiled_throttle_factors = [1.0]
+    
     if core_count == 2: 
         profiled_throttle_factors = [1.0, 0.5]
     elif core_count == 3: 
@@ -156,18 +156,12 @@ def do_experiment(placement_mode="random",
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
-    timing_viz = []
-    if viz: 
-        timing_viz = placement_seeds
-    else:
-        timing_viz = []  
-        
     exp_sweep_config = {
         "protocol-file-name": ["nethint-test"],
 
         # placement and workload parameters.
         # these will be different lines in the cdf plot.
-        "lb-scheme": ["random", "leastloaded", "ideal", "perfect", "readprotocol"], #[lb, "ideal", "leastloaded"],   
+        "lb-scheme": ["random", "leastloaded", "ideal", "perfect", "readprotocol", "powerof2", "ecmp"],   
         "timing-scheme": ["cassini", "farid", "random", "zero"],    #["cassini", "farid", "random"],
         "ring-mode": ["random"],
         "subflows": [1, core_count],    
@@ -200,31 +194,20 @@ def do_experiment(placement_mode="random",
 
     comparisons = []
 
-    for rounds in [1, 2, 3, 4, 5]:                               
-        # comparisons.append(("farid-routed-{}-rounds".format(rounds),
-        #                     {"timing-scheme": "farid", 
-        #                     "farid-rounds": rounds, 
-        #                     "lb-scheme": "readprotocol",
-        #                     "routing-fit-strategy": "first",    
-        #                     "throttle-search": True, 
-        #                     "subflows": core_count, 
-        #                     "punish-oversubscribed": True,
-        #                 }))
-        
-        comparisons.append(("farid-perfect-{}-rounds".format(rounds),
-                                {"timing-scheme": "farid", 
-                                "farid-rounds": rounds, 
-                                "lb-scheme": "perfect",
-                                "throttle-search": True, 
-                                "punish-oversubscribed": True,}
-                            ))  
           
     comparisons.append(("zero-perfect",
                         {"timing-scheme": "zero", 
-                            "lb-scheme": "perfect", 
-                            "subflows": 1, 
-                            "punish-oversubscribed": True}))
-        
+                         "lb-scheme": "perfect"}))
+    
+    
+    comparisons.append(("zero-routed-first",
+                        {"timing-scheme": "zero", 
+                         "lb-scheme": "readprotocol"}))
+
+    # comparisons.append(("zero-ecmp",
+    #                     {"timing-scheme": "zero", 
+    #                      "lb-scheme": "ecmp"}))
+    
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
@@ -232,8 +215,8 @@ def do_experiment(placement_mode="random",
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "visualize-timing": timing_viz, 
-        "visualize-routing": False, 
+        "visualize-timing": placement_seeds, 
+        "visualize-routing": True, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -301,12 +284,12 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
 
         exp_config = [
-            ("machine_count", [24, 48]),
+            ("machine_count", [12]),
             ("placement_mode", ["random"]),
-            ("oversub", [2, 4]),
-            ("sim_length", [15000]),
+            ("oversub", [1]),
+            ("sim_length", [2000]),
             ("punish_oversubscribed_min", [1.0]),  
-            ("search_quota", ["little", "some", "alot"]) 
+            ("search_quota", ["some"]) 
         ]
 
         all_results = [] 
@@ -325,7 +308,6 @@ if __name__ == "__main__":
             all_results_df = pd.DataFrame(all_results)    
             all_results_df.to_csv(path, index=False)
     
-
     # parser.add_argument("--file_name", type=str, required=True)
     # parser.add_argument("--plot_params", type=str, required=False)
     # parser.add_argument("--subplot_x_params", type=str, required=False)
@@ -340,10 +322,9 @@ if __name__ == "__main__":
     plot_command = "python3 plot_compare.py \
         --file_name {} \
         --plot_params metric \
-        --subplot_x_params machine_count \
         --subplot_y_params oversub \
         --subplot_hue_params comparison \
-        --plot_x_params search_quota \
+        --plot_x_params machine_count \
         --plot_y_param values".format(path)
             
     print("running the plot command: ") 

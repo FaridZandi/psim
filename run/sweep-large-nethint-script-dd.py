@@ -14,25 +14,12 @@ def do_experiment(placement_mode="random",
                   machine_count=6,
                   oversub=1, 
                   sim_length=50000, 
-                  punish_oversubscribed_min=0.5, 
-                  search_quota="a little"):
+                  punish_oversubscribed_min=0.5):
     
     viz = False
-    seed_range = 6
+    seed_range = 1
     placement_options = 100
-    
-    cassini_mc_candidate_count = {
-        "little": 10,
-        "some": 50,
-        "alot": 200,
-    }[search_quota]
-    
-    cassini_overall_solution_count = {  
-        "little": 5,
-        "some": 10, 
-        "alot": 15,
-    }[search_quota]
-
+        
     random.seed(experiment_seed)
 
     # things to eventually remove from this function. 
@@ -41,13 +28,13 @@ def do_experiment(placement_mode="random",
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
         "machine-count": machine_count,
-        "ft-server-per-rack": 8,
+        "ft-server-per-rack": 6,
         "jobs-machine-count-low": 4,
         "jobs-machine-count-high": 8,
         "placement-seed-range": seed_range,
         "comm-size": [16000, 32000],
         "comp-size": [100, 200, 300],
-        "layer-count": [1, 2],
+        "layer-count": [1],
         "iter-count": [30], # iteration count
     }
     
@@ -144,23 +131,17 @@ def do_experiment(placement_mode="random",
         },
     } 
 
-    core_count = base_options["ft-server-per-rack"] // oversub
-
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
-    if core_count == 2: 
-        profiled_throttle_factors = [1.0, 0.5]
-    elif core_count == 3: 
-        profiled_throttle_factors = [1.0, 0.66, 0.33]
-    elif core_count == 4:
-        profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
-            
+    profiled_throttle_factors = [1.0, 0.66, 0.33]
+    
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
+    core_count = base_options["ft-server-per-rack"] // oversub
     
     timing_viz = []
     if viz: 
         timing_viz = placement_seeds
     else:
-        timing_viz = []  
+        timing_viz = [1]  
         
     exp_sweep_config = {
         "protocol-file-name": ["nethint-test"],
@@ -170,7 +151,7 @@ def do_experiment(placement_mode="random",
         "lb-scheme": ["random", "leastloaded", "ideal", "perfect", "readprotocol"], #[lb, "ideal", "leastloaded"],   
         "timing-scheme": ["cassini", "farid", "random", "zero"],    #["cassini", "farid", "random"],
         "ring-mode": ["random"],
-        "subflows": [1, core_count],    
+        "subflows": [1, 2, 3],
         "min-rate": [10, 100],  
         "punish-oversubscribed": [False, True],   
 
@@ -201,23 +182,16 @@ def do_experiment(placement_mode="random",
     comparisons = []
 
     for rounds in [1, 2, 3, 4, 5]:                               
-        # comparisons.append(("farid-routed-{}-rounds".format(rounds),
-        #                     {"timing-scheme": "farid", 
-        #                     "farid-rounds": rounds, 
-        #                     "lb-scheme": "readprotocol",
-        #                     "routing-fit-strategy": "first",    
-        #                     "throttle-search": True, 
-        #                     "subflows": core_count, 
-        #                     "punish-oversubscribed": True,
-        #                 }))
-        
-        comparisons.append(("farid-perfect-{}-rounds".format(rounds),
-                                {"timing-scheme": "farid", 
-                                "farid-rounds": rounds, 
-                                "lb-scheme": "perfect",
-                                "throttle-search": True, 
-                                "punish-oversubscribed": True,}
-                            ))  
+        comparisons.append(("farid-routed-{}-rounds".format(rounds),
+                            {"timing-scheme": "farid", 
+                            "farid-rounds": rounds, 
+                            "lb-scheme": "readprotocol",
+                            "routing-fit-strategy": "first",    
+                            "throttle-search": True, 
+                            "subflows": 3, 
+                            "punish-oversubscribed": True,
+                        }))
+          
           
     comparisons.append(("zero-perfect",
                         {"timing-scheme": "zero", 
@@ -233,7 +207,7 @@ def do_experiment(placement_mode="random",
 
         "plot-iteration-graphs": False, 
         "visualize-timing": timing_viz, 
-        "visualize-routing": False, 
+        "visualize-routing": True, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -244,10 +218,10 @@ def do_experiment(placement_mode="random",
         "oversub": oversub,
         
         "cassini-parameters": {  
-            "link-solution-candidate-count": cassini_mc_candidate_count,   
+            "link-solution-candidate-count": 50,
             "link-solution-random-quantum": 10,
             "link-solution-top-candidates": 3,    
-            "overall-solution-candidate-count": cassini_overall_solution_count,
+            "overall-solution-candidate-count": 4,
             "save-profiles": True,
         },
         "routing-parameters": {},
@@ -289,24 +263,22 @@ def do_experiment(placement_mode="random",
 # Here, we iterate over things that will have different baselines to compare against.   
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
 if __name__ == "__main__":
+    
     exp_number = None 
+    
+    os.system("rm -f last-exp-results") 
 
     if exp_number is None:
         exp_number = get_incremented_number()
-        exp_dir = f"results/exps/{exp_number}"
         path = f"results/exps/{exp_number}/results.csv" 
         os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
-
-        os.system("rm -f last-exp-results") 
-        os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
-
+        
         exp_config = [
-            ("machine_count", [24, 48]),
+            ("machine_count", [24]),
             ("placement_mode", ["random"]),
-            ("oversub", [2, 4]),
-            ("sim_length", [15000]),
+            ("oversub", [2]),
+            ("sim_length", [10000]),
             ("punish_oversubscribed_min", [1.0]),  
-            ("search_quota", ["little", "some", "alot"]) 
         ]
 
         all_results = [] 
@@ -337,13 +309,15 @@ if __name__ == "__main__":
     exp_dir = f"results/exps/{exp_number}"
     path = f"{exp_dir}/results.csv"     
 
+    os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
+
     plot_command = "python3 plot_compare.py \
         --file_name {} \
         --plot_params metric \
-        --subplot_x_params machine_count \
+        --subplot_x_params placement_mode \
         --subplot_y_params oversub \
         --subplot_hue_params comparison \
-        --plot_x_params search_quota \
+        --plot_x_params punish_oversubscribed_min \
         --plot_y_param values".format(path)
             
     print("running the plot command: ") 

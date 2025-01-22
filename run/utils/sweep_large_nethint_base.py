@@ -486,8 +486,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     run_context["runtime-dir"] = runtime_related_base_path
     os.makedirs(runtime_related_base_path, exist_ok=True)    
     
-
-
+    options["simulation-seed"] += run_context["placement-seed"]
+    
 def plot_runtime(output, options, this_exp_results, run_context, config_sweeper):
     if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
         return   

@@ -319,8 +319,9 @@ def evaluate_candidate_python_2(job_loads, deltas, throttle_rates,
             job_cost = get_solution_cost_job_load(job_load, deltas, throttle_rates)
             job_length = job_load["profiles"][1.0]["period"] * job_load["iter_count"]
             solution_cost += (job_cost / job_length)
-        solution_cost = solution_cost / len(job_loads)
-        
+            
+        # solution_cost = solution_cost / len(job_loads)
+
         compat_score = compat_score - solution_cost  
         
     elif compat_score_mode == "max-util-left":
@@ -671,11 +672,16 @@ def visualize_link_loads(link_loads, run_context,
                          labels=[f"Job: {job_id}" for job_id in job_ids], 
                          colors=[get_job_color(job_id, assigned_job_colors) for job_id in job_ids])
 
+
             ax.set_ylim(0, sum_max_job_load * 1.1)
 
             if link_logical_bandwidth is not None:  
                 ax.axhline(y=link_logical_bandwidth, color='r', linestyle='--') 
                 
+                link_logical_bandwidth_int = int(link_logical_bandwidth) 
+                for i in range(1, link_logical_bandwidth_int + 1):
+                    ax.axhline(y=i, color='black', linestyle='-', linewidth=0.5)   
+                     
                 # find the first place that the link goes over the logical bandwidth.
                 sum_signal = np.sum(job_loads_array, axis=0)
                 first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
@@ -810,7 +816,10 @@ def visualize_link_loads_runtime(link_loads, run_context,
     plt.close(fig)
     
     
-def get_good_until(jobs, link_loads_list, run_context, deltas, throttle_rates, link_logical_bandwidth):    
+def get_good_until(jobs, link_loads_list, run_context, 
+                   deltas, throttle_rates, link_logical_bandwidth,
+                   cross_rack_jobs):   
+     
     min_first_overload_index = 1e9  
     max_length_across_links = 0 
     
@@ -824,6 +833,7 @@ def get_good_until(jobs, link_loads_list, run_context, deltas, throttle_rates, l
         job_loads_array = np.array(padded_job_loads)
         sum_signal = np.sum(job_loads_array, axis=0)
         first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
+        
         if max(sum_signal) > link_logical_bandwidth:
             min_first_overload_index = min(min_first_overload_index, first_overload_index)  
                  
@@ -840,24 +850,28 @@ def get_good_until(jobs, link_loads_list, run_context, deltas, throttle_rates, l
     # print("min_first_overload_index: ", min_first_overload_index)   
     
     for job in jobs: 
-        good_until[job["job_id"]] = -1
         job_id = job["job_id"] 
-        job_iter_count = job["iter_count"] 
-
-        # the job will be delta, period, delta, period, delta, period, ...  
-        current_time = 0    
         
-        for iter_id in range(job_iter_count):
-            iter_throttle_rate = throttle_rates[job_id][iter_id] 
+        if job_id not in cross_rack_jobs:  
+            good_until[job["job_id"]] = job["iter_count"] - 1   
+        else: 
+            good_until[job["job_id"]] = -1
+            job_iter_count = job["iter_count"] 
+
+            # the job will be delta, period, delta, period, delta, period, ...  
+            current_time = 0    
             
-            job_iter_period = job["period"][str(iter_throttle_rate)]
-            current_time += deltas[job_id][iter_id]
-            current_time += job_iter_period 
-            
-            if current_time > min_first_overload_index:
-                break
-            
-            good_until[job_id] = iter_id 
+            for iter_id in range(job_iter_count):
+                iter_throttle_rate = throttle_rates[job_id][iter_id] 
+                
+                job_iter_period = job["period"][str(iter_throttle_rate)]
+                current_time += deltas[job_id][iter_id]
+                current_time += job_iter_period 
+                
+                if current_time > min_first_overload_index:
+                    break
+                
+                good_until[job_id] = iter_id 
         
         # print(f"job_id: {job_id}, job_period: {job_period}, job_iter_count: {job_iter_count}, good_until: {good_until[job_id]}")      
     
@@ -1054,7 +1068,8 @@ def get_timeshifts(jobs, options, run_context, job_profiles,
         # log_results(run_context, "candidate", (current_deltas, candidate_score))
         good_until = get_good_until(jobs, link_loads_list, run_context, 
                                     current_deltas, current_throttle_rates,   
-                                    link_logical_bandwidth=link_logical_bandwidth)
+                                    link_logical_bandwidth=link_logical_bandwidth, 
+                                    cross_rack_jobs=cross_rack_jobs)    
         
         all_scores.append(candidate_score)
         
@@ -1187,7 +1202,7 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
             sys.stderr.write("job_id: {}, job_cost: {}, job_period: {}, job_iter_count: {}".format(
                 job_id, job_costs[job_id], job["period"], job["iter_count"]))
             
-        avg_job_cost = int(sum(job_costs.values()) / len(jobs))   
+        net = int(sum(job_costs.values()) / len(jobs))   
                 
         for job in jobs:
             job_id = job["job_id"]
@@ -1195,6 +1210,13 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
             
         log_results(run_context, "job_costs", job_costs)
         log_results(run_context, "weights", weights)    
+        
+        
+        sys.stderr.write("jobs: {}\n".format(jobs)) 
+        sys.stderr.write("round: {}, avg_job_cost: {}\n".format(i, avg_job_cost))
+        # write the good untils to the stderr 
+        sys.stderr.write("good_until: {}\n".format(good_until))
+        sys.stderr.write("starting_iterations: {}\n".format(starting_iterations))
         
         are_we_done = True 
         for job in jobs:    

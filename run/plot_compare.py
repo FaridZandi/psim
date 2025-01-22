@@ -85,24 +85,21 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
     elif plot_type == "cdf":
         # draw a cdf plot
         for i, hue in enumerate(hue_order):
+            
             data = df[df[subplot_hue_params] == hue][plot_y_param]  
-            
-            # if the data has no variance, kdeplot will raise a warning
-            
-            # if len(data.unique()) == 1:
-            #     # draw a vertical line at x=1
-            #     sns.lineplot(x=[1,1], y=[0,1], ax=ax, label=hue, color=hue_color_options[i]) 
-                
-            # else:
-            
-            sns.kdeplot(data, 
-                        cumulative=True, ax=ax, label=hue, warn_singular=False, 
+
+            sns.kdeplot(data, cumulative=True, ax=ax, label=hue, warn_singular=False, 
                         color=hue_color_options[i])
-        
+            
+            # sns.kdeplot(data, fill=True, common_norm=False, alpha=0.5, 
+            #             ax=ax, label=hue, warn_singular=False, 
+            #             color=hue_color_options[i])
+
+            
         ax.axvline(x=1, color='black', linestyle='--')  
         
     if legend:
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=subplot_y_len)  
+        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=1)  
             
     # draw a horizontal line at y=1
     
@@ -145,7 +142,7 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
         hue_len = 1 
         
     width = subplot_y_len * 5
-    height = subplot_x * plot_x_len  
+    height = subplot_x * plot_x_len * 0.8  
     
     print(f"width: {width}, height: {height}")
     
@@ -156,7 +153,7 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
                              squeeze=False)
       
     plt.subplots_adjust(hspace=0.5)
-    plt.subplots_adjust(wspace=0.5)
+    # plt.subplots_adjust(wspace=0.5)
     
     for i, x_value in enumerate(subplot_x_values):
         for j, y_value in enumerate(subplot_y_values):
@@ -226,8 +223,8 @@ if __name__ == "__main__":
     if args.plot_y_param is not None:
         plot_y_param = args.plot_y_param
 
+    main(args.file_name, file_dir, "cdf") 
     main(args.file_name, file_dir, "bar")
     main(args.file_name, file_dir, "box") 
     main(args.file_name, file_dir, "violin") 
     main(args.file_name, file_dir, "line")   
-    main(args.file_name, file_dir, "cdf") 
