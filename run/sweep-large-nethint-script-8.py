@@ -11,12 +11,13 @@ random_rep_count = 1
 # then compute the speedup of the other things with respect to the base setting.
 def do_experiment(placement_mode="random", 
                   machine_count=6,
+                  rack_size=4,
                   oversub=1, 
                   sim_length=50000, 
                   punish_oversubscribed_min=0.5, 
                   search_quota="a little"):
     
-    seed_range = 1
+    seed_range = 8
     placement_options = 100
     
     cassini_mc_candidate_count = {
@@ -173,7 +174,7 @@ def do_experiment(placement_mode="random",
         "placement-seed": placement_seeds,
         
         # parameters for the scheduling algorithm. 
-        "routing-fit-strategy": ["first", "best", "random", "useall"],
+        "routing-fit-strategy": ["first", "best", "random", "useall", "graph-coloring"],
         "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
         "throttle-search": [True, False],
         
@@ -195,15 +196,25 @@ def do_experiment(placement_mode="random",
     comparisons = []
 
           
-    comparisons.append(("zero-perfect",
-                        {"timing-scheme": "zero", 
-                         "lb-scheme": "perfect"}))
     
+    comparisons.append(("zero-routed-best",
+                        {"timing-scheme": "zero",
+                         "routing-fit-strategy": "best",    
+                         "lb-scheme": "readprotocol"}))
     
     comparisons.append(("zero-routed-first",
                         {"timing-scheme": "zero", 
                          "lb-scheme": "readprotocol"}))
 
+    comparisons.append(("zero-routed-graph",
+                        {"timing-scheme": "zero",
+                         "routing-fit-strategy": "graph-coloring",  
+                         "lb-scheme": "readprotocol"}))
+    
+    comparisons.append(("zero-perfect",
+                        {"timing-scheme": "zero", 
+                         "lb-scheme": "perfect"}))
+    
     # comparisons.append(("zero-ecmp",
     #                     {"timing-scheme": "zero", 
     #                      "lb-scheme": "ecmp"}))
@@ -215,8 +226,8 @@ def do_experiment(placement_mode="random",
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "visualize-timing": placement_seeds, 
-        "visualize-routing": True, 
+        "visualize-timing": [], #placement_seeds, 
+        "visualize-routing": False, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -284,10 +295,12 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
 
         exp_config = [
-            ("machine_count", [12]),
+            ("machine_count", [48, 72]),
+            ("rack_size", [4, 8, 12]),
+            
             ("placement_mode", ["random"]),
             ("oversub", [1]),
-            ("sim_length", [2000]),
+            ("sim_length", [15000]),
             ("punish_oversubscribed_min", [1.0]),  
             ("search_quota", ["some"]) 
         ]

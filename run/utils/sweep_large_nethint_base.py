@@ -578,9 +578,11 @@ def get_rolling_costs(output, options, this_exp_results, run_context, config_swe
 
 def add_up_job_numbers(numbers1, numbers2): 
     new_numbers = [] 
+    
     for rep in range(len(numbers1)):
         rep_numbers1 = numbers1[rep]
         rep_numbers2 = numbers2[rep]
+    
         new_rep_numbers = {}
         
         for job in rep_numbers1.keys():
