@@ -131,8 +131,12 @@ def generate_semirandom_placement_file(options, run_context, fragmentation_facto
         allocation_chunk = random.randint(allocation_chunk_min, allocation_chunk_max)
         
         # find the first availabel chunk of machines
-        found_chunk = False         
-        for i in range(machine_count - allocation_chunk + 1):
+        found_chunk = False   
+        range_end = machine_count - allocation_chunk + 1
+        range_start = random.randint(0, range_end - 1)   
+        
+        
+        for i in range(range_start, range_end): 
             if all(available_machines[i:i + allocation_chunk]):
                 found_chunk = True
                 job["machines"].extend(range(i, i + allocation_chunk))
@@ -474,9 +478,16 @@ def generate_placement_file(placement_path, placement_seed,
         if ring_mode == "random":
             for job in jobs:
                 random.shuffle(job["machines"]) 
-        else:
+    
+        elif ring_mode == "sorted": 
             for job in jobs:
                 job["machines"] = sorted(job["machines"])  
+    
+        elif ring_mode == "letitbe":
+            pass    
+    
+        else: 
+            raise Exception("Error: unknown ring mode: " + ring_mode)
     
     with open(placement_path, "w") as f:
         json.dump(jobs, f, indent=4)

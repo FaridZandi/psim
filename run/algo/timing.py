@@ -320,7 +320,7 @@ def evaluate_candidate_python_2(job_loads, deltas, throttle_rates,
             job_length = job_load["profiles"][1.0]["period"] * job_load["iter_count"]
             solution_cost += (job_cost / job_length)
             
-        # solution_cost = solution_cost / len(job_loads)
+        solution_cost = solution_cost / len(job_loads)
 
         compat_score = compat_score - solution_cost  
         
@@ -339,7 +339,7 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
     ls_rand_quantum = run_context["cassini-parameters"]["link-solution-random-quantum"]
     ls_top_candidates = run_context["cassini-parameters"]["link-solution-top-candidates"]    
     
-    if len(job_loads) == 0 or len(job_loads) == 1:
+    if len(job_loads) == 0: # or len(job_loads) == 1:
         same_deltas = copy.deepcopy(current_deltas)
         same_throttle_rates = copy.deepcopy(current_throttle_rates)
         return (same_deltas, same_throttle_rates)
@@ -1202,7 +1202,7 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
             sys.stderr.write("job_id: {}, job_cost: {}, job_period: {}, job_iter_count: {}".format(
                 job_id, job_costs[job_id], job["period"], job["iter_count"]))
             
-        net = int(sum(job_costs.values()) / len(jobs))   
+        avg_job_cost = int(sum(job_costs.values()) / len(jobs))   
                 
         for job in jobs:
             job_id = job["job_id"]

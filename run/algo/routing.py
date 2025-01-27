@@ -9,15 +9,13 @@ import itertools
 import networkx as nx
 import matplotlib.pyplot as plt
 from networkx.algorithms.flow import maximum_flow
+from collections import deque, defaultdict
 
 ############################################################################################################
 ############################################################################################################
 ############################################################################################################
 
-from collections import defaultdict
-
-
-def bipartite_edge_color(G, left_partition):
+def color_bipartite_graph_1_helper(G, left_partition):
     """
     Color the edges of a bipartite MultiGraph `G` with at most Delta colors,
     where Delta is the maximum degree of the graph.
@@ -149,8 +147,7 @@ def bipartite_edge_color(G, left_partition):
     return edge_color
 
 
-
-def plot_bipartite_graph(edges, plot_path):
+def color_bipartite_graph_1(edges, num_spines, plot_path):
     """
     Plots a bipartite MultiGraph with potential parallel edges.
     Each pair of parallel edges is drawn with a different curvature (rad).
@@ -171,7 +168,7 @@ def plot_bipartite_graph(edges, plot_path):
     for e in edges:
         G.add_edge(e[0], e[1], key=e[2])    
     
-    edge_colors = bipartite_edge_color(G, left_nodes) 
+    edge_colors = color_bipartite_graph_1_helper(G, left_nodes) 
     
     # print(edges, file=sys.stderr)
     # print(edge_colors, file=sys.stderr)   
@@ -181,22 +178,37 @@ def plot_bipartite_graph(edges, plot_path):
     for (u, v, key), color in edge_colors.items():
         edge_color_map[key] = color
         
+    print(edges, file=sys.stderr)
     print(edge_color_map, file=sys.stderr)   
     
+    colors_used = set(edge_color_map.values())
+    colors_used_num = len(colors_used) 
     
-    return edge_color_map
+    if colors_used_num <= num_spines:
+        # this is okay.
+        return edge_color_map   
+
+
+    # messed up:
+    sys.stderr.write(f"Warning: {colors_used_num} colors used for {num_spines} spines\n")
+    sys.stderr.write(f"Colors used: {colors_used}\n")
+    sys.stderr.write(f"Edge color map: {edge_color_map}\n")
+    sys.stderr.write(f"Edges: {edges}\n")   
     
+
     # Position: place left nodes at x=-1, right nodes at x=+1
     pos = {}
     sorted_left = sorted(left_nodes)
     sorted_right = sorted(right_nodes)
+    
+    leaf_num = len(sorted_right)
     
     for i, node in enumerate(sorted_left):
         pos[node] = (-1, i)
     for j, node in enumerate(sorted_right):
         pos[node] = (1, j)
     
-    fig, ax = plt.subplots(figsize=(6, 4))
+    fig, ax = plt.subplots(figsize=(leaf_num, leaf_num))
 
     # Draw the nodes (once)
     nx.draw_networkx_nodes(G, pos, nodelist=G.nodes(), node_color="lightblue", node_size=1200, ax=ax)
@@ -230,15 +242,14 @@ def plot_bipartite_graph(edges, plot_path):
         # If you have two edges, you might do rad=-0.1, +0.1
         # etc.
         # Let's define an offset:
-        start_rad = -0.1*(count-1)
+        start_rad = -0.1 * (count-1)
         
         for i, _ in enumerate(keys_list):
             # rad for this edge
-            rad = start_rad + i*0.1
+            rad = start_rad + i * 0.1
             
             nx.draw_networkx_edges(
-                G,
-                pos,
+                G, pos,
                 edgelist=[(u, v)],
                 connectionstyle=f'arc3,rad={rad}',
                 edge_color=plt.cm.tab20.colors[edge_colors[(u, v, keys_list[i])]],
@@ -246,8 +257,152 @@ def plot_bipartite_graph(edges, plot_path):
             )
     
     ax.set_title("Bipartite MultiGraph with Parallel Edges (Curved)")
+    
     plt.axis("off")
     plt.savefig(plot_path)
+    plt.close(fig)  
+    
+    return edge_color_map
+
+############################################################################################################
+############################################################################################################
+############################################################################################################
+
+def compute_max_degree(edges):
+    degree = defaultdict(int)
+    for u, v in edges:
+        degree[u] += 1
+        degree[v] += 1
+    return max(degree.values(), default=0)
+
+def hopcroft_karp(graph):
+    pair_u = defaultdict(lambda: None)
+    pair_v = defaultdict(lambda: None)
+    dist = {}
+    
+    def bfs():
+        queue = deque()
+        for u in graph:
+            if pair_u[u] is None:
+                dist[u] = 0
+                queue.append(u)
+            else:
+                dist[u] = float('inf')
+        dist[None] = float('inf')
+        
+        while queue:
+            u = queue.popleft()
+            if u is not None:
+                for v in graph[u]:
+                    if dist[pair_v[v]] == float('inf'):
+                        dist[pair_v[v]] = dist[u] + 1
+                        queue.append(pair_v[v])
+        return dist[None] != float('inf')
+    
+    def dfs(u):
+        if u is not None:
+            for v in graph[u]:
+                if dist[pair_v[v]] == dist[u] + 1:
+                    if dfs(pair_v[v]):
+                        pair_u[u] = v
+                        pair_v[v] = u
+                        return True
+            dist[u] = float('inf')
+            return False
+        return True
+    
+    while bfs():
+        for u in list(graph.keys()):
+            if pair_u[u] is None:
+                dfs(u)
+                
+    return {k: v for k, v in pair_u.items() if v is not None}
+
+def color_bipartite_multigraph_2(input_edges):
+    if not input_edges:
+        return []
+
+    edges = [(r[0], r[1]) for r in input_edges]   
+  
+    max_degree = compute_max_degree(edges)
+    edge_list = [(u, v) for u, v in edges]
+    n = len(edge_list)
+    colors = [0] * n
+    remaining = set(range(n))
+     
+    for color in range(1, max_degree + 1):
+        if not remaining:
+            break
+        
+        # Build current bipartite graph of available edges
+        uv_pairs = set()
+        for idx in remaining:
+            u, v = edge_list[idx]
+            uv_pairs.add((u, v))
+        
+        # Create adjacency list for Hopcroft-Karp
+        graph = defaultdict(list)
+        for u, v in uv_pairs:
+            graph[u].append(v)
+        
+        # Find maximum matching
+        matching = hopcroft_karp(graph)
+        
+        # Color edges in the matching
+        matched_pairs = [(u, v) for u, v in matching.items()]
+        
+        for u, v in matched_pairs:
+            # Find first matching edge in remaining set
+            for idx in list(remaining):
+                if edge_list[idx] == (u, v):
+                    colors[idx] = color
+                    remaining.remove(idx)
+                    break
+    
+    edge_color_map = {} 
+    for i in range(n):  
+        edge_color_map[i + 1] = colors[i]
+    
+    return edge_color_map   
+        
+
+# Example usage
+if __name__ == "__main__":
+    print("Example usage of coloring a bipartite multigraph")
+    
+    # Example 1: 3 edges between u1-v1 and u2-v2
+    edges = [('1_l', '7_r', 1), ('7_l', '4_r', 2), ('4_l', '10_r', 3), ('10_l', '0_r', 4), ('0_l', '5_r', 5), ('5_l', '8_r', 6), ('8_l', '6_r', 7), ('6_l', '9_r', 8), ('9_l', '4_r', 9), ('4_l', '11_r', 10), ('11_l', '3_r', 11), ('3_l', '4_r', 12), ('4_l', '0_r', 13), ('0_l', '7_r', 14), ('7_l', '2_r', 15), ('2_l', '9_r', 16), ('9_l', '3_r', 17), ('3_l', '5_r', 18), ('5_l', '10_r', 19), ('10_l', '0_r', 20), ('0_l', '9_r', 21), ('9_l', '5_r', 22), ('5_l', '11_r', 23), ('11_l', '3_r', 24), ('3_l', '1_r', 25), ('1_l', '2_r', 26), ('2_l', '1_r', 27), ('1_l', '3_r', 28), ('3_l', '6_r', 29), ('6_l', '7_r', 30), ('7_l', '8_r', 31), ('8_l', '11_r', 32), ('11_l', '1_r', 33), ('1_l', '6_r', 34), ('6_l', '11_r', 35), ('11_l', '10_r', 36), ('10_l', '2_r', 37), ('2_l', '8_r', 38), ('8_l', '6_r', 39), ('6_l', '4_r', 40), ('4_l', '0_r', 41), ('0_l', '9_r', 42), ('9_l', '2_r', 43), ('2_l', '5_r', 44), ('5_l', '8_r', 45), ('8_l', '1_r', 46)]
+    
+    i = 0 
+    while True:    
+        i += 1  
+        
+        random.seed(i)  
+        random.shuffle(edges)   
+
+        edges = [(r[0], r[1]) for r in edges]   
+        colors = color_bipartite_multigraph_2(edges)
+        
+        # for each color, store the edges
+        color_edge_map = defaultdict(list)
+        colored_edges = 0 
+        for idx, (u, v) in enumerate(edges):    
+            color_edge_map[colors[idx]].append(idx)
+            colored_edges += 1
+            
+        pprint(color_edge_map)  
+        
+        used_color_count = len(set(colors)) 
+        print(f"[{i}] Used {used_color_count} colors for {len(edges)} edges") 
+        
+        if used_color_count == 4:
+            break
+        
+
+############################################################################################################
+############################################################################################################
+############################################################################################################
+
 
 def get_color(job_id):  
     return plt.cm.tab20.colors[job_id % 20] 
@@ -340,7 +495,7 @@ def draw_stuff(run_context, rem, usage, all_job_ids, num_leaves,
     fig.suptitle('Remaining Bandwidth for Each Link (Up and Down)', fontsize=16)
 
     # Save the entire subplot grid
-    plt_path = os.path.join(plots_dir, 'remaining_{}_{}.png'.format(smoothing_window, suffix))    
+    plt_path = os.path.join(plots_dir, 'remaining_{}_{}.pdf'.format(smoothing_window, suffix))    
     plt.savefig(plt_path)
     plt.close(fig)
 
@@ -640,7 +795,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
     ############################################################################################################  
     # experimental code for graph coloring.
     ############################################################################################################  
-    if fit_strategy == "graph-coloring":
+    if fit_strategy == "graph-coloring-v1" or fit_strategy == "graph-coloring-v2":  
         current_flow_idx = 0    
         set_counter = 0 
         
@@ -667,8 +822,12 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                 flow_counter += 1
                 edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))      
             
-            edge_color_map = plot_bipartite_graph(edges, 
-                                                  f"{routing_plot_dir}/bipartite_{this_set_start_time}_{set_counter}.png")
+            if fit_strategy == "graph-coloring-v1":
+                plot_path = f"{routing_plot_dir}/bipartite_{this_set_start_time}_{set_counter}.png"
+                edge_color_map = color_bipartite_graph_1(edges, num_spines, plot_path)
+                
+            elif fit_strategy == "graph-coloring-v2":
+                edge_color_map = color_bipartite_multigraph_2(edges)
             
             flow_counter = 0 
             
@@ -683,6 +842,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                 iteration = flow["iteration"]
                 
                 color = edge_color_map[flow_counter]
+                
                 chosen_spine = color - 1 
                 chosen_spine = chosen_spine % num_spines # just in case.    
                 selected_spines = [(chosen_spine, 1.0)] 
@@ -722,11 +882,10 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                             src_leaf, dst_leaf)       
 
             
-    for smoothing_window in [1, 1000]: 
-        draw_stuff(run_context, 
-                   rem, usage, all_job_ids, num_leaves, num_spines, routing_time, 
-                   min_affected_time, max_affected_time, 
-                   routing_plot_dir, smoothing_window=smoothing_window)
+    draw_stuff(run_context, 
+                rem, usage, all_job_ids, num_leaves, num_spines, routing_time, 
+                min_affected_time, max_affected_time, 
+                routing_plot_dir, smoothing_window=1)
     
     lb_decisions_proper = []    
     

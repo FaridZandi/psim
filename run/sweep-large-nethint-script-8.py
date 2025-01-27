@@ -5,6 +5,7 @@ import itertools
 
 experiment_seed = 76
 random_rep_count = 1
+THREADS = 42
 
 # this is an experiment that has one base setting, and then a bunch of comparisons.
 # I'm attempting to keep the things that should be kept constant, constant.
@@ -17,7 +18,7 @@ def do_experiment(placement_mode="random",
                   punish_oversubscribed_min=0.5, 
                   search_quota="a little"):
     
-    seed_range = 8
+    seed_range = 6
     placement_options = 100
     
     cassini_mc_candidate_count = {
@@ -40,7 +41,7 @@ def do_experiment(placement_mode="random",
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
         "machine-count": machine_count,
-        "ft-server-per-rack": 4,
+        "ft-server-per-rack": rack_size,
         "jobs-machine-count-low": machine_count,
         "jobs-machine-count-high": machine_count,
         "placement-seed-range": seed_range,
@@ -150,10 +151,10 @@ def do_experiment(placement_mode="random",
     
     if core_count == 2: 
         profiled_throttle_factors = [1.0, 0.5]
-    elif core_count == 3: 
-        profiled_throttle_factors = [1.0, 0.66, 0.33]
-    elif core_count == 4:
-        profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
+    # elif core_count == 3: 
+    #     profiled_throttle_factors = [1.0, 0.66, 0.33]
+    # elif core_count == 4:
+    #     profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
@@ -163,8 +164,8 @@ def do_experiment(placement_mode="random",
         # placement and workload parameters.
         # these will be different lines in the cdf plot.
         "lb-scheme": ["random", "leastloaded", "ideal", "perfect", "readprotocol", "powerof2", "ecmp"],   
-        "timing-scheme": ["cassini", "farid", "random", "zero"],    #["cassini", "farid", "random"],
-        "ring-mode": ["random"],
+        "timing-scheme": ["cassini", "farid", "random", "zero"],    
+        "ring-mode": ["random", "sorted", "letitbe"],
         "subflows": [1, core_count],    
         "min-rate": [10, 100],  
         "punish-oversubscribed": [False, True],   
@@ -174,19 +175,20 @@ def do_experiment(placement_mode="random",
         "placement-seed": placement_seeds,
         
         # parameters for the scheduling algorithm. 
-        "routing-fit-strategy": ["first", "best", "random", "useall", "graph-coloring"],
-        "compat-score-mode": ["time-no-coll"], # ["under-cap", "time-no-coll", "max-util-left"], 
+        "routing-fit-strategy": ["first", "best", "random", "useall", "graph-coloring-v1", "graph-coloring-v2"],    
+        "compat-score-mode": ["time-no-coll", "under-cap", "max-util-left"], 
         "throttle-search": [True, False],
         
-        "farid-rounds": [1, 2, 3, 4, 5, 20],         
+        "farid-rounds": [1, 2, 3, 4, 5, 10, 20],         
     } 
     
     comparison_base = {
         "timing-scheme": "zero", 
         "ring-mode": "random",  
         "lb-scheme": "random", 
+        "compat-score-mode": "time-no-coll",
         "subflows": 1, 
-        "throttle-search": False, 
+        "throttle-search": True, 
         "farid-rounds": 1, 
         "punish-oversubscribed": True, 
         "routing-fit-strategy": "first",    
@@ -198,21 +200,26 @@ def do_experiment(placement_mode="random",
           
     
     comparisons.append(("zero-routed-best",
-                        {"timing-scheme": "zero",
+                        {"timing-scheme": "farid",
                          "routing-fit-strategy": "best",    
                          "lb-scheme": "readprotocol"}))
     
     comparisons.append(("zero-routed-first",
-                        {"timing-scheme": "zero", 
+                        {"timing-scheme": "farid", 
                          "lb-scheme": "readprotocol"}))
 
-    comparisons.append(("zero-routed-graph",
-                        {"timing-scheme": "zero",
-                         "routing-fit-strategy": "graph-coloring",  
+    comparisons.append(("zero-routed-graph-v1",
+                        {"timing-scheme": "farid",
+                         "routing-fit-strategy": "graph-coloring-v1",  
+                         "lb-scheme": "readprotocol"}))
+    
+    comparisons.append(("zero-routed-graph-v2",
+                        {"timing-scheme": "farid",
+                         "routing-fit-strategy": "graph-coloring-v2",  
                          "lb-scheme": "readprotocol"}))
     
     comparisons.append(("zero-perfect",
-                        {"timing-scheme": "zero", 
+                        {"timing-scheme": "farid", 
                          "lb-scheme": "perfect"}))
     
     # comparisons.append(("zero-ecmp",
@@ -295,12 +302,12 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
 
         exp_config = [
-            ("machine_count", [48, 72]),
-            ("rack_size", [4, 8, 12]),
+            ("machine_count", [48]),
+            ("rack_size", [4]),
             
             ("placement_mode", ["random"]),
             ("oversub", [1]),
-            ("sim_length", [15000]),
+            ("sim_length", [2000]),
             ("punish_oversubscribed_min", [1.0]),  
             ("search_quota", ["some"]) 
         ]
@@ -335,7 +342,7 @@ if __name__ == "__main__":
     plot_command = "python3 plot_compare.py \
         --file_name {} \
         --plot_params metric \
-        --subplot_y_params oversub \
+        --subplot_y_params rack_size \
         --subplot_hue_params comparison \
         --plot_x_params machine_count \
         --plot_y_param values".format(path)
