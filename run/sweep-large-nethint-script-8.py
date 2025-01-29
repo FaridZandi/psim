@@ -14,11 +14,12 @@ def do_experiment(placement_mode="random",
                   machine_count=6,
                   rack_size=4,
                   oversub=1, 
+                  job_count=1, 
                   sim_length=50000, 
                   punish_oversubscribed_min=0.5, 
                   search_quota="a little"):
     
-    seed_range = 6
+    seed_range = 3
     placement_options = 100
     
     cassini_mc_candidate_count = {
@@ -42,8 +43,8 @@ def do_experiment(placement_mode="random",
     selected_setting = { 
         "machine-count": machine_count,
         "ft-server-per-rack": rack_size,
-        "jobs-machine-count-low": machine_count,
-        "jobs-machine-count-high": machine_count,
+        "jobs-machine-count-low": machine_count // job_count,
+        "jobs-machine-count-high": machine_count // job_count,
         "placement-seed-range": seed_range,
         "comm-size": [16000, 32000],
         "comp-size": [100, 200, 400],
@@ -175,7 +176,8 @@ def do_experiment(placement_mode="random",
         "placement-seed": placement_seeds,
         
         # parameters for the scheduling algorithm. 
-        "routing-fit-strategy": ["first", "best", "random", "useall", "graph-coloring-v1", "graph-coloring-v2"],    
+        "routing-fit-strategy": ["first", "best", "random", "useall", 
+                                 "graph-coloring-v1", "graph-coloring-v2", "graph-coloring-v3"],    
         "compat-score-mode": ["time-no-coll", "under-cap", "max-util-left"], 
         "throttle-search": [True, False],
         
@@ -198,14 +200,14 @@ def do_experiment(placement_mode="random",
     comparisons = []
 
           
+    comparisons.append(("zero-routed-first",
+                        {"timing-scheme": "farid", 
+                         "routing-fit-strategy": "first",    
+                         "lb-scheme": "readprotocol"}))
     
     comparisons.append(("zero-routed-best",
                         {"timing-scheme": "farid",
                          "routing-fit-strategy": "best",    
-                         "lb-scheme": "readprotocol"}))
-    
-    comparisons.append(("zero-routed-first",
-                        {"timing-scheme": "farid", 
                          "lb-scheme": "readprotocol"}))
 
     comparisons.append(("zero-routed-graph-v1",
@@ -216,6 +218,11 @@ def do_experiment(placement_mode="random",
     comparisons.append(("zero-routed-graph-v2",
                         {"timing-scheme": "farid",
                          "routing-fit-strategy": "graph-coloring-v2",  
+                         "lb-scheme": "readprotocol"}))
+    
+    comparisons.append(("zero-routed-graph-v3",
+                        {"timing-scheme": "farid",
+                         "routing-fit-strategy": "graph-coloring-v3",  
                          "lb-scheme": "readprotocol"}))
     
     comparisons.append(("zero-perfect",
@@ -234,7 +241,7 @@ def do_experiment(placement_mode="random",
 
         "plot-iteration-graphs": False, 
         "visualize-timing": [], #placement_seeds, 
-        "visualize-routing": False, 
+        "visualize-routing": True, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -304,7 +311,7 @@ if __name__ == "__main__":
         exp_config = [
             ("machine_count", [48]),
             ("rack_size", [4]),
-            
+            ("job_count", [1]),
             ("placement_mode", ["random"]),
             ("oversub", [1]),
             ("sim_length", [2000]),

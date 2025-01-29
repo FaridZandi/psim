@@ -689,7 +689,7 @@ def get_all_flows(job_profiles, job_deltas,
                 f["eff_start_time"] = f["start_time"] + shift
                 f["eff_end_time"] = f["end_time"] + shift
                 f["progress_shift"] = shift 
-                f["iteration"] = iter   
+                f["iteration"] = iter  
                 
                 all_flows.append(f)  
             
@@ -778,7 +778,6 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
     all_flows = get_all_flows(job_profiles, job_deltas, job_throttle_rates, 
                               job_periods, job_iterations)
                     
-    all_flows.sort(key=lambda x: x["eff_start_time"])
     
     lb_decisions = {} 
     min_affected_time = routing_time   
@@ -796,22 +795,27 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
     # experimental code for graph coloring.
     ############################################################################################################  
     if fit_strategy == "graph-coloring-v1" or fit_strategy == "graph-coloring-v2":  
+        all_flows.sort(key=lambda x: x["eff_start_time"])
+        
         current_flow_idx = 0    
         set_counter = 0 
-        
+                
         while current_flow_idx < len(all_flows):
             set_counter += 1   
             
             this_set_start_time = all_flows[current_flow_idx]["eff_start_time"]
+            this_set_job_id = all_flows[current_flow_idx]["job_id"] 
 
             current_flows = []
-            while all_flows[current_flow_idx]["eff_start_time"] == this_set_start_time:
+            while (all_flows[current_flow_idx]["eff_start_time"] == this_set_start_time and 
+                    all_flows[current_flow_idx]["job_id"] == this_set_job_id): 
+                
                 current_flows.append(all_flows[current_flow_idx])
                 current_flow_idx += 1
                 if current_flow_idx >= len(all_flows):
                     break
             
-            print(f"Processing {len(current_flows)} flows starting at time {this_set_start_time}", file=sys.stderr) 
+            print(f"Processing {len(current_flows)} flows for job {this_set_job_id} starting at time {this_set_start_time}", file=sys.stderr) 
                     
             edges = [] 
             flow_counter = 0 
@@ -819,9 +823,12 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             for flow in current_flows:  
                 src_leaf = flow["srcrack"]
                 dst_leaf = flow["dstrack"]
+                start_time = flow["eff_start_time"]  
+                end_time = flow["eff_end_time"] 
+                
                 flow_counter += 1
-                edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))      
-            
+                edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
+                
             if fit_strategy == "graph-coloring-v1":
                 plot_path = f"{routing_plot_dir}/bipartite_{this_set_start_time}_{set_counter}.png"
                 edge_color_map = color_bipartite_graph_1(edges, num_spines, plot_path)
@@ -854,9 +861,78 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                 
                 update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
                                 src_leaf, dst_leaf)     
+    
+    elif fit_strategy == "graph-coloring-v3":
+        all_flows.sort(key=lambda x: x["eff_start_time"])
+        
+        for f in all_flows: 
+            f["identifier"] = f"{job_id}_{f['srcrack']}_{f['dstrack']}"
+            
+        # get number of unique identifiers for the flows. 
+        unique_identifiers = set([flow["identifier"] for flow in all_flows])
+        print(f"Unique identifiers: {unique_identifiers}", file=sys.stderr) 
+        print(f"Number of unique identifiers: {len(unique_identifiers)}", file=sys.stderr)  
+        print(f"Number of flows: {len(all_flows)}", file=sys.stderr)    
+        
+        current_flows = []
+        used_identifiers = set()    
+        
+        # getting a representative of each unique identifier.   
+        for flow in all_flows:
+            if flow["identifier"] not in used_identifiers:
+                current_flows.append(flow)
+                used_identifiers.add(flow["identifier"])
                 
+        print("Current flows count: ", len(current_flows), file=sys.stderr)
+        
+        edges = [] 
+        flow_counter = 0 
+        for flow in current_flows:  
+            src_leaf = flow["srcrack"]
+            dst_leaf = flow["dstrack"]
+            start_time = flow["eff_start_time"]  
+            end_time = flow["eff_end_time"] 
+            
+            flow_counter += 1
+            edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
+                
+        edge_color_map = color_bipartite_multigraph_2(edges)
+        
+        identifier_to_color_map = {}    
+        
+        flow_counter = 0
+        for flow in current_flows:
+            flow_counter += 1
+            identifier = flow["identifier"]
+            color = edge_color_map[flow_counter]
+            identifier_to_color_map[identifier] = color
+        
+        for flow in all_flows:
+            src_leaf = flow["srcrack"]
+            dst_leaf = flow["dstrack"]
+            start_time = flow["eff_start_time"] 
+            end_time = flow["eff_end_time"]     
+            job_id = flow["job_id"] 
+            flow_id = flow["flow_id"]
+            iteration = flow["iteration"]
+            
+            color = identifier_to_color_map[flow["identifier"]]
+            
+            chosen_spine = color - 1 
+            chosen_spine = chosen_spine % num_spines # just in case.    
+            selected_spines = [(chosen_spine, 1.0)] 
+            
+            lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
+            
+            min_affected_time = min(min_affected_time, start_time)  
+            max_affected_time = max(max_affected_time, end_time)
+            
+            update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
+                            src_leaf, dst_leaf)     
     ############################################################################################################  
     else: # regular execution path 
+        all_flows.sort(key=lambda x: x["eff_start_time"])
+        
         for flow in all_flows:
             src_leaf = flow["srcrack"]
             dst_leaf = flow["dstrack"]
