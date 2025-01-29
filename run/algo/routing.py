@@ -10,6 +10,7 @@ import networkx as nx
 import matplotlib.pyplot as plt
 from networkx.algorithms.flow import maximum_flow
 from collections import deque, defaultdict
+import hashlib
 
 ############################################################################################################
 ############################################################################################################
@@ -864,48 +865,78 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
     
     elif fit_strategy == "graph-coloring-v3":
         all_flows.sort(key=lambda x: x["eff_start_time"])
-        
+
         for f in all_flows: 
-            f["identifier"] = f"{job_id}_{f['srcrack']}_{f['dstrack']}"
+            f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}"
+            f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}"
+
+        # group the flows by the traffic_id.        
+        all_traffic_ids = set([flow["traffic_id"] for flow in all_flows])    
+        traffic_id_to_flows = defaultdict(list)
+        
+        for flow in all_flows:  
+            traffic_id_to_flows[flow["traffic_id"]].append(flow)
+        
+        traffic_id_to_hash = {} 
+        hash_to_traffic_id = {} 
             
-        # get number of unique identifiers for the flows. 
-        unique_identifiers = set([flow["identifier"] for flow in all_flows])
-        print(f"Unique identifiers: {unique_identifiers}", file=sys.stderr) 
-        print(f"Number of unique identifiers: {len(unique_identifiers)}", file=sys.stderr)  
-        print(f"Number of flows: {len(all_flows)}", file=sys.stderr)    
+        for traffic_id in all_traffic_ids:
+            flows = traffic_id_to_flows[traffic_id]
+
+            # sort them on the basis of the identifier.
+            flows.sort(key=lambda x: x["traffic_member_id"])
+            
+            traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
+            traffic_pattern_hash = hashlib.md5(traffic_pattern.encode()).hexdigest()
+            
+            traffic_id_to_hash[traffic_id] = traffic_pattern_hash   
+            hash_to_traffic_id[traffic_pattern_hash] = traffic_id 
+            
+            for flow in flows:
+                flow["traffic_pattern_hash"] = traffic_pattern_hash 
+            
+            # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
+            
+        # unique hash values.   
+        unique_hashes = set(hash_to_traffic_id.keys())
         
         current_flows = []
-        used_identifiers = set()    
-        
-        # getting a representative of each unique identifier.   
-        for flow in all_flows:
-            if flow["identifier"] not in used_identifiers:
-                current_flows.append(flow)
-                used_identifiers.add(flow["identifier"])
                 
+        for hash in unique_hashes:
+            traffic_pattern_rep = hash_to_traffic_id[hash]
+            flows = traffic_id_to_flows[traffic_pattern_rep]
+            print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
+            
+            # append the flows of a representative traffic pattern to the current mix
+            current_flows.extend(flows)
+            
         print("Current flows count: ", len(current_flows), file=sys.stderr)
         
         edges = [] 
         flow_counter = 0 
         for flow in current_flows:  
+            flow_counter += 1
+
             src_leaf = flow["srcrack"]
             dst_leaf = flow["dstrack"]
-            start_time = flow["eff_start_time"]  
-            end_time = flow["eff_end_time"] 
-            
-            flow_counter += 1
             edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
                 
         edge_color_map = color_bipartite_multigraph_2(edges)
         
-        identifier_to_color_map = {}    
+        color_id_to_color = defaultdict(list)    
         
         flow_counter = 0
+        
         for flow in current_flows:
             flow_counter += 1
-            identifier = flow["identifier"]
+            traffic_pattern_hash = flow["traffic_pattern_hash"]
+            color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
             color = edge_color_map[flow_counter]
-            identifier_to_color_map[identifier] = color
+
+            color_id_to_color[color_id].append(color)
+        
+        # use pprint to stderr 
+        pprint(dict(color_id_to_color), stream=sys.stderr)
         
         for flow in all_flows:
             src_leaf = flow["srcrack"]
@@ -916,7 +947,15 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             flow_id = flow["flow_id"]
             iteration = flow["iteration"]
             
-            color = identifier_to_color_map[flow["identifier"]]
+            color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
+            
+            color = color_id_to_color[color_id][0]
+            # rotate the list. this is done assuming that all the members of this 
+            # traffic pattern will happen at the same time. So they will consume 
+            # all the list, and leave it as it was in the beginning, for the next
+            # set of flows.
+            color_id_to_color[color_id] = color_id_to_color[color_id][1:] + [color_id_to_color[color_id][0]]
+            
             
             chosen_spine = color - 1 
             chosen_spine = chosen_spine % num_spines # just in case.    

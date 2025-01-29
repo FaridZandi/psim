@@ -19,7 +19,7 @@ def do_experiment(placement_mode="random",
                   punish_oversubscribed_min=0.5, 
                   search_quota="a little"):
     
-    seed_range = 3
+    seed_range = 6
     placement_options = 100
     
     cassini_mc_candidate_count = {
@@ -241,7 +241,7 @@ def do_experiment(placement_mode="random",
 
         "plot-iteration-graphs": False, 
         "visualize-timing": [], #placement_seeds, 
-        "visualize-routing": True, 
+        "visualize-routing": False, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -311,10 +311,10 @@ if __name__ == "__main__":
         exp_config = [
             ("machine_count", [48]),
             ("rack_size", [4]),
-            ("job_count", [1]),
+            ("job_count", [2]),
             ("placement_mode", ["random"]),
             ("oversub", [1]),
-            ("sim_length", [2000]),
+            ("sim_length", [10000]),
             ("punish_oversubscribed_min", [1.0]),  
             ("search_quota", ["some"]) 
         ]
