@@ -47,7 +47,7 @@ def do_experiment(placement_mode="random",
         "jobs-machine-count-high": machine_count // job_count,
         "placement-seed-range": seed_range,
         "comm-size": [16000, 32000],
-        "comp-size": [100, 200, 400],
+        "comp-size": [200, 400],
         "layer-count": [1],
         "iter-count": [30], # iteration count
     }
@@ -150,8 +150,8 @@ def do_experiment(placement_mode="random",
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     profiled_throttle_factors = [1.0]
     
-    if core_count == 2: 
-        profiled_throttle_factors = [1.0, 0.5]
+    # if core_count == 2: 
+    #     profiled_throttle_factors = [1.0, 0.5]
     # elif core_count == 3: 
     #     profiled_throttle_factors = [1.0, 0.66, 0.33]
     # elif core_count == 4:
@@ -177,7 +177,8 @@ def do_experiment(placement_mode="random",
         
         # parameters for the scheduling algorithm. 
         "routing-fit-strategy": ["first", "best", "random", "useall", 
-                                 "graph-coloring-v1", "graph-coloring-v2", "graph-coloring-v3"],    
+                                 "graph-coloring-v1", "graph-coloring-v2", 
+                                 "graph-coloring-v3", "graph-coloring-v4"],    
         "compat-score-mode": ["time-no-coll", "under-cap", "max-util-left"], 
         "throttle-search": [True, False],
         
@@ -191,7 +192,7 @@ def do_experiment(placement_mode="random",
         "compat-score-mode": "time-no-coll",
         "subflows": 1, 
         "throttle-search": True, 
-        "farid-rounds": 1, 
+        "farid-rounds": 10, 
         "punish-oversubscribed": True, 
         "routing-fit-strategy": "first",    
         "min-rate": 100
@@ -200,29 +201,34 @@ def do_experiment(placement_mode="random",
     comparisons = []
 
           
-    comparisons.append(("zero-routed-first",
-                        {"timing-scheme": "farid", 
-                         "routing-fit-strategy": "first",    
-                         "lb-scheme": "readprotocol"}))
+    # comparisons.append(("zero-routed-first",
+    #                     {"timing-scheme": "farid", 
+    #                      "routing-fit-strategy": "first",    
+    #                      "lb-scheme": "readprotocol"}))
     
     comparisons.append(("zero-routed-best",
                         {"timing-scheme": "farid",
                          "routing-fit-strategy": "best",    
                          "lb-scheme": "readprotocol"}))
 
-    comparisons.append(("zero-routed-graph-v1",
-                        {"timing-scheme": "farid",
-                         "routing-fit-strategy": "graph-coloring-v1",  
-                         "lb-scheme": "readprotocol"}))
+    # comparisons.append(("zero-routed-graph-v1",
+    #                     {"timing-scheme": "farid",
+    #                      "routing-fit-strategy": "graph-coloring-v1",  
+    #                      "lb-scheme": "readprotocol"}))
     
-    comparisons.append(("zero-routed-graph-v2",
-                        {"timing-scheme": "farid",
-                         "routing-fit-strategy": "graph-coloring-v2",  
-                         "lb-scheme": "readprotocol"}))
+    # comparisons.append(("zero-routed-graph-v2",
+    #                     {"timing-scheme": "farid",
+    #                      "routing-fit-strategy": "graph-coloring-v2",  
+    #                      "lb-scheme": "readprotocol"}))
     
     comparisons.append(("zero-routed-graph-v3",
                         {"timing-scheme": "farid",
                          "routing-fit-strategy": "graph-coloring-v3",  
+                         "lb-scheme": "readprotocol"}))
+
+    comparisons.append(("zero-routed-graph-v4",
+                        {"timing-scheme": "farid",
+                         "routing-fit-strategy": "graph-coloring-v4",  
                          "lb-scheme": "readprotocol"}))
     
     comparisons.append(("zero-perfect",
@@ -240,7 +246,7 @@ def do_experiment(placement_mode="random",
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "visualize-timing": [], #placement_seeds, 
+        "visualize-timing": [1], #placement_seeds, 
         "visualize-routing": False, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
@@ -285,7 +291,7 @@ def do_experiment(placement_mode="random",
         exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format("", "", "",  
                                                             oversub, 
                                                             experiment_seed),
-        worker_thread_count=42, 
+        worker_thread_count=30, 
         plot_cdfs=False,
     )
     
@@ -310,13 +316,13 @@ if __name__ == "__main__":
 
         exp_config = [
             ("machine_count", [48]),
-            ("rack_size", [4]),
-            ("job_count", [2]),
+            ("rack_size", [8]),
+            ("job_count", [4]),
             ("placement_mode", ["random"]),
-            ("oversub", [1]),
-            ("sim_length", [10000]),
+            ("oversub", [2]),
+            ("sim_length", [6000]),
             ("punish_oversubscribed_min", [1.0]),  
-            ("search_quota", ["some"]) 
+            ("search_quota", ["little"]) 
         ]
 
         all_results = [] 
@@ -351,7 +357,7 @@ if __name__ == "__main__":
         --plot_params metric \
         --subplot_y_params rack_size \
         --subplot_hue_params comparison \
-        --plot_x_params machine_count \
+        --plot_x_params sim_length \
         --plot_y_param values".format(path)
             
     print("running the plot command: ") 

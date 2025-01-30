@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 from networkx.algorithms.flow import maximum_flow
 from collections import deque, defaultdict
 import hashlib
+from itertools import chain
 
 ############################################################################################################
 ############################################################################################################
@@ -366,40 +367,109 @@ def color_bipartite_multigraph_2(input_edges):
     
     return edge_color_map   
         
+        
+def merge_overlapping_ranges(ranges_dict, plot_path):
+    # Flatten all intervals with their corresponding key
+    intervals = []
+    for key, ranges in ranges_dict.items():
+        for start, end in ranges:
+            intervals.append((start, end, {key}))
+    
+    # Sort by start time
+    intervals.sort()
+    
+    # Merge overlapping intervals while tracking keys
+    merged = []
+    for start, end, keys in intervals:
+        if merged and merged[-1][1] >= start:  # Overlap exists
+            merged[-1] = (merged[-1][0], max(merged[-1][1], end), merged[-1][2] | keys)
+        else:
+            merged.append((start, end, keys))
+    
+    new_ranges = defaultdict(list) 
+    
+    for idx, (start, end, keys) in enumerate(merged):
+        comb_key = tuple(sorted(keys))    
+        new_ranges[comb_key].append((start, end))   
+        
+        
+    plot_time_ranges(ranges_dict, dict(new_ranges), plot_path)
+    
+    return new_ranges  # Keep all merged ranges, even those with a single key
 
+def plot_time_ranges(ranges_dict, merged_ranges_dict, plot_path):
+    
+    # two plots on top of each other
+    
+    fig, axes = plt.subplots(2, 1, figsize=(10, 5), sharex=True)   
+    
+    def plot_stuff(ax, data, other_ax=None):
+        y = 0
+        for key, ranges in data.items():
+            for start, end in ranges:
+                ax.plot([start, end], [y, y], marker='|', label=f"{key}" if y == 0 else "")
+                
+                # add two vertical line on the two ends 
+                
+                if other_ax is not None:
+                    ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
+                    ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
+                    other_ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
+                    other_ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
+                
+            y += 1
+        
+        ax.set_yticks(range(len(data)))
+        ax.set_yticklabels(list(data.keys()))
+        ax.set_xlabel("Time")
+        ax.set_title("Time Ranges by Key")
+        
+    plot_stuff(axes[0], ranges_dict)    
+    plot_stuff(axes[1], merged_ranges_dict, axes[0])
+    
+    plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+      
+    
 # Example usage
 if __name__ == "__main__":
-    print("Example usage of coloring a bipartite multigraph")
+    # print("Example usage of coloring a bipartite multigraph")
     
-    # Example 1: 3 edges between u1-v1 and u2-v2
-    edges = [('1_l', '7_r', 1), ('7_l', '4_r', 2), ('4_l', '10_r', 3), ('10_l', '0_r', 4), ('0_l', '5_r', 5), ('5_l', '8_r', 6), ('8_l', '6_r', 7), ('6_l', '9_r', 8), ('9_l', '4_r', 9), ('4_l', '11_r', 10), ('11_l', '3_r', 11), ('3_l', '4_r', 12), ('4_l', '0_r', 13), ('0_l', '7_r', 14), ('7_l', '2_r', 15), ('2_l', '9_r', 16), ('9_l', '3_r', 17), ('3_l', '5_r', 18), ('5_l', '10_r', 19), ('10_l', '0_r', 20), ('0_l', '9_r', 21), ('9_l', '5_r', 22), ('5_l', '11_r', 23), ('11_l', '3_r', 24), ('3_l', '1_r', 25), ('1_l', '2_r', 26), ('2_l', '1_r', 27), ('1_l', '3_r', 28), ('3_l', '6_r', 29), ('6_l', '7_r', 30), ('7_l', '8_r', 31), ('8_l', '11_r', 32), ('11_l', '1_r', 33), ('1_l', '6_r', 34), ('6_l', '11_r', 35), ('11_l', '10_r', 36), ('10_l', '2_r', 37), ('2_l', '8_r', 38), ('8_l', '6_r', 39), ('6_l', '4_r', 40), ('4_l', '0_r', 41), ('0_l', '9_r', 42), ('9_l', '2_r', 43), ('2_l', '5_r', 44), ('5_l', '8_r', 45), ('8_l', '1_r', 46)]
+    # # Example 1: 3 edges between u1-v1 and u2-v2
+    # edges = [('1_l', '7_r', 1), ('7_l', '4_r', 2), ('4_l', '10_r', 3), ('10_l', '0_r', 4), ('0_l', '5_r', 5), ('5_l', '8_r', 6), ('8_l', '6_r', 7), ('6_l', '9_r', 8), ('9_l', '4_r', 9), ('4_l', '11_r', 10), ('11_l', '3_r', 11), ('3_l', '4_r', 12), ('4_l', '0_r', 13), ('0_l', '7_r', 14), ('7_l', '2_r', 15), ('2_l', '9_r', 16), ('9_l', '3_r', 17), ('3_l', '5_r', 18), ('5_l', '10_r', 19), ('10_l', '0_r', 20), ('0_l', '9_r', 21), ('9_l', '5_r', 22), ('5_l', '11_r', 23), ('11_l', '3_r', 24), ('3_l', '1_r', 25), ('1_l', '2_r', 26), ('2_l', '1_r', 27), ('1_l', '3_r', 28), ('3_l', '6_r', 29), ('6_l', '7_r', 30), ('7_l', '8_r', 31), ('8_l', '11_r', 32), ('11_l', '1_r', 33), ('1_l', '6_r', 34), ('6_l', '11_r', 35), ('11_l', '10_r', 36), ('10_l', '2_r', 37), ('2_l', '8_r', 38), ('8_l', '6_r', 39), ('6_l', '4_r', 40), ('4_l', '0_r', 41), ('0_l', '9_r', 42), ('9_l', '2_r', 43), ('2_l', '5_r', 44), ('5_l', '8_r', 45), ('8_l', '1_r', 46)]
     
-    i = 0 
-    while True:    
-        i += 1  
+    # i = 0 
+    # while True:    
+    #     i += 1  
         
-        random.seed(i)  
-        random.shuffle(edges)   
+    #     random.seed(i)  
+    #     random.shuffle(edges)   
 
-        edges = [(r[0], r[1]) for r in edges]   
-        colors = color_bipartite_multigraph_2(edges)
+    #     edges = [(r[0], r[1]) for r in edges]   
+    #     colors = color_bipartite_multigraph_2(edges)
         
-        # for each color, store the edges
-        color_edge_map = defaultdict(list)
-        colored_edges = 0 
-        for idx, (u, v) in enumerate(edges):    
-            color_edge_map[colors[idx]].append(idx)
-            colored_edges += 1
+    #     # for each color, store the edges
+    #     color_edge_map = defaultdict(list)
+    #     colored_edges = 0 
+    #     for idx, (u, v) in enumerate(edges):    
+    #         color_edge_map[colors[idx]].append(idx)
+    #         colored_edges += 1
             
-        pprint(color_edge_map)  
+    #     pprint(color_edge_map)  
         
-        used_color_count = len(set(colors)) 
-        print(f"[{i}] Used {used_color_count} colors for {len(edges)} edges") 
+    #     used_color_count = len(set(colors)) 
+    #     print(f"[{i}] Used {used_color_count} colors for {len(edges)} edges") 
         
-        if used_color_count == 4:
-            break
-        
-
+    #     if used_color_count == 4:
+    #         break
+    
+    
+    hash_to_time_ranges = {'ac325c7e80c1261a53cda071fc166e1e': [(200, 213), (214, 227), (228, 241), (242, 255), (256, 269), (270, 283), (284, 297), (298, 311), (312, 325), (326, 339), (340, 350), (354, 367), (368, 381), (382, 395), (396, 409), (410, 423), (424, 437), (438, 451), (452, 465), (466, 479), (480, 493), (494, 507), (708, 721), (722, 735), (736, 749), (750, 763), (764, 777), (778, 791), (792, 805), (806, 819), (820, 833), (834, 847), (848, 861), (862, 875), (876, 889), (890, 903), (904, 917), (918, 931), (932, 945), (946, 959), (960, 973), (974, 987), (988, 1001), (1002, 1015)], 'd013df15ae7ea8d10cc7acf9f29c5f87': [(410, 423), (424, 437), (438, 451), (452, 465), (466, 479), (480, 493), (494, 507), (508, 521), (522, 535), (536, 549), (550, 563), (564, 577), (578, 591), (592, 605), (606, 619), (620, 633), (634, 647), (648, 661), (662, 675), (676, 689), (690, 703), (704, 717)], 'f812aba498373f2e51807406aca0a97c': [(200, 226), (227, 253), (254, 280), (281, 307), (308, 334), (335, 350), (362, 388), (389, 415), (416, 442), (443, 469), (470, 496), (497, 523), (524, 550), (551, 577), (578, 604), (605, 631), (632, 658), (659, 685), (686, 712), (713, 739), (740, 766), (767, 793)], '1e2a2d258077a845944938f8e84a3d19': [(260, 273), (274, 287), (288, 301), (302, 315), (316, 329), (330, 343), (344, 350), (358, 371), (372, 385), (386, 399), (400, 413), (414, 427), (428, 441), (442, 455), (456, 469), (470, 483), (484, 497), (498, 511), (512, 525), (526, 539), (540, 553), (554, 567), (768, 781), (782, 795), (796, 809), (810, 823), (824, 837), (838, 851), (852, 865), (866, 879), (880, 893), (894, 907), (908, 921), (922, 935), (936, 949), (950, 963), (964, 977), (978, 991), (992, 1005), (1006, 1019), (1020, 1033), (1034, 1047), (1048, 1061), (1062, 1075)]}
+    
+    merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, "merged_ranges.png")
+    
+    pprint(merged_ranges)
+    
+    
 ############################################################################################################
 ############################################################################################################
 ############################################################################################################
@@ -496,8 +566,9 @@ def draw_stuff(run_context, rem, usage, all_job_ids, num_leaves,
     fig.suptitle('Remaining Bandwidth for Each Link (Up and Down)', fontsize=16)
 
     # Save the entire subplot grid
-    plt_path = os.path.join(plots_dir, 'remaining_{}_{}.pdf'.format(smoothing_window, suffix))    
-    plt.savefig(plt_path)
+    for ext in ['pdf', 'png']:
+        plt_path = os.path.join(plots_dir, 'remaining_{}_{}.{}'.format(smoothing_window, suffix, ext))
+        plt.savefig(plt_path)
     plt.close(fig)
 
     sys.stderr.write("Combined subplot figure has been saved in the directory: {}\n".format(plots_dir))
@@ -537,8 +608,8 @@ def route_flows_best(spine_availablity, max_subflow_count):
         assigned_spines_count = len(selected_spines)    
         fair_assigned_mult = 1.0 / assigned_spines_count    
         
-        sys.stderr.write("Assigned spines count: {}, Fair assigned mult: {}, Min available mult: {}\n".format(
-            assigned_spines_count, fair_assigned_mult, min_available_mult))
+        # sys.stderr.write("Assigned spines count: {}, Fair assigned mult: {}, Min available mult: {}\n".format(
+        #     assigned_spines_count, fair_assigned_mult, min_available_mult))
         
         if fair_assigned_mult <= min_available_mult:
             spines = [s for s, _ in selected_spines]    
@@ -731,7 +802,12 @@ def update_time_range(start_time, end_time, flow, selected_spines, rem, usage, s
             usage[job_id][src_leaf][s]["up"][t] += time_req 
             usage[job_id][dst_leaf][s]["down"][t] += time_req
             
-            
+def find_value_in_range(d, value):
+    for (start, end), v in d.items():
+        if start <= value <= end:
+            return v
+    return None  # Return None if no range contains the value
+
 def route_flows(jobs, options, run_context, job_profiles, job_timings): 
     servers_per_rack = options["ft-server-per-rack"]
     num_leaves = options["machine-count"] // servers_per_rack   
@@ -879,7 +955,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
         
         traffic_id_to_hash = {} 
         hash_to_traffic_id = {} 
-            
+        
         for traffic_id in all_traffic_ids:
             flows = traffic_id_to_flows[traffic_id]
 
@@ -889,15 +965,20 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
             traffic_pattern_hash = hashlib.md5(traffic_pattern.encode()).hexdigest()
             
-            traffic_id_to_hash[traffic_id] = traffic_pattern_hash   
-            hash_to_traffic_id[traffic_pattern_hash] = traffic_id 
+            max_end_time = max([flow["eff_end_time"] for flow in flows])    
+            min_start_time = min([flow["eff_start_time"] for flow in flows]) 
             
+            traffic_time_range = (min_start_time, max_end_time)
+            
+            traffic_id_to_hash[traffic_id] = traffic_pattern_hash 
+            # this will get overwritten, but that's fine, we need just one.   
+            hash_to_traffic_id[traffic_pattern_hash] = traffic_id 
+
             for flow in flows:
                 flow["traffic_pattern_hash"] = traffic_pattern_hash 
             
             # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
             
-        # unique hash values.   
         unique_hashes = set(hash_to_traffic_id.keys())
         
         current_flows = []
@@ -956,6 +1037,141 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             # set of flows.
             color_id_to_color[color_id] = color_id_to_color[color_id][1:] + [color_id_to_color[color_id][0]]
             
+            
+            chosen_spine = color - 1 
+            chosen_spine = chosen_spine % num_spines # just in case.    
+            selected_spines = [(chosen_spine, 1.0)] 
+            
+            lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
+            
+            min_affected_time = min(min_affected_time, start_time)  
+            max_affected_time = max(max_affected_time, end_time)
+            
+            update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
+                            src_leaf, dst_leaf)     
+            
+    elif fit_strategy == "graph-coloring-v4":
+        all_flows.sort(key=lambda x: x["eff_start_time"])
+
+        for f in all_flows: 
+            f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}"
+            f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}"
+
+        # group the flows by the traffic_id.        
+        all_traffic_ids = set([flow["traffic_id"] for flow in all_flows])    
+        traffic_id_to_flows = defaultdict(list)
+        
+        for flow in all_flows:  
+            traffic_id_to_flows[flow["traffic_id"]].append(flow)
+        
+        traffic_id_to_hash = {} 
+        hash_to_traffic_id = {} 
+        hash_to_time_ranges = defaultdict(list)
+        
+        for traffic_id in all_traffic_ids:
+            flows = traffic_id_to_flows[traffic_id]
+
+            # sort them on the basis of the identifier.
+            flows.sort(key=lambda x: x["traffic_member_id"])
+            
+            traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
+            traffic_pattern_hash = hashlib.md5(traffic_pattern.encode()).hexdigest()
+            
+            max_end_time = max([flow["eff_end_time"] for flow in flows])    
+            min_start_time = min([flow["eff_start_time"] for flow in flows]) 
+            
+            traffic_time_range = (min_start_time, max_end_time)
+            
+            traffic_id_to_hash[traffic_id] = traffic_pattern_hash 
+            # this will get overwritten, but that's fine, we need just one.   
+            hash_to_traffic_id[traffic_pattern_hash] = traffic_id 
+            hash_to_time_ranges[traffic_pattern_hash].append(traffic_time_range)
+            
+            for flow in flows:
+                flow["traffic_pattern_hash"] = traffic_pattern_hash 
+            
+            # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
+            
+        # unique hash values.   
+        for key in hash_to_time_ranges.keys():
+            hash_to_time_ranges[key].sort()
+            
+        print(hash_to_time_ranges, file=sys.stderr) 
+        
+        merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, routing_plot_dir + "/merged_ranges.png")  
+        
+        solutions = {} 
+        
+        for overlapping_keys, overlapping_ranges in merged_ranges.items():
+
+            print(overlapping_keys, file=sys.stderr)    
+            print(overlapping_ranges, file=sys.stderr)  
+            
+            current_flows = []
+            
+            # for all the hashes that are overlapping, get the traffic patterns, put them all together
+            
+            for hash in overlapping_keys:
+                traffic_pattern_rep = hash_to_traffic_id[hash]
+                flows = traffic_id_to_flows[traffic_pattern_rep]
+                print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
+                
+                # append the flows of a representative traffic pattern to the current mix
+                current_flows.extend(flows)
+                
+            print("Current flows count: ", len(current_flows), file=sys.stderr)
+            
+            edges = [] 
+            flow_counter = 0 
+
+            for flow in current_flows:  
+                flow_counter += 1
+
+                src_leaf = flow["srcrack"]
+                dst_leaf = flow["dstrack"]
+                edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
+                    
+            edge_color_map = color_bipartite_multigraph_2(edges)
+            color_id_to_color = defaultdict(list)    
+            
+            flow_counter = 0
+            for flow in current_flows:
+                flow_counter += 1
+                traffic_pattern_hash = flow["traffic_pattern_hash"]
+                color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
+                color = edge_color_map[flow_counter]
+
+                color_id_to_color[color_id].append(color)
+                
+            
+            for time_range in overlapping_ranges:
+                solutions[time_range] = color_id_to_color   
+                
+        
+        # use pprint to stderr 
+        pprint(solutions, stream=sys.stderr)
+        
+        for flow in all_flows:
+            src_leaf = flow["srcrack"]
+            dst_leaf = flow["dstrack"]
+            start_time = flow["eff_start_time"] 
+            end_time = flow["eff_end_time"]     
+            job_id = flow["job_id"] 
+            flow_id = flow["flow_id"]
+            iteration = flow["iteration"]
+            
+            color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
+            
+            time_range_coloring = find_value_in_range(solutions, start_time)
+            color = time_range_coloring[color_id][0]
+            # rotate the list. this is done assuming that all the members of this 
+            # traffic pattern will happen at the same time. So they will consume 
+            # all the list, and leave it as it was in the beginning, for the next
+            # set of flows.
+            def rotate(somelist):
+                return somelist[1:] + [somelist[0]] 
+            # corresponding_solution[color_id] = corresponding_solution[color_id][1:] + [corresponding_solution[color_id][0]]
+            time_range_coloring[color_id] = rotate(time_range_coloring[color_id])
             
             chosen_spine = color - 1 
             chosen_spine = chosen_spine % num_spines # just in case.    

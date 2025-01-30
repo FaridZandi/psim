@@ -18,8 +18,6 @@ import matplotlib.pyplot as plt
 ####################################################################################
 ##################  HELPER FUNCTIONS  ##############################################
 ####################################################################################
-# EVAL_MODE = "cpp"
-EVAL_MODE = "python"
 
 def log_results(run_context, key, value):
     # print to stderr first  
@@ -190,71 +188,14 @@ def evaluate_candidate(job_loads, deltas, throttle_rates, run_context,
     if len(job_loads) == 0:
         return 1
     
-    # periods = [job["period"] * job["iter_count"] for job in job_loads]
-    # hyperperiod = max(periods)  + max([d[1] for d in deltas])
-    # eval_length = min(hyperperiod, run_context["sim-length"]) 
-
     job_lengths = [get_job_load_length(job_load, deltas, throttle_rates) for job_load in job_loads]   
     eval_length = max(job_lengths)  
     
-    if EVAL_MODE == "cpp":
-        return evaluate_candidate_cpp(job_loads, deltas, throttle_rates, run_context, 
-                                      link_logical_bandwidth, compat_score_mode, 
-                                      eval_length)
-    
-    else:
-        return evaluate_candidate_python_2(job_loads, deltas, throttle_rates, run_context,    
-                                             link_logical_bandwidth, compat_score_mode, 
-                                             eval_length)
+    return evaluate_candidate_python(job_loads, deltas, throttle_rates, run_context,    
+                                       link_logical_bandwidth, compat_score_mode, 
+                                       eval_length)
         
     
-
-def evaluate_candidate_cpp(job_loads, deltas, throttle_rates, run_context, 
-                           link_logical_bandwidth, compat_score_mode, eval_length):
-    
-    rage_quit("This function is not working. It's not returning the right values.")
-    return 
-
-    # Prepare JSON input
-    input_data = {
-        "job_loads": job_loads,
-        "deltas": deltas,
-    }
-        
-    # Convert the input data to JSON string
-    json_input = json.dumps(input_data)
-    sim_length = eval_length
-    
-    # TODO: it probably shouldn't be like this? 
-    exec_path = './algo/evaluate/solve'
-    
-    # Run the C++ executable using subprocess
-    process = subprocess.Popen(
-        [   
-            exec_path, 
-            str(sim_length), 
-            str(link_logical_bandwidth),
-            compat_score_mode, 
-        ],  
-        stdin=subprocess.PIPE,       # Pipe the input
-        stdout=subprocess.PIPE,      # Capture the output
-        stderr=subprocess.PIPE,      # Capture errors
-        text=True                    # Use text mode for strings
-    )
-    
-    # Communicate with the process
-    stdout, stderr = process.communicate(input=json_input)
-    
-    # Check for errors
-    if process.returncode != 0:
-        print(f"Error running C++ evaluator: {stderr}")
-        return None
-    
-    # Parse and return the output
-    # max_util_score, compat_score = map(float, stdout.split())
-    compat_score = float(stdout) 
-    
-    return compat_score
 
 def get_full_jobs_signals(this_link_loads, deltas, throttle_rates):     
     repeated_job_loads = []
@@ -287,9 +228,9 @@ def get_full_jobs_signals(this_link_loads, deltas, throttle_rates):
     return padded_job_loads, max_length
 
 
-def evaluate_candidate_python_2(job_loads, deltas, throttle_rates, 
-                                run_context, link_logical_bandwidth, 
-                                compat_score_mode, eval_length):
+def evaluate_candidate_python(job_loads, deltas, throttle_rates, 
+                              run_context, link_logical_bandwidth, 
+                              compat_score_mode, eval_length):
     
     sim_length = eval_length
     
@@ -357,6 +298,8 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
         
         max_job_period = max([job["profiles"][1.0]["period"] for job in job_loads]) 
         
+        accum = 0 
+        
         for job in job_loads: 
             job_id = job["job_id"]
             
@@ -374,16 +317,21 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
             # trying to see if we should use the max job period
             # ####################################################
             # job_period = job["profiles"][throttle_rate]["period"]
-            job_period = max_job_period
+            # job_period = max_job_period * len(job_loads)
             # ####################################################
              
-            rand_max = job_period + weights[job_id]
+            rand_max = max_job_period + weights[job_id]
             if rand_max < 0: 
                 rand_max = 0
             
-            quantized_rand_max = int(math.ceil((rand_max) / ls_rand_quantum))
-            random_delta = random.randint(0, quantized_rand_max) * ls_rand_quantum        
-            random_deltas.append((job["job_id"], random_delta)) 
+            if candidate_id == 0: 
+                # if it's the first time, we want to do something drastic
+                random_deltas.append((job["job_id"], accum))
+                accum += job["profiles"][throttle_rate]["period"]
+            else: 
+                quantized_rand_max = int(math.ceil((rand_max) / ls_rand_quantum))
+                random_delta = random.randint(0, quantized_rand_max) * ls_rand_quantum        
+                random_deltas.append((job["job_id"], random_delta)) 
             
         min_delta = min([x[1] for x in random_deltas])
         random_deltas = [(x[0], x[1] - min_delta) for x in random_deltas]
@@ -421,6 +369,8 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
         compat_score = evaluate_candidate(job_loads, new_deltas, new_throttle_rates, 
                                           run_context, link_logical_bandwidth, 
                                           compat_score_mode)
+        
+        # print("new_deltas: ", new_deltas, "compat_score: ", compat_score, file=sys.stderr)
 
         # print("new_deltas: ", new_deltas, "compat_score: ", compat_score)   
         solution_scores.append((new_deltas, new_throttle_rates, compat_score))
@@ -601,24 +551,10 @@ def get_link_loads_runtime(jobs, options, run_context, summarized_job_profiles):
     cross_rack_jobs = list(cross_rack_jobs_set) 
     return link_loads, cross_rack_jobs
 
-
-job_colors = ['b', 'g', 'r', 'c', 'm', 'y', 'k']
-job_color_index = 0 
-
-def get_job_color(job_id, assigned_job_colors): 
+def get_job_color(job_id): 
     
     return plt.cm.tab20.colors[job_id % 20] 
 
-    global job_color_index
-    
-    if job_id in assigned_job_colors:
-        return assigned_job_colors[job_id]
-    else: 
-        assigned_job_colors[job_id] = job_colors[job_color_index]
-        job_color_index += 1
-        job_color_index = job_color_index % len(job_colors) 
-        return assigned_job_colors[job_id] 
-    
     
 def visualize_link_loads(link_loads, run_context, 
                          deltas, throttle_rates,
@@ -670,7 +606,7 @@ def visualize_link_loads(link_loads, run_context,
 
             ax.stackplot(range(max_length), job_loads_array, 
                          labels=[f"Job: {job_id}" for job_id in job_ids], 
-                         colors=[get_job_color(job_id, assigned_job_colors) for job_id in job_ids])
+                         colors=[get_job_color(job_id) for job_id in job_ids])
 
 
             ax.set_ylim(0, sum_max_job_load * 1.1)
@@ -698,7 +634,7 @@ def visualize_link_loads(link_loads, run_context,
 
     # create one legend for all the subplots. with the contents of the color assignment to jobs.
     if len(assigned_job_colors) > 0:
-        handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=assigned_job_colors[job_id], label=f"Job: {job_id}") for job_id in assigned_job_colors]
+        handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=get_job_color(job_id), label=f"Job: {job_id}") for job_id in assigned_job_colors]
         fig.legend(handles=handles, loc='upper right')
     
     if min_over_capacity_time < 1e9:
@@ -711,7 +647,7 @@ def visualize_link_loads(link_loads, run_context,
     timing_plots_dir = f"{run_context['timings-dir']}/"
     os.makedirs(timing_plots_dir, exist_ok=True)
     plot_path = f"{timing_plots_dir}/demand{suffix}.png"  
-    plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
+    plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
     plt.close(fig)
 
 
@@ -792,7 +728,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
                             
             ax.stackplot(range(max_length), job_loads_array, 
                          labels=[f"Job: {job_id}" for job_id in job_ids], 
-                         colors=[get_job_color(job_id, assigned_job_colors) for job_id in job_ids])
+                         colors=[get_job_color(job_id) for job_id in job_ids])
 
             ax.set_ylim(0, sum_max_job_load * 1.1)
             max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
@@ -801,7 +737,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
 
     # create one legend for all the subplots. with the contents of the color assignment to jobs.
     if len(assigned_job_colors) > 0:
-        handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=assigned_job_colors[job_id], label=f"Job: {job_id}") for job_id in assigned_job_colors]
+        handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=get_job_color(job_id), label=f"Job: {job_id}") for job_id in assigned_job_colors]
         fig.legend(handles=handles, loc='upper right')
     
     if min_over_capacity_time < 1e9:
@@ -812,7 +748,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
             
     plt.tight_layout()
     plot_path = f"{plot_dir}/demand{suffix}.png"
-    plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
+    plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
     plt.close(fig)
     
     
@@ -873,15 +809,12 @@ def get_good_until(jobs, link_loads_list, run_context,
                 
                 good_until[job_id] = iter_id 
         
-        # print(f"job_id: {job_id}, job_period: {job_period}, job_iter_count: {job_iter_count}, good_until: {good_until[job_id]}")      
     
     return good_until
     
 def evaluate_candidate_all_links(jobs, link_loads, deltas, throttle_rates, run_context, 
                                  link_logical_bandwidth, compat_score_mode, 
                                  cross_rack_jobs): 
-    # pprint(deltas)  
-    
     # now we have a candidate solution. We should evaluate it. 
     if compat_score_mode == "time-no-coll":
         candidate_score = 1 
@@ -903,27 +836,7 @@ def evaluate_candidate_all_links(jobs, link_loads, deltas, throttle_rates, run_c
         elif compat_score_mode == "under-cap": 
             candidate_score += compat_score 
         elif compat_score_mode == "time-no-coll":
-            # print("candidate_score: ", candidate_score, "compat_score: ", compat_score) 
             candidate_score = min(compat_score, candidate_score)   
-
-    
-    # if compat_score_mode == "time-no-coll":
-    #     total_cost = 0 
-    #     for job in jobs:
-    #         job_id = job["job_id"]
-    #         if job_id in cross_rack_jobs:   
-    #             job_cost = get_solution_cost(job, deltas, throttle_rates)
-    #             job_length = job["base_period"] * job["iter_count"]
-                
-    #             total_cost += job_cost / job_length 
-                
-    #     delay_penalty = total_cost / len(cross_rack_jobs)
-        
-    #     print("candidate_score: ", candidate_score, 
-    #           "delay_penalty: ", delay_penalty, 
-    #           "candidate_score - delay_penalty: ", candidate_score - delay_penalty)
-        
-    #     candidate_score -= delay_penalty
     
     return candidate_score  
 
@@ -1079,7 +992,8 @@ def get_timeshifts(jobs, options, run_context, job_profiles,
             best_candidate_throttle_rates = current_throttle_rates
             best_candidate_good_until = good_until
 
-    visualize_link_loads(link_loads, run_context, best_candidate_deltas, 
+    if False: 
+        visualize_link_loads(link_loads, run_context, best_candidate_deltas, 
                          best_candidate_throttle_rates,    
                          link_logical_bandwidth=link_logical_bandwidth, 
                          suffix=f"_round_{round + 1}_best")
@@ -1177,7 +1091,7 @@ def get_extended_time_shifts(jobs, options, run_context, job_profiles):
             if starting_iterations[job_id] < good_until[job_id] + 1:
                 any_progress = True
                 
-            starting_iterations[job_id] = good_until[job_id] + 1    
+            starting_iterations[job_id] = max(good_until[job_id] + 1, starting_iterations[job_id])  
             
             for timing in job_timings:
                 if timing["job_id"] == job_id:
@@ -1314,7 +1228,6 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
 if __name__ == "__main__":
     
     input_data = json.load(sys.stdin)
-    # input_data = {"timing_file_path": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//timings/random-random/12/farid/first/time-no-coll//timing.txt", "routing_file_path": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//routings/random-random/12/farid/first/time-no-coll/routing.txt", "placement_seed": 12, "jobs": [{"job_id": 1, "machine_count": 14, "comm_size": 2000, "comp_size": 200, "layer_count": 1, "iter_count": 16, "machines": [22, 12, 48, 25, 41, 34, 26, 49, 10, 9, 55, 18, 6, 24], "period": 452}, {"job_id": 2, "machine_count": 15, "comm_size": 4000, "comp_size": 100, "layer_count": 1, "iter_count": 27, "machines": [40, 59, 5, 51, 47, 58, 39, 8, 11, 43, 33, 60, 45, 38, 56], "period": 284}, {"job_id": 3, "machine_count": 13, "comm_size": 4000, "comp_size": 100, "layer_count": 2, "iter_count": 15, "machines": [63, 37, 20, 28, 44, 42, 23, 54, 19, 32, 1, 46, 27], "period": 496}, {"job_id": 4, "machine_count": 16, "comm_size": 4000, "comp_size": 400, "layer_count": 2, "iter_count": 3, "machines": [3, 31, 35, 0, 61, 52, 4, 29, 57, 53, 30, 17, 13, 50, 16, 2], "period": 1690}, {"job_id": 5, "machine_count": 6, "comm_size": 8000, "comp_size": 200, "layer_count": 2, "iter_count": 7, "machines": [36, 14, 7, 21, 15, 62], "period": 940}], "options": {"step-size": 1, "core-status-profiling-interval": 100000, "rep-count": 1, "console-log-level": 4, "file-log-level": 1, "initial-rate": 100, "min-rate": 100, "drop-chance-multiplier": 0, "rate-increase": 1, "priority-allocator": "maxmin", "network-type": "leafspine", "link-bandwidth": 100, "ft-rack-per-pod": 1, "ft-agg-per-pod": 1, "ft-pod-count": -1, "ft-server-tor-link-capacity-mult": 1, "ft-tor-agg-link-capacity-mult": 1, "ft-agg-core-link-capacity-mult": 1, "shuffle-device-map": False, "regret-mode": "none", "machine-count": 64, "ft-server-per-rack": 16, "simulation-seed": 67, "print-flow-progress-history": True, "protocol-file-name": "nethint-test", "lb-scheme": "readprotocol", "subflows": 1, "ft-core-count": 8, "workers-dir": "/home/faridzandi/git/psim/run/workers/", "load-metric": "flowsize", "placement-file": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//placements/random-random/12//placement.txt"}, "run_context": {"sim-length": 8000, "visualize-timing": False, "visualize-routing": False, "random-rep-count": 1, "interesting-metrics": ["avg_ar_time", "avg_iter_time"], "all-placement-modes": ["random"], "experiment-seed": 67, "oversub": 2, "cassini-parameters": {"link-solution-candidate-count": 50, "link-solution-random-quantum": 10, "link-solution-top-candidates": 3, "overall-solution-candidate-count": 10, "save-profiles": True}, "routing-parameters": {}, "selected-setting": {"machine-count": 64, "ft-server-per-rack": 16, "jobs-machine-count-low": 12, "jobs-machine-count-high": 16, "placement-seed-range": 40, "comm-size": [8000, 4000, 2000], "comp-size": [200, 100, 400], "layer-count": [1, 2], "iter-count": [30]}, "comparison-base": {"timing-scheme": "random", "ring-mode": "random", "lb-scheme": "random"}, "comparisons": [["farid", {"timing-scheme": "farid", "lb-scheme": "random"}], ["ideal", {"lb-scheme": "ideal", "timing-scheme": "random"}]], "exp-uuid": 1, "worker-id-for-profiling": 0, "output-file": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/exp_outputs/output-1.txt", "perfect_lb": False, "ideal_network": False, "farid_timing": True , "original_mult": 1, "original_core_count": 8, "original_lb_scheme": "random", "original_ring_mode": "random", "original_timing_scheme": "farid", "routing-fit-strategy": "first", "compat-score-mode": "time-no-coll", "placement-mode": "random", "ring-mode": "random", "placement-seed": 12, "timing-scheme": "farid", "placements_dir": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//placements/random-random/12/", "profiles-dir": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//profiles/random-random/12/", "timings-dir": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//timings/random-random/12/farid/first/time-no-coll/", "routings-dir": "results/sweep/2384-nethint_LB+random_TS+_R+_2_67/custom_files//routings/random-random/12/farid/first/time-no-coll"}}
     # call the main function
     job_timings, lb_decisions = generate_timing_file(**input_data)
     
