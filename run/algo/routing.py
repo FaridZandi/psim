@@ -392,8 +392,7 @@ def merge_overlapping_ranges(ranges_dict, plot_path):
         comb_key = tuple(sorted(keys))    
         new_ranges[comb_key].append((start, end))   
         
-        
-    plot_time_ranges(ranges_dict, dict(new_ranges), plot_path)
+    # plot_time_ranges(ranges_dict, dict(new_ranges), plot_path)
     
     return new_ranges  # Keep all merged ranges, even those with a single key
 
@@ -1096,7 +1095,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
         for key in hash_to_time_ranges.keys():
             hash_to_time_ranges[key].sort()
             
-        print(hash_to_time_ranges, file=sys.stderr) 
+        # print(hash_to_time_ranges, file=sys.stderr) 
         
         merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, routing_plot_dir + "/merged_ranges.png")  
         
@@ -1149,7 +1148,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                 
         
         # use pprint to stderr 
-        pprint(solutions, stream=sys.stderr)
+        # pprint(solutions, stream=sys.stderr)
         
         for flow in all_flows:
             src_leaf = flow["srcrack"]

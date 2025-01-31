@@ -154,22 +154,6 @@ def set_value_for_job_in_decisions(decisions, id, value):
     decisions.append((id, value))
 
 
-def lcm(numbers):
-    def gcd(a, b):
-        while b:
-            a, b = b, a % b
-        return a
-
-    def lcm(a, b):
-        return a * b // gcd(a, b)
-
-    result = numbers[0]
-    for i in range(1, len(numbers)):
-        result = lcm(result, numbers[i])
-
-    return result
-
-
 def get_job_load_length(job_load, deltas, throttle_rates):
     job_id = job_load["job_id"]
 
@@ -197,12 +181,16 @@ def evaluate_candidate(job_loads, deltas, throttle_rates, run_context,
         
     
 
-def get_full_jobs_signals(this_link_loads, deltas, throttle_rates):     
+def get_full_jobs_signals(this_link_loads, deltas, throttle_rates, pref_iter_count=None):     
     repeated_job_loads = []
     
     for job_load in this_link_loads:
         job_id = job_load["job_id"] 
-        job_iter_count = job_load["iter_count"]
+        
+        if pref_iter_count is not None: 
+            job_iter_count = pref_iter_count 
+        else: 
+            job_iter_count = job_load["iter_count"]
         
         job_total_load = np.zeros(0)
         
@@ -382,7 +370,14 @@ def solve_for_link(job_loads, link_logical_bandwidth, run_context,
     
     return top_solution[0], top_solution[1]
 
+
+
 def get_link_loads(jobs, options, run_context, job_profiles):
+    """
+    receives profiles for a single iteration of a job, find the flows 
+    going through each virtual link, combines them into one signal.  
+    """
+    
     servers_per_rack = options["ft-server-per-rack"]
     rack_count = options["machine-count"] // servers_per_rack   
     link_bandwidth = options["link-bandwidth"]  
@@ -471,6 +466,9 @@ def get_link_loads(jobs, options, run_context, job_profiles):
     cross_rack_jobs = list(cross_rack_jobs_set) 
     return link_loads, cross_rack_jobs
 
+####################################################################################################
+####################################################################################################
+####################################################################################################
 
 def get_link_loads_runtime(jobs, options, run_context, summarized_job_profiles):
     servers_per_rack = options["ft-server-per-rack"]
@@ -551,107 +549,8 @@ def get_link_loads_runtime(jobs, options, run_context, summarized_job_profiles):
     cross_rack_jobs = list(cross_rack_jobs_set) 
     return link_loads, cross_rack_jobs
 
-def get_job_color(job_id): 
-    
-    return plt.cm.tab20.colors[job_id % 20] 
 
-    
-def visualize_link_loads(link_loads, run_context, 
-                         deltas, throttle_rates,
-                         link_logical_bandwidth = None, 
-                         suffix=""): 
-    
-    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
-        return  
-
-    import matplotlib.pyplot as plt
-    import numpy as np
-    import os
-
-    num_racks = len(link_loads)
-    num_directions = 2  # "up" and "down"
-
-    # Create a figure and subplots
-    fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), squeeze=False, sharex=True)
-
-    global job_color_index
-    job_color_index = 0
-    assigned_job_colors = {} 
-
-    min_over_capacity_time = 1e9 
-    
-    for rack in range(num_racks):
-        for i, direction in enumerate(["up", "down"]):
-            ax = axes[rack][i]
-            ax.set_title(f"Rack: {rack}, Direction: {direction}")
-            ax.set_xlabel("Time")
-            ax.set_ylabel("Load")
-            
-            if len(link_loads[rack][direction]) == 0:
-                ax.text(0.5, 0.5, "No jobs", horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)  
-                continue
-            
-            padded_job_loads, max_length = get_full_jobs_signals(link_loads[rack][direction], deltas, throttle_rates)
-            job_ids = [job_load["job_id"] for job_load in link_loads[rack][direction]]
-            
-            sum_max_job_load = 0    
-            for job_load in link_loads[rack][direction]:
-                max_job_load = 0 
-                for throttle_rate in run_context["profiled-throttle-factors"]:
-                    max_job_load = max(max_job_load, job_load["profiles"][throttle_rate]["max"])
-                sum_max_job_load += max_job_load    
-                
-            # Convert the padded job loads to a 2D array
-            job_loads_array = np.array(padded_job_loads)
-
-            ax.stackplot(range(max_length), job_loads_array, 
-                         labels=[f"Job: {job_id}" for job_id in job_ids], 
-                         colors=[get_job_color(job_id) for job_id in job_ids])
-
-
-            ax.set_ylim(0, sum_max_job_load * 1.1)
-
-            if link_logical_bandwidth is not None:  
-                ax.axhline(y=link_logical_bandwidth, color='r', linestyle='--') 
-                
-                link_logical_bandwidth_int = int(link_logical_bandwidth) 
-                for i in range(1, link_logical_bandwidth_int + 1):
-                    ax.axhline(y=i, color='black', linestyle='-', linewidth=0.5)   
-                     
-                # find the first place that the link goes over the logical bandwidth.
-                sum_signal = np.sum(job_loads_array, axis=0)
-                first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
-                if max(sum_signal) > link_logical_bandwidth:
-                    min_over_capacity_time = min(min_over_capacity_time, first_overload_index) 
-                    
-                    ax.axvline(x=first_overload_index, color='black', linestyle='--', linewidth=1)
-            
-            max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
-            
-            ax.axhline(y=max_value_in_stack, color='blue', linestyle='--') 
-
-            # ax.legend(loc='upper left')
-
-    # create one legend for all the subplots. with the contents of the color assignment to jobs.
-    if len(assigned_job_colors) > 0:
-        handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=get_job_color(job_id), label=f"Job: {job_id}") for job_id in assigned_job_colors]
-        fig.legend(handles=handles, loc='upper right')
-    
-    if min_over_capacity_time < 1e9:
-        for rack in range(num_racks):
-            for i, direction in enumerate(["up", "down"]):
-                ax = axes[rack][i]
-                ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
-            
-    plt.tight_layout()
-    timing_plots_dir = f"{run_context['timings-dir']}/"
-    os.makedirs(timing_plots_dir, exist_ok=True)
-    plot_path = f"{timing_plots_dir}/demand{suffix}.png"  
-    plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
-    plt.close(fig)
-
-
-
+# visualize the link loads based on the runtime. 
 def visualize_link_loads_runtime(link_loads, run_context, 
                                  suffix="", plot_dir=None, 
                                  smoothing_window=1):      
@@ -751,6 +650,109 @@ def visualize_link_loads_runtime(link_loads, run_context,
     plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
     plt.close(fig)
     
+####################################################################################################
+####################################################################################################
+####################################################################################################
+    
+def get_job_color(job_id): 
+    
+    return plt.cm.tab20.colors[job_id % 20] 
+
+    
+def visualize_link_loads(link_loads, run_context, 
+                         deltas, throttle_rates,
+                         link_logical_bandwidth = None, 
+                         suffix=""): 
+    
+    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
+        return  
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import os
+
+    num_racks = len(link_loads)
+    num_directions = 2  # "up" and "down"
+
+    # Create a figure and subplots
+    fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), squeeze=False, sharex=True)
+
+    global job_color_index
+    job_color_index = 0
+    assigned_job_colors = {} 
+
+    min_over_capacity_time = 1e9 
+    
+    for rack in range(num_racks):
+        for i, direction in enumerate(["up", "down"]):
+            ax = axes[rack][i]
+            ax.set_title(f"Rack: {rack}, Direction: {direction}")
+            ax.set_xlabel("Time")
+            ax.set_ylabel("Load")
+            
+            if len(link_loads[rack][direction]) == 0:
+                ax.text(0.5, 0.5, "No jobs", horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)  
+                continue
+            
+            padded_job_loads, max_length = get_full_jobs_signals(link_loads[rack][direction], deltas, throttle_rates)
+            job_ids = [job_load["job_id"] for job_load in link_loads[rack][direction]]
+            
+            sum_max_job_load = 0    
+            for job_load in link_loads[rack][direction]:
+                max_job_load = 0 
+                for throttle_rate in run_context["profiled-throttle-factors"]:
+                    max_job_load = max(max_job_load, job_load["profiles"][throttle_rate]["max"])
+                sum_max_job_load += max_job_load    
+                
+            # Convert the padded job loads to a 2D array
+            job_loads_array = np.array(padded_job_loads)
+
+            ax.stackplot(range(max_length), job_loads_array, 
+                         labels=[f"Job: {job_id}" for job_id in job_ids], 
+                         colors=[get_job_color(job_id) for job_id in job_ids])
+
+
+            ax.set_ylim(0, sum_max_job_load * 1.1)
+
+            if link_logical_bandwidth is not None:  
+                ax.axhline(y=link_logical_bandwidth, color='r', linestyle='--') 
+                
+                link_logical_bandwidth_int = int(link_logical_bandwidth) 
+                for i in range(1, link_logical_bandwidth_int + 1):
+                    ax.axhline(y=i, color='black', linestyle='-', linewidth=0.5)   
+                     
+                # find the first place that the link goes over the logical bandwidth.
+                sum_signal = np.sum(job_loads_array, axis=0)
+                first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
+                if max(sum_signal) > link_logical_bandwidth:
+                    min_over_capacity_time = min(min_over_capacity_time, first_overload_index) 
+                    
+                    ax.axvline(x=first_overload_index, color='black', linestyle='--', linewidth=1)
+            
+            max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
+            
+            ax.axhline(y=max_value_in_stack, color='blue', linestyle='--') 
+
+            ax.legend(loc='upper left')
+
+    # create one legend for all the subplots. with the contents of the color assignment to jobs.
+    if len(assigned_job_colors) > 0:
+        handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=get_job_color(job_id), label=f"Job: {job_id}") for job_id in assigned_job_colors]
+        fig.legend(handles=handles, loc='upper right')
+    
+    if min_over_capacity_time < 1e9:
+        for rack in range(num_racks):
+            for i, direction in enumerate(["up", "down"]):
+                ax = axes[rack][i]
+                ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
+            
+    plt.tight_layout()
+    timing_plots_dir = f"{run_context['timings-dir']}/"
+    os.makedirs(timing_plots_dir, exist_ok=True)
+    plot_path = f"{timing_plots_dir}/demand{suffix}.png"  
+    plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
+    plt.close(fig)
+
     
 def get_good_until(jobs, link_loads_list, run_context, 
                    deltas, throttle_rates, link_logical_bandwidth,
@@ -1152,6 +1154,16 @@ def farid_timing(jobs, options, run_context, timing_scheme, job_profiles):
     # step 4: return the full schedule.  
     return job_timings
 
+
+def farid_timing_v2(jobs, options, run_context, timing_scheme, job_profiles):
+    from algo.newtiming import TimingSolver    
+
+    solver = TimingSolver(jobs, run_context, options, job_profiles, timing_scheme)
+    job_timings = solver.solve()    
+    
+    # step 4: return the full schedule.  
+    return job_timings
+
 ############################################################################
 ################ MAIN FUCTION  #############################################
 ############################################################################
@@ -1168,6 +1180,7 @@ def get_job_timings(jobs, options, run_context, job_profiles, ):
         "zero": zero_timing, 
         "cassini": cassini_timing, 
         "farid": farid_timing, 
+        "faridv2": farid_timing_v2, 
     }
     if timing_scheme.split("_")[0] not in timing_funcions:
         raise ValueError(f"Invalid timing-scheme: {timing_scheme}")

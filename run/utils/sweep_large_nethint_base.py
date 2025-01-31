@@ -22,7 +22,7 @@ import shutil
 current_executable = sys.executable
 lbs_involving_randomness = ["random", "ecmp", "powerof2"]
 
-run_cassini_timing_in_subprocess = True # don't turn this on. 
+run_cassini_timing_in_subprocess = False # don't turn this on. 
     
 # self, lock, logger_func, run_context, cache_dir, calc_func
 timing_cache = NonBlockingCache("timing-cache")
