@@ -149,9 +149,10 @@ def do_experiment(placement_mode="random",
 
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     profiled_throttle_factors = [1.0]
+    # profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
     
     # if core_count == 2: 
-    #     profiled_throttle_factors = [1.0, 0.5]
+        # profiled_throttle_factors = [1.0, 0.5]
     # elif core_count == 3: 
     #     profiled_throttle_factors = [1.0, 0.66, 0.33]
     # elif core_count == 4:
@@ -190,7 +191,7 @@ def do_experiment(placement_mode="random",
         "ring-mode": "random",  
         "min-rate": 100,
         
-        "timing-scheme": "faridv2", 
+        "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": True, 
         "farid-rounds": 10, 
@@ -201,12 +202,30 @@ def do_experiment(placement_mode="random",
     }
 
     comparisons = []
-          
-    # comparisons.append(("zero-routed-best",
-    #                     {"timing-scheme": "faridv2",
-    #                      "routing-fit-strategy": "best",    
-    #                      "lb-scheme": "readprotocol"}))
+    
+    comparisons.append(("faridv2-bestfit",
+                        {"timing-scheme": "faridv2",
+                         "routing-fit-strategy": "best",       
+                         "lb-scheme": "readprotocol"}))
+    
+    comparisons.append(("faridv2-firstfit",
+                        {"timing-scheme": "faridv2",
+                         "routing-fit-strategy": "first",       
+                         "lb-scheme": "readprotocol"}))
+    
+    comparisons.append(("faridv2-graph-coloring-v3",
+                        {"timing-scheme": "faridv2",
+                         "routing-fit-strategy": "graph-coloring-v3",       
+                         "lb-scheme": "readprotocol"}))
+              
+    comparisons.append(("faridv2-graph-coloring-v4",
+                        {"timing-scheme": "faridv2",
+                         "routing-fit-strategy": "graph-coloring-v4",       
+                         "lb-scheme": "readprotocol"}))
 
+    comparisons.append(("zero-perfect",
+                        {"timing-scheme": "zero",
+                         "lb-scheme": "perfect"}))
     
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
@@ -216,7 +235,7 @@ def do_experiment(placement_mode="random",
 
         "plot-iteration-graphs": False, 
         "visualize-timing": [1], #placement_seeds, 
-        "visualize-routing": False, 
+        "visualize-routing": True, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -287,7 +306,7 @@ if __name__ == "__main__":
             ("machine_count", [48]),
             ("rack_size", [8]),
             ("job_count", [4]),
-            ("placement_mode", ["random"]),
+            ("placement_mode", ["semirandom_4"]),
             ("oversub", [2]),
             ("sim_length", [600]),
             ("punish_oversubscribed_min", [1.0]),  
@@ -326,7 +345,7 @@ if __name__ == "__main__":
         --plot_params metric \
         --subplot_y_params rack_size \
         --subplot_hue_params comparison \
-        --plot_x_params sim_length \
+        --plot_x_params job_count \
         --plot_y_param values".format(path)
             
     print("running the plot command: ") 

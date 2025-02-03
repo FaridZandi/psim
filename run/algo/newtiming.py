@@ -5,7 +5,12 @@ from functools import cached_property
 from typing import List, Dict, Tuple
 from collections import defaultdict
 
-def get_link_loads(jobs, options, run_context, job_profiles):
+import sys
+
+# TODO: move this function in the main class. 
+# TODO: let it create the link objects directly. Don't stick with legacy code.  
+ 
+def get_link_loads(job_map, options, run_context):
     """
     receives profiles for a single iteration of a job, find the flows 
     going through each virtual link, combines them into one signal.  
@@ -31,16 +36,16 @@ def get_link_loads(jobs, options, run_context, job_profiles):
 
         for dir in ["up", "down"]:
             
-            for job in jobs:
-                job_id = job["job_id"]
+            for job_id, job in job_map.items():
                 throttled_job_profiles = {}
                 any_flow_added = False
                 
                 for throttle_factor in run_context["profiled-throttle-factors"]:
-                    if job_id not in job_profiles:
+                    if job.profiles is None:    
                         continue    
                     
-                    job_profile = job_profiles[job_id][throttle_factor]
+                    job_profile = job.profiles[throttle_factor]
+                    
                     if len(job_profile["flows"]) == 0:
                         continue 
 
@@ -89,7 +94,7 @@ def get_link_loads(jobs, options, run_context, job_profiles):
                     link_loads[i][dir].append({
                         "link_id": i * 2 + (1 if dir == "up" else 0),   
                         "job_id": job_id,
-                        "iter_count": job["iter_count"],  
+                        "iter_count": job.iter_count,  
                         "profiles": throttled_job_profiles
                     })
     
@@ -97,11 +102,36 @@ def get_link_loads(jobs, options, run_context, job_profiles):
     return link_loads, cross_rack_jobs
 
 
+def find_earliest_available_time(start, end, rem, max):
+    delay = 0
+    window_sum = sum(rem[t] < max for t in range(start, end))
+    while window_sum > 0:
+        if rem[start + delay] < max:
+            window_sum -= 1  
+        if rem[end + delay] < max:
+            window_sum += 1  
+        delay += 1
+    return delay
 
 
-
-
-
+def find_empty_ranges(signal):  
+    empty_spaces = []
+    current_space = None
+    for i in range(len(signal)):
+        if signal[i] == 0:
+            if current_space is None:
+                current_space = [i, i]
+            else:
+                current_space[1] = i
+        else:
+            if current_space is not None:
+                empty_spaces.append(current_space)
+                current_space = None
+                
+    if current_space is not None:
+        empty_spaces.append(current_space)
+        
+    return empty_spaces
 
 
 
@@ -116,40 +146,65 @@ def get_link_loads(jobs, options, run_context, job_profiles):
 
 
 
+# forward declaration of the solution class
+class Solution: 
+    pass
 
+class Job: 
+    def __init__(self, job_id, profiles, iter_count, base_period): 
+        self.job_id = job_id
+        self.profiles = profiles
+        self.iter_count = iter_count
+        self.base_period = base_period
+        
+        self.link_loads: dict[tuple, LinkJobLoad] = {}
+    
+    def get_combined_signal(self, solution: Solution) -> np.array:
+        signals = []
+        
+        for link_load in self.link_loads.values(): 
+            signals.append(link_load.get_signal(solution))
+        
+        return np.sum(signals, axis=0)
 
-
-
-
-
-
-
-
-
+    def get_active_range(self, throttle_rate):
+        start_time = 1e9 
+        end_time = 0
+        
+        for link_load in self.link_loads.values():  
+            link_signal = link_load.get_base_signal(throttle_rate)
+            
+            first_non_zero = np.argmax(link_signal > 0)
+            last_non_zero = len(link_signal) - np.argmax(link_signal[::-1] > 0)
+            
+            start_time = min(start_time, first_non_zero)    
+            end_time = max(end_time, last_non_zero)
+            
+        print(f"Job {self.job_id} at rate {throttle_rate}, active range: {start_time} - {end_time}", file=sys.stderr)
+            
+        return (start_time, end_time) 
 
 class Solution(): 
-    def __init__(self, jobs, job_profiles): 
+    def __init__(self, job_map): 
         self.deltas = {}
         self.throttle_rates = {} 
-        self.costs = {}
-        self.job_profiles = job_profiles    
-        self.jobs = jobs 
+        self.job_map: dict[int, Job] = job_map
         
-        for job in jobs:    
-            iter_count = job["iter_count"] 
+        for job_id, job in self.job_map.items():     
+            iter_count = job.iter_count 
             
-            self.deltas[job["job_id"]] = [0] * iter_count
-            self.throttle_rates[job["job_id"]] = [1.0] * iter_count
-            self.costs[job["job_id"]] = [0] * iter_count    
+            self.deltas[job_id] = [0] * iter_count
+            self.throttle_rates[job_id] = [1.0] * iter_count
             
     def get_job_cost(self, job_id):    
-        return sum(self.costs[job_id])  
+        # TODO: implement this  
+        return 0
+
 
     def get_job_timings(self):  
         job_timings = []    
         
-        for job in self.jobs:
-            job_id = job["job_id"]
+        for job_id, job in self.job_map.items():
 
             job_timings.append({
                 "deltas": self.deltas[job_id],  
@@ -159,70 +214,104 @@ class Solution():
             
         return job_timings
     
+    
     def get_job_iter_start_time(self, job_id, iter):    
-        start_time = 0  
+        assert job_id in self.job_map, f"Job {job_id} not in {self.job_map.keys()}"    
+        assert iter < len(self.deltas[job_id]), f"Job {job_id} has {len(self.deltas[job_id])} iters, not {iter}"
         
+        job = self.job_map[job_id]
+
+        start_time = 0  
         for i in range(iter):
             delta = self.deltas[job_id][i]  
             throttle_rate = self.throttle_rates[job_id][i]  
-            last_iter_period = self.job_profiles[job_id][throttle_rate]["period"]    
+            last_iter_period = job.profiles[throttle_rate]["period"]    
             start_time += delta + last_iter_period   
 
         start_time += self.deltas[job_id][iter] 
         
         return start_time
     
+    def get_job_iter_active_time(self, job_id, iter, iter_throttle_rate = 1.0):
+        assert job_id in self.job_map, f"Job {job_id} not in {self.job_map.keys()}"    
+        assert iter < len(self.deltas[job_id]), f"Job {job_id} has {len(self.deltas[job_id])} iters, not {iter}"
+
+        job = self.job_map[job_id]
+        iter_start_time = self.get_job_iter_start_time(job_id, iter)
+        active_range_start, active_range_end = job.get_active_range(iter_throttle_rate)        
+        
+        return (iter_start_time + active_range_start, iter_start_time + active_range_end)        
+        
+    
     def get_job_waiting_times(self, job_id):    
+        assert job_id in self.job_map, f"Job {job_id} not in {self.job_map.keys()}"        
+
         # get the ranges of time that the job is waiting 
         waiting_ranges = []
         # for each iteration, add a tuple of (start, end) to the list
         for i in range(len(self.deltas[job_id])):
             start_time = self.get_job_iter_start_time(job_id, i)
-            delta = self.deltas[job_id][i]  
-            
-            waiting_ranges.append((start_time - delta, start_time)) 
+            delta = self.deltas[job_id][i]
+            if delta > 0:  
+                waiting_ranges.append((start_time - delta, start_time)) 
         
         return waiting_ranges
     
     # make this hashable
     def __hash__(self):
-        return hash(str(self.deltas) + str(self.throttle_rates) + str(self.costs))
+        return hash(str(self.deltas) + str(self.throttle_rates))
+     
      
 class LinkJobLoad():  
     # Profiles = 1 iteration of the job at different rates
-    def __init__(self, job, profiles, iter_count):  
+    def __init__(self, job: Job, link_profiles):  
         self.job = job
-        self.profiles = profiles
-        self.iter_count = iter_count    
+        self.link_profiles = link_profiles
     
-    def get_signal(self, solution: Solution, 
-                   start_time = None, start_iter = None, end_iter = None) -> np.array:
+    def get_base_signal(self, throttle_rate = 1.0) -> np.array:  
+        # get the signal for the job at the base rate
+        return np.array(self.link_profiles[throttle_rate]["load"])
+    
+    def get_signal(self, solution: Solution, start_time = None, 
+                   start_iter = None, end_iter = None) -> np.array:
+
+        if start_iter is not None: 
+            assert start_iter >= 0, f"start_iter {start_iter} must be >= 0"
+            assert start_iter < self.job.iter_count, f"start_iter {start_iter} must be < {self.job.iter_count}"
+        else:
+            start_iter = 0
         
-        job_id = self.job["job_id"] 
+        if end_iter is not None:    
+            assert end_iter >= 0, f"end_iter {end_iter} must be >= 0"
+            assert end_iter <= self.job.iter_count, f"end_iter {end_iter} must be <= {self.job.iter_count}"
+        else:
+            end_iter = self.job.iter_count            
+            
+        assert start_iter < end_iter, f"start_iter {start_iter} must be < end_iter {end_iter}" 
+        
+        
+        if start_time is not None:
+            assert start_time >= 0, f"start_time {start_time} must be >= 0"
+        else:
+            start_time = 0
+        
+        job_id = self.job.job_id
 
         deltas = solution.deltas[job_id]
         throttle_rates = solution.throttle_rates[job_id]    
 
-        if start_time is None:  
-            start_time = 0
         # add zero padding for the start time   
         signal = np.zeros(start_time)
         
-        if start_iter is None:  
-            start_iter = 0
-        if end_iter is None:    
-            end_iter = self.iter_count
-            
         # get the full signal for the job
         for iter in range(start_iter, end_iter):
-            
             # add the delta padding for the iter            
             iter_delta = deltas[iter] 
             signal = np.append(signal, np.zeros(iter_delta))
 
             # add the signal for the iter   
             iter_throttle_rate = throttle_rates[iter]
-            iter_signal = self.profiles[iter_throttle_rate]["load"]
+            iter_signal = self.link_profiles[iter_throttle_rate]["load"]
             signal = np.append(signal, iter_signal)
             
         return signal 
@@ -231,11 +320,9 @@ class LinkJobLoad():
 class LinkLevelProblem(): 
     def __init__(self, link_id, max_length, score_mode):    
         self.link_id = link_id  
-        # self.job_loads = [] # a list of LinkLevelJob objects
-        # with the proper typing 
         self.job_loads: List[LinkJobLoad] = []  
-        self.max_length = max_length
-        self.score_mode = score_mode
+        self.max_length: int = max_length
+        self.score_mode: str = score_mode
     
     def get_total_load(self, solution: Solution) -> np.array:
         all_signals = []
@@ -255,8 +342,7 @@ class LinkLevelProblem():
         
         return sum_signal
         
-    def get_compat_score(self, 
-                         solution: Solution, 
+    def get_compat_score(self, solution: Solution, 
                          capacity: float) -> float: 
         
         sum_signal = self.get_total_load(solution)        
@@ -296,44 +382,23 @@ class TimingSolver():
         self.rack_count = options["machine-count"] // options["ft-server-per-rack"] 
         self.link_bandwidth = options["link-bandwidth"]
         self.capacity = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
-        
-        self.jobs = jobs # list of jobs, each job is a dict
-        self.job_map = {job["job_id"]: job for job in jobs}
-        
-        # example job = {
-        #     "job_id": 1,
-        #     "machine_count": 12,
-        #     "comm_size": 32000,
-        #     "comp_size": 200,
-        #     "layer_count": 1,
-        #     "iter_count": 5,
-        #     "machines": [23,5,18,47,2,39,38,28,40,34,33,31],
-        #     "period": { "1.0": 994, "0.5": 1100 },
-        #     "base_period": 994
-        # },
-        
-        
-        self.job_profiles = job_profiles
-        # two level dict like job_profiles[job_id][throttle_factor] = profile 
-        # and each profile is a bunch of flows, and the period of the job
-        # {
-        #     'flows': [
-        #         {
-        #             'core': 0, 'dir': 'incoming',
-        #             'dstrack': 0, 'end_time': 426, 'fct': 27, 'flow_id': 0,
-        #             'flow_size': 2700.0, 'iteration': 0,
-        #             'job_id': 1, 'label': 'chain_1_hop_1_subflow_1',
-        #             'progress_history': [0.0, 0.0, 0.0, 0.0, 0.0, 0.0], #retracted
-        #             'progress_history_summarized': [[0, 400], [100.0, 27], [0, 567]],
-        #             'srcrack': 2, 'start_time': 400, 'subflow': 0
-        #         }, ...
-        #     ],
-        #     'period': 994
-        # }
-        
+        self.job_map = {} 
+
+        for job in jobs:   
+            job_id = job["job_id"] 
+            
+            if job_id not in job_profiles:
+                this_job_profiles = None
+            else:    
+                this_job_profiles = job_profiles[job_id]
+                  
+            iter_count = job["iter_count"]
+            base_period = job["base_period"]
+            
+            self.job_map[job_id] = Job(job_id, this_job_profiles, iter_count, base_period) 
         
         # sequential execution of the jobs, worst case scenario. 
-        self.max_length = sum(job["base_period"] * job["iter_count"] for job in self.jobs)
+        self.max_length = sum(job.base_period * job.iter_count for job in self.job_map.values())  
         self.max_length *= 2 # let's be safe and double it, shouldn't matter much.
                 
         self.links = {} 
@@ -342,20 +407,35 @@ class TimingSolver():
                 link_id = (i, dir)  
                 self.links[link_id] = LinkLevelProblem(link_id, self.max_length, self.score_mode)    
         
+        link_loads, cross_rack_job = get_link_loads(self.job_map, self.options, self.run_context)    
+        
+        for rack_num, rack_loads in enumerate(link_loads):
+            for dir in ["up", "down"]:
+                for link_job_load in rack_loads[dir]:
+                    link = self.links[(rack_num, dir)] 
+                    job: Job = self.job_map[link_job_load["job_id"]]  
+
+                    link_job_load = LinkJobLoad(job, link_job_load["profiles"])
+
+                    job.link_loads[link.link_id] = link_job_load
+                    link.job_loads.append(link_job_load)
+        
+        self.cross_rack_jobs = cross_rack_job           
+                    
     def get_sequentail_solution(self):  
-        sol = Solution(self.jobs, self.job_profiles)  
+        sol = Solution(self.job_map)  
 
         # create a sequential solution for the jobs
-        max_iter_count = max(job["iter_count"] for job in self.jobs)                    
-        job_ids = [job["job_id"] for job in self.jobs]  
+        max_iter_count = max(job.iter_count for job in self.job_map.values())
+        job_ids = list(self.job_map.keys())   
         job_accum = {job_id: 0 for job_id in job_ids}   
         accum_time = 0  
 
         for i in range(max_iter_count):   
-            for job_id in job_ids:
+            for job_id, job in self.job_map.items():
                 
-                job_period = self.job_map[job_id]["base_period"]    
-                job_iter_count = self.job_map[job_id]["iter_count"]
+                job_period = job.base_period        
+                job_iter_count = job.iter_count 
                 
                 if i < job_iter_count:   
                     if i == 0: 
@@ -366,149 +446,163 @@ class TimingSolver():
                     job_accum[job_id] = accum_time                        
                     accum_time += job_period    
             
-            pprint(sol.deltas)   
+            print(sol.deltas, file=sys.stderr)     
             
         return sol
     
     def get_lego_solution(self, links: List[LinkLevelProblem]):   
-        sol = Solution(self.jobs, self.job_profiles)    
+        sol = Solution(self.job_map)    
         
+        job_ids = list(self.job_map.keys())    
+        job_max_load = {}
         
-        job_max_load = {job["job_id"]: 0 for job in self.jobs}
-        job_ids = [job["job_id"] for job in self.jobs] 
+        for throttle_rate in self.run_context["profiled-throttle-factors"]: 
+            job_max_load[throttle_rate] = {job_id: 0 for job_id in job_ids}  
         
-        for link in links:  
-            for job_load in link.job_loads: 
-                job_id = job_load.job["job_id"]
-                job_max_load[job_id] = max(job_max_load[job_id], job_load.profiles[1.0]["max"])
-        pprint(job_max_load)    
+            for link in links:  
+                for job_load in link.job_loads: 
+                    job_id = job_load.job.job_id    
+
+                    max_load = job_load.link_profiles[throttle_rate]["max"] 
+                    current_val = job_max_load[throttle_rate][job_id]
+                    job_max_load[throttle_rate][job_id] = max(current_val, max_load)    
+                    
+        print(job_max_load, file=sys.stderr)
         
         rem = [self.capacity] * self.max_length
-        
+
         service_attained = {job_id: 0 for job_id in job_ids}        
         current_iters = {job_id: 0 for job_id in job_ids} 
         not_done_jobs = set(job_ids) 
         
         while len(not_done_jobs) > 0:
-            # pick a random job
-            # job_id = np.random.choice(job_ids) 
-            
             # pick the job with the least service attained among the not done jobs
             job_id = min(not_done_jobs, key=lambda x: service_attained[x])
-            
-            print(f"Job {job_id} at iter {current_iters[job_id]}, max load {job_max_load[job_id]}") 
-            
-            # assume the rate is 1.0 for now
-            throttle_rate = 1 
-
-            # find the first time that the job can be scheduled
+            job: Job = self.job_map[job_id]
             current_iter = current_iters[job_id]    
+
+            best_finish_time = 1e9 
+            best_throttle_rate = 1.0     
+            best_delay = 0 
+            best_active_start = 0 
+            best_active_end = 0
             
-            earliest_iter_start = sol.get_job_iter_start_time(job_id, current_iter)
-            earliest_iter_end = earliest_iter_start + self.job_profiles[job_id][throttle_rate]["period"]
-            
-            print(f"Earliest start {earliest_iter_start}, end {earliest_iter_end}")
-            
-            def find_earliest_available_time(earliest_iter_start, earliest_iter_end, rem, job_max_load):
-                delay = 0
-                current_window = sum(rem[t] < job_max_load for t in range(earliest_iter_start, earliest_iter_end))
-                while current_window > 0:
-                    if rem[earliest_iter_start + delay] < job_max_load:
-                        current_window -= 1  
-                    if rem[earliest_iter_end + delay] < job_max_load:
-                        current_window += 1  
-                    delay += 1
-                return delay
-             
-            delay = find_earliest_available_time(earliest_iter_start, earliest_iter_end, rem, job_max_load[job_id]) 
-            
-            print(f"Job {job_id} with delay {delay} can be scheduled from {earliest_iter_start + delay} to {earliest_iter_end + delay}")
-            # schedule the job at this time
-            for t in range(earliest_iter_start + delay, earliest_iter_end + delay):
-                rem[t] -= job_max_load[job_id]
+            for throttle_rate in self.run_context["profiled-throttle-factors"]:
+                active_start, active_end  = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate)   
+                max_load = job_max_load[throttle_rate][job_id]
+                
+                if max_load > self.capacity:                        
+                    continue 
+                
+                delay = find_earliest_available_time(active_start, active_end, rem, max_load) 
+                finish_time = active_end + delay     
+                
+                if finish_time < best_finish_time:  
+                    best_finish_time = finish_time
+                    best_throttle_rate = throttle_rate
+                    best_delay = delay  
+                    best_active_start = active_start    
+                    best_active_end = active_end
+
+
+            max_load = job_max_load[best_throttle_rate][job_id]  
+            for t in range(best_active_start + best_delay, best_active_end + best_delay):
+                rem[t] -= max_load
                 
             # update the solution
-            sol.deltas[job_id][current_iter] = delay
+            sol.deltas[job_id][current_iter] = best_delay
+            sol.throttle_rates[job_id][current_iter] = best_throttle_rate   
             
             # update the current iter
             current_iters[job_id] += 1    
-            service_attained[job_id] += self.job_profiles[job_id][throttle_rate]["period"]
+            service_attained[job_id] += job.base_period
             
-            if current_iters[job_id] >= self.job_map[job_id]["iter_count"]: 
+            if current_iters[job_id] >= job.iter_count: 
                 not_done_jobs.remove(job_id)    
             
-            print("---------------------------------------")
-            
+            print("---------------------------------------", file=sys.stderr)
+        
+
         
         # try compressing the solution, based on the actual job_signals 
+        link_empty_times = {}
+        for link in links:
+            link_total_load = link.get_total_load(sol)
+            link_empty_times[link.link_id] = find_empty_ranges(link_total_load)    
         
-        link_empty_spaces = defaultdict(list)
+        # merge the empty times of all the links 
+        max_time = 0 
+        for link in links:
+            for empty_time in link_empty_times[link.link_id]:
+                max_time = max(max_time, empty_time[1]) 
+        
+        empty_ranges = [len(links)] * (max_time + 1)
         
         for link in links:
-            total_load = link.get_total_load(sol)
-            
-            # find the empty spaces in the signal   
-            current_empty_space = None
-            
-            for i in range(len(total_load)):
-                if total_load[i] == 0:
-                    if current_empty_space is None:
-                        current_empty_space = [i, i]
-                    else:
-                        current_empty_space[1] = i
-                else:
-                    if current_empty_space is not None:
-                        link_empty_spaces[link.link_id].append(current_empty_space)
-                        current_empty_space = None
-            
-            if current_empty_space is not None:
-                link_empty_spaces[link.link_id].append(current_empty_space)
-                            
-        
-        pprint(link_empty_spaces)
+            for empty_time in link_empty_times[link.link_id]:
+                for t in range(empty_time[0], empty_time[1] + 1):
+                    empty_ranges[t] -= 1
+                    
+        all_link_empty_ranges = find_empty_ranges(empty_ranges)  
         
         # get the time ranges that every links is empty. create a list of these ranges
         # for each link, find the time ranges that are empty.
             
-                
         job_waiting_times = {} 
+        job_empty_times = {} 
         
         for job_id in job_ids:  
+            job = self.job_map[job_id]
+            job_total_load = job.get_combined_signal(sol)    
+                        
             job_waiting_times[job_id] = sol.get_job_waiting_times(job_id)   
-            
-        pprint(job_waiting_times)   
+            job_empty_times[job_id] = find_empty_ranges(job_total_load)
         
+        # let's plot this mess: 
+        
+        import matplotlib.pyplot as plt
+        
+        fig, axes = plt.subplots(2, 1, figsize=(10, 5), sharex=True)   
+        y = 0 
+        
+        for link in links:
+            ranges = link_empty_times[link.link_id]
+            for r in ranges:
+                axes[0].plot([r[0], r[1]], [y, y], 'r-', label = f"{link.link_id}")
+            y += 1
+            
+        ranges = all_link_empty_ranges
+        for r in ranges:
+            axes[0].plot([r[0], r[1]], [y, y], 'b-', label = "all") 
+        y += 1  
+           
+        axes[0].set_title("Link empty times")
+        axes[0].set_yticks(range(y))
+        axes[0].set_yticklabels([f"{link.link_id}" for link in links] + ["all"])    
+        
+        y = 0
+        for job_id in job_ids:
+            ranges = job_empty_times[job_id]
+            for r in ranges:
+                axes[1].plot([r[0], r[1]], [y, y], 'r-', label = f"{job_id}")
+            y += 1
+            
+        y = 0
+        for job_id in job_ids:
+            ranges = job_waiting_times[job_id]
+            for r in ranges:
+                axes[1].plot([r[0], r[1]], [y, y], 'b-', linewidth=2)   
+            y += 1  
+        
+        axes[1].set_title("Job empty times")
+        axes[1].set_yticks(range(y))
+        axes[1].set_yticklabels(job_ids)
+        
+        plt.savefig("link_empty_times.png") 
         return sol
-            
-            
     
     def solve(self):
-        # step get the link level loads 
-        link_loads, cross_rack_job = get_link_loads(self.jobs, self.options, self.run_context, self.job_profiles)    
-        
-        for rack_num, rack_loads in enumerate(link_loads):
-            for dir in ["up", "down"]:
-                for link_job_load in rack_loads[dir]:
-
-                    link = self.links[(rack_num, dir)] 
-                    job = self.job_map[link_job_load["job_id"]]  
-
-                    link_job_load = LinkJobLoad(job, link_job_load["profiles"], link_job_load["iter_count"])
-                    link.job_loads.append(link_job_load)
-                    
-        
-        # base_solution = self.get_sequentail_solution()   
-                
         base_solution = self.get_lego_solution(self.links.values())
-        
+
         return base_solution.get_job_timings()
         
-        
-if __name__ == "__main__":
-    jobs = []
-    options = {}
-    run_context = {}
-    job_profiles = {}
-    
-    solver = TimingSolver(jobs, run_context, options, job_profiles)
-    solver.solve()

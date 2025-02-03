@@ -364,6 +364,8 @@ def color_bipartite_multigraph_2(input_edges):
     edge_color_map = {} 
     for i in range(n):  
         edge_color_map[i + 1] = colors[i]
+        
+    print("max_degree: ", max_degree, "colors: ", colors, file=sys.stderr)
     
     return edge_color_map   
         
@@ -393,8 +395,9 @@ def merge_overlapping_ranges(ranges_dict, plot_path):
         new_ranges[comb_key].append((start, end))   
         
     # plot_time_ranges(ranges_dict, dict(new_ranges), plot_path)
-    
     return new_ranges  # Keep all merged ranges, even those with a single key
+
+
 
 def plot_time_ranges(ranges_dict, merged_ranges_dict, plot_path):
     
@@ -409,13 +412,11 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, plot_path):
                 ax.plot([start, end], [y, y], marker='|', label=f"{key}" if y == 0 else "")
                 
                 # add two vertical line on the two ends 
-                
                 if other_ax is not None:
                     ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
                     ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
                     other_ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
                     other_ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
-                
             y += 1
         
         ax.set_yticks(range(len(data)))
@@ -854,11 +855,9 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
     all_flows = get_all_flows(job_profiles, job_deltas, job_throttle_rates, 
                               job_periods, job_iterations)
                     
-    
     lb_decisions = {} 
     min_affected_time = routing_time   
     max_affected_time = 0   
-    
     
     # get all the flows at the front of the all_flows, that start at the same time. 
     # process them together, and then move on to the next set of flows. 
@@ -1090,24 +1089,23 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                 flow["traffic_pattern_hash"] = traffic_pattern_hash 
             
             # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
+
+        for hash in hash_to_traffic_id.keys():
+            traffic_pattern_rep = hash_to_traffic_id[hash]
+            flows = traffic_id_to_flows[traffic_pattern_rep]
+            traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
+            print(f"hash: {hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr) 
             
         # unique hash values.   
         for key in hash_to_time_ranges.keys():
             hash_to_time_ranges[key].sort()
             
         # print(hash_to_time_ranges, file=sys.stderr) 
-        
         merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, routing_plot_dir + "/merged_ranges.png")  
-        
-        solutions = {} 
-        
-        for overlapping_keys, overlapping_ranges in merged_ranges.items():
 
-            print(overlapping_keys, file=sys.stderr)    
-            print(overlapping_ranges, file=sys.stderr)  
-            
+        solutions = {} 
+        for overlapping_keys, overlapping_ranges in merged_ranges.items():
             current_flows = []
-            
             # for all the hashes that are overlapping, get the traffic patterns, put them all together
             
             for hash in overlapping_keys:
@@ -1201,7 +1199,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                                                     src_leaf, dst_leaf)    
 
             selected_spines = route_flow(flow, run_context["routing-fit-strategy"], 
-                                        spine_availablity, max_subflow_count, num_spines)
+                                         spine_availablity, max_subflow_count, num_spines)
 
             lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
             
