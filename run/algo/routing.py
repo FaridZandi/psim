@@ -393,8 +393,31 @@ def merge_overlapping_ranges(ranges_dict, plot_path):
     for idx, (start, end, keys) in enumerate(merged):
         comb_key = tuple(sorted(keys))    
         new_ranges[comb_key].append((start, end))   
+    
+    
+    for comb_key in new_ranges:
+        new_ranges[comb_key].sort() 
         
-    # plot_time_ranges(ranges_dict, dict(new_ranges), plot_path)
+        summarized_ranges = [] 
+        
+        last_range = None
+        for i, (start, end) in enumerate(new_ranges[comb_key]):
+            if last_range is None:
+                last_range = (start, end) 
+            elif start > last_range[1] + 1: 
+                summarized_ranges.append(last_range)
+                last_range = (start, end) 
+            else:
+                last_range = (last_range[0], end)
+            
+            if i == len(new_ranges[comb_key]) - 1:
+                summarized_ranges.append(last_range)
+            
+        new_ranges[comb_key] = summarized_ranges                        
+    
+    if plot_path is not None:   
+        plot_time_ranges(ranges_dict, dict(new_ranges), plot_path)
+    
     return new_ranges  # Keep all merged ranges, even those with a single key
 
 
@@ -408,16 +431,38 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, plot_path):
     def plot_stuff(ax, data, other_ax=None):
         y = 0
         for key, ranges in data.items():
-            for start, end in ranges:
+            last_range = None 
+
+            for i, (start, end) in enumerate(ranges):
                 ax.plot([start, end], [y, y], marker='|', label=f"{key}" if y == 0 else "")
                 
                 # add two vertical line on the two ends 
                 if other_ax is not None:
+                    
                     ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
-                    ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
                     other_ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
+                    ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
                     other_ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
+                        
+                #     if last_range is None:
+                #         ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
+                #         other_ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
+                #     elif i == len(ranges) - 1:
+                #         ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
+                #         other_ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
+                #     else:
+                #         if start > last_range[1] + 1: 
+                #             ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
+                #             other_ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
+                #             ax.axvline(x=last_range[1], color='gray', linestyle='--', linewidth=0.5)
+                #             other_ax.axvline(x=last_range[1], color='gray', linestyle='--', linewidth=0.5)
+                #         else:   
+                #             pass 
+                # last_range = (start, end)   
+                
             y += 1
+            
+            
         
         ax.set_yticks(range(len(data)))
         ax.set_yticklabels(list(data.keys()))
@@ -1074,6 +1119,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             
             traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
             traffic_pattern_hash = hashlib.md5(traffic_pattern.encode()).hexdigest()
+            traffic_pattern_hash = traffic_pattern_hash[:8]
             
             max_end_time = max([flow["eff_end_time"] for flow in flows])    
             min_start_time = min([flow["eff_start_time"] for flow in flows]) 
@@ -1101,7 +1147,11 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             hash_to_time_ranges[key].sort()
             
         # print(hash_to_time_ranges, file=sys.stderr) 
-        merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, routing_plot_dir + "/merged_ranges.png")  
+        if "visualize-routing" in run_context and run_context["visualize-routing"]: 
+            plot_path = routing_plot_dir + "/merged_ranges.png"
+        else:
+            plot_path = None
+        merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, plot_path)  
 
         solutions = {} 
         for overlapping_keys, overlapping_ranges in merged_ranges.items():
@@ -1140,13 +1190,12 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
 
                 color_id_to_color[color_id].append(color)
                 
-            
             for time_range in overlapping_ranges:
                 solutions[time_range] = color_id_to_color   
                 
         
         # use pprint to stderr 
-        # pprint(solutions, stream=sys.stderr)
+        pprint(solutions, stream=sys.stderr)
         
         for flow in all_flows:
             src_leaf = flow["srcrack"]
@@ -1206,8 +1255,9 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             min_affected_time = min(min_affected_time, start_time)  
             max_affected_time = max(max_affected_time, end_time)
             
-            update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
-                            src_leaf, dst_leaf)       
+            update_time_range(start_time, end_time, flow, 
+                              selected_spines, rem, usage, 
+                              src_leaf, dst_leaf)       
 
             
     draw_stuff(run_context, 

@@ -1,6 +1,6 @@
 import numpy as np  
 from pprint import pprint
-from functools import cached_property
+from functools import cached_property, lru_cache
 # type
 from typing import List, Dict, Tuple
 from collections import defaultdict
@@ -151,11 +151,14 @@ class Solution:
     pass
 
 class Job: 
-    def __init__(self, job_id, profiles, iter_count, base_period): 
+    def __init__(self, job_id, profiles, iter_count, periods, base_period): 
         self.job_id = job_id
         self.profiles = profiles
         self.iter_count = iter_count
         self.base_period = base_period
+        
+        # replace the str keys with float keys  
+        self.periods = {float(k): v for k, v in periods.items()}
         
         self.link_loads: dict[tuple, LinkJobLoad] = {}
     
@@ -167,18 +170,37 @@ class Job:
         
         return np.sum(signals, axis=0)
 
-    def get_active_range(self, throttle_rate):
+    @lru_cache(maxsize=None)    
+    def get_base_signal(self, throttle_rate = 1.0) -> np.array: 
+        job_period = self.periods[throttle_rate]
+        signal = np.zeros(job_period)
+        
+        # sum up the signals for all links 
+        for link in self.link_loads.values():
+            link_signal = link.get_base_signal(throttle_rate)
+            signal = np.add(signal, link_signal)
+            
+        return signal            
+        
+        
+    def get_active_range(self, throttle_rate, inflate = 1.0):
         start_time = 1e9 
         end_time = 0
         
-        for link_load in self.link_loads.values():  
-            link_signal = link_load.get_base_signal(throttle_rate)
-            
-            first_non_zero = np.argmax(link_signal > 0)
-            last_non_zero = len(link_signal) - np.argmax(link_signal[::-1] > 0)
-            
-            start_time = min(start_time, first_non_zero)    
-            end_time = max(end_time, last_non_zero)
+        base_signal = self.get_base_signal(throttle_rate)    
+                    
+        first_non_zero = np.argmax(base_signal > 0)
+        last_non_zero = len(base_signal) - np.argmax(base_signal[::-1] > 0)
+        
+        start_time = min(start_time, first_non_zero)    
+        end_time = max(end_time, last_non_zero)
+        
+        if inflate > 1.0:
+            # inflate the active range by the inflate factor
+            active_range = end_time - start_time
+            inflate_amount = int(active_range * (inflate - 1))
+            start_time = max(0, start_time - inflate_amount)
+            end_time = min(len(base_signal), end_time + inflate_amount)
             
         print(f"Job {self.job_id} at rate {throttle_rate}, active range: {start_time} - {end_time}", file=sys.stderr)
             
@@ -222,23 +244,28 @@ class Solution():
         job = self.job_map[job_id]
 
         start_time = 0  
+        
+        # for every iteration before this one, add the delta and the period
         for i in range(iter):
             delta = self.deltas[job_id][i]  
             throttle_rate = self.throttle_rates[job_id][i]  
             last_iter_period = job.profiles[throttle_rate]["period"]    
             start_time += delta + last_iter_period   
 
+        # for this iteration, add the delta
         start_time += self.deltas[job_id][iter] 
         
         return start_time
     
-    def get_job_iter_active_time(self, job_id, iter, iter_throttle_rate = 1.0):
+    def get_job_iter_active_time(self, job_id, iter, iter_throttle_rate = 1.0, inflate = 1.0):
         assert job_id in self.job_map, f"Job {job_id} not in {self.job_map.keys()}"    
         assert iter < len(self.deltas[job_id]), f"Job {job_id} has {len(self.deltas[job_id])} iters, not {iter}"
 
         job = self.job_map[job_id]
+        
         iter_start_time = self.get_job_iter_start_time(job_id, iter)
-        active_range_start, active_range_end = job.get_active_range(iter_throttle_rate)        
+        active_range_start, active_range_end = job.get_active_range(throttle_rate=iter_throttle_rate,
+                                                                    inflate=inflate)            
         
         return (iter_start_time + active_range_start, iter_start_time + active_range_end)        
         
@@ -394,8 +421,9 @@ class TimingSolver():
                   
             iter_count = job["iter_count"]
             base_period = job["base_period"]
+            periods = job["period"]
             
-            self.job_map[job_id] = Job(job_id, this_job_profiles, iter_count, base_period) 
+            self.job_map[job_id] = Job(job_id, this_job_profiles, iter_count, periods, base_period) 
         
         # sequential execution of the jobs, worst case scenario. 
         self.max_length = sum(job.base_period * job.iter_count for job in self.job_map.values())  
@@ -488,7 +516,11 @@ class TimingSolver():
             best_active_end = 0
             
             for throttle_rate in self.run_context["profiled-throttle-factors"]:
-                active_start, active_end  = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate)   
+                inflate = 1.0 
+                if "inflate" in self.run_context:   
+                    inflate = self.run_context["inflate"]
+                     
+                active_start, active_end  = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)   
                 max_load = job_max_load[throttle_rate][job_id]
                 
                 if max_load > self.capacity:                        

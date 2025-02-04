@@ -159,7 +159,7 @@ placement_related_keys = ["placement-mode", "ring-mode",
 
 # things that would affect the scheduling, the timing and the routing.
 scheduling_related_keys = ["timing-scheme", "subflows", "throttle-search", 
-                           "routing-fit-strategy", "compat-score-mode", "farid-rounds", "lb-scheme"] 
+                           "routing-fit-strategy", "compat-score-mode", "farid-rounds", "lb-scheme", "inflate"] 
 
 def summarize_key_ids(key): 
     s = key.split("-")
@@ -317,13 +317,15 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         "ring-mode": options["ring-mode"],
         "placement-seed": options["placement-seed"], 
         "timing-scheme": options["timing-scheme"],  
+        "inflate": options["inflate"],
     })
     
     options.pop("placement-mode")   
     options.pop("ring-mode")
     options.pop("placement-seed")   
     options.pop("timing-scheme")
-
+    options.pop("inflate")
+    
     #########################################################################################################
     # handle the placement
     placement_related_base_path = config_sweeper.custom_files_dir + "/" + "p-"
@@ -331,7 +333,6 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     for key in placement_related_keys:
         if key in config_sweeper.relevant_keys:
             placement_related_added_keys.append(key)
-            
     # sort the keys so that the path is always the same.    
     # placement_related_added_keys.sort()
     
@@ -486,6 +487,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     run_context["runtime-dir"] = runtime_related_base_path
     os.makedirs(runtime_related_base_path, exist_ok=True)    
     
+    ###############################################################################################
     options["simulation-seed"] += run_context["placement-seed"]
     
 def plot_runtime(output, options, this_exp_results, run_context, config_sweeper):
@@ -1154,6 +1156,8 @@ def check_comparison_sanity(exp_context, sweep_config):
     
 def exp_filter_function(permutations_dicts, config_sweeper):    
     
+    print("starting to filter the permutations, starting with {} permutations".format(len(permutations_dicts)))
+
     comparison_base = config_sweeper.global_context["comparison-base"].copy()
     comparisons = config_sweeper.global_context["comparisons"].copy() 
 
@@ -1185,5 +1189,7 @@ def exp_filter_function(permutations_dicts, config_sweeper):
     for key, value in config_sweeper.sweep_config.items():
         if len(value) > 1:
             relevant_keys.add(key)
+    
+    print("filtered down to {} permutations".format(len(filtered_permutations)))
     
     return filtered_permutations, relevant_keys

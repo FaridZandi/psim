@@ -19,7 +19,7 @@ def do_experiment(placement_mode="random",
                   punish_oversubscribed_min=0.5, 
                   search_quota="a little"):
     
-    seed_range = 1
+    seed_range = 5
     placement_options = 100
     
     cassini_mc_candidate_count = {
@@ -160,6 +160,8 @@ def do_experiment(placement_mode="random",
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
+    inflate_options = [1] 
+    
     exp_sweep_config = {
         "protocol-file-name": ["nethint-test"],
 
@@ -179,10 +181,10 @@ def do_experiment(placement_mode="random",
         # parameters for the scheduling algorithm. 
         "routing-fit-strategy": ["first", "best", "random", "useall", 
                                  "graph-coloring-v1", "graph-coloring-v2", 
-                                 "graph-coloring-v3", "graph-coloring-v4"],    
+                                 "graph-coloring-v3", "graph-coloring-v4"], 
         "compat-score-mode": ["time-no-coll", "under-cap", "max-util-left"], 
         "throttle-search": [True, False],
-        
+        "inflate" : inflate_options,
         "farid-rounds": [1, 2, 3, 4, 5, 10, 20],         
     } 
     
@@ -197,8 +199,10 @@ def do_experiment(placement_mode="random",
         "farid-rounds": 10, 
         
         "lb-scheme": "random", 
-        "routing-fit-strategy": "graph-coloring-v4",    
-        "subflows": 1, 
+        "routing-fit-strategy": "best",    
+        "subflows": 1,
+        
+        "inflate": 1,   
     }
 
     comparisons = []
@@ -218,10 +222,12 @@ def do_experiment(placement_mode="random",
                          "routing-fit-strategy": "graph-coloring-v3",       
                          "lb-scheme": "readprotocol"}))
               
-    comparisons.append(("faridv2-graph-coloring-v4",
-                        {"timing-scheme": "faridv2",
-                         "routing-fit-strategy": "graph-coloring-v4",       
-                         "lb-scheme": "readprotocol"}))
+    for inflate in inflate_options:
+        comparisons.append(("faridv2-graph-coloring-v4-{}".format(inflate), 
+                            {"timing-scheme": "faridv2",
+                            "routing-fit-strategy": "graph-coloring-v4",       
+                            "lb-scheme": "readprotocol",
+                            "inflate": inflate}))   
 
     comparisons.append(("zero-perfect",
                         {"timing-scheme": "zero",
@@ -234,8 +240,8 @@ def do_experiment(placement_mode="random",
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "visualize-timing": [1], #placement_seeds, 
-        "visualize-routing": True, 
+        "visualize-timing": [], #placement_seeds, 
+        "visualize-routing": False, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -263,12 +269,6 @@ def do_experiment(placement_mode="random",
         "comparisons": comparisons,
     } 
     
-    sane, reason = check_comparison_sanity(exp_context, exp_sweep_config)
-
-    if not sane:
-        print("Comparison sanity check failed.")
-        input("Press Enter to continue...") 
-        
     cs = ConfigSweeper(
         base_options, exp_sweep_config, exp_context,
         run_command_options_modifier, 
@@ -306,7 +306,7 @@ if __name__ == "__main__":
             ("machine_count", [48]),
             ("rack_size", [8]),
             ("job_count", [4]),
-            ("placement_mode", ["semirandom_4"]),
+            ("placement_mode", ["random"]),
             ("oversub", [2]),
             ("sim_length", [600]),
             ("punish_oversubscribed_min", [1.0]),  
