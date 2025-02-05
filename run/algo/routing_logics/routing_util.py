@@ -124,6 +124,8 @@ def get_all_flows(job_profiles, job_deltas,
                 f["progress_shift"] = shift 
                 f["iteration"] = iter  
                 
+                f["max_load"] = max(f["progress_history"])
+                
                 all_flows.append(f)  
             
             shift += job_periods[job_id][iter] 

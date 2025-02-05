@@ -19,7 +19,7 @@ def do_experiment(placement_mode="random",
                   punish_oversubscribed_min=0.5, 
                   search_quota="a little"):
     
-    seed_range = 5
+    seed_range = 1
     placement_options = 100
     
     cassini_mc_candidate_count = {
@@ -160,7 +160,7 @@ def do_experiment(placement_mode="random",
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
-    inflate_options = [1, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, 1.08, 1.09, 1.1]
+    inflate_options = [1]
     
     exp_sweep_config = {
         "placement-seed": placement_seeds,
@@ -186,15 +186,15 @@ def do_experiment(placement_mode="random",
 
     comparisons = []
     
-    comparisons.append(("faridv2-bestfit",
-                        {"timing-scheme": "faridv2",
-                         "routing-fit-strategy": "best",       
-                         "lb-scheme": "readprotocol"}))
+    # comparisons.append(("faridv2-bestfit",
+    #                     {"timing-scheme": "faridv2",
+    #                      "routing-fit-strategy": "best",       
+    #                      "lb-scheme": "readprotocol"}))
     
-    comparisons.append(("faridv2-firstfit",
-                        {"timing-scheme": "faridv2",
-                         "routing-fit-strategy": "first",       
-                         "lb-scheme": "readprotocol"}))
+    # comparisons.append(("faridv2-firstfit",
+    #                     {"timing-scheme": "faridv2",
+    #                      "routing-fit-strategy": "first",       
+    #                      "lb-scheme": "readprotocol"}))
     
     comparisons.append(("faridv2-graph-coloring-v3",
                         {"timing-scheme": "faridv2",
@@ -207,7 +207,14 @@ def do_experiment(placement_mode="random",
                             "routing-fit-strategy": "graph-coloring-v4",       
                             "lb-scheme": "readprotocol",
                             "inflate": inflate}))   
-
+    
+    for subflow_count in [1, 2, 4]:  
+        comparisons.append(("faridv2-graph-coloring-v5-sub-{}".format(subflow_count),   
+                            {"timing-scheme": "faridv2",
+                            "routing-fit-strategy": "graph-coloring-v5",  
+                            "subflows": subflow_count,     
+                            "lb-scheme": "readprotocol"}))
+    
     comparisons.append(("zero-perfect",
                         {"timing-scheme": "zero",
                          "lb-scheme": "perfect"}))
@@ -220,7 +227,7 @@ def do_experiment(placement_mode="random",
 
         "plot-iteration-graphs": False, 
         "visualize-timing": [], #placement_seeds, 
-        "visualize-routing": False, 
+        "visualize-routing": True, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff

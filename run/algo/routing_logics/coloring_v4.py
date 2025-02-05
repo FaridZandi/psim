@@ -69,7 +69,7 @@ def route_flows_graph_coloring_v4(all_flows, rem, usage, num_spines,
         
     # print(hash_to_time_ranges, file=sys.stderr) 
     if "visualize-routing" in run_context and run_context["visualize-routing"]: 
-        routing_plot_dir = run_context["routing-plot-dir"] 
+        routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
         plot_path = routing_plot_dir + "/merged_ranges.png"
     else:
         plot_path = None

@@ -98,7 +98,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                     
     elif fit_strategy == "graph-coloring-v5":
         times_range = route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines, 
-                                                    lb_decisions, run_context, max_subflow_count)
+                                                    lb_decisions, run_context, max_subflow_count, link_bandwidth)
     else: # regular execution path 
         times_range = route_flows_one_by_one(all_flows, rem, usage, num_spines,   
                                              lb_decisions, run_context, max_subflow_count)
