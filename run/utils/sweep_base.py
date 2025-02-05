@@ -178,7 +178,6 @@ class ConfigSweeper:
             permutations_dicts, relevant_keys_filtered = self.exp_filter_function(permutations_dicts, self) 
             self.relevant_keys = relevant_keys_filtered
              
-            
         # shuffle the permutations: 
         random.shuffle(permutations_dicts)
         

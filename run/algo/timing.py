@@ -1212,10 +1212,12 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
                               mode="initial") 
     
     # do the timing.
-    job_timings = get_job_timings(jobs, options, run_context, job_profiles)
+    job_timings = get_job_timings(jobs, options, run_context, 
+                                  job_profiles)
     
     # do the routing.   
-    lb_decisions = get_job_routings(jobs, options, run_context, job_profiles, job_timings)   
+    lb_decisions = get_job_routings(jobs, options, run_context, 
+                                    job_profiles, job_timings)   
 
     # visualize
     visualize_workload_timing(jobs, options, run_context, 

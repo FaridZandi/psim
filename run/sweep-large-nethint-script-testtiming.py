@@ -160,37 +160,15 @@ def do_experiment(placement_mode="random",
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
-    inflate_options = [1] 
+    inflate_options = [1, 1.01, 1.02, 1.03, 1.04, 1.05, 1.06, 1.07, 1.08, 1.09, 1.1]
     
     exp_sweep_config = {
-        "protocol-file-name": ["nethint-test"],
-
-        # placement and workload parameters.
-        # these will be different lines in the cdf plot.
-        "lb-scheme": ["random", "leastloaded", "ideal", "perfect", "readprotocol", "powerof2", "ecmp"],   
-        "timing-scheme": ["cassini", "farid", "faridv2", "random", "zero"],    
-        "ring-mode": ["random", "sorted", "letitbe"],
-        "subflows": [1, core_count],    
-        "min-rate": [10, 100],  
-        "punish-oversubscribed": [False, True],   
-
-        # some dynamic parameters.                             
-        "ft-core-count": [core_count],
         "placement-seed": placement_seeds,
-        
-        # parameters for the scheduling algorithm. 
-        "routing-fit-strategy": ["first", "best", "random", "useall", 
-                                 "graph-coloring-v1", "graph-coloring-v2", 
-                                 "graph-coloring-v3", "graph-coloring-v4"], 
-        "compat-score-mode": ["time-no-coll", "under-cap", "max-util-left"], 
-        "throttle-search": [True, False],
-        "inflate" : inflate_options,
-        "farid-rounds": [1, 2, 3, 4, 5, 10, 20],         
     } 
     
     comparison_base = {
         "punish-oversubscribed": True, 
-        "ring-mode": "random",  
+        "ring-mode": "letitbe",  
         "min-rate": 100,
         
         "timing-scheme": "zero", 
@@ -201,8 +179,9 @@ def do_experiment(placement_mode="random",
         "lb-scheme": "random", 
         "routing-fit-strategy": "best",    
         "subflows": 1,
-        
         "inflate": 1,   
+        "protocol-file-name": "nethint-test",
+        "ft-core-count": core_count,
     }
 
     comparisons = []

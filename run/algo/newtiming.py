@@ -1,10 +1,11 @@
 import numpy as np  
 from pprint import pprint
 from functools import cached_property, lru_cache
-# type
 from typing import List, Dict, Tuple
 from collections import defaultdict
+import matplotlib.pyplot as plt
 
+import os 
 import sys
 
 # TODO: move this function in the main class. 
@@ -478,7 +479,9 @@ class TimingSolver():
             
         return sol
     
-    def get_lego_solution(self, links: List[LinkLevelProblem]):   
+    def get_lego_solution(self):
+        links = list(self.links.values())   
+        
         sol = Solution(self.job_map)    
         
         job_ids = list(self.job_map.keys())    
@@ -554,7 +557,18 @@ class TimingSolver():
             
             print("---------------------------------------", file=sys.stderr)
         
-
+        timing_plots_dir = f"{self.run_context['timings-dir']}/"
+        os.makedirs(timing_plots_dir, exist_ok=True)
+        plot_path = f"{timing_plots_dir}/link_empty_times.png"    
+        self.plot_empty_ranges(sol, plot_path)  
+        return sol
+    
+    def plot_empty_ranges(self, sol, plot_path=None):
+        if plot_path is None:
+            return 
+           
+        links = list(self.links.values())
+        job_ids = list(self.job_map.keys()) 
         
         # try compressing the solution, based on the actual job_signals 
         link_empty_times = {}
@@ -591,9 +605,6 @@ class TimingSolver():
             job_empty_times[job_id] = find_empty_ranges(job_total_load)
         
         # let's plot this mess: 
-        
-        import matplotlib.pyplot as plt
-        
         fig, axes = plt.subplots(2, 1, figsize=(10, 5), sharex=True)   
         y = 0 
         
@@ -630,11 +641,11 @@ class TimingSolver():
         axes[1].set_yticks(range(y))
         axes[1].set_yticklabels(job_ids)
         
-        plt.savefig("link_empty_times.png") 
-        return sol
-    
+        plt.savefig(plot_path) 
+        
+        
     def solve(self):
-        base_solution = self.get_lego_solution(self.links.values())
-
+        
+        base_solution = self.get_lego_solution()
         return base_solution.get_job_timings()
         

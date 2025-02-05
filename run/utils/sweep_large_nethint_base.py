@@ -1156,40 +1156,77 @@ def check_comparison_sanity(exp_context, sweep_config):
     
 def exp_filter_function(permutations_dicts, config_sweeper):    
     
-    print("starting to filter the permutations, starting with {} permutations".format(len(permutations_dicts)))
+    # print("starting to filter the permutations, starting with {} permutations".format(len(permutations_dicts)))
+
+    # comparison_base = config_sweeper.global_context["comparison-base"].copy()
+    # comparisons = config_sweeper.global_context["comparisons"].copy() 
+
+    # comparison_settings = [comparison_base.copy()]  
+    # for comparison in comparisons:  
+    #     comparison_setting = comparison_base.copy()
+    #     for key, value in comparison[1].items():
+    #         comparison_setting[key] = value
+    #     comparison_settings.append(comparison_setting)  
+        
+    # filtered_permutations = []
+    # relevant_keys = set() 
+    
+    # for exp in permutations_dicts:
+    #     exp_valid = False    
+    #     for comparison in comparison_settings:  
+    #         found_in_this_comparison = True 
+    #         for key, value in comparison.items():
+    #             relevant_keys.add(key)
+    #             if exp[key] != value:
+    #                 found_in_this_comparison = False
+    #                 break
+    #         if found_in_this_comparison:
+    #             exp_valid = True
+    #             break
+    #     if exp_valid:
+    #         filtered_permutations.append(exp)
+            
+    # for key, value in config_sweeper.sweep_config.items():
+    #     if len(value) > 1:
+    #         relevant_keys.add(key)
+    
+    # print("filtered down to {} permutations".format(len(filtered_permutations)))
+    
+    # return filtered_permutations, relevant_keys
+    
 
     comparison_base = config_sweeper.global_context["comparison-base"].copy()
     comparisons = config_sweeper.global_context["comparisons"].copy() 
-
-    comparison_settings = [comparison_base.copy()]  
+    
+    comparison_permutations = [] 
+    
+    # add the comparison_base to the permutations_dicts
+    comparison_permutations.append(comparison_base)
+    
     for comparison in comparisons:  
         comparison_setting = comparison_base.copy()
         for key, value in comparison[1].items():
             comparison_setting[key] = value
-        comparison_settings.append(comparison_setting)  
-        
-    filtered_permutations = []
-    relevant_keys = set() 
+
+        comparison_permutations.append(comparison_setting)  
     
-    for exp in permutations_dicts:
-        exp_valid = False    
-        for comparison in comparison_settings:  
-            found_in_this_comparison = True 
-            for key, value in comparison.items():
-                relevant_keys.add(key)
-                if exp[key] != value:
-                    found_in_this_comparison = False
-                    break
-            if found_in_this_comparison:
-                exp_valid = True
-                break
-        if exp_valid:
-            filtered_permutations.append(exp)
+    
+    # for all comparisons, and for all permutations_dicts, put them together and add them to the filtered_permutations
+    
+    filtered_permutations = []
+    
+    for comparison in comparison_permutations:
+        for exp in permutations_dicts:
+            new_exp = exp.copy()
             
-    for key, value in config_sweeper.sweep_config.items():
-        if len(value) > 1:
+            new_exp.update(comparison)
+            filtered_permutations.append(new_exp)   
+            
+    relevant_keys = set()  
+    
+    for perm in filtered_permutations:
+        for key in perm.keys():
             relevant_keys.add(key)
     
-    print("filtered down to {} permutations".format(len(filtered_permutations)))
-    
-    return filtered_permutations, relevant_keys
+    return filtered_permutations, relevant_keys 
+     
