@@ -450,7 +450,86 @@ class TimingSolver():
                     link.job_loads.append(link_job_load)
         
         self.cross_rack_jobs = cross_rack_job           
+     
+    def plot_empty_ranges(self, sol, plot_path=None):
+        if plot_path is None:
+            return 
+           
+        links = list(self.links.values())
+        job_ids = list(self.job_map.keys()) 
+        
+        # try compressing the solution, based on the actual job_signals 
+        link_empty_times = {}
+        for link in links:
+            link_total_load = link.get_total_load(sol)
+            link_empty_times[link.link_id] = find_empty_ranges(link_total_load)    
+        
+        # merge the empty times of all the links 
+        max_time = 0 
+        for link in links:
+            for empty_time in link_empty_times[link.link_id]:
+                max_time = max(max_time, empty_time[1]) 
+        
+        empty_ranges = [len(links)] * (max_time + 1)
+        
+        for link in links:
+            for empty_time in link_empty_times[link.link_id]:
+                for t in range(empty_time[0], empty_time[1] + 1):
+                    empty_ranges[t] -= 1
                     
+        all_link_empty_ranges = find_empty_ranges(empty_ranges)  
+        
+        # get the time ranges that every links is empty. create a list of these ranges
+        # for each link, find the time ranges that are empty.
+            
+        job_waiting_times = {} 
+        job_empty_times = {} 
+        
+        for job_id in job_ids:  
+            job = self.job_map[job_id]
+            job_total_load = job.get_combined_signal(sol)    
+                        
+            job_waiting_times[job_id] = sol.get_job_waiting_times(job_id)   
+            job_empty_times[job_id] = find_empty_ranges(job_total_load)
+        
+        # let's plot this mess: 
+        fig, axes = plt.subplots(2, 1, figsize=(10, 5), sharex=True)   
+        y = 0 
+        
+        for link in links:
+            ranges = link_empty_times[link.link_id]
+            for r in ranges:
+                axes[0].plot([r[0], r[1]], [y, y], 'r-', label = f"{link.link_id}")
+            y += 1
+            
+        ranges = all_link_empty_ranges
+        for r in ranges:
+            axes[0].plot([r[0], r[1]], [y, y], 'b-', label = "all") 
+        y += 1  
+           
+        axes[0].set_title("Link empty times")
+        axes[0].set_yticks(range(y))
+        axes[0].set_yticklabels([f"{link.link_id}" for link in links] + ["all"])    
+        
+        y = 0
+        for job_id in job_ids:
+            ranges = job_empty_times[job_id]
+            for r in ranges:
+                axes[1].plot([r[0], r[1]], [y, y], 'r-', label = f"{job_id}")
+            y += 1
+            
+        y = 0
+        for job_id in job_ids:
+            ranges = job_waiting_times[job_id]
+            for r in ranges:
+                axes[1].plot([r[0], r[1]], [y, y], 'b-', linewidth=2)   
+            y += 1  
+        
+        axes[1].set_title("Job empty times")
+        axes[1].set_yticks(range(y))
+        axes[1].set_yticklabels(job_ids)
+        
+        plt.savefig(plot_path)                
     def get_sequentail_solution(self):  
         sol = Solution(self.job_map)  
 
@@ -478,6 +557,9 @@ class TimingSolver():
             print(sol.deltas, file=sys.stderr)     
             
         return sol
+    
+    
+    
     
     def get_lego_solution(self):
         links = list(self.links.values())   
@@ -563,85 +645,6 @@ class TimingSolver():
         self.plot_empty_ranges(sol, plot_path)  
         return sol
     
-    def plot_empty_ranges(self, sol, plot_path=None):
-        if plot_path is None:
-            return 
-           
-        links = list(self.links.values())
-        job_ids = list(self.job_map.keys()) 
-        
-        # try compressing the solution, based on the actual job_signals 
-        link_empty_times = {}
-        for link in links:
-            link_total_load = link.get_total_load(sol)
-            link_empty_times[link.link_id] = find_empty_ranges(link_total_load)    
-        
-        # merge the empty times of all the links 
-        max_time = 0 
-        for link in links:
-            for empty_time in link_empty_times[link.link_id]:
-                max_time = max(max_time, empty_time[1]) 
-        
-        empty_ranges = [len(links)] * (max_time + 1)
-        
-        for link in links:
-            for empty_time in link_empty_times[link.link_id]:
-                for t in range(empty_time[0], empty_time[1] + 1):
-                    empty_ranges[t] -= 1
-                    
-        all_link_empty_ranges = find_empty_ranges(empty_ranges)  
-        
-        # get the time ranges that every links is empty. create a list of these ranges
-        # for each link, find the time ranges that are empty.
-            
-        job_waiting_times = {} 
-        job_empty_times = {} 
-        
-        for job_id in job_ids:  
-            job = self.job_map[job_id]
-            job_total_load = job.get_combined_signal(sol)    
-                        
-            job_waiting_times[job_id] = sol.get_job_waiting_times(job_id)   
-            job_empty_times[job_id] = find_empty_ranges(job_total_load)
-        
-        # let's plot this mess: 
-        fig, axes = plt.subplots(2, 1, figsize=(10, 5), sharex=True)   
-        y = 0 
-        
-        for link in links:
-            ranges = link_empty_times[link.link_id]
-            for r in ranges:
-                axes[0].plot([r[0], r[1]], [y, y], 'r-', label = f"{link.link_id}")
-            y += 1
-            
-        ranges = all_link_empty_ranges
-        for r in ranges:
-            axes[0].plot([r[0], r[1]], [y, y], 'b-', label = "all") 
-        y += 1  
-           
-        axes[0].set_title("Link empty times")
-        axes[0].set_yticks(range(y))
-        axes[0].set_yticklabels([f"{link.link_id}" for link in links] + ["all"])    
-        
-        y = 0
-        for job_id in job_ids:
-            ranges = job_empty_times[job_id]
-            for r in ranges:
-                axes[1].plot([r[0], r[1]], [y, y], 'r-', label = f"{job_id}")
-            y += 1
-            
-        y = 0
-        for job_id in job_ids:
-            ranges = job_waiting_times[job_id]
-            for r in ranges:
-                axes[1].plot([r[0], r[1]], [y, y], 'b-', linewidth=2)   
-            y += 1  
-        
-        axes[1].set_title("Job empty times")
-        axes[1].set_yticks(range(y))
-        axes[1].set_yticklabels(job_ids)
-        
-        plt.savefig(plot_path) 
         
         
     def solve(self):

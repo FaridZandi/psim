@@ -747,6 +747,41 @@ def route_flows_useall(num_spines):
     return selected_spines  
 
 
+def route_flows_one_by_one(all_flows, rem, usage, num_spines, 
+                          lb_decisions, run_context, max_subflow_count):
+    
+    min_affected_time = 1e9   
+    max_affected_time = 0 
+    
+    all_flows.sort(key=lambda x: x["eff_start_time"])
+        
+    for flow in all_flows:
+        src_leaf = flow["srcrack"]
+        dst_leaf = flow["dstrack"]
+        start_time = flow["eff_start_time"] 
+        end_time = flow["eff_end_time"]     
+        job_id = flow["job_id"] 
+        flow_id = flow["flow_id"]
+        iteration = flow["iteration"]
+        
+        spine_availablity = get_spine_availablity(flow, rem, num_spines, 
+                                                start_time, end_time, 
+                                                src_leaf, dst_leaf)    
+
+        selected_spines = route_flow(flow, run_context["routing-fit-strategy"], 
+                                        spine_availablity, max_subflow_count, num_spines)
+
+        lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
+        
+        min_affected_time = min(min_affected_time, start_time)  
+        max_affected_time = max(max_affected_time, end_time)
+        
+        update_time_range(start_time, end_time, flow, 
+                            selected_spines, rem, usage, 
+                            src_leaf, dst_leaf)       
+        
+    return min_affected_time, max_affected_time
+
 def route_flow(flow, selection_strategy, spine_availablity, max_subflow_count, num_spines): 
     selected_spines = []    
     
@@ -765,7 +800,345 @@ def route_flow(flow, selection_strategy, spine_availablity, max_subflow_count, n
         
     return selected_spines  
 
+def route_flows_graph_coloring_v1_v2(all_flows, rem, usage, num_spines, 
+                                     lb_decisions, run_context):
 
+    min_affected_time = 1e9   
+    max_affected_time = 0 
+    fit_strategy = run_context["routing-fit-strategy"] 
+    routing_plot_dir = run_context["routing-plot-dir"]  
+    
+    all_flows.sort(key=lambda x: x["eff_start_time"])
+        
+    current_flow_idx = 0    
+    set_counter = 0 
+            
+    while current_flow_idx < len(all_flows):
+        set_counter += 1   
+        
+        this_set_start_time = all_flows[current_flow_idx]["eff_start_time"]
+        this_set_job_id = all_flows[current_flow_idx]["job_id"] 
+
+        current_flows = []
+        while (all_flows[current_flow_idx]["eff_start_time"] == this_set_start_time and 
+                all_flows[current_flow_idx]["job_id"] == this_set_job_id): 
+            
+            current_flows.append(all_flows[current_flow_idx])
+            current_flow_idx += 1
+            if current_flow_idx >= len(all_flows):
+                break
+        
+        print(f"Processing {len(current_flows)} flows for job {this_set_job_id} starting at time {this_set_start_time}", file=sys.stderr) 
+                
+        edges = [] 
+        flow_counter = 0 
+        
+        for flow in current_flows:  
+            src_leaf = flow["srcrack"]
+            dst_leaf = flow["dstrack"]
+            start_time = flow["eff_start_time"]  
+            end_time = flow["eff_end_time"] 
+            
+            flow_counter += 1
+            edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
+        
+        if fit_strategy == "graph-coloring-v1":
+            plot_path = f"{routing_plot_dir}/bipartite_{this_set_start_time}_{set_counter}.png"
+            edge_color_map = color_bipartite_graph_1(edges, num_spines, plot_path)
+            
+        elif fit_strategy == "graph-coloring-v2":
+            edge_color_map = color_bipartite_multigraph_2(edges)
+        
+        flow_counter = 0 
+        
+        for flow in current_flows:
+            flow_counter += 1
+            src_leaf = flow["srcrack"]
+            dst_leaf = flow["dstrack"]
+            start_time = flow["eff_start_time"] 
+            end_time = flow["eff_end_time"]     
+            job_id = flow["job_id"] 
+            flow_id = flow["flow_id"]
+            iteration = flow["iteration"]
+            
+            color = edge_color_map[flow_counter]
+            
+            chosen_spine = color - 1 
+            chosen_spine = chosen_spine % num_spines # just in case.    
+            selected_spines = [(chosen_spine, 1.0)] 
+            
+            lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
+            
+            min_affected_time = min(min_affected_time, start_time)  
+            max_affected_time = max(max_affected_time, end_time)
+            
+            update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
+                            src_leaf, dst_leaf)  
+        
+    return min_affected_time, max_affected_time
+            
+def route_flows_graph_coloring_v3(all_flows, rem, usage, num_spines, 
+                                  lb_decisions, run_context):
+    min_affected_time = 1e9   
+    max_affected_time = 0 
+    
+    all_flows.sort(key=lambda x: x["eff_start_time"])
+
+    for f in all_flows: 
+        f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}"
+        f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}"
+
+    # group the flows by the traffic_id.        
+    all_traffic_ids = set([flow["traffic_id"] for flow in all_flows])    
+    traffic_id_to_flows = defaultdict(list)
+    
+    for flow in all_flows:  
+        traffic_id_to_flows[flow["traffic_id"]].append(flow)
+    
+    traffic_id_to_hash = {} 
+    hash_to_traffic_id = {} 
+    
+    for traffic_id in all_traffic_ids:
+        flows = traffic_id_to_flows[traffic_id]
+
+        # sort them on the basis of the identifier.
+        flows.sort(key=lambda x: x["traffic_member_id"])
+        
+        traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
+        traffic_pattern_hash = hashlib.md5(traffic_pattern.encode()).hexdigest()
+        
+        max_end_time = max([flow["eff_end_time"] for flow in flows])    
+        min_start_time = min([flow["eff_start_time"] for flow in flows]) 
+        
+        traffic_time_range = (min_start_time, max_end_time)
+        
+        traffic_id_to_hash[traffic_id] = traffic_pattern_hash 
+        # this will get overwritten, but that's fine, we need just one.   
+        hash_to_traffic_id[traffic_pattern_hash] = traffic_id 
+
+        for flow in flows:
+            flow["traffic_pattern_hash"] = traffic_pattern_hash 
+        
+        # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
+        
+    unique_hashes = set(hash_to_traffic_id.keys())
+    
+    current_flows = []
+            
+    for hash in unique_hashes:
+        traffic_pattern_rep = hash_to_traffic_id[hash]
+        flows = traffic_id_to_flows[traffic_pattern_rep]
+        print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
+        
+        # append the flows of a representative traffic pattern to the current mix
+        current_flows.extend(flows)
+        
+    print("Current flows count: ", len(current_flows), file=sys.stderr)
+    
+    edges = [] 
+    flow_counter = 0 
+    for flow in current_flows:  
+        flow_counter += 1
+
+        src_leaf = flow["srcrack"]
+        dst_leaf = flow["dstrack"]
+        edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
+            
+    edge_color_map = color_bipartite_multigraph_2(edges)
+    
+    color_id_to_color = defaultdict(list)    
+    
+    flow_counter = 0
+    
+    for flow in current_flows:
+        flow_counter += 1
+        traffic_pattern_hash = flow["traffic_pattern_hash"]
+        color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
+        color = edge_color_map[flow_counter]
+
+        color_id_to_color[color_id].append(color)
+    
+    # use pprint to stderr 
+    pprint(dict(color_id_to_color), stream=sys.stderr)
+    
+    for flow in all_flows:
+        src_leaf = flow["srcrack"]
+        dst_leaf = flow["dstrack"]
+        start_time = flow["eff_start_time"] 
+        end_time = flow["eff_end_time"]     
+        job_id = flow["job_id"] 
+        flow_id = flow["flow_id"]
+        iteration = flow["iteration"]
+        
+        color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
+        
+        color = color_id_to_color[color_id][0]
+        # rotate the list. this is done assuming that all the members of this 
+        # traffic pattern will happen at the same time. So they will consume 
+        # all the list, and leave it as it was in the beginning, for the next
+        # set of flows.
+        color_id_to_color[color_id] = color_id_to_color[color_id][1:] + [color_id_to_color[color_id][0]]
+        
+        
+        chosen_spine = color - 1 
+        chosen_spine = chosen_spine % num_spines # just in case.    
+        selected_spines = [(chosen_spine, 1.0)] 
+        
+        lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
+        
+        min_affected_time = min(min_affected_time, start_time)  
+        max_affected_time = max(max_affected_time, end_time)
+        
+        update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
+                            src_leaf, dst_leaf)     
+        
+    return min_affected_time, max_affected_time
+
+def route_flows_graph_coloring_v4(all_flows, rem, usage, num_spines, 
+                                  lb_decisions, run_context):
+    min_affected_time = 1e9   
+    max_affected_time = 0 
+    
+    all_flows.sort(key=lambda x: x["eff_start_time"])
+
+    for f in all_flows: 
+        f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}"
+        f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}"
+
+    # group the flows by the traffic_id.        
+    all_traffic_ids = set([flow["traffic_id"] for flow in all_flows])    
+    traffic_id_to_flows = defaultdict(list)
+    
+    for flow in all_flows:  
+        traffic_id_to_flows[flow["traffic_id"]].append(flow)
+    
+    traffic_id_to_hash = {} 
+    hash_to_traffic_id = {} 
+    hash_to_time_ranges = defaultdict(list)
+    
+    for traffic_id in all_traffic_ids:
+        flows = traffic_id_to_flows[traffic_id]
+
+        # sort them on the basis of the identifier.
+        flows.sort(key=lambda x: x["traffic_member_id"])
+        
+        traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
+        traffic_pattern_hash = hashlib.md5(traffic_pattern.encode()).hexdigest()
+        traffic_pattern_hash = traffic_pattern_hash[:8]
+        
+        max_end_time = max([flow["eff_end_time"] for flow in flows])    
+        min_start_time = min([flow["eff_start_time"] for flow in flows]) 
+        
+        traffic_time_range = (min_start_time, max_end_time)
+        
+        traffic_id_to_hash[traffic_id] = traffic_pattern_hash 
+        # this will get overwritten, but that's fine, we need just one.   
+        hash_to_traffic_id[traffic_pattern_hash] = traffic_id 
+        hash_to_time_ranges[traffic_pattern_hash].append(traffic_time_range)
+        
+        for flow in flows:
+            flow["traffic_pattern_hash"] = traffic_pattern_hash 
+        
+        # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
+
+    for hash in hash_to_traffic_id.keys():
+        traffic_pattern_rep = hash_to_traffic_id[hash]
+        flows = traffic_id_to_flows[traffic_pattern_rep]
+        traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
+        print(f"hash: {hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr) 
+        
+    # unique hash values.   
+    for key in hash_to_time_ranges.keys():
+        hash_to_time_ranges[key].sort()
+        
+    # print(hash_to_time_ranges, file=sys.stderr) 
+    if "visualize-routing" in run_context and run_context["visualize-routing"]: 
+        routing_plot_dir = run_context["routing-plot-dir"] 
+        plot_path = routing_plot_dir + "/merged_ranges.png"
+    else:
+        plot_path = None
+    merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, plot_path)  
+
+    solutions = {} 
+    for overlapping_keys, overlapping_ranges in merged_ranges.items():
+        current_flows = []
+        # for all the hashes that are overlapping, get the traffic patterns, put them all together
+        
+        for hash in overlapping_keys:
+            traffic_pattern_rep = hash_to_traffic_id[hash]
+            flows = traffic_id_to_flows[traffic_pattern_rep]
+            print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
+            
+            # append the flows of a representative traffic pattern to the current mix
+            current_flows.extend(flows)
+            
+        print("Current flows count: ", len(current_flows), file=sys.stderr)
+        
+        edges = [] 
+        flow_counter = 0 
+
+        for flow in current_flows:  
+            flow_counter += 1
+
+            src_leaf = flow["srcrack"]
+            dst_leaf = flow["dstrack"]
+            edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
+                
+        edge_color_map = color_bipartite_multigraph_2(edges)
+        color_id_to_color = defaultdict(list)    
+        
+        flow_counter = 0
+        for flow in current_flows:
+            flow_counter += 1
+            traffic_pattern_hash = flow["traffic_pattern_hash"]
+            color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
+            color = edge_color_map[flow_counter]
+
+            color_id_to_color[color_id].append(color)
+            
+        for time_range in overlapping_ranges:
+            solutions[time_range] = color_id_to_color   
+            
+    
+    # use pprint to stderr 
+    pprint(solutions, stream=sys.stderr)
+    
+    for flow in all_flows:
+        src_leaf = flow["srcrack"]
+        dst_leaf = flow["dstrack"]
+        start_time = flow["eff_start_time"] 
+        end_time = flow["eff_end_time"]     
+        job_id = flow["job_id"] 
+        flow_id = flow["flow_id"]
+        iteration = flow["iteration"]
+        
+        color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
+        
+        time_range_coloring = find_value_in_range(solutions, start_time)
+        color = time_range_coloring[color_id][0]
+        # rotate the list. this is done assuming that all the members of this 
+        # traffic pattern will happen at the same time. So they will consume 
+        # all the list, and leave it as it was in the beginning, for the next
+        # set of flows.
+        def rotate(somelist):
+            return somelist[1:] + [somelist[0]] 
+        # corresponding_solution[color_id] = corresponding_solution[color_id][1:] + [corresponding_solution[color_id][0]]
+        time_range_coloring[color_id] = rotate(time_range_coloring[color_id])
+        
+        chosen_spine = color - 1 
+        chosen_spine = chosen_spine % num_spines # just in case.    
+        selected_spines = [(chosen_spine, 1.0)] 
+        
+        lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
+        
+        min_affected_time = min(min_affected_time, start_time)  
+        max_affected_time = max(max_affected_time, end_time)
+        
+        update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
+                            src_leaf, dst_leaf)     
+        
+        
+    return min_affected_time, max_affected_time 
 
 def get_spine_availablity(flow, rem, num_spines, start_time, end_time, src_leaf, dst_leaf):
     spine_availablity = []  
@@ -901,364 +1274,33 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                               job_periods, job_iterations)
                     
     lb_decisions = {} 
-    min_affected_time = routing_time   
-    max_affected_time = 0   
-    
-    # get all the flows at the front of the all_flows, that start at the same time. 
-    # process them together, and then move on to the next set of flows. 
-        
     # for flow in all_flows:
     fit_strategy = run_context["routing-fit-strategy"] 
      
-     
+    # TODO: the times ranges can be calculated in here, instead of copying in each of the functions. 
     ############################################################################################################  
     # experimental code for graph coloring.
     ############################################################################################################  
     if fit_strategy == "graph-coloring-v1" or fit_strategy == "graph-coloring-v2":  
-        all_flows.sort(key=lambda x: x["eff_start_time"])
+        times_range = route_flows_graph_coloring_v1_v2(all_flows, rem, usage, num_spines, 
+                                                      lb_decisions, run_context)
         
-        current_flow_idx = 0    
-        set_counter = 0 
-                
-        while current_flow_idx < len(all_flows):
-            set_counter += 1   
-            
-            this_set_start_time = all_flows[current_flow_idx]["eff_start_time"]
-            this_set_job_id = all_flows[current_flow_idx]["job_id"] 
-
-            current_flows = []
-            while (all_flows[current_flow_idx]["eff_start_time"] == this_set_start_time and 
-                    all_flows[current_flow_idx]["job_id"] == this_set_job_id): 
-                
-                current_flows.append(all_flows[current_flow_idx])
-                current_flow_idx += 1
-                if current_flow_idx >= len(all_flows):
-                    break
-            
-            print(f"Processing {len(current_flows)} flows for job {this_set_job_id} starting at time {this_set_start_time}", file=sys.stderr) 
-                    
-            edges = [] 
-            flow_counter = 0 
-            
-            for flow in current_flows:  
-                src_leaf = flow["srcrack"]
-                dst_leaf = flow["dstrack"]
-                start_time = flow["eff_start_time"]  
-                end_time = flow["eff_end_time"] 
-                
-                flow_counter += 1
-                edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
-                
-            if fit_strategy == "graph-coloring-v1":
-                plot_path = f"{routing_plot_dir}/bipartite_{this_set_start_time}_{set_counter}.png"
-                edge_color_map = color_bipartite_graph_1(edges, num_spines, plot_path)
-                
-            elif fit_strategy == "graph-coloring-v2":
-                edge_color_map = color_bipartite_multigraph_2(edges)
-            
-            flow_counter = 0 
-            
-            for flow in current_flows:
-                flow_counter += 1
-                src_leaf = flow["srcrack"]
-                dst_leaf = flow["dstrack"]
-                start_time = flow["eff_start_time"] 
-                end_time = flow["eff_end_time"]     
-                job_id = flow["job_id"] 
-                flow_id = flow["flow_id"]
-                iteration = flow["iteration"]
-                
-                color = edge_color_map[flow_counter]
-                
-                chosen_spine = color - 1 
-                chosen_spine = chosen_spine % num_spines # just in case.    
-                selected_spines = [(chosen_spine, 1.0)] 
-                
-                lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
-                
-                min_affected_time = min(min_affected_time, start_time)  
-                max_affected_time = max(max_affected_time, end_time)
-                
-                update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
-                                src_leaf, dst_leaf)     
-    
     elif fit_strategy == "graph-coloring-v3":
-        all_flows.sort(key=lambda x: x["eff_start_time"])
-
-        for f in all_flows: 
-            f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}"
-            f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}"
-
-        # group the flows by the traffic_id.        
-        all_traffic_ids = set([flow["traffic_id"] for flow in all_flows])    
-        traffic_id_to_flows = defaultdict(list)
-        
-        for flow in all_flows:  
-            traffic_id_to_flows[flow["traffic_id"]].append(flow)
-        
-        traffic_id_to_hash = {} 
-        hash_to_traffic_id = {} 
-        
-        for traffic_id in all_traffic_ids:
-            flows = traffic_id_to_flows[traffic_id]
-
-            # sort them on the basis of the identifier.
-            flows.sort(key=lambda x: x["traffic_member_id"])
-            
-            traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
-            traffic_pattern_hash = hashlib.md5(traffic_pattern.encode()).hexdigest()
-            
-            max_end_time = max([flow["eff_end_time"] for flow in flows])    
-            min_start_time = min([flow["eff_start_time"] for flow in flows]) 
-            
-            traffic_time_range = (min_start_time, max_end_time)
-            
-            traffic_id_to_hash[traffic_id] = traffic_pattern_hash 
-            # this will get overwritten, but that's fine, we need just one.   
-            hash_to_traffic_id[traffic_pattern_hash] = traffic_id 
-
-            for flow in flows:
-                flow["traffic_pattern_hash"] = traffic_pattern_hash 
-            
-            # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
-            
-        unique_hashes = set(hash_to_traffic_id.keys())
-        
-        current_flows = []
-                
-        for hash in unique_hashes:
-            traffic_pattern_rep = hash_to_traffic_id[hash]
-            flows = traffic_id_to_flows[traffic_pattern_rep]
-            print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
-            
-            # append the flows of a representative traffic pattern to the current mix
-            current_flows.extend(flows)
-            
-        print("Current flows count: ", len(current_flows), file=sys.stderr)
-        
-        edges = [] 
-        flow_counter = 0 
-        for flow in current_flows:  
-            flow_counter += 1
-
-            src_leaf = flow["srcrack"]
-            dst_leaf = flow["dstrack"]
-            edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
-                
-        edge_color_map = color_bipartite_multigraph_2(edges)
-        
-        color_id_to_color = defaultdict(list)    
-        
-        flow_counter = 0
-        
-        for flow in current_flows:
-            flow_counter += 1
-            traffic_pattern_hash = flow["traffic_pattern_hash"]
-            color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
-            color = edge_color_map[flow_counter]
-
-            color_id_to_color[color_id].append(color)
-        
-        # use pprint to stderr 
-        pprint(dict(color_id_to_color), stream=sys.stderr)
-        
-        for flow in all_flows:
-            src_leaf = flow["srcrack"]
-            dst_leaf = flow["dstrack"]
-            start_time = flow["eff_start_time"] 
-            end_time = flow["eff_end_time"]     
-            job_id = flow["job_id"] 
-            flow_id = flow["flow_id"]
-            iteration = flow["iteration"]
-            
-            color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
-            
-            color = color_id_to_color[color_id][0]
-            # rotate the list. this is done assuming that all the members of this 
-            # traffic pattern will happen at the same time. So they will consume 
-            # all the list, and leave it as it was in the beginning, for the next
-            # set of flows.
-            color_id_to_color[color_id] = color_id_to_color[color_id][1:] + [color_id_to_color[color_id][0]]
-            
-            
-            chosen_spine = color - 1 
-            chosen_spine = chosen_spine % num_spines # just in case.    
-            selected_spines = [(chosen_spine, 1.0)] 
-            
-            lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
-            
-            min_affected_time = min(min_affected_time, start_time)  
-            max_affected_time = max(max_affected_time, end_time)
-            
-            update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
-                            src_leaf, dst_leaf)     
+        times_range = route_flows_graph_coloring_v3(all_flows, rem, usage, num_spines, 
+                                                   lb_decisions, run_context)
             
     elif fit_strategy == "graph-coloring-v4":
-        all_flows.sort(key=lambda x: x["eff_start_time"])
-
-        for f in all_flows: 
-            f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}"
-            f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}"
-
-        # group the flows by the traffic_id.        
-        all_traffic_ids = set([flow["traffic_id"] for flow in all_flows])    
-        traffic_id_to_flows = defaultdict(list)
-        
-        for flow in all_flows:  
-            traffic_id_to_flows[flow["traffic_id"]].append(flow)
-        
-        traffic_id_to_hash = {} 
-        hash_to_traffic_id = {} 
-        hash_to_time_ranges = defaultdict(list)
-        
-        for traffic_id in all_traffic_ids:
-            flows = traffic_id_to_flows[traffic_id]
-
-            # sort them on the basis of the identifier.
-            flows.sort(key=lambda x: x["traffic_member_id"])
-            
-            traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
-            traffic_pattern_hash = hashlib.md5(traffic_pattern.encode()).hexdigest()
-            traffic_pattern_hash = traffic_pattern_hash[:8]
-            
-            max_end_time = max([flow["eff_end_time"] for flow in flows])    
-            min_start_time = min([flow["eff_start_time"] for flow in flows]) 
-            
-            traffic_time_range = (min_start_time, max_end_time)
-            
-            traffic_id_to_hash[traffic_id] = traffic_pattern_hash 
-            # this will get overwritten, but that's fine, we need just one.   
-            hash_to_traffic_id[traffic_pattern_hash] = traffic_id 
-            hash_to_time_ranges[traffic_pattern_hash].append(traffic_time_range)
-            
-            for flow in flows:
-                flow["traffic_pattern_hash"] = traffic_pattern_hash 
-            
-            # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
-
-        for hash in hash_to_traffic_id.keys():
-            traffic_pattern_rep = hash_to_traffic_id[hash]
-            flows = traffic_id_to_flows[traffic_pattern_rep]
-            traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
-            print(f"hash: {hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr) 
-            
-        # unique hash values.   
-        for key in hash_to_time_ranges.keys():
-            hash_to_time_ranges[key].sort()
-            
-        # print(hash_to_time_ranges, file=sys.stderr) 
-        if "visualize-routing" in run_context and run_context["visualize-routing"]: 
-            plot_path = routing_plot_dir + "/merged_ranges.png"
-        else:
-            plot_path = None
-        merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, plot_path)  
-
-        solutions = {} 
-        for overlapping_keys, overlapping_ranges in merged_ranges.items():
-            current_flows = []
-            # for all the hashes that are overlapping, get the traffic patterns, put them all together
-            
-            for hash in overlapping_keys:
-                traffic_pattern_rep = hash_to_traffic_id[hash]
-                flows = traffic_id_to_flows[traffic_pattern_rep]
-                print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
-                
-                # append the flows of a representative traffic pattern to the current mix
-                current_flows.extend(flows)
-                
-            print("Current flows count: ", len(current_flows), file=sys.stderr)
-            
-            edges = [] 
-            flow_counter = 0 
-
-            for flow in current_flows:  
-                flow_counter += 1
-
-                src_leaf = flow["srcrack"]
-                dst_leaf = flow["dstrack"]
-                edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
+        times_range = route_flows_graph_coloring_v4(all_flows, rem, usage, num_spines, 
+                                                    lb_decisions, run_context)
                     
-            edge_color_map = color_bipartite_multigraph_2(edges)
-            color_id_to_color = defaultdict(list)    
-            
-            flow_counter = 0
-            for flow in current_flows:
-                flow_counter += 1
-                traffic_pattern_hash = flow["traffic_pattern_hash"]
-                color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
-                color = edge_color_map[flow_counter]
-
-                color_id_to_color[color_id].append(color)
-                
-            for time_range in overlapping_ranges:
-                solutions[time_range] = color_id_to_color   
-                
-        
-        # use pprint to stderr 
-        pprint(solutions, stream=sys.stderr)
-        
-        for flow in all_flows:
-            src_leaf = flow["srcrack"]
-            dst_leaf = flow["dstrack"]
-            start_time = flow["eff_start_time"] 
-            end_time = flow["eff_end_time"]     
-            job_id = flow["job_id"] 
-            flow_id = flow["flow_id"]
-            iteration = flow["iteration"]
-            
-            color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
-            
-            time_range_coloring = find_value_in_range(solutions, start_time)
-            color = time_range_coloring[color_id][0]
-            # rotate the list. this is done assuming that all the members of this 
-            # traffic pattern will happen at the same time. So they will consume 
-            # all the list, and leave it as it was in the beginning, for the next
-            # set of flows.
-            def rotate(somelist):
-                return somelist[1:] + [somelist[0]] 
-            # corresponding_solution[color_id] = corresponding_solution[color_id][1:] + [corresponding_solution[color_id][0]]
-            time_range_coloring[color_id] = rotate(time_range_coloring[color_id])
-            
-            chosen_spine = color - 1 
-            chosen_spine = chosen_spine % num_spines # just in case.    
-            selected_spines = [(chosen_spine, 1.0)] 
-            
-            lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
-            
-            min_affected_time = min(min_affected_time, start_time)  
-            max_affected_time = max(max_affected_time, end_time)
-            
-            update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
-                            src_leaf, dst_leaf)     
-    ############################################################################################################  
+    elif fit_strategy == "graph-coloring-v5":
+        times_range = route_flows_graph_coloring_v4(all_flows, rem, usage, num_spines, 
+                                                    lb_decisions, run_context)
     else: # regular execution path 
-        all_flows.sort(key=lambda x: x["eff_start_time"])
+        times_range = route_flows_one_by_one(all_flows, rem, usage, num_spines,   
+                                             lb_decisions, run_context, max_subflow_count)
         
-        for flow in all_flows:
-            src_leaf = flow["srcrack"]
-            dst_leaf = flow["dstrack"]
-            start_time = flow["eff_start_time"] 
-            end_time = flow["eff_end_time"]     
-            job_id = flow["job_id"] 
-            flow_id = flow["flow_id"]
-            iteration = flow["iteration"]
-            
-            spine_availablity = get_spine_availablity(flow, rem, num_spines, 
-                                                    start_time, end_time, 
-                                                    src_leaf, dst_leaf)    
-
-            selected_spines = route_flow(flow, run_context["routing-fit-strategy"], 
-                                         spine_availablity, max_subflow_count, num_spines)
-
-            lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
-            
-            min_affected_time = min(min_affected_time, start_time)  
-            max_affected_time = max(max_affected_time, end_time)
-            
-            update_time_range(start_time, end_time, flow, 
-                              selected_spines, rem, usage, 
-                              src_leaf, dst_leaf)       
-
+    min_affected_time, max_affected_time = times_range
             
     draw_stuff(run_context, 
                 rem, usage, all_job_ids, num_leaves, num_spines, routing_time, 
