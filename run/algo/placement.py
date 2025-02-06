@@ -501,7 +501,7 @@ def generate_placement_file(placement_path, placement_seed,
         period = job["base_period"] 
         
         sim_length = run_context["sim-length"]  
-        iter_count = math.floor(sim_length / period) - 1
+        iter_count = math.floor(sim_length / period)
         if iter_count < 1:
             iter_count = 1   
         job["iter_count"] = iter_count  

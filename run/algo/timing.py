@@ -1215,14 +1215,16 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     job_timings = get_job_timings(jobs, options, run_context, 
                                   job_profiles)
     
+    # visualize
+    visualize_workload_timing(jobs, options, run_context, 
+                              job_timings, job_profiles, 
+                              None, mode="final") 
+    
     # do the routing.   
     lb_decisions = get_job_routings(jobs, options, run_context, 
                                     job_profiles, job_timings)   
 
-    # visualize
-    visualize_workload_timing(jobs, options, run_context, 
-                              job_timings, job_profiles, 
-                              lb_decisions, mode="final") 
+
         
     # writing the results to the files. 
     with open(timing_file_path, "w") as f:

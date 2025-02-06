@@ -746,7 +746,7 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             // something like that avoiding a new collective operation before the 
             // previous one is finished. 
 
-            // last_all_reduce_finisher = all_reduce_finisher;
+            last_all_reduce_finisher = all_reduce_finisher;
         }
     }
 }

@@ -203,7 +203,7 @@ class Job:
             start_time = max(0, start_time - inflate_amount)
             end_time = min(len(base_signal), end_time + inflate_amount)
             
-        print(f"Job {self.job_id} at rate {throttle_rate}, active range: {start_time} - {end_time}", file=sys.stderr)
+        # print(f"Job {self.job_id} at rate {throttle_rate}, active range: {start_time} - {end_time}", file=sys.stderr)
             
         return (start_time, end_time) 
 
@@ -569,7 +569,11 @@ class TimingSolver():
         job_ids = list(self.job_map.keys())    
         job_max_load = {}
         
-        for throttle_rate in self.run_context["profiled-throttle-factors"]: 
+        throttle_rates = [1.0]
+        if "throttle-search" in self.run_context and self.run_context["throttle-search"]:
+            throttle_rates = self.run_context["profiled-throttle-factors"]
+            
+        for throttle_rate in throttle_rates: 
             job_max_load[throttle_rate] = {job_id: 0 for job_id in job_ids}  
         
             for link in links:  
@@ -600,7 +604,7 @@ class TimingSolver():
             best_active_start = 0 
             best_active_end = 0
             
-            for throttle_rate in self.run_context["profiled-throttle-factors"]:
+            for throttle_rate in throttle_rates:
                 inflate = 1.0 
                 if "inflate" in self.run_context:   
                     inflate = self.run_context["inflate"]
@@ -637,18 +641,19 @@ class TimingSolver():
             if current_iters[job_id] >= job.iter_count: 
                 not_done_jobs.remove(job_id)    
             
-            print("---------------------------------------", file=sys.stderr)
+            # print("---------------------------------------", file=sys.stderr)
+        
         
         timing_plots_dir = f"{self.run_context['timings-dir']}/"
         os.makedirs(timing_plots_dir, exist_ok=True)
         plot_path = f"{timing_plots_dir}/link_empty_times.png"    
         self.plot_empty_ranges(sol, plot_path)  
+        
         return sol
     
         
         
     def solve(self):
-        
         base_solution = self.get_lego_solution()
         return base_solution.get_job_timings()
         

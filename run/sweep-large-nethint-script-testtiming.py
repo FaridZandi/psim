@@ -17,9 +17,11 @@ def do_experiment(placement_mode="random",
                   job_count=1, 
                   sim_length=50000, 
                   punish_oversubscribed_min=0.5, 
-                  search_quota="a little"):
+                  search_quota="a little", 
+                  inflate=1.0, 
+                  ring_mode="letitbe"): 
     
-    seed_range = 1
+    seed_range = 5
     placement_options = 100
     
     cassini_mc_candidate_count = {
@@ -47,8 +49,8 @@ def do_experiment(placement_mode="random",
         "jobs-machine-count-high": machine_count // job_count,
         "placement-seed-range": seed_range,
         "comm-size": [1600, 3200],
-        "comp-size": [20, 40],
-        "layer-count": [1],
+        "comp-size": [40, 80],
+        "layer-count": [1, 2, 3],
         "iter-count": [30], # iteration count
     }
     
@@ -91,6 +93,8 @@ def do_experiment(placement_mode="random",
         "placement-mode": placement_mode,   
         
         "punish-oversubscribed-min": punish_oversubscribed_min,   
+        
+        "ring-mode": ring_mode,  
     }
 
     interesting_metrics = {
@@ -148,8 +152,7 @@ def do_experiment(placement_mode="random",
     core_count = base_options["ft-server-per-rack"] // oversub
 
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
-    profiled_throttle_factors = [1.0]
-    # profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
+    profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
     
     # if core_count == 2: 
         # profiled_throttle_factors = [1.0, 0.5]
@@ -160,26 +163,23 @@ def do_experiment(placement_mode="random",
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
-    inflate_options = [1]
-    
     exp_sweep_config = {
         "placement-seed": placement_seeds,
     } 
     
     comparison_base = {
         "punish-oversubscribed": True, 
-        "ring-mode": "letitbe",  
         "min-rate": 100,
         
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
-        "throttle-search": True, 
+        "throttle-search": False, 
         "farid-rounds": 10, 
         
         "lb-scheme": "random", 
         "routing-fit-strategy": "best",    
         "subflows": 1,
-        "inflate": 1,   
+        "inflate": inflate,   
         "protocol-file-name": "nethint-test",
         "ft-core-count": core_count,
     }
@@ -195,30 +195,44 @@ def do_experiment(placement_mode="random",
     #                     {"timing-scheme": "faridv2",
     #                      "routing-fit-strategy": "first",       
     #                      "lb-scheme": "readprotocol"}))
+        
+
+ 
     
-    comparisons.append(("faridv2-graph-coloring-v3",
-                        {"timing-scheme": "faridv2",
-                         "routing-fit-strategy": "graph-coloring-v3",       
-                         "lb-scheme": "readprotocol"}))
+    # comparisons.append(("faridv2-no-throt-graph-col-v3",
+    #                     {"timing-scheme": "faridv2",
+    #                      "routing-fit-strategy": "graph-coloring-v3",       
+    #                      "lb-scheme": "readprotocol"}))
               
-    for inflate in inflate_options:
-        comparisons.append(("faridv2-graph-coloring-v4-{}".format(inflate), 
-                            {"timing-scheme": "faridv2",
-                            "routing-fit-strategy": "graph-coloring-v4",       
-                            "lb-scheme": "readprotocol",
-                            "inflate": inflate}))   
+    # comparisons.append(("faridv2-no-throt-graph-col-v4", 
+    #                     {"timing-scheme": "faridv2",
+    #                     "routing-fit-strategy": "graph-coloring-v4",       
+    #                     "lb-scheme": "readprotocol"}))
+       
+    comparisons.append(("faridv2-no-throt-perfect",
+                        {"timing-scheme": "faridv2",
+                         "lb-scheme": "perfect"}))
     
     for subflow_count in [1, 2, 4]:  
         comparisons.append(("faridv2-graph-coloring-v5-sub-{}".format(subflow_count),   
                             {"timing-scheme": "faridv2",
-                            "routing-fit-strategy": "graph-coloring-v5",  
-                            "subflows": subflow_count,     
-                            "lb-scheme": "readprotocol"}))
+                             "throttle-search": True,   
+                             "routing-fit-strategy": "graph-coloring-v5",  
+                             "subflows": subflow_count,     
+                             "lb-scheme": "readprotocol"}))
+        
+    comparisons.append(("faridv2-throt-perfect",
+                        {"timing-scheme": "faridv2",
+                         "throttle-search": True,
+                         "lb-scheme": "perfect"}))
     
     comparisons.append(("zero-perfect",
                         {"timing-scheme": "zero",
                          "lb-scheme": "perfect"}))
     
+    comparisons.append(("zero-leastloaded",
+                        {"timing-scheme": "zero",
+                         "lb-scheme": "leastloaded"}))
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
@@ -226,8 +240,8 @@ def do_experiment(placement_mode="random",
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "visualize-timing": [], #placement_seeds, 
-        "visualize-routing": True, 
+        "visualize-timing": [0], #placement_seeds, 
+        "visualize-routing": False, 
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -265,7 +279,7 @@ def do_experiment(placement_mode="random",
         exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format("", "", "",  
                                                             oversub, 
                                                             experiment_seed),
-        worker_thread_count=30, 
+        worker_thread_count=35, 
         plot_cdfs=False,
     )
     
@@ -294,9 +308,11 @@ if __name__ == "__main__":
             ("job_count", [4]),
             ("placement_mode", ["random"]),
             ("oversub", [2]),
-            ("sim_length", [600]),
+            ("ring_mode", ["random"]), 
+            ("sim_length", [2000]),
             ("punish_oversubscribed_min", [1.0]),  
-            ("search_quota", ["little"]) 
+            ("search_quota", ["little"]), 
+            ("inflate", [1.0, 1.1, 1.2]),    
         ]
 
         all_results = [] 
@@ -329,9 +345,9 @@ if __name__ == "__main__":
     plot_command = "python3 plot_compare.py \
         --file_name {} \
         --plot_params metric \
-        --subplot_y_params rack_size \
+        --subplot_x_params placement_mode \
         --subplot_hue_params comparison \
-        --plot_x_params job_count \
+        --plot_x_params inflate \
         --plot_y_param values".format(path)
             
     print("running the plot command: ") 

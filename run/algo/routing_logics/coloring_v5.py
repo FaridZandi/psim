@@ -18,11 +18,12 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
     all_flows.sort(key=lambda x: x["eff_start_time"])
 
     for f in all_flows: 
-        f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}"
-        f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}"
+        f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}_{f['throttle_rate']}"
         
         subflow_capacity = link_bandwidth / max_subflow_count 
         f["needed_subflows"] = int(math.ceil(f["max_load"] / subflow_capacity))    
+
+        f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}_{f['needed_subflows']}"
 
     # group the flows by the traffic_id.        
     all_traffic_ids = set([flow["traffic_id"] for flow in all_flows])    
@@ -76,7 +77,7 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
         plot_path = routing_plot_dir + "/merged_ranges.png"
     else:
         plot_path = None
-    merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, plot_path)  
+    merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, plot_path, hash_to_traffic_id)  
 
     solutions = {} 
     for overlapping_keys, overlapping_ranges in merged_ranges.items():
@@ -97,6 +98,8 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
         subflow_counter = 0 
 
         for flow in current_flows:  
+            print(f"flow max load: {flow['max_load']}, needed subflows: {flow['needed_subflows']}", file=sys.stderr)
+            
             for subflow in range(flow["needed_subflows"]):
                 subflow_counter += 1
 
@@ -104,7 +107,10 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
                 dst_leaf = flow["dstrack"]
                 
                 edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", subflow_counter))    
-                
+            
+            
+        print(f"Edges count: {len(edges)}", file=sys.stderr)    
+        
         edge_color_map = color_bipartite_multigraph_2(edges)
         color_id_to_color = defaultdict(list)    
         
@@ -118,13 +124,6 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
                 color = edge_color_map[subflow_counter]
                 color_id_to_color[color_id].append(color)
         
-        print("Coloring before sort: ", file=sys.stderr)
-        pprint(color_id_to_color, stream=sys.stderr)
-            
-        # for color_id in color_id_to_color.keys():   
-        #     color_id_to_color[color_id].sort()  
-        
-        print("Coloring after sort: ", file=sys.stderr) 
         pprint(color_id_to_color, stream=sys.stderr)
                     
         for time_range in overlapping_ranges:
@@ -172,8 +171,9 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
             chosen_spine_count[spine] += 1  
             
         selected_spines = [] 
-        for spine, count in chosen_spine_count.items():             
-            selected_spines.append((spine, count / max_subflow_count))
+        for spine, count in chosen_spine_count.items():         
+            ratio = count / flow["needed_subflows"]    
+            selected_spines.append((spine, ratio))
 
         lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
         
@@ -181,7 +181,7 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
         max_affected_time = max(max_affected_time, end_time)
         
         update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
-                            src_leaf, dst_leaf)     
+                          src_leaf, dst_leaf)     
         
         
     return min_affected_time, max_affected_time 

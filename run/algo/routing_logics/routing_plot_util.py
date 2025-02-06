@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import numpy as np  
 
 from copy import deepcopy
+from pprint import pprint
 
 import os
 import sys 
@@ -106,7 +107,7 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
 
 
 
-def plot_time_ranges(ranges_dict, merged_ranges_dict, plot_path):
+def plot_time_ranges(ranges_dict, merged_ranges_dict, hash_to_traffic_id, plot_path):
     # two plots on top of each other
     
     fig, axes = plt.subplots(2, 1, figsize=(10, 5), sharex=True)   
@@ -123,10 +124,20 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, plot_path):
                     other_ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
             y += 1
             
-            
-        
         ax.set_yticks(range(len(data)))
-        ax.set_yticklabels(list(data.keys()))
+        ytick_labels = list(data.keys()) 
+        translated_labels = [] 
+        for ytick_label in ytick_labels:    
+            if not isinstance(ytick_label, tuple):
+                translated_labels.append(hash_to_traffic_id[ytick_label])
+                continue
+            else:
+                translated_label = [] 
+                for hash in ytick_label:
+                    translated_label.append(hash_to_traffic_id[hash])
+                translated_labels.append(tuple(translated_label))   
+            
+        ax.set_yticklabels(translated_labels)
         ax.set_xlabel("Time")
         ax.set_title("Time Ranges by Key")
         

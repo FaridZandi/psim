@@ -1049,7 +1049,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 "metric": metric,   
                 "comparison": comparison_name,
                 "mean": merged_df["speedup"].mean(),    
-                "values": sorted(list(merged_df["speedup"]))
+                "values": list(merged_df["speedup"])
             })
             
             saved_columns = merge_on + ["speedup"]

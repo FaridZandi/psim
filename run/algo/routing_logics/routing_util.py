@@ -5,6 +5,8 @@ from algo.routing_logics.routing_plot_util import plot_time_ranges
 
 from copy import deepcopy   
 
+import sys 
+
 def update_time_range(start_time, end_time, flow, selected_spines, rem, usage, src_leaf, dst_leaf): 
     for t in range(start_time, end_time + 1):
         for s, mult in selected_spines:
@@ -43,7 +45,7 @@ def get_spine_availablity(flow, rem, num_spines, start_time, end_time, src_leaf,
 
 
 
-def merge_overlapping_ranges(ranges_dict, plot_path):
+def merge_overlapping_ranges(ranges_dict, plot_path, hash_to_traffic_id):
     # Flatten all intervals with their corresponding key
     intervals = []
     for key, ranges in ranges_dict.items():
@@ -56,6 +58,11 @@ def merge_overlapping_ranges(ranges_dict, plot_path):
     # Merge overlapping intervals while tracking keys
     merged = []
     for start, end, keys in intervals:
+        if merged: 
+            print(f"current: {start}, {end}, {keys}, last: {merged[-1][0]}, {merged[-1][1]}, {merged[-1][2]}" , file=sys.stderr)    
+        else: 
+            print(f"current: {start}, {end}, {keys}, last: None", file=sys.stderr)  
+            
         if merged and merged[-1][1] >= start:  # Overlap exists
             merged[-1] = (merged[-1][0], max(merged[-1][1], end), merged[-1][2] | keys)
         else:
@@ -89,9 +96,9 @@ def merge_overlapping_ranges(ranges_dict, plot_path):
         new_ranges[comb_key] = summarized_ranges                        
     
     if plot_path is not None:   
-        plot_time_ranges(ranges_dict, dict(new_ranges), plot_path)
+        plot_time_ranges(ranges_dict, dict(new_ranges), hash_to_traffic_id, plot_path)
     
-    return new_ranges  # Keep all merged ranges, even those with a single key
+    return new_ranges 
 
 
       
@@ -124,6 +131,7 @@ def get_all_flows(job_profiles, job_deltas,
                 f["progress_shift"] = shift 
                 f["iteration"] = iter  
                 
+                f["throttle_rate"] = iter_throttle_rate 
                 f["max_load"] = max(f["progress_history"])
                 
                 all_flows.append(f)  

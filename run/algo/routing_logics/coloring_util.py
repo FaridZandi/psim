@@ -354,7 +354,8 @@ def color_bipartite_multigraph_2(input_edges):
     for i in range(n):  
         edge_color_map[i + 1] = colors[i]
         
-    print("max_degree: ", max_degree, "colors: ", colors, file=sys.stderr)
+    print(f"Max degree: {max_degree}, colored with {len(set(colors))} colors", file=sys.stderr) 
+    print(f"Edge color map: {edge_color_map}", file=sys.stderr)
     
     return edge_color_map   
         
