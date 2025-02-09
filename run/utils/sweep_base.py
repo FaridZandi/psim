@@ -78,7 +78,7 @@ class ConfigSweeper:
         self.last_df_save_time = datetime.datetime.now() 
         self.df_save_interval_seconds = 300 
         
-        self.do_store_outputs = False
+        self.do_store_outputs = True
         self.plot_cdfs = plot_cdfs  
         self.relevant_keys = [] 
         

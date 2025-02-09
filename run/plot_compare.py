@@ -142,9 +142,9 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
         hue_len = 1 
         
     width = subplot_y_len * 5
-    height = subplot_x * plot_x_len * 0.8  
+    height = subplot_x * plot_x_len * 1.5 
     
-    print(f"width: {width}, height: {height}")
+    # print(f"width: {width}, height: {height}")
     
     fig, axes = plt.subplots(subplot_x, subplot_y_len, 
                              figsize=(width , height),
@@ -152,7 +152,7 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
                              sharex=True,
                              squeeze=False)
       
-    plt.subplots_adjust(hspace=0.5)
+    plt.subplots_adjust(hspace=1.5)
     # plt.subplots_adjust(wspace=0.5)
     
     for i, x_value in enumerate(subplot_x_values):
@@ -190,7 +190,7 @@ def main(file_name, file_dir, plot_type):
         unique_values = df[plot_params].unique()
 
     for value in unique_values: 
-        print(f"value: {value}")
+        print(f"value: {value}, plot_type: {plot_type}")    
         draw_plot(df, value, file_dir, hue_order, plot_type)    
         
 

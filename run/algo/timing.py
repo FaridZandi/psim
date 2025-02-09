@@ -975,6 +975,7 @@ def get_timeshifts(jobs, options, run_context, job_profiles,
         # visualize_link_loads(link_loads, run_context, current_deltas, current_throttle_rates,   
         #                      link_logical_bandwidth=link_logical_bandwidth, 
         #                      suffix=f"_{round}_{i}")    
+        
         candidate_score = evaluate_candidate_all_links(jobs, link_loads_list, current_deltas, current_throttle_rates, 
                                                        run_context, link_logical_bandwidth, 
                                                        compat_score_mode, cross_rack_jobs)
@@ -994,7 +995,7 @@ def get_timeshifts(jobs, options, run_context, job_profiles,
             best_candidate_throttle_rates = current_throttle_rates
             best_candidate_good_until = good_until
 
-    if False: 
+    if True: 
         visualize_link_loads(link_loads, run_context, best_candidate_deltas, 
                          best_candidate_throttle_rates,    
                          link_logical_bandwidth=link_logical_bandwidth, 

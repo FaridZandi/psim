@@ -505,7 +505,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                                                  "_hop_" + std::to_string(j + 1) + 
                                                  "_subflow_" + std::to_string(k + 1);
 
-                spdlog::critical("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps, size {} Mbytes", 
+                spdlog::info("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps, size {} Mbytes", 
                                  jobid, flow->per_job_task_id, flow->id, k,
                                  flow->protocol_defined_lb_decision, 
                                  flow->protocol_defined_max_rate, flow_size);
@@ -565,7 +565,7 @@ EmptyTask* insert_all_reduce_into_protocol(Protocol* protocol, std::vector<PComp
                                                  "_hop_" + std::to_string(j + num_replicas - 1 + 1) +
                                                  "_subflow_" + std::to_string(k + 1);
 
-                spdlog::critical("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps, size {} Mbytes", 
+                spdlog::info("flow {}-{}-{}-{} assigned to core {} with rate {} Gbps, size {} Mbytes", 
                                  jobid, flow->per_job_task_id, flow->id, k, 
                                  flow->protocol_defined_lb_decision, 
                                  flow->protocol_defined_max_rate, flow_size);   

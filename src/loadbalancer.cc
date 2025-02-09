@@ -118,6 +118,8 @@ int ECMPLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int timer) {
     
     if (lb_cache.find(key) == lb_cache.end()) {
         lb_cache[key] = rand() % item_count;
+
+        spdlog::critical("Path {}-{}-{} is assigned to core {}", flow->src_dev_id, flow->dst_dev_id, random_x, lb_cache[key]);
     } 
 
     return lb_cache[key];

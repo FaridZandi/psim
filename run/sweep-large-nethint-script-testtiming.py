@@ -10,7 +10,9 @@ THREADS = 42
 # this is an experiment that has one base setting, and then a bunch of comparisons.
 # I'm attempting to keep the things that should be kept constant, constant.
 # then compute the speedup of the other things with respect to the base setting.
-def do_experiment(placement_mode="random", 
+def do_experiment(plot_stuff=False,
+                  seed_range=1, 
+                  placement_mode="random", 
                   machine_count=6,
                   rack_size=4,
                   oversub=1, 
@@ -21,7 +23,6 @@ def do_experiment(placement_mode="random",
                   inflate=1.0, 
                   ring_mode="letitbe"): 
     
-    seed_range = 5
     placement_options = 100
     
     cassini_mc_candidate_count = {
@@ -33,7 +34,7 @@ def do_experiment(placement_mode="random",
     cassini_overall_solution_count = {  
         "little": 5,
         "some": 10, 
-        "alot": 15,
+        "alot": 3,
     }[search_quota]
 
     random.seed(experiment_seed)
@@ -92,7 +93,6 @@ def do_experiment(placement_mode="random",
         
         "placement-mode": placement_mode,   
         
-        "punish-oversubscribed-min": punish_oversubscribed_min,   
         
         "ring-mode": ring_mode,  
     }
@@ -170,11 +170,12 @@ def do_experiment(placement_mode="random",
     comparison_base = {
         "punish-oversubscribed": True, 
         "min-rate": 100,
-        
+        "punish-oversubscribed-min": punish_oversubscribed_min,   
+
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": False, 
-        "farid-rounds": 10, 
+        "farid-rounds": 30, 
         
         "lb-scheme": "random", 
         "routing-fit-strategy": "best",    
@@ -209,6 +210,24 @@ def do_experiment(placement_mode="random",
     #                     "routing-fit-strategy": "graph-coloring-v4",       
     #                     "lb-scheme": "readprotocol"}))
        
+    comparisons.append(("farid-throt-perfect",
+                        {"timing-scheme": "farid",
+                         "throttle-search": True,
+                         "lb-scheme": "perfect"}))
+    
+    comparisons.append(("farid-throt-graph-col-v5",
+                        {"timing-scheme": "farid",
+                         "throttle-search": True,
+                         "routing-fit-strategy": "graph-coloring-v5",
+                         "lb-scheme": "readprotocol"}))
+    
+    comparisons.append(("farid-throt-graph-col-v5-sub4",
+                        {"timing-scheme": "farid",
+                         "throttle-search": True,
+                         "subflows": 4,
+                         "routing-fit-strategy": "graph-coloring-v5",
+                         "lb-scheme": "readprotocol"}))
+    
     comparisons.append(("faridv2-no-throt-perfect",
                         {"timing-scheme": "faridv2",
                          "lb-scheme": "perfect"}))
@@ -233,6 +252,11 @@ def do_experiment(placement_mode="random",
     comparisons.append(("zero-leastloaded",
                         {"timing-scheme": "zero",
                          "lb-scheme": "leastloaded"}))
+    
+    comparisons.append(("zero-ecmp",
+                        {"timing-scheme": "zero",
+                         "lb-scheme": "ecmp"}))
+    
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
@@ -240,8 +264,8 @@ def do_experiment(placement_mode="random",
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "visualize-timing": [0], #placement_seeds, 
-        "visualize-routing": False, 
+        "visualize-timing": placement_seeds if plot_stuff else [],
+        "visualize-routing": plot_stuff,
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -279,7 +303,7 @@ def do_experiment(placement_mode="random",
         exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format("", "", "",  
                                                             oversub, 
                                                             experiment_seed),
-        worker_thread_count=35, 
+        worker_thread_count=40, 
         plot_cdfs=False,
     )
     
@@ -302,6 +326,9 @@ if __name__ == "__main__":
         os.system("rm -f last-exp-results") 
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
 
+        plot_stuff = False 
+        seed_range = 1
+        
         exp_config = [
             ("machine_count", [48]),
             ("rack_size", [8]),
@@ -310,9 +337,9 @@ if __name__ == "__main__":
             ("oversub", [2]),
             ("ring_mode", ["random"]), 
             ("sim_length", [2000]),
-            ("punish_oversubscribed_min", [1.0]),  
-            ("search_quota", ["little"]), 
-            ("inflate", [1.0, 1.1, 1.2]),    
+            ("punish_oversubscribed_min", [1.0]), 
+            ("search_quota", ["alot"]), 
+            ("inflate", [1.0]),    
         ]
 
         all_results = [] 
@@ -323,7 +350,9 @@ if __name__ == "__main__":
         
         for perm in permutations_dicts:
             print("Running experiment with settings: ", perm)
-            summary = do_experiment(**perm) 
+            summary = do_experiment(plot_stuff=plot_stuff, 
+                                    seed_range=seed_range, 
+                                    **perm) 
             
             for summary_item in summary:    
                 all_results.append({**summary_item, **perm})
@@ -345,9 +374,10 @@ if __name__ == "__main__":
     plot_command = "python3 plot_compare.py \
         --file_name {} \
         --plot_params metric \
-        --subplot_x_params placement_mode \
+        --subplot_y_params placement_mode \
+        --subplot_x_params ring_mode \
         --subplot_hue_params comparison \
-        --plot_x_params inflate \
+        --plot_x_params punish_oversubscribed_min \
         --plot_y_param values".format(path)
             
     print("running the plot command: ") 

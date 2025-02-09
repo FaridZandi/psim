@@ -529,7 +529,9 @@ class TimingSolver():
         axes[1].set_yticks(range(y))
         axes[1].set_yticklabels(job_ids)
         
-        plt.savefig(plot_path)                
+        plt.savefig(plot_path)    
+        
+                    
     def get_sequentail_solution(self):  
         sol = Solution(self.job_map)  
 
