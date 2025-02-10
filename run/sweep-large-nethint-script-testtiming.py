@@ -210,10 +210,10 @@ def do_experiment(plot_stuff=False,
     #                     "routing-fit-strategy": "graph-coloring-v4",       
     #                     "lb-scheme": "readprotocol"}))
        
-    comparisons.append(("farid-throt-perfect",
-                        {"timing-scheme": "farid",
-                         "throttle-search": True,
-                         "lb-scheme": "perfect"}))
+    # comparisons.append(("farid-throt-perfect",
+    #                     {"timing-scheme": "farid",
+    #                      "throttle-search": True,
+    #                      "lb-scheme": "perfect"}))
     
     comparisons.append(("farid-throt-graph-col-v5",
                         {"timing-scheme": "farid",
@@ -326,7 +326,7 @@ if __name__ == "__main__":
         os.system("rm -f last-exp-results") 
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
 
-        plot_stuff = False 
+        plot_stuff = True 
         seed_range = 1
         
         exp_config = [

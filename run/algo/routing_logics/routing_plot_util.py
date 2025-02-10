@@ -146,3 +146,31 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, hash_to_traffic_id, plot_p
     
     plt.savefig(plot_path, bbox_inches='tight', dpi=300)
     
+    
+def plot_needed_color_count(needed_color_count, run_context, available_colors_max):
+    if "visualize-routing" not in run_context or not run_context["visualize-routing"]: 
+        return  
+
+    max_time = max([key[1] for key in needed_color_count.keys()])   
+    
+    values = [0] * (max_time + 1)   
+    
+    for time_range, value in needed_color_count.items():    
+        for i in range(time_range[0], time_range[1] + 1):
+            values[i] = value           
+    
+    routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
+    plot_path = routing_plot_dir + "/needed_colors.png"
+
+    plt.clf()
+    
+    fig, ax = plt.subplots(figsize=(10, 5)) 
+    ax.plot(range(max_time + 1), values)
+    
+    # draw a horizontal line at y=available_colors_max
+    ax.axhline(y=available_colors_max, color='r', linestyle='--')
+    
+    plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+    plt.clf()
+    plt.close() 
+        
