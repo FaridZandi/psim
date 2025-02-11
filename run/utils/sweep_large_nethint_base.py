@@ -326,6 +326,16 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     options.pop("timing-scheme")
     options.pop("inflate")
     
+    
+    run_context["draw-timing-plots"] = False
+    if "visualize-timing" in run_context and run_context["placement-seed"] in run_context["visualize-timing"]: 
+        run_context["draw-timing-plots"] = True 
+        
+    run_context["draw-routing-plots"] = False
+    if "visualize-routing" in run_context and not run_context["visualize-routing"]:
+        run_context["draw-routing-plots"] = True
+        
+        
     #########################################################################################################
     # handle the placement
     placement_related_base_path = config_sweeper.custom_files_dir + "/" + "p-"
@@ -490,17 +500,15 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     ###############################################################################################
     options["simulation-seed"] += run_context["placement-seed"]
     
-def plot_runtime(output, options, this_exp_results, run_context, config_sweeper):
-    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
-        return   
 
+    
+def plot_runtime(output, options, this_exp_results, run_context, config_sweeper):
     # where are the flow files? Make a backup for easy access.
     run_path = "{}/worker-{}/run-1".format(config_sweeper.workers_dir,
-                                            run_context["worker-id-for-profiling"])
+                                           run_context["worker-id-for-profiling"])
     flow_files_path = "{}/flow-info.txt".format(run_path)   
 
     shutil.copy(flow_files_path, run_context["runtime-dir"] + "/flow-info.txt") 
-
 
     # copy the flow files to the runtime dir, get the link loads.
     summarized_job_profiles, _, _ = get_job_profiles(flow_files_path, only_summary=True)
@@ -512,17 +520,17 @@ def plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
         summarized_job_profiles=summarized_job_profiles 
     )
     
-    
-    # the stupid matplotlib doesn't work in a thread.   
-    with config_sweeper.thread_lock:
-        for smoothing_window in [1, 100]:
-            timing.visualize_link_loads_runtime(
-                link_loads=link_loads,
-                run_context=run_context,
-                smoothing_window=smoothing_window, 
-                plot_dir=run_context["runtime-dir"],
-                suffix="_runtime_{}".format(smoothing_window)
-            )
+    # the stupid matplotlib doesn't work in a thread.
+    if run_context["draw-timing-plots"]:   
+        with config_sweeper.thread_lock:
+            for smoothing_window in [1, 100]:
+                timing.visualize_link_loads_runtime(
+                    link_loads=link_loads,
+                    run_context=run_context,
+                    smoothing_window=smoothing_window, 
+                    plot_dir=run_context["runtime-dir"],
+                    suffix="_runtime_{}".format(smoothing_window)
+                )
     
     # copy the final timing output to the runtime dir.
     final_timing_output = run_context["timings-dir"] + "/demand_final.png"   
@@ -595,7 +603,8 @@ def add_up_job_numbers(numbers1, numbers2):
     return new_numbers
 
 def result_extractor_function(output, options, this_exp_results, run_context, config_sweeper):
-    plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
+    if run_context["draw-timing-plots"]:
+        plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
     
     # copy the output_file to the runtime dir.
     if "output-file" in run_context:

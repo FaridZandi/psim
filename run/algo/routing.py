@@ -104,11 +104,12 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                                              lb_decisions, run_context, max_subflow_count)
         
     min_affected_time, max_affected_time = times_range
-            
-    plot_routing(run_context, 
-                rem, usage, all_job_ids, num_leaves, num_spines, routing_time, 
-                min_affected_time, max_affected_time, 
-                routing_plot_dir, smoothing_window=1)
+        
+    if run_context["draw-routing-plots"]: 
+        plot_routing(run_context, rem, usage, all_job_ids, 
+                     num_leaves, num_spines, routing_time, 
+                     min_affected_time, max_affected_time, 
+                     routing_plot_dir, smoothing_window=1)
     
     lb_decisions_proper = []    
     

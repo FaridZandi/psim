@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 
 import os 
 import sys
+import math
 
 # TODO: move this function in the main class. 
 # TODO: let it create the link objects directly. Don't stick with legacy code.  
@@ -200,8 +201,8 @@ class Job:
             # inflate the active range by the inflate factor
             active_range = end_time - start_time
             inflate_amount = int(active_range * (inflate - 1))
-            start_time = max(0, start_time - inflate_amount)
-            end_time = min(len(base_signal), end_time + inflate_amount)
+            # start_time = max(0, start_time - inflate_amount)
+            end_time = end_time + inflate_amount
             
         # print(f"Job {self.job_id} at rate {throttle_rate}, active range: {start_time} - {end_time}", file=sys.stderr)
             
@@ -605,30 +606,41 @@ class TimingSolver():
             best_delay = 0 
             best_active_start = 0 
             best_active_end = 0
+            best_result_type = None
             
             for throttle_rate in throttle_rates:
+                max_load = job_max_load[throttle_rate][job_id]
+
+                # decice if we need to inflate the active time
                 inflate = 1.0 
                 if "inflate" in self.run_context:   
                     inflate = self.run_context["inflate"]
-                     
+                if max_load > self.capacity:                    
+                    result_type = "overload"    
+                    inflate *= math.ceil(max_load / self.capacity)
+                    max_load = self.capacity 
+                else: 
+                    result_type = "regular"          
+
                 active_start, active_end  = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)   
-                max_load = job_max_load[throttle_rate][job_id]
-                
-                if max_load > self.capacity:                        
-                    continue 
                 
                 delay = find_earliest_available_time(active_start, active_end, rem, max_load) 
                 finish_time = active_end + delay     
                 
-                if finish_time < best_finish_time:  
+                if (finish_time < best_finish_time or 
+                    best_result_type == "overload" and result_type == "regular"):
+                     
                     best_finish_time = finish_time
                     best_throttle_rate = throttle_rate
                     best_delay = delay  
                     best_active_start = active_start    
                     best_active_end = active_end
+                    best_result_type = result_type
 
 
-            max_load = job_max_load[best_throttle_rate][job_id]  
+            max_load = job_max_load[best_throttle_rate][job_id]
+            max_load = min(max_load, self.capacity)
+              
             for t in range(best_active_start + best_delay, best_active_end + best_delay):
                 rem[t] -= max_load
                 
@@ -645,11 +657,11 @@ class TimingSolver():
             
             # print("---------------------------------------", file=sys.stderr)
         
-        
-        timing_plots_dir = f"{self.run_context['timings-dir']}/"
-        os.makedirs(timing_plots_dir, exist_ok=True)
-        plot_path = f"{timing_plots_dir}/link_empty_times.png"    
-        self.plot_empty_ranges(sol, plot_path)  
+        if self.run_context["draw-timing-plots"]:
+            timing_plots_dir = f"{self.run_context['timings-dir']}/"
+            os.makedirs(timing_plots_dir, exist_ok=True)
+            plot_path = f"{timing_plots_dir}/link_empty_times.png"    
+            self.plot_empty_ranges(sol, plot_path)  
         
         return sol
     

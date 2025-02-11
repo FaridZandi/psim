@@ -2,6 +2,7 @@ from algo.routing_logics.routing_util import update_time_range
 from algo.routing_logics.coloring_util import color_bipartite_multigraph_2
 from algo.routing_logics.routing_util import merge_overlapping_ranges
 from algo.routing_logics.routing_util import find_value_in_range
+from algo.routing_logics.routing_plot_util import plot_time_ranges
 
 from pprint import pprint 
 from collections import defaultdict
@@ -54,7 +55,6 @@ def route_flows_graph_coloring_v4(all_flows, rem, usage, num_spines,
         
         for flow in flows:
             flow["traffic_pattern_hash"] = traffic_pattern_hash 
-        
         # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
 
     for hash in hash_to_traffic_id.keys():
@@ -68,12 +68,10 @@ def route_flows_graph_coloring_v4(all_flows, rem, usage, num_spines,
         hash_to_time_ranges[key].sort()
         
     # print(hash_to_time_ranges, file=sys.stderr) 
-    if "visualize-routing" in run_context and run_context["visualize-routing"]: 
-        routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
-        plot_path = routing_plot_dir + "/merged_ranges.png"
-    else:
-        plot_path = None
-    merged_ranges = merge_overlapping_ranges(hash_to_time_ranges, plot_path)  
+    merged_ranges = merge_overlapping_ranges(hash_to_time_ranges)  
+    if run_context["draw-routing-plots"]:
+        plot_path = "{}/routing/merged_ranges.png".format(run_context["routings-dir"])  
+        plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), hash_to_traffic_id, plot_path)
 
     solutions = {} 
     for overlapping_keys, overlapping_ranges in merged_ranges.items():

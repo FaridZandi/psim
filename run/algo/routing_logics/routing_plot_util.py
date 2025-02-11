@@ -42,9 +42,6 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
                num_spines, routing_time, min_affected_time, 
                max_affected_time, plots_dir, smoothing_window=1, suffix=""): 
     
-    if "visualize-routing" in run_context and not run_context["visualize-routing"]:
-        return  
-    
     sys.stderr.write("plotting for smoothing window {} ...\n".format(smoothing_window)) 
     
     time_range = range(routing_time)
@@ -98,7 +95,7 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
     fig.suptitle('Remaining Bandwidth for Each Link (Up and Down)', fontsize=16)
 
     # Save the entire subplot grid
-    for ext in ['pdf', 'png']:
+    for ext in ['png']:
         plt_path = os.path.join(plots_dir, 'remaining_{}_{}.{}'.format(smoothing_window, suffix, ext))
         plt.savefig(plt_path)
     plt.close(fig)
@@ -148,9 +145,6 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, hash_to_traffic_id, plot_p
     
     
 def plot_needed_color_count(needed_color_count, run_context, available_colors_max):
-    # if "visualize-routing" not in run_context or not run_context["visualize-routing"]: 
-    #     return  
-
     max_time = max([key[1] for key in needed_color_count.keys()])   
     
     values = [0] * (max_time + 1)   

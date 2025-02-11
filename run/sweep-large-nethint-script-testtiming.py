@@ -152,7 +152,7 @@ def do_experiment(plot_stuff=False,
     core_count = base_options["ft-server-per-rack"] // oversub
 
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
-    profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
+    profiled_throttle_factors = [1.0, 0.66]
     
     # if core_count == 2: 
         # profiled_throttle_factors = [1.0, 0.5]
@@ -231,6 +231,13 @@ def do_experiment(plot_stuff=False,
     comparisons.append(("faridv2-no-throt-perfect",
                         {"timing-scheme": "faridv2",
                          "lb-scheme": "perfect"}))
+    
+    comparisons.append(("faridv2-no-throt-graph-coloring-v5",
+                        {"timing-scheme": "faridv2",
+                         "lb-scheme": "readprotocol",
+                         "routing-fit-strategy": "graph-coloring-v5", 
+                         "subflows": 1,
+                         "throttle-search": False}))
     
     for subflow_count in [1, 2, 4]:  
         comparisons.append(("faridv2-graph-coloring-v5-sub-{}".format(subflow_count),   
@@ -320,23 +327,26 @@ if __name__ == "__main__":
         path = f"results/exps/{exp_number}/results.csv" 
         os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
 
-        os.system("rm -f last-exp-results") 
-        os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
+        os.system("rm -f last-exp-results-link-*") 
+        os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
-        plot_stuff = False 
-        seed_range = 20
+        plot_stuff = False
+        seed_range = 4
         
         exp_config = [
-            ("machine_count", [48]),
-            ("rack_size", [8]),
-            ("job_count", [4]),
-            ("placement_mode", ["random", "semirandom_4", "semirandom_2"]),
-            ("oversub", [2]),
-            ("ring_mode", ["random", "letitbe"]), 
             ("sim_length", [2000]),
+            
+            ("machine_count", [48]),
+            ("job_count", [1, 2, 4]),
+            ("rack_size", [8]),
+            
+            ("placement_mode", ["random"]),
+            ("ring_mode", ["random"]), 
+            ("oversub", [2]),
+            
             ("punish_oversubscribed_min", [1.0]), 
             ("search_quota", ["alot"]), 
-            ("inflate", [1.0, 1.1, 1.2]),    
+            ("inflate", [1.0]),    
         ]
 
         all_results = [] 
@@ -374,7 +384,7 @@ if __name__ == "__main__":
         --subplot_y_params placement_mode \
         --subplot_x_params ring_mode \
         --subplot_hue_params comparison \
-        --plot_x_params inflate \
+        --plot_x_params job_count \
         --plot_y_param values".format(path)
             
     print("running the plot command: ") 

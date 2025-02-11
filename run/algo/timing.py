@@ -34,9 +34,6 @@ def visualize_workload_timing(jobs, options, run_context,
                               job_timings, job_profiles, lb_decisions, 
                               mode):
     
-    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
-        return
-    
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)
     deltas = {}
     throttle_rates = {} 
@@ -56,9 +53,7 @@ def visualize_workload_timing(jobs, options, run_context,
     
     link_logical_bandwidth = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
     
-    visualize_link_loads(link_loads, 
-                         run_context, 
-                         deltas=deltas, 
+    visualize_link_loads(link_loads, run_context, deltas=deltas, 
                          throttle_rates=throttle_rates,
                          link_logical_bandwidth=link_logical_bandwidth, 
                          suffix=suffix)
@@ -554,9 +549,6 @@ def get_link_loads_runtime(jobs, options, run_context, summarized_job_profiles):
 def visualize_link_loads_runtime(link_loads, run_context, 
                                  suffix="", plot_dir=None, 
                                  smoothing_window=1):      
-        
-    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
-        return  
 
     import matplotlib.pyplot as plt
     import numpy as np
@@ -655,7 +647,6 @@ def visualize_link_loads_runtime(link_loads, run_context,
 ####################################################################################################
     
 def get_job_color(job_id): 
-    
     return plt.cm.tab20.colors[job_id % 20] 
 
     
@@ -664,9 +655,6 @@ def visualize_link_loads(link_loads, run_context,
                          link_logical_bandwidth = None, 
                          suffix=""): 
     
-    if "visualize-timing" not in run_context or run_context["placement-seed"] not in run_context["visualize-timing"]: 
-        return  
-
     import matplotlib.pyplot as plt
     import numpy as np
     import os
@@ -995,7 +983,7 @@ def get_timeshifts(jobs, options, run_context, job_profiles,
             best_candidate_throttle_rates = current_throttle_rates
             best_candidate_good_until = good_until
 
-    if True: 
+    if False: # run_context["draw-timing-plots"]: 
         visualize_link_loads(link_loads, run_context, best_candidate_deltas, 
                          best_candidate_throttle_rates,    
                          link_logical_bandwidth=link_logical_bandwidth, 
@@ -1208,24 +1196,24 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     # load the job profiles. Might be a bit unnecassary in some cases, but anyway. 
     job_profiles = load_job_profiles(jobs, run_context)
     
-    visualize_workload_timing(jobs, options, run_context, 
-                              None, job_profiles, None, 
-                              mode="initial") 
+    if run_context["draw-timing-plots"]:
+        visualize_workload_timing(jobs, options, run_context, 
+                                None, job_profiles, None, 
+                                mode="initial") 
     
     # do the timing.
     job_timings = get_job_timings(jobs, options, run_context, 
                                   job_profiles)
     
     # visualize
-    visualize_workload_timing(jobs, options, run_context, 
-                              job_timings, job_profiles, 
-                              None, mode="final") 
+    if run_context["draw-timing-plots"]:
+        visualize_workload_timing(jobs, options, run_context, 
+                                  job_timings, job_profiles, 
+                                  None, mode="final") 
     
     # do the routing.   
     lb_decisions = get_job_routings(jobs, options, run_context, 
                                     job_profiles, job_timings)   
-
-
         
     # writing the results to the files. 
     with open(timing_file_path, "w") as f:
@@ -1242,6 +1230,9 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
         
     # returning the results just in case as well. 
     return job_timings, lb_decisions    
+
+
+
 
 if __name__ == "__main__":
     

@@ -1,7 +1,6 @@
 
 import matplotlib.pyplot as plt
 from collections import defaultdict
-from algo.routing_logics.routing_plot_util import plot_time_ranges  
 
 from copy import deepcopy   
 
@@ -45,7 +44,7 @@ def get_spine_availablity(flow, rem, num_spines, start_time, end_time, src_leaf,
 
 
 
-def merge_overlapping_ranges(ranges_dict, plot_path, hash_to_traffic_id):
+def merge_overlapping_ranges(ranges_dict):
     # Flatten all intervals with their corresponding key
     intervals = []
     for key, ranges in ranges_dict.items():
@@ -94,9 +93,6 @@ def merge_overlapping_ranges(ranges_dict, plot_path, hash_to_traffic_id):
                 summarized_ranges.append(last_range)
             
         new_ranges[comb_key] = summarized_ranges                        
-    
-    if plot_path is not None:   
-        plot_time_ranges(ranges_dict, dict(new_ranges), hash_to_traffic_id, plot_path)
     
     return new_ranges 
 
