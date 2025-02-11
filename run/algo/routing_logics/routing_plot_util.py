@@ -148,8 +148,8 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, hash_to_traffic_id, plot_p
     
     
 def plot_needed_color_count(needed_color_count, run_context, available_colors_max):
-    if "visualize-routing" not in run_context or not run_context["visualize-routing"]: 
-        return  
+    # if "visualize-routing" not in run_context or not run_context["visualize-routing"]: 
+    #     return  
 
     max_time = max([key[1] for key in needed_color_count.keys()])   
     

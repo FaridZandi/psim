@@ -49,9 +49,9 @@ def do_experiment(plot_stuff=False,
         "jobs-machine-count-low": machine_count // job_count,
         "jobs-machine-count-high": machine_count // job_count,
         "placement-seed-range": seed_range,
-        "comm-size": [1600, 3200],
-        "comp-size": [40, 80],
-        "layer-count": [1, 2, 3],
+        "comm-size": list(range(1600, 2400, 200)),
+        "comp-size": list(range(50, 150, 10)), 
+        "layer-count": list(range(1, 4)),   
         "iter-count": [30], # iteration count
     }
     
@@ -215,18 +215,18 @@ def do_experiment(plot_stuff=False,
     #                      "throttle-search": True,
     #                      "lb-scheme": "perfect"}))
     
-    comparisons.append(("farid-throt-graph-col-v5",
-                        {"timing-scheme": "farid",
-                         "throttle-search": True,
-                         "routing-fit-strategy": "graph-coloring-v5",
-                         "lb-scheme": "readprotocol"}))
+    # comparisons.append(("farid-throt-graph-col-v5",
+    #                     {"timing-scheme": "farid",
+    #                      "throttle-search": True,
+    #                      "routing-fit-strategy": "graph-coloring-v5",
+    #                      "lb-scheme": "readprotocol"}))
     
-    comparisons.append(("farid-throt-graph-col-v5-sub4",
-                        {"timing-scheme": "farid",
-                         "throttle-search": True,
-                         "subflows": 4,
-                         "routing-fit-strategy": "graph-coloring-v5",
-                         "lb-scheme": "readprotocol"}))
+    # comparisons.append(("farid-throt-graph-col-v5-sub4",
+    #                     {"timing-scheme": "farid",
+    #                      "throttle-search": True,
+    #                      "subflows": 4,
+    #                      "routing-fit-strategy": "graph-coloring-v5",
+    #                      "lb-scheme": "readprotocol"}))
     
     comparisons.append(("faridv2-no-throt-perfect",
                         {"timing-scheme": "faridv2",
@@ -252,10 +252,7 @@ def do_experiment(plot_stuff=False,
     comparisons.append(("zero-leastloaded",
                         {"timing-scheme": "zero",
                          "lb-scheme": "leastloaded"}))
-    
-    comparisons.append(("zero-ecmp",
-                        {"timing-scheme": "zero",
-                         "lb-scheme": "ecmp"}))
+
     
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
@@ -326,20 +323,20 @@ if __name__ == "__main__":
         os.system("rm -f last-exp-results") 
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results"))
 
-        plot_stuff = True 
-        seed_range = 1
+        plot_stuff = False 
+        seed_range = 20
         
         exp_config = [
             ("machine_count", [48]),
             ("rack_size", [8]),
             ("job_count", [4]),
-            ("placement_mode", ["random"]),
+            ("placement_mode", ["random", "semirandom_4", "semirandom_2"]),
             ("oversub", [2]),
-            ("ring_mode", ["random"]), 
+            ("ring_mode", ["random", "letitbe"]), 
             ("sim_length", [2000]),
             ("punish_oversubscribed_min", [1.0]), 
             ("search_quota", ["alot"]), 
-            ("inflate", [1.0]),    
+            ("inflate", [1.0, 1.1, 1.2]),    
         ]
 
         all_results = [] 
@@ -377,7 +374,7 @@ if __name__ == "__main__":
         --subplot_y_params placement_mode \
         --subplot_x_params ring_mode \
         --subplot_hue_params comparison \
-        --plot_x_params punish_oversubscribed_min \
+        --plot_x_params inflate \
         --plot_y_param values".format(path)
             
     print("running the plot command: ") 

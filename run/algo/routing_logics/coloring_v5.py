@@ -140,7 +140,7 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
                     
         for time_range in overlapping_ranges:
             solutions[time_range] = color_id_to_color   
-            needed_color_count[time_range] = colors_used_count  
+            needed_color_count[time_range] = colors_used_count // max_subflow_count
             
     # plot the needed color count over time 
     plot_needed_color_count(needed_color_count, run_context, available_colors_max)
