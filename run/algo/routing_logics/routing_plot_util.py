@@ -103,10 +103,45 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
     sys.stderr.write("Combined subplot figure has been saved in the directory: {}\n".format(plots_dir))
 
 
+def plot_ranged_keys_line(d, val_max, ax, label):   
+    max_time = max([key[1] for key in d.keys()])   
+    
+    values = [0] * (max_time + 1)   
+    
+    for time_range, value in d.items():    
+        for i in range(time_range[0], time_range[1] + 1):
+            values[i] = value           
+    
+    ax.plot(range(max_time + 1), values, label=label)
+    
+    # draw a horizontal line at y=available_colors_max
+    ax.axhline(y=val_max, color='r', linestyle='--')
+    
+def overlap_count(start, end, ranges):
+    overlap_count = 0 
+    for s, e in ranges:
+        if start <= e and s <= end:
+            overlap_count += 1 
+    return overlap_count
 
-def plot_time_ranges(ranges_dict, merged_ranges_dict, hash_to_traffic_id, plot_path):
+def plot_ranges(ax, ranges): 
+    plotted_ranges = [] 
+    for i, (start, end) in enumerate(ranges):
+        overlaps = overlap_count(start, end, plotted_ranges)   
+        ax.plot([start, end], [overlaps, overlaps], marker='|', linewidth=5)
+        plotted_ranges.append((start, end))
+
+    ax.set_xlabel("Time")
+    ax.set_title("Time Ranges by Key")
+
+
+def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_degrees, 
+                     available_colors_max, bad_ranges, hash_to_traffic_id, plot_path):
     # two plots on top of each other
-    fig, axes = plt.subplots(2, 1, figsize=(10, 5), sharex=True)   
+    fig, axes = plt.subplots(4, 1, figsize=(10, 10), sharex=True)   
+    # adjust hspace
+    fig.subplots_adjust(hspace=0.5)
+    
     
     def plot_stuff(ax, data, other_ax=None):
         y = 0
@@ -140,27 +175,19 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, hash_to_traffic_id, plot_p
     plot_stuff(axes[0], ranges_dict)    
     plot_stuff(axes[1], merged_ranges_dict, axes[0])
     
-    plt.savefig(plot_path, bbox_inches='tight', dpi=300)
+    # plot the needed color count
+    plot_ranged_keys_line(max_degrees, available_colors_max, axes[2], "Max Degrees")
+    plot_ranged_keys_line(needed_color_count, available_colors_max, axes[2], "Needed Color Count")
+        
+    axes[2].set_title("Color Count, Max Degree")
+    axes[2].set_xlabel("Time")
+    axes[2].legend() 
     
-    
-def plot_needed_color_count(needed_color_count, run_context, available_colors_max, plot_path):
-    max_time = max([key[1] for key in needed_color_count.keys()])   
-    
-    values = [0] * (max_time + 1)   
-    
-    for time_range, value in needed_color_count.items():    
-        for i in range(time_range[0], time_range[1] + 1):
-            values[i] = value           
-    
-    plt.clf()
-    
-    fig, ax = plt.subplots(figsize=(10, 5)) 
-    ax.plot(range(max_time + 1), values)
-    
-    # draw a horizontal line at y=available_colors_max
-    ax.axhline(y=available_colors_max, color='r', linestyle='--')
+    plot_ranges(axes[3], bad_ranges)
     
     plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-    plt.clf()
-    plt.close() 
+    
+    
+
+    
         

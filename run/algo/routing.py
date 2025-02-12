@@ -29,7 +29,7 @@ from algo.routing_logics.simple_routing import route_flows_one_by_one
 ############################################################################################################
 ############################################################################################################
 
-def route_flows(jobs, options, run_context, job_profiles, job_timings, suffix=1): 
+def route_flows(jobs, options, run_context, job_profiles, job_timings, suffix=1, fixed_bad_ranges=[]): 
     servers_per_rack = options["ft-server-per-rack"]
     num_leaves = options["machine-count"] // servers_per_rack   
     num_spines = options["ft-core-count"]
@@ -99,7 +99,8 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings, suffix=1)
     elif fit_strategy == "graph-coloring-v5":
         times_range = route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines, 
                                                     lb_decisions, run_context, 
-                                                    max_subflow_count, link_bandwidth, suffix)
+                                                    max_subflow_count, link_bandwidth, suffix, 
+                                                    fixed_bad_ranges)
     else: # regular execution path 
         times_range = route_flows_one_by_one(all_flows, rem, usage, num_spines,   
                                              lb_decisions, run_context, max_subflow_count)

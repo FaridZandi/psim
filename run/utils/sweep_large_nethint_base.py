@@ -326,15 +326,13 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     options.pop("timing-scheme")
     options.pop("inflate")
     
-    
     run_context["draw-timing-plots"] = False
-    if "visualize-timing" in run_context and run_context["placement-seed"] in run_context["visualize-timing"]: 
+    if "visualize-timing" in run_context and run_context["visualize-timing"]:
         run_context["draw-timing-plots"] = True 
         
     run_context["draw-routing-plots"] = False
     if "visualize-routing" in run_context and run_context["visualize-routing"]:
         run_context["draw-routing-plots"] = True
-        
         
     #########################################################################################################
     # handle the placement

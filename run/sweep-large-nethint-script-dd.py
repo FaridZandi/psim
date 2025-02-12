@@ -49,8 +49,10 @@ def do_experiment(plot_stuff=False,
         "jobs-machine-count-low": machine_count // job_count,
         "jobs-machine-count-high": machine_count // job_count,
         "placement-seed-range": seed_range,
-        "comm-size": list(range(1600, 10000, 200)),
-        "comp-size": list(range(50, 150, 10)), 
+        # "comm-size": list(range(1600, 10000, 200)),
+        "comm-size": [4800], 
+        # "comp-size": list(range(50, 450, 10)), 
+        "comp-size": [100], 
         "layer-count": list(range(1, 2)),   
         "iter-count": [30], # iteration count
     }
@@ -221,7 +223,7 @@ def do_experiment(plot_stuff=False,
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "visualize-timing": placement_seeds if plot_stuff else [],
+        "visualize-timing": plot_stuff,
         "visualize-routing": plot_stuff,
         "profiled-throttle-factors": profiled_throttle_factors, 
         
@@ -284,7 +286,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         plot_stuff = False
-        seed_range = 4
+        seed_range = 1
         
         exp_config = [
             ("sim_length", [4000]),
@@ -293,13 +295,13 @@ if __name__ == "__main__":
             ("job_count", [4]),
             ("rack_size", [8]),
             
-            ("placement_mode", ["semirandom_4", "semirandom_2"]), 
-            ("ring_mode", ["random", "letitbe"]), 
+            ("placement_mode", ["random"]), 
+            ("ring_mode", ["random"]), 
             ("oversub", [2]),
             
             ("punish_oversubscribed_min", [1.0]), 
             ("search_quota", ["alot"]), 
-            ("inflate", [1.0, 1.1]),    
+            ("inflate", [1.0]),    
         ]
 
         all_results = [] 

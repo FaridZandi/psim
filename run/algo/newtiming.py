@@ -208,8 +208,8 @@ class Job:
             # inflate the active range by the inflate factor
             active_range = end_time - start_time
             inflate_amount = int(active_range * (inflate - 1))
-            # start_time = max(0, start_time - inflate_amount)
-            end_time = end_time + inflate_amount
+            start_time = max(0, start_time - inflate_amount // 2)
+            end_time = end_time + inflate_amount // 2
             
         # print(f"Job {self.job_id} at rate {throttle_rate}, active range: {start_time} - {end_time}", file=sys.stderr)
             
@@ -634,9 +634,12 @@ class TimingSolver():
                 active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)   
                 
                 overlaps = overlap_count(active_start, active_end, bad_ranges)
+                
                 if overlaps > 0:
-                    inflate *= (1 + overlaps * 0.1)
+                    print(f"Job {job_id}, in the range {active_start} - {active_end} overlaps {overlaps} bad ranges", file=sys.stderr)
+                    inflate *= (1 + overlaps * 0.01 * (5 + job_id))
                     active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)
+                    print(f"Job {job_id}, in the range {active_start} - {active_end} after inflation", file=sys.stderr)
                        
                     
                 delay = find_earliest_available_time(active_start, active_end, rem, max_load) 

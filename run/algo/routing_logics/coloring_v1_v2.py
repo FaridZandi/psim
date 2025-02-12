@@ -50,7 +50,7 @@ def route_flows_graph_coloring_v1_v2(all_flows, rem, usage, num_spines,
             edge_color_map = color_bipartite_graph_1(edges, num_spines, plot_path)
             
         elif fit_strategy == "graph-coloring-v2":
-            edge_color_map = color_bipartite_multigraph_2(edges)
+            edge_color_map, _ = color_bipartite_multigraph_2(edges)
         
         flow_counter = 0 
         

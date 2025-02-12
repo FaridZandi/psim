@@ -111,6 +111,9 @@ class ConfigSweeper:
         print("running the destructor ... ")
         os.system("kill -9 {}".format(self.watchdog_pid))
     
+    def get_results_dir(self):  
+        return self.run_path + "/" + self.results_dir   
+    
     def log_config(self):
          # some basic logging and setup
         with open(self.results_dir + "sweep-config.txt", "w") as f:

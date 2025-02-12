@@ -2,7 +2,6 @@ from algo.routing_logics.routing_util import update_time_range
 from algo.routing_logics.coloring_util import color_bipartite_multigraph_2
 from algo.routing_logics.routing_util import merge_overlapping_ranges
 from algo.routing_logics.routing_util import find_value_in_range
-from algo.routing_logics.routing_plot_util import plot_needed_color_count
 from algo.routing_logics.routing_plot_util import plot_time_ranges  
 
 from pprint import pprint 
@@ -13,7 +12,8 @@ import hashlib
 import math
 
 def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines, 
-                                  lb_decisions, run_context, max_subflow_count, link_bandwidth, suffix=1):
+                                  lb_decisions, run_context, max_subflow_count, link_bandwidth, suffix=1, 
+                                  fixed_bad_ranges=[]): 
 
     available_colors_max = num_spines * max_subflow_count
 
@@ -71,7 +71,7 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
         traffic_pattern_rep = hash_to_traffic_id[hash]
         flows = traffic_id_to_flows[traffic_pattern_rep]
         traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
-        print(f"hash: {hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr) 
+        # print(f"hash: {hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr) 
         
     # unique hash values.   
     for key in hash_to_time_ranges.keys():
@@ -79,11 +79,9 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
         
     # print(hash_to_time_ranges, file=sys.stderr) 
     merged_ranges = merge_overlapping_ranges(hash_to_time_ranges)  
-    if run_context["draw-routing-plots"]:
-        plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
-        plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), hash_to_traffic_id, plot_path)
-    
+
     needed_color_count = {} 
+    max_degrees = {} 
     solutions = {} 
     bad_ranges = []
     
@@ -94,18 +92,18 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
         for hash in overlapping_keys:
             traffic_pattern_rep = hash_to_traffic_id[hash]
             flows = traffic_id_to_flows[traffic_pattern_rep]
-            print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
+            # print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
             
             # append the flows of a representative traffic pattern to the current mix
             current_flows.extend(flows)
             
-        print("Current flows count: ", len(current_flows), file=sys.stderr)
+        # print("Current flows count: ", len(current_flows), file=sys.stderr)
         
         edges = [] 
         subflow_counter = 0 
 
         for flow in current_flows:  
-            print(f"flow max load: {flow['max_load']}, needed subflows: {flow['needed_subflows']}", file=sys.stderr)
+            # print(f"flow max load: {flow['max_load']}, needed subflows: {flow['needed_subflows']}", file=sys.stderr)
             
             for subflow in range(flow["needed_subflows"]):
                 subflow_counter += 1
@@ -116,15 +114,15 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
                 edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", subflow_counter))    
             
             
-        print(f"Edges count: {len(edges)}", file=sys.stderr)    
+        # print(f"Edges count: {len(edges)}", file=sys.stderr)    
         
-        edge_color_map = color_bipartite_multigraph_2(edges)
+        edge_color_map, max_degree = color_bipartite_multigraph_2(edges)
         color_id_to_color = defaultdict(list)
             
         all_colors_used = set(edge_color_map.values()) 
         colors_used_count = len(all_colors_used) 
         
-        print(f"Colors used count: {colors_used_count}", file=sys.stderr)
+        # print(f"Colors used count: {colors_used_count}", file=sys.stderr)
         
         subflow_counter = 0
         
@@ -136,24 +134,26 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
                 color = edge_color_map[subflow_counter]
                 color_id_to_color[color_id].append(color)
         
-        pprint(color_id_to_color, stream=sys.stderr)
+        # pprint(color_id_to_color, stream=sys.stderr)
                     
         for time_range in overlapping_ranges:
             solutions[time_range] = color_id_to_color   
-            used_spines = colors_used_count / max_subflow_count
-            needed_color_count[time_range] = used_spines
             
+            used_spines = colors_used_count / max_subflow_count
             if used_spines > num_spines:
                 bad_ranges.append(time_range)
             
-    # plot the needed color count over time 
-    # if run_context["draw-routing-plots"]:
-    routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
-    plot_path = routing_plot_dir + "/needed_colors_{}.png".format(suffix)
-    # plot_needed_color_count(needed_color_count, run_context, num_spines, plot_path)
+            needed_color_count[time_range] = used_spines
+            max_degrees[time_range] = max_degree / max_subflow_count
+
+    if True: # run_context["draw-routing-plots"]:   
+        plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
+        plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), 
+                        needed_color_count, max_degrees, num_spines,
+                        fixed_bad_ranges, hash_to_traffic_id, plot_path)
     
     # use pprint to stderr 
-    pprint(solutions, stream=sys.stderr)
+    # pprint(solutions, stream=sys.stderr)
     
     for flow in all_flows:
         src_leaf = flow["srcrack"]

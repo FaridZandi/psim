@@ -75,7 +75,7 @@ def route_flows_graph_coloring_v3(all_flows, rem, usage, num_spines,
         dst_leaf = flow["dstrack"]
         edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
             
-    edge_color_map = color_bipartite_multigraph_2(edges)
+    edge_color_map, _ = color_bipartite_multigraph_2(edges)
     
     color_id_to_color = defaultdict(list)    
     
