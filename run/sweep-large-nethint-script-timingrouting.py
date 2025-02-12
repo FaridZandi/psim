@@ -191,13 +191,14 @@ def do_experiment(plot_stuff=False,
                         {"timing-scheme": "faridv2",
                          "lb-scheme": "perfect"}))
     
-    for subflow_count in [1, 2, 4]:  
-        comparisons.append(("faridv3-graph-coloring-v5-sub-{}".format(subflow_count),   
-                            {"timing-scheme": "faridv3",
-                             "throttle-search": True,   
-                             "routing-fit-strategy": "graph-coloring-v5",  
-                             "subflows": subflow_count,     
-                             "lb-scheme": "readprotocol"}))
+    for timing in ["faridv2", "faridv3"]:
+        for subflow_count in [1, 2, 4]:  
+            comparisons.append(("{}-graph-coloring-v5-sub-{}".format(timing, subflow_count),   
+                                {"timing-scheme": timing,
+                                "throttle-search": True,   
+                                "routing-fit-strategy": "graph-coloring-v5",  
+                                "subflows": subflow_count,     
+                                "lb-scheme": "readprotocol"}))
         
     comparisons.append(("faridv2-throt-perfect",
                         {"timing-scheme": "faridv2",
@@ -283,22 +284,22 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         plot_stuff = False
-        seed_range = 1
+        seed_range = 10
         
         exp_config = [
-            ("sim_length", [2000]),
+            ("sim_length", [10000]),
             
             ("machine_count", [48]),
             ("job_count", [4]),
             ("rack_size", [8]),
             
-            ("placement_mode", ["random"]),
-            ("ring_mode", ["random"]), 
+            ("placement_mode", ["random", "semirandom_4", "semirandom_2"]), 
+            ("ring_mode", ["random", "letitbe"]), 
             ("oversub", [2]),
             
             ("punish_oversubscribed_min", [1.0]), 
             ("search_quota", ["alot"]), 
-            ("inflate", [1.0]),    
+            ("inflate", [1.0, 1.1]),    
         ]
 
         all_results = [] 

@@ -150,7 +150,7 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
     # if run_context["draw-routing-plots"]:
     routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
     plot_path = routing_plot_dir + "/needed_colors_{}.png".format(suffix)
-    plot_needed_color_count(needed_color_count, run_context, num_spines, plot_path)
+    # plot_needed_color_count(needed_color_count, run_context, num_spines, plot_path)
     
     # use pprint to stderr 
     pprint(solutions, stream=sys.stderr)

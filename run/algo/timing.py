@@ -1179,30 +1179,26 @@ def faridv3_scheduling(jobs, options, run_context, job_profiles):
 
     # step 1: do the timing first.
     job_timings, solution = solver.solve()
-    lb_decisions, bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings)
+    lb_decisions, current_bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings)
     # print("bad_ranges: ", bad_ranges, file=sys.stderr)  
-    log_results(run_context, "bad_ranges", bad_ranges)    
+    log_results(run_context, "bad_ranges", current_bad_ranges)    
 
     current_round = 1
-    
-    prev_bad_ranges = [bad_ranges[0]] 
+    fixed_bad_ranges = [] 
     
     # step 2: if the routing is good, return the results.
-    while len(bad_ranges) > 0:
+    while len(current_bad_ranges) > 0 and current_round < 10:
+
         log_results(run_context, "starting_fixing_timing", True)
+        fixed_bad_ranges.append(current_bad_ranges[0]) 
 
         # step 3: fix the timing.
-        job_timings, solution = solver.solve(prev_bad_ranges)
+        job_timings, solution = solver.solve(fixed_bad_ranges)
         # step 4: do the routing again.
-        lb_decisions, bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings, current_round)
+        lb_decisions, current_bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings, current_round)
         
-        if len(bad_ranges) == 0:    
-            break
-        
-        prev_bad_ranges.append(bad_ranges[0])
-        
-        log_results(run_context, "bad_ranges", bad_ranges)      
-        log_results(run_context, "prev_bad_ranges", prev_bad_ranges)      
+        log_results(run_context, "bad_ranges", current_bad_ranges)      
+        log_results(run_context, "prev_bad_ranges", fixed_bad_ranges)      
         
         current_round += 1 
         
