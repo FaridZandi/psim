@@ -113,7 +113,6 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
                 
                 edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", subflow_counter))    
             
-            
         # print(f"Edges count: {len(edges)}", file=sys.stderr)    
         
         edge_color_map, max_degree = color_bipartite_multigraph_2(edges)
@@ -122,6 +121,14 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
         all_colors_used = set(edge_color_map.values()) 
         colors_used_count = len(all_colors_used) 
         
+        
+        if colors_used_count > max_degree: 
+            # there's something wrong about this. 
+            print("edges:", edges, file=sys.stderr)
+            print("edge_color_map:", edge_color_map, file=sys.stderr)
+            print("max_degree:", max_degree, file=sys.stderr)
+            print("all_colors_used:", all_colors_used, file=sys.stderr)
+            
         # print(f"Colors used count: {colors_used_count}", file=sys.stderr)
         
         subflow_counter = 0
@@ -146,7 +153,7 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
             needed_color_count[time_range] = used_spines
             max_degrees[time_range] = max_degree / max_subflow_count
 
-    if True: # run_context["draw-routing-plots"]:   
+    if True: #run_context["draw-routing-plots"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), 
                         needed_color_count, max_degrees, num_spines,
