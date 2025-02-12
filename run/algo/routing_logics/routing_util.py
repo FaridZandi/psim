@@ -57,11 +57,6 @@ def merge_overlapping_ranges(ranges_dict):
     # Merge overlapping intervals while tracking keys
     merged = []
     for start, end, keys in intervals:
-        if merged: 
-            print(f"current: {start}, {end}, {keys}, last: {merged[-1][0]}, {merged[-1][1]}, {merged[-1][2]}" , file=sys.stderr)    
-        else: 
-            print(f"current: {start}, {end}, {keys}, last: None", file=sys.stderr)  
-            
         if merged and merged[-1][1] >= start:  # Overlap exists
             merged[-1] = (merged[-1][0], max(merged[-1][1], end), merged[-1][2] | keys)
         else:
@@ -96,9 +91,6 @@ def merge_overlapping_ranges(ranges_dict):
     
     return new_ranges 
 
-
-      
-    
 def find_value_in_range(d, value):
     for (start, end), v in d.items():
         if start <= value <= end:

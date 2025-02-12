@@ -15,6 +15,10 @@ import numpy as np
 from utils.util import rage_quit
 import matplotlib.pyplot as plt
 
+
+from algo.newtiming import TimingSolver    
+
+
 ####################################################################################
 ##################  HELPER FUNCTIONS  ##############################################
 ####################################################################################
@@ -33,6 +37,8 @@ def log_results(run_context, key, value):
 def visualize_workload_timing(jobs, options, run_context, 
                               job_timings, job_profiles, lb_decisions, 
                               mode):
+    if not run_context["draw-timing-plots"]:
+        return 
     
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)
     deltas = {}
@@ -1148,19 +1154,74 @@ def farid_timing_v2(jobs, options, run_context, timing_scheme, job_profiles):
     from algo.newtiming import TimingSolver    
 
     solver = TimingSolver(jobs, run_context, options, job_profiles, timing_scheme)
-    job_timings = solver.solve()    
+    job_timings, solution = solver.solve()    
     
     # step 4: return the full schedule.  
     return job_timings
 
+
+# doing the timing and routing together.    
+# general idea is to do the timing first, then do the routing.
+# the check which time_ranges are problematic in the routing process
+# and then go back and fix the timing.
+# then do the routing again.
+# repeat until the routing is good.
+# then return the job_timings and lb_decisions.
+
+def faridv3_scheduling(jobs, options, run_context, job_profiles):
+    # the only supported mode for now 
+    timing_scheme = run_context["timing-scheme"]
+    lb_scheme = options["lb-scheme"]
+    assert lb_scheme == "readprotocol"
+    assert timing_scheme == "faridv3" 
+
+    solver = TimingSolver(jobs, run_context, options, job_profiles, timing_scheme)
+
+    # step 1: do the timing first.
+    job_timings, solution = solver.solve()
+    lb_decisions, bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings)
+    # print("bad_ranges: ", bad_ranges, file=sys.stderr)  
+    log_results(run_context, "bad_ranges", bad_ranges)    
+
+    current_round = 1
+    
+    prev_bad_ranges = [bad_ranges[0]] 
+    
+    # step 2: if the routing is good, return the results.
+    while len(bad_ranges) > 0:
+        log_results(run_context, "starting_fixing_timing", True)
+
+        # step 3: fix the timing.
+        job_timings, solution = solver.solve(prev_bad_ranges)
+        # step 4: do the routing again.
+        lb_decisions, bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings, current_round)
+        
+        prev_bad_ranges.append(bad_ranges[0])
+        
+        log_results(run_context, "bad_ranges", bad_ranges)      
+        log_results(run_context, "prev_bad_ranges", prev_bad_ranges)      
+        
+        current_round += 1 
+        
+    return job_timings, lb_decisions
+
+             
+       
+        
+        
+
+    
 ############################################################################
 ################ MAIN FUCTION  #############################################
 ############################################################################
 
+
+
+
 def get_job_timings(jobs, options, run_context, job_profiles, ):
     if "timing-scheme" not in run_context:
         raise ValueError("timing-scheme option is required")
-
+        
     timing_scheme = run_context["timing-scheme"]
     # call the right function to do the timing schedule.
     timing_funcions = {
@@ -1170,51 +1231,30 @@ def get_job_timings(jobs, options, run_context, job_profiles, ):
         "cassini": cassini_timing, 
         "farid": farid_timing, 
         "faridv2": farid_timing_v2, 
+        "faridv3": farid_timing_v2,    
     }
     if timing_scheme.split("_")[0] not in timing_funcions:
         raise ValueError(f"Invalid timing-scheme: {timing_scheme}")
     timing_func = timing_funcions[timing_scheme.split("_")[0]] 
     job_timings = timing_func(jobs, options, run_context, timing_scheme, job_profiles)
 
+    # visualize
+
+        
     return job_timings
 
 def get_job_routings(jobs, options, run_context, job_profiles, job_timings):    
     lb_scheme = options["lb-scheme"]
      
     if lb_scheme == "readprotocol":
-        lb_decisions = route_flows(jobs, options, run_context, job_profiles, job_timings)
+        lb_decisions, bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings)
     else: 
-        lb_decisions = None
+        lb_decisions, bad_ranges = None, None
         
     return lb_decisions
     
-def generate_timing_file(timing_file_path, routing_file_path, placement_seed, 
-                         jobs, options, run_context):
-
-    random.seed(run_context["experiment-seed"] + placement_seed)
-
-    # load the job profiles. Might be a bit unnecassary in some cases, but anyway. 
-    job_profiles = load_job_profiles(jobs, run_context)
-    
-    if run_context["draw-timing-plots"]:
-        visualize_workload_timing(jobs, options, run_context, 
-                                None, job_profiles, None, 
-                                mode="initial") 
-    
-    # do the timing.
-    job_timings = get_job_timings(jobs, options, run_context, 
-                                  job_profiles)
-    
-    # visualize
-    if run_context["draw-timing-plots"]:
-        visualize_workload_timing(jobs, options, run_context, 
-                                  job_timings, job_profiles, 
-                                  None, mode="final") 
-    
-    # do the routing.   
-    lb_decisions = get_job_routings(jobs, options, run_context, 
-                                    job_profiles, job_timings)   
-        
+def dump_scheduling_results(job_timings, lb_decisions,  
+                            timing_file_path, routing_file_path):
     # writing the results to the files. 
     with open(timing_file_path, "w") as f:
         json.dump(job_timings, f, indent=4)
@@ -1227,11 +1267,43 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
         else: 
             f.write("[]")
             f.flush()   
+
+def generate_timing_file(timing_file_path, routing_file_path, placement_seed, 
+                         jobs, options, run_context):
+
+    random.seed(run_context["experiment-seed"] + placement_seed)
+
+    # load the job profiles. Might be a bit unnecassary in some cases, but anyway. 
+    job_profiles = load_job_profiles(jobs, run_context)
+
+    visualize_workload_timing(jobs, options, run_context, None, 
+                              job_profiles, None, mode="initial") 
         
+    timing_scheme = run_context["timing-scheme"]
+    lb_scheme = options["lb-scheme"]    
+    
+    if timing_scheme == "faridv3" and lb_scheme == "readprotocol":
+        # do the timing and routing together.
+        job_timings, lb_decisions = faridv3_scheduling(jobs, options, 
+                                                       run_context, job_profiles)
+    else:
+        # do the timing first.
+        job_timings = get_job_timings(jobs, options, run_context, 
+                                    job_profiles)
+        
+        # do the routing next.
+        lb_decisions = get_job_routings(jobs, options, run_context, 
+                                        job_profiles, job_timings)   
+            
+    
+    visualize_workload_timing(jobs, options, run_context, job_timings, 
+                              job_profiles, None, mode="final") 
+        
+    dump_scheduling_results(job_timings, lb_decisions, 
+                            timing_file_path, routing_file_path)    
+
     # returning the results just in case as well. 
     return job_timings, lb_decisions    
-
-
 
 
 if __name__ == "__main__":

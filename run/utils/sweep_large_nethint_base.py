@@ -332,7 +332,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         run_context["draw-timing-plots"] = True 
         
     run_context["draw-routing-plots"] = False
-    if "visualize-routing" in run_context and not run_context["visualize-routing"]:
+    if "visualize-routing" in run_context and run_context["visualize-routing"]:
         run_context["draw-routing-plots"] = True
         
         

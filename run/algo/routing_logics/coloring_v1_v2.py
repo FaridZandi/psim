@@ -78,4 +78,4 @@ def route_flows_graph_coloring_v1_v2(all_flows, rem, usage, num_spines,
             update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
                             src_leaf, dst_leaf)  
         
-    return min_affected_time, max_affected_time
+    return min_affected_time, max_affected_time, []

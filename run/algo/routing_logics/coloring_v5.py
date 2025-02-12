@@ -13,7 +13,7 @@ import hashlib
 import math
 
 def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines, 
-                                  lb_decisions, run_context, max_subflow_count, link_bandwidth):
+                                  lb_decisions, run_context, max_subflow_count, link_bandwidth, suffix=1):
 
     available_colors_max = num_spines * max_subflow_count
 
@@ -80,11 +80,12 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
     # print(hash_to_time_ranges, file=sys.stderr) 
     merged_ranges = merge_overlapping_ranges(hash_to_time_ranges)  
     if run_context["draw-routing-plots"]:
-        plot_path = "{}/routing/merged_ranges.png".format(run_context["routings-dir"])  
+        plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), hash_to_traffic_id, plot_path)
     
     needed_color_count = {} 
     solutions = {} 
+    bad_ranges = []
     
     for overlapping_keys, overlapping_ranges in merged_ranges.items():
         current_flows = []
@@ -139,11 +140,17 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
                     
         for time_range in overlapping_ranges:
             solutions[time_range] = color_id_to_color   
-            needed_color_count[time_range] = colors_used_count // max_subflow_count
+            used_spines = colors_used_count / max_subflow_count
+            needed_color_count[time_range] = used_spines
+            
+            if used_spines > num_spines:
+                bad_ranges.append(time_range)
             
     # plot the needed color count over time 
-    if run_context["draw-routing-plots"]:
-        plot_needed_color_count(needed_color_count, run_context, available_colors_max)
+    # if run_context["draw-routing-plots"]:
+    routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
+    plot_path = routing_plot_dir + "/needed_colors_{}.png".format(suffix)
+    plot_needed_color_count(needed_color_count, run_context, num_spines, plot_path)
     
     # use pprint to stderr 
     pprint(solutions, stream=sys.stderr)
@@ -202,4 +209,4 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
                           src_leaf, dst_leaf)     
         
         
-    return min_affected_time, max_affected_time 
+    return min_affected_time, max_affected_time, bad_ranges

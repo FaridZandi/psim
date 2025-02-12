@@ -106,7 +106,6 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
 
 def plot_time_ranges(ranges_dict, merged_ranges_dict, hash_to_traffic_id, plot_path):
     # two plots on top of each other
-    
     fig, axes = plt.subplots(2, 1, figsize=(10, 5), sharex=True)   
     
     def plot_stuff(ax, data, other_ax=None):
@@ -144,7 +143,7 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, hash_to_traffic_id, plot_p
     plt.savefig(plot_path, bbox_inches='tight', dpi=300)
     
     
-def plot_needed_color_count(needed_color_count, run_context, available_colors_max):
+def plot_needed_color_count(needed_color_count, run_context, available_colors_max, plot_path):
     max_time = max([key[1] for key in needed_color_count.keys()])   
     
     values = [0] * (max_time + 1)   
@@ -153,9 +152,6 @@ def plot_needed_color_count(needed_color_count, run_context, available_colors_ma
         for i in range(time_range[0], time_range[1] + 1):
             values[i] = value           
     
-    routing_plot_dir = "{}/routing/".format(run_context["routings-dir"])  
-    plot_path = routing_plot_dir + "/needed_colors.png"
-
     plt.clf()
     
     fig, ax = plt.subplots(figsize=(10, 5)) 

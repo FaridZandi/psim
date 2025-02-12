@@ -29,7 +29,7 @@ from algo.routing_logics.simple_routing import route_flows_one_by_one
 ############################################################################################################
 ############################################################################################################
 
-def route_flows(jobs, options, run_context, job_profiles, job_timings): 
+def route_flows(jobs, options, run_context, job_profiles, job_timings, suffix=1): 
     servers_per_rack = options["ft-server-per-rack"]
     num_leaves = options["machine-count"] // servers_per_rack   
     num_spines = options["ft-core-count"]
@@ -98,12 +98,13 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
                     
     elif fit_strategy == "graph-coloring-v5":
         times_range = route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines, 
-                                                    lb_decisions, run_context, max_subflow_count, link_bandwidth)
+                                                    lb_decisions, run_context, 
+                                                    max_subflow_count, link_bandwidth, suffix)
     else: # regular execution path 
         times_range = route_flows_one_by_one(all_flows, rem, usage, num_spines,   
                                              lb_decisions, run_context, max_subflow_count)
         
-    min_affected_time, max_affected_time = times_range
+    min_affected_time, max_affected_time, bad_ranges = times_range
         
     if run_context["draw-routing-plots"]: 
         plot_routing(run_context, rem, usage, all_job_ids, 
@@ -121,7 +122,6 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings):
             "spine_count": len(selected_spines),     
             "spine_rates": [(s, mult) for s, mult in selected_spines]
         })
-                                   
     
-    return lb_decisions_proper 
+    return lb_decisions_proper, bad_ranges
 

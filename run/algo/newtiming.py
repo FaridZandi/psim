@@ -5,6 +5,7 @@ from typing import List, Dict, Tuple
 from collections import defaultdict
 import matplotlib.pyplot as plt
 
+
 import os 
 import sys
 import math
@@ -136,6 +137,11 @@ def find_empty_ranges(signal):
     return empty_spaces
 
 
+def any_overlap(start, end, ranges):
+    for s, e in ranges:
+        if start <= e and s <= end:
+            return True
+    return False
 
 ########################################################################################    
 ########################################################################################    
@@ -400,6 +406,8 @@ class LinkLevelProblem():
         return compat_score            
 
 
+# this whole thing must not have any states regarding the solution
+# all the states must be in the solution object.
 class TimingSolver(): 
     def __init__(self, jobs, run_context, options, job_profiles, scheme):
         self.run_context = run_context
@@ -564,7 +572,7 @@ class TimingSolver():
     
     
     
-    def get_lego_solution(self):
+    def get_lego_solution(self, bad_ranges):
         links = list(self.links.values())   
         
         sol = Solution(self.job_map)    
@@ -622,8 +630,13 @@ class TimingSolver():
                 else: 
                     result_type = "regular"          
 
-                active_start, active_end  = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)   
+                active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)   
                 
+                if any_overlap(active_start, active_end, bad_ranges):
+                    inflate *= 1.1
+                    active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)
+                       
+                    
                 delay = find_earliest_available_time(active_start, active_end, rem, max_load) 
                 finish_time = active_end + delay     
                 
@@ -665,9 +678,6 @@ class TimingSolver():
         
         return sol
     
-        
-        
-    def solve(self):
-        base_solution = self.get_lego_solution()
-        return base_solution.get_job_timings()
-        
+    def solve(self, bad_ranges=[]):
+        solution = self.get_lego_solution(bad_ranges)
+        return solution.get_job_timings(), solution 
