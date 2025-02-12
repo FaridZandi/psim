@@ -137,11 +137,12 @@ def find_empty_ranges(signal):
     return empty_spaces
 
 
-def any_overlap(start, end, ranges):
+def overlap_count(start, end, ranges):
+    overlap_count = 0 
     for s, e in ranges:
         if start <= e and s <= end:
-            return True
-    return False
+            overlap_count += 1 
+    return overlap_count
 
 ########################################################################################    
 ########################################################################################    
@@ -632,8 +633,9 @@ class TimingSolver():
 
                 active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)   
                 
-                if any_overlap(active_start, active_end, bad_ranges):
-                    inflate *= 1.1
+                overlaps = overlap_count(active_start, active_end, bad_ranges)
+                if overlaps > 0:
+                    inflate *= (1 + overlaps * 0.1)
                     active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)
                        
                     

@@ -1196,6 +1196,9 @@ def faridv3_scheduling(jobs, options, run_context, job_profiles):
         # step 4: do the routing again.
         lb_decisions, bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings, current_round)
         
+        if len(bad_ranges) == 0:    
+            break
+        
         prev_bad_ranges.append(bad_ranges[0])
         
         log_results(run_context, "bad_ranges", bad_ranges)      
