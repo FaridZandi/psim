@@ -69,7 +69,7 @@ def route_flows_graph_coloring_v4(all_flows, rem, usage, num_spines,
         
     # print(hash_to_time_ranges, file=sys.stderr) 
     merged_ranges = merge_overlapping_ranges(hash_to_time_ranges)  
-    if run_context["draw-routing-plots"]:
+    if run_context["plot-merged-ranges"]:
         plot_path = "{}/routing/merged_ranges.png".format(run_context["routings-dir"])  
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), hash_to_traffic_id, plot_path)
 

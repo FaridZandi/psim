@@ -4,7 +4,7 @@ from algo.routing_logics.routing_util import merge_overlapping_ranges
 from algo.routing_logics.coloring_util import color_bipartite_multigraph_2
 
 from pprint import pprint   
-
+import random 
 
 # Example usage
 if __name__ == "__main__":
@@ -51,15 +51,24 @@ if __name__ == "__main__":
     
     edge_colors, max_degree = color_bipartite_multigraph_2(edges) 
     
-    print("edge_colors: ", edge_colors)   
-    print("max_degree: ", max_degree)
-    
+    # print("edge_colors: ", edge_colors)   
+    # print("max_degree: ", max_degree)
     colors_to_idx = defaultdict(list) 
     for idx, color in edge_colors.items(): 
         colors_to_idx[color].append(idx)    
-        
-    pprint("colors_to_idx: ")
+    # shuffle the edges 
+    random.shuffle(edges)
     pprint(dict(colors_to_idx)) 
-    
-    pprint(len(colors_to_idx.keys()))
-    
+    used_color_count = len(set(edge_colors.values()))   
+    print("colors: {}".format(used_color_count))
+
+    while used_color_count > max_degree:
+        random.shuffle(edges)
+        edge_colors, max_degree = color_bipartite_multigraph_2(edges) 
+        colors_to_idx = defaultdict(list) 
+        for idx, color in edge_colors.items(): 
+            colors_to_idx[color].append(idx)    
+        used_color_count = len(set(edge_colors.values()))
+        print("colors: {}".format(used_color_count))
+
+    print("-----------------")

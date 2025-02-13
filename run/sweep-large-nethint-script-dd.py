@@ -52,7 +52,7 @@ def do_experiment(plot_stuff=False,
         # "comm-size": list(range(1600, 10000, 200)),
         "comm-size": [4800], 
         # "comp-size": list(range(50, 450, 10)), 
-        "comp-size": [100], 
+        "comp-size": [10], 
         "layer-count": list(range(1, 2)),   
         "iter-count": [30], # iteration count
     }
@@ -215,7 +215,6 @@ def do_experiment(plot_stuff=False,
                         {"timing-scheme": "zero",
                          "lb-scheme": "leastloaded"}))
 
-    
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
@@ -223,8 +222,14 @@ def do_experiment(plot_stuff=False,
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "visualize-timing": plot_stuff,
-        "visualize-routing": plot_stuff,
+        "plot-initial-timing": False,
+        "plot-intermediate-timing": False,
+        "plot-final-timing": False,
+        "plot-routing-assignment": False, 
+        "plot-merged-ranges": False, 
+        "plot-runtime-timing": False,
+        "plot-link-empty-times": False,
+        
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -285,11 +290,11 @@ if __name__ == "__main__":
         os.system("rm -f last-exp-results-link-*") 
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
-        plot_stuff = False
+        plot_stuff = True
         seed_range = 1
         
         exp_config = [
-            ("sim_length", [4000]),
+            ("sim_length", [2000]),
             
             ("machine_count", [48]),
             ("job_count", [4]),

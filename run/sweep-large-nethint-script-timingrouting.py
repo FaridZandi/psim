@@ -221,8 +221,14 @@ def do_experiment(plot_stuff=False,
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "visualize-timing": placement_seeds if plot_stuff else [],
-        "visualize-routing": plot_stuff,
+        "plot-initial-timing": False,
+        "plot-intermediate-timing": False,
+        "plot-final-timing": False,
+        "plot-routing-assignment": False, 
+        "plot-merged-ranges": False, 
+        "plot-runtime-timing": False,
+        "plot-link-empty-times": False,
+
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff

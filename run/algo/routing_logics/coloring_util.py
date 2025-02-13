@@ -319,7 +319,7 @@ def color_bipartite_multigraph_2(input_edges):
     edge_list = [(u, v) for u, v in edges]
     n = len(edge_list)
     colors = [0] * n
-    remaining = set(range(n))
+    remaining = list(range(n))
      
     for color in range(1, max_degree + 1):
         if not remaining:
@@ -336,6 +336,9 @@ def color_bipartite_multigraph_2(input_edges):
         for u, v in uv_pairs:
             graph[u].append(v)
         
+        for u in graph:
+            graph[u].sort()
+
         # Find maximum matching
         matching = hopcroft_karp(graph)
         

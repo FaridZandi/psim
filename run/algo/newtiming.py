@@ -675,7 +675,7 @@ class TimingSolver():
             
             # print("---------------------------------------", file=sys.stderr)
         
-        if self.run_context["draw-timing-plots"]:
+        if self.run_context["plot-link-empty-times"]:
             timing_plots_dir = f"{self.run_context['timings-dir']}/"
             os.makedirs(timing_plots_dir, exist_ok=True)
             plot_path = f"{timing_plots_dir}/link_empty_times.png"    

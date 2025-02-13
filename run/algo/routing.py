@@ -107,7 +107,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings, suffix=1,
         
     min_affected_time, max_affected_time, bad_ranges = times_range
         
-    if run_context["draw-routing-plots"]: 
+    if run_context["plot-routing-assignment"]: 
         plot_routing(run_context, rem, usage, all_job_ids, 
                      num_leaves, num_spines, routing_time, 
                      min_affected_time, max_affected_time, 

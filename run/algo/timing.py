@@ -37,8 +37,6 @@ def log_results(run_context, key, value):
 def visualize_workload_timing(jobs, options, run_context, 
                               job_timings, job_profiles, lb_decisions, 
                               mode):
-    if not run_context["draw-timing-plots"]:
-        return 
     
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)
     deltas = {}
@@ -989,12 +987,12 @@ def get_timeshifts(jobs, options, run_context, job_profiles,
             best_candidate_throttle_rates = current_throttle_rates
             best_candidate_good_until = good_until
 
-    if False: # run_context["draw-timing-plots"]: 
+    if run_context["plot-intermediate-timing"]: 
         visualize_link_loads(link_loads, run_context, best_candidate_deltas, 
-                         best_candidate_throttle_rates,    
-                         link_logical_bandwidth=link_logical_bandwidth, 
-                         suffix=f"_round_{round + 1}_best")
-
+                             best_candidate_throttle_rates,    
+                             link_logical_bandwidth=link_logical_bandwidth, 
+                             suffix=f"_round_{round + 1}_best")
+    
     job_timings = [] 
     log_results(run_context, "best_candidate", (best_candidate_deltas, 
                                                 best_candidate_throttle_rates, 
@@ -1277,8 +1275,9 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     # load the job profiles. Might be a bit unnecassary in some cases, but anyway. 
     job_profiles = load_job_profiles(jobs, run_context)
 
-    visualize_workload_timing(jobs, options, run_context, None, 
-                              job_profiles, None, mode="initial") 
+    if run_context["plot-initial-timing"]: 
+        visualize_workload_timing(jobs, options, run_context, None, 
+                                  job_profiles, None, mode="initial") 
         
     timing_scheme = run_context["timing-scheme"]
     lb_scheme = options["lb-scheme"]    
@@ -1296,9 +1295,9 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
         lb_decisions = get_job_routings(jobs, options, run_context, 
                                         job_profiles, job_timings)   
             
-    
-    visualize_workload_timing(jobs, options, run_context, job_timings, 
-                              job_profiles, None, mode="final") 
+    if run_context["plot-final-timing"]: 
+        visualize_workload_timing(jobs, options, run_context, job_timings, 
+                                  job_profiles, None, mode="final") 
         
     dump_scheduling_results(job_timings, lb_decisions, 
                             timing_file_path, routing_file_path)    

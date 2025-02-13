@@ -330,10 +330,6 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     if "visualize-timing" in run_context and run_context["visualize-timing"]:
         run_context["draw-timing-plots"] = True 
         
-    run_context["draw-routing-plots"] = False
-    if "visualize-routing" in run_context and run_context["visualize-routing"]:
-        run_context["draw-routing-plots"] = True
-        
     #########################################################################################################
     # handle the placement
     placement_related_base_path = config_sweeper.custom_files_dir + "/" + "p-"
@@ -437,17 +433,21 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     timing_file_path = "{}/timing.txt".format(timings_dir, timing_scheme)
     routing_file_path = "{}/routing.txt".format(routings_dir, timing_scheme)
     
-    config_sweeper.thread_states[run_context["worker-id-for-profiling"]] = "exp-{}-scheduling-{}".format(run_context["exp-uuid"],
-                                                                                                         scheduling_identifier)
+    wid = run_context["worker-id-for-profiling"]
+    new_state = "exp-{}-scheduling-{}".format(run_context["exp-uuid"], scheduling_identifier) 
+    config_sweeper.thread_states[wid] = new_state
+    
+    
+    calc_func_args = (timing_file_path, routing_file_path,
+                      placement_seed, jobs, options, 
+                      run_context, run_cassini_timing_in_subprocess)
     
     job_timings, lb_decisions = timing_cache.get(key=timing_file_path, 
                                                  lock=config_sweeper.thread_lock, 
                                                  logger_func=config_sweeper.log_for_thread, 
                                                  run_context=run_context, 
                                                  calc_func=calc_timing, 
-                                                 calc_func_args=(timing_file_path, routing_file_path,
-                                                                 placement_seed, jobs, options, 
-                                                                 run_context, run_cassini_timing_in_subprocess))
+                                                 calc_func_args=calc_func_args)
     
     if lb_decisions is not None:
         total_subflows = 0
@@ -505,21 +505,20 @@ def plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
     run_path = "{}/worker-{}/run-1".format(config_sweeper.workers_dir,
                                            run_context["worker-id-for-profiling"])
     flow_files_path = "{}/flow-info.txt".format(run_path)   
-
     shutil.copy(flow_files_path, run_context["runtime-dir"] + "/flow-info.txt") 
 
-    # copy the flow files to the runtime dir, get the link loads.
-    summarized_job_profiles, _, _ = get_job_profiles(flow_files_path, only_summary=True)
-
-    link_loads, _ = timing.get_link_loads_runtime(
-        jobs=run_context["jobs"],
-        options=options, 
-        run_context=run_context,
-        summarized_job_profiles=summarized_job_profiles 
-    )
-    
     # the stupid matplotlib doesn't work in a thread.
-    if run_context["draw-timing-plots"]:   
+    if run_context["plot-runtime-timing"]:   
+        # copy the flow files to the runtime dir, get the link loads.
+        summarized_job_profiles, _, _ = get_job_profiles(flow_files_path, only_summary=True)
+
+        link_loads, _ = timing.get_link_loads_runtime(
+            jobs=run_context["jobs"],
+            options=options, 
+            run_context=run_context,
+            summarized_job_profiles=summarized_job_profiles 
+        )
+        
         with config_sweeper.thread_lock:
             for smoothing_window in [1, 100]:
                 timing.visualize_link_loads_runtime(
@@ -531,8 +530,9 @@ def plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
                 )
     
     # copy the final timing output to the runtime dir.
-    final_timing_output = run_context["timings-dir"] + "/demand_final.png"   
-    shutil.copy(final_timing_output, run_context["runtime-dir"] + "/demand_final.png")   
+    if run_context["plot-final-timing"]:
+        final_timing_output = run_context["timings-dir"] + "/demand_final.png"   
+        shutil.copy(final_timing_output, run_context["runtime-dir"] + "/demand_final.png")   
     
     
 def get_rolling_numbers(job_numbers, options):
@@ -600,9 +600,11 @@ def add_up_job_numbers(numbers1, numbers2):
         
     return new_numbers
 
+
+# a function to process the output of the experiments. powered by the messages that was generated 
+# by the workloads, announcing the certain events that are happening. 
 def result_extractor_function(output, options, this_exp_results, run_context, config_sweeper):
-    if run_context["draw-timing-plots"]:
-        plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
+    plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
     
     # copy the output_file to the runtime dir.
     if "output-file" in run_context:
