@@ -1,5 +1,5 @@
 from algo.routing_logics.routing_util import update_time_range
-from algo.routing_logics.coloring_util import color_bipartite_multigraph_2
+from algo.routing_logics.coloring_util import color_bipartite_multigraph
 from algo.routing_logics.routing_util import merge_overlapping_ranges
 from algo.routing_logics.routing_util import find_value_in_range
 from algo.routing_logics.routing_plot_util import plot_time_ranges  
@@ -115,7 +115,7 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
             
         # print(f"Edges count: {len(edges)}", file=sys.stderr)    
         
-        edge_color_map, max_degree = color_bipartite_multigraph_2(edges)
+        edge_color_map, max_degree = color_bipartite_multigraph(edges)
         color_id_to_color = defaultdict(list)
             
         all_colors_used = set(edge_color_map.values()) 

@@ -1,11 +1,16 @@
 import matplotlib.pyplot as plt
 import numpy as np  
+from collections import defaultdict 
 
 from copy import deepcopy
 from pprint import pprint
 
 import os
 import sys 
+
+import networkx as nx
+
+
 
 def get_color(job_id):  
     return plt.cm.tab20.colors[job_id % 20] 
@@ -189,5 +194,92 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_de
     
     
 
+def plot_edge_coloring(edges, edge_color_map, plot_path):
+    """
+    Plots a bipartite MultiGraph with potential parallel edges.
+    Each pair of parallel edges is drawn with a different curvature (rad).
+    """
+    # Create a MultiGraph to keep parallel edges
+    G = nx.MultiGraph()
     
+    # Identify partitions (left vs right) based on context
+    # If you truly have separate sets, you can pass them in directly
+    # Here we just gather them from the edges for a bipartite layout
+    left_nodes = set(src for src, _, edge_id in edges)
+    right_nodes = set(dst for _, dst, edge_id in edges)
+    
+    # Add nodes and edges with edge_ids
+    G.add_nodes_from(left_nodes, bipartite=0)
+    G.add_nodes_from(right_nodes, bipartite=1)
+    
+    for e in edges:
+        G.add_edge(e[0], e[1], key=e[2])    
+    
+    # Position: place left nodes at x=-1, right nodes at x=+1
+    pos = {}
+    sorted_left = sorted(left_nodes)
+    sorted_right = sorted(right_nodes)
+    
+    leaf_num = len(sorted_right)
+    
+    for i, node in enumerate(sorted_left):
+        pos[node] = (-1, i)
+    for j, node in enumerate(sorted_right):
+        pos[node] = (1, j)
+    
+    fig, ax = plt.subplots(figsize=(leaf_num, leaf_num))
+
+    # Draw the nodes (once)
+    nx.draw_networkx_nodes(G, pos, nodelist=G.nodes(), node_color="lightblue", node_size=1200, ax=ax)
+    nx.draw_networkx_labels(G, pos, labels={n: str(n) for n in G.nodes()}, ax=ax)
+    
+    # ---- Handle parallel edges with varying curvature ----
+    # We'll group edges by their endpoints (since MultiGraph can have parallel edges).
+    # Then, for each group, draw edges with different 'rad' values.
+    edges_by_pair = defaultdict(list)
+    # G.edges(data=True, keys=True) if you want a dictionary of edge attributes, or
+    # G.edges(keys=True) if you'd like the edge “key” for parallel edges. But here
+    # we just group by (u,v) ignoring any edge attributes:
+    
+    for (u, v, key) in G.edges(keys=True):
+        if (u,v) not in edges_by_pair and (v,u) not in edges_by_pair:
+            # store under a canonical ordering, e.g. smaller first
+            # but for a bipartite graph, direction may not matter. We'll just store as is:
+            edges_by_pair[(u,v)].append(key)
+        elif (u,v) in edges_by_pair:
+            edges_by_pair[(u,v)].append(key)
+        else:
+            edges_by_pair[(v,u)].append(key)
+    
+    # For each pair, draw parallel edges with distinct arcs
+    for (u,v), keys_list in edges_by_pair.items():
+        # total number of parallel edges
+        count = len(keys_list)
+        # We'll space the rad angles around 0. (e.g. -0.2, -0.1, 0, 0.1, 0.2 for count=5)
         
+        # If you have a single edge, rad=0 => straight line
+        # If you have two edges, you might do rad=-0.1, +0.1
+        # etc.
+        # Let's define an offset:
+        start_rad = -0.1 * (count-1)
+        
+        for i, _ in enumerate(keys_list):
+            # rad for this edge
+            rad = start_rad + i * 0.1
+            
+            nx.draw_networkx_edges(
+                G, pos,
+                edgelist=[(u, v)],
+                connectionstyle=f'arc3,rad={rad}',
+                edge_color=plt.cm.tab20.colors[edge_color_map[keys_list[i]]],
+                ax=ax
+            )
+    
+    ax.set_title("Bipartite MultiGraph with Parallel Edges (Curved)")
+    
+    plt.axis("off")
+    plt.savefig(plot_path)
+    plt.clf()
+    plt.close(fig)  
+    
+    

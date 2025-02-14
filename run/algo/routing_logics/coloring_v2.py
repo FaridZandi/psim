@@ -1,9 +1,9 @@
 from algo.routing_logics.routing_util import update_time_range
-from algo.routing_logics.coloring_util import color_bipartite_graph_1, color_bipartite_multigraph_2
+from algo.routing_logics.coloring_util import color_bipartite_graph_1, color_bipartite_multigraph
 
 import sys  
 
-def route_flows_graph_coloring_v1_v2(all_flows, rem, usage, num_spines, 
+def route_flows_graph_coloring_v2(all_flows, rem, usage, num_spines, 
                                      lb_decisions, run_context):
 
     min_affected_time = 1e9   
@@ -45,12 +45,7 @@ def route_flows_graph_coloring_v1_v2(all_flows, rem, usage, num_spines,
             flow_counter += 1
             edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", flow_counter))    
         
-        if fit_strategy == "graph-coloring-v1":
-            plot_path = f"{routing_plot_dir}/bipartite_{this_set_start_time}_{set_counter}.png"
-            edge_color_map = color_bipartite_graph_1(edges, num_spines, plot_path)
-            
-        elif fit_strategy == "graph-coloring-v2":
-            edge_color_map, _ = color_bipartite_multigraph_2(edges)
+        edge_color_map, _ = color_bipartite_multigraph(edges)
         
         flow_counter = 0 
         

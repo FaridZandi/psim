@@ -326,10 +326,6 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     options.pop("timing-scheme")
     options.pop("inflate")
     
-    run_context["draw-timing-plots"] = False
-    if "visualize-timing" in run_context and run_context["visualize-timing"]:
-        run_context["draw-timing-plots"] = True 
-        
     #########################################################################################################
     # handle the placement
     placement_related_base_path = config_sweeper.custom_files_dir + "/" + "p-"

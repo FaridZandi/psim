@@ -19,7 +19,7 @@ from itertools import chain
 
 from algo.routing_logics.routing_plot_util import plot_routing  
 from algo.routing_logics.routing_util import * 
-from algo.routing_logics.coloring_v1_v2 import route_flows_graph_coloring_v1_v2
+from run.algo.routing_logics.coloring_v2 import route_flows_graph_coloring_v2
 from algo.routing_logics.coloring_v3 import route_flows_graph_coloring_v3   
 from algo.routing_logics.coloring_v4 import route_flows_graph_coloring_v4
 from algo.routing_logics.coloring_v5 import route_flows_graph_coloring_v5
@@ -84,8 +84,8 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings, suffix=1,
     ############################################################################################################  
     # experimental code for graph coloring.
     ############################################################################################################  
-    if fit_strategy == "graph-coloring-v1" or fit_strategy == "graph-coloring-v2":  
-        times_range = route_flows_graph_coloring_v1_v2(all_flows, rem, usage, num_spines, 
+    if fit_strategy == "graph-coloring-v2":  
+        times_range = route_flows_graph_coloring_v2(all_flows, rem, usage, num_spines, 
                                                       lb_decisions, run_context)
         
     elif fit_strategy == "graph-coloring-v3":

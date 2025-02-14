@@ -1,7 +1,8 @@
 from collections import defaultdict
 
 from algo.routing_logics.routing_util import merge_overlapping_ranges
-from algo.routing_logics.coloring_util import color_bipartite_multigraph_2
+from algo.routing_logics.coloring_util import color_bipartite_multigraph, color_bipartite_multigraph_helper
+from algo.routing_logics.routing_plot_util import plot_edge_coloring    
 
 from pprint import pprint   
 import random 
@@ -21,7 +22,7 @@ if __name__ == "__main__":
     #     random.shuffle(edges)   
 
     #     edges = [(r[0], r[1]) for r in edges]   
-    #     colors = color_bipartite_multigraph_2(edges)
+    #     colors = color_bipartite_multigraph(edges)
         
     #     # for each color, store the edges
     #     color_edge_map = defaultdict(list)
@@ -49,7 +50,8 @@ if __name__ == "__main__":
     
     edges = [('0_l', '1_r', 1), ('0_l', '1_r', 2), ('0_l', '1_r', 3), ('0_l', '1_r', 4), ('0_l', '3_r', 5), ('0_l', '3_r', 6), ('0_l', '3_r', 7), ('0_l', '3_r', 8), ('1_l', '0_r', 9), ('1_l', '0_r', 10), ('1_l', '0_r', 11), ('1_l', '0_r', 12), ('1_l', '2_r', 13), ('1_l', '2_r', 14), ('1_l', '2_r', 15), ('1_l', '2_r', 16), ('2_l', '3_r', 17), ('2_l', '3_r', 18), ('2_l', '3_r', 19), ('2_l', '3_r', 20), ('2_l', '5_r', 21), ('2_l', '5_r', 22), ('2_l', '5_r', 23), ('2_l', '5_r', 24), ('3_l', '1_r', 25), ('3_l', '1_r', 26), ('3_l', '1_r', 27), ('3_l', '1_r', 28), ('3_l', '4_r', 29), ('3_l', '4_r', 30), ('3_l', '4_r', 31), ('3_l', '4_r', 32), ('4_l', '0_r', 33), ('4_l', '0_r', 34), ('4_l', '0_r', 35), ('4_l', '0_r', 36), ('5_l', '2_r', 37), ('5_l', '2_r', 38), ('5_l', '2_r', 39), ('5_l', '2_r', 40), ('0_l', '2_r', 41), ('0_l', '2_r', 42), ('0_l', '2_r', 43), ('0_l', '2_r', 44), ('0_l', '4_r', 45), ('0_l', '4_r', 46), ('0_l', '4_r', 47), ('0_l', '4_r', 48), ('2_l', '0_r', 49), ('2_l', '0_r', 50), ('2_l', '0_r', 51), ('2_l', '0_r', 52), ('2_l', '5_r', 53), ('2_l', '5_r', 54), ('2_l', '5_r', 55), ('2_l', '5_r', 56), ('3_l', '2_r', 57), ('3_l', '2_r', 58), ('3_l', '2_r', 59), ('3_l', '2_r', 60), ('3_l', '5_r', 61), ('3_l', '5_r', 62), ('3_l', '5_r', 63), ('3_l', '5_r', 64), ('4_l', '3_r', 65), ('4_l', '3_r', 66), ('4_l', '3_r', 67), ('4_l', '3_r', 68), ('4_l', '3_r', 69), ('4_l', '3_r', 70), ('4_l', '3_r', 71), ('4_l', '3_r', 72), ('5_l', '0_r', 73), ('5_l', '0_r', 74), ('5_l', '0_r', 75), ('5_l', '0_r', 76), ('5_l', '4_r', 77), ('5_l', '4_r', 78), ('5_l', '4_r', 79), ('5_l', '4_r', 80)]
     
-    edge_colors, max_degree = color_bipartite_multigraph_2(edges) 
+    edge_colors, max_degree = color_bipartite_multigraph(edges) 
+    # plot_edge_coloring(edges, edge_colors, "edge_coloring.png")  
     
     # print("edge_colors: ", edge_colors)   
     # print("max_degree: ", max_degree)
@@ -57,18 +59,20 @@ if __name__ == "__main__":
     for idx, color in edge_colors.items(): 
         colors_to_idx[color].append(idx)    
     # shuffle the edges 
-    random.shuffle(edges)
-    pprint(dict(colors_to_idx)) 
     used_color_count = len(set(edge_colors.values()))   
     print("colors: {}".format(used_color_count))
 
-    while used_color_count > max_degree:
-        random.shuffle(edges)
-        edge_colors, max_degree = color_bipartite_multigraph_2(edges) 
-        colors_to_idx = defaultdict(list) 
-        for idx, color in edge_colors.items(): 
-            colors_to_idx[color].append(idx)    
-        used_color_count = len(set(edge_colors.values()))
-        print("colors: {}".format(used_color_count))
+    # round = 1
+    # while used_color_count > max_degree:
+    #     edge_colors, max_degree = color_bipartite_multigraph(edges) 
+    #     # plot_edge_coloring(edges, edge_colors, f"edge_coloring_{round}.png")    
+        
+    #     colors_to_idx = defaultdict(list) 
+    #     for idx, color in edge_colors.items(): 
+    #         colors_to_idx[color].append(idx)    
+    #     used_color_count = len(set(edge_colors.values()))
+    #     print("colors: {}".format(used_color_count))
 
-    print("-----------------")
+    #     round += 1  
+    
+    # print("-----------------")
