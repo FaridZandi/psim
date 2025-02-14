@@ -19,7 +19,7 @@ from itertools import chain
 
 from algo.routing_logics.routing_plot_util import plot_routing  
 from algo.routing_logics.routing_util import * 
-from run.algo.routing_logics.coloring_v2 import route_flows_graph_coloring_v2
+from algo.routing_logics.coloring_v2 import route_flows_graph_coloring_v2
 from algo.routing_logics.coloring_v3 import route_flows_graph_coloring_v3   
 from algo.routing_logics.coloring_v4 import route_flows_graph_coloring_v4
 from algo.routing_logics.coloring_v5 import route_flows_graph_coloring_v5
@@ -29,7 +29,9 @@ from algo.routing_logics.simple_routing import route_flows_one_by_one
 ############################################################################################################
 ############################################################################################################
 
-def route_flows(jobs, options, run_context, job_profiles, job_timings, suffix=1, fixed_bad_ranges=[]): 
+def route_flows(jobs, options, run_context, job_profiles, job_timings, 
+                suffix=1, highlighted_ranges=[]): 
+    
     servers_per_rack = options["ft-server-per-rack"]
     num_leaves = options["machine-count"] // servers_per_rack   
     num_spines = options["ft-core-count"]
@@ -100,7 +102,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings, suffix=1,
         times_range = route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines, 
                                                     lb_decisions, run_context, 
                                                     max_subflow_count, link_bandwidth, suffix, 
-                                                    fixed_bad_ranges)
+                                                    highlighted_ranges)
     else: # regular execution path 
         times_range = route_flows_one_by_one(all_flows, rem, usage, num_spines,   
                                              lb_decisions, run_context, max_subflow_count)

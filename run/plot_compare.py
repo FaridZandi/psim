@@ -225,6 +225,6 @@ if __name__ == "__main__":
 
     main(args.file_name, file_dir, "bar")
     main(args.file_name, file_dir, "box") 
-    main(args.file_name, file_dir, "violin") 
     main(args.file_name, file_dir, "cdf") 
-    main(args.file_name, file_dir, "line")   
+    # main(args.file_name, file_dir, "violin") 
+    # main(args.file_name, file_dir, "line")   

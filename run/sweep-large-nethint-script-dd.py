@@ -49,10 +49,8 @@ def do_experiment(plot_stuff=False,
         "jobs-machine-count-low": machine_count // job_count,
         "jobs-machine-count-high": machine_count // job_count,
         "placement-seed-range": seed_range,
-        # "comm-size": list(range(1600, 10000, 200)),
-        "comm-size": [4800], 
-        # "comp-size": list(range(50, 450, 10)), 
-        "comp-size": [10], 
+        "comm-size": list(range(1600, 10000, 200)),
+        "comp-size": list(range(50, 450, 10)), 
         "layer-count": list(range(1, 2)),   
         "iter-count": [30], # iteration count
     }
@@ -226,7 +224,7 @@ def do_experiment(plot_stuff=False,
         "plot-intermediate-timing": False,
         "plot-final-timing": False,
         "plot-routing-assignment": False, 
-        "plot-merged-ranges": False, 
+        "plot-merged-ranges": True, 
         "plot-runtime-timing": False,
         "plot-link-empty-times": False,
         
@@ -294,7 +292,7 @@ if __name__ == "__main__":
         seed_range = 1
         
         exp_config = [
-            ("sim_length", [2000]),
+            ("sim_length", [4000]),
             
             ("machine_count", [48]),
             ("job_count", [4]),

@@ -12,8 +12,8 @@ import hashlib
 import math
 
 def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines, 
-                                  lb_decisions, run_context, max_subflow_count, link_bandwidth, suffix=1, 
-                                  fixed_bad_ranges=[]): 
+                                  lb_decisions, run_context, max_subflow_count, link_bandwidth, 
+                                  suffix=1, highlighted_ranges=[]): 
 
     available_colors_max = num_spines * max_subflow_count
 
@@ -155,8 +155,8 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
     if run_context["plot-merged-ranges"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), 
-                        needed_color_count, max_degrees, num_spines,
-                        fixed_bad_ranges, hash_to_traffic_id, plot_path)
+                         needed_color_count, max_degrees, num_spines,
+                         highlighted_ranges, hash_to_traffic_id, plot_path)
     
     # use pprint to stderr 
     # pprint(solutions, stream=sys.stderr)

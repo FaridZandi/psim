@@ -1,5 +1,5 @@
 from algo.routing_logics.routing_util import update_time_range
-from algo.routing_logics.coloring_util import color_bipartite_graph_1, color_bipartite_multigraph
+from algo.routing_logics.coloring_util import color_bipartite_multigraph
 
 import sys  
 

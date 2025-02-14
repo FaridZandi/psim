@@ -1166,6 +1166,43 @@ def farid_timing_v2(jobs, options, run_context, timing_scheme, job_profiles):
 # repeat until the routing is good.
 # then return the job_timings and lb_decisions.
 
+def log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges):   
+    bad_ranges_dir = f"{run_context['timings-dir']}/bad_ranges/"
+    os.makedirs(bad_ranges_dir, exist_ok=True)
+
+    path = f"{bad_ranges_dir}/round_{current_round}.json"
+        
+    with open(path, "w") as f:
+        f.write("new bad ranges:\n")
+        json.dump(new_bad_ranges, f, indent=4)
+        f.write("\n")
+        f.write("prev bad ranges:\n")
+        json.dump(prev_bad_ranges, f, indent=4)    
+        f.flush()
+
+
+def append_to_bad_ranges(bad_ranges, new_bad_ranges):
+    # we just do it one at a time.
+    new_bad_ranges.sort() 
+    bad_range_to_add = new_bad_ranges[0]
+    
+    # reset the bad_ranges, and we will rebuild it. 
+    bad_banges_copy = copy.deepcopy(bad_ranges)
+    bad_ranges.clear()
+    
+    # we want to remove any bad ranges that happen completely after the new bad range.
+    for i in range(len(bad_banges_copy)):
+        current = bad_banges_copy[i]
+        
+        if current[0] < bad_range_to_add[1]:
+            bad_ranges.append(current)
+    
+    # we want to add the new bad range to the bad_ranges.
+    bad_ranges.append(bad_range_to_add)            
+
+
+
+
 def faridv3_scheduling(jobs, options, run_context, job_profiles):
     # the only supported mode for now 
     timing_scheme = run_context["timing-scheme"]
@@ -1173,32 +1210,33 @@ def faridv3_scheduling(jobs, options, run_context, job_profiles):
     assert lb_scheme == "readprotocol"
     assert timing_scheme == "faridv3" 
 
-    solver = TimingSolver(jobs, run_context, options, job_profiles, timing_scheme)
 
+    solver = TimingSolver(jobs, run_context, options, job_profiles, timing_scheme)
     current_round = 0
     # step 1: do the timing first.
     job_timings, solution = solver.solve()
-    lb_decisions, current_bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings, current_round, 
-                                                   fixed_bad_ranges=[])
-    # print("bad_ranges: ", bad_ranges, file=sys.stderr)  
-    log_results(run_context, "bad_ranges", current_bad_ranges)    
+    lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                                   job_profiles, job_timings, 
+                                                   current_round, highlighted_ranges=[])
+    
+    log_bad_ranges(run_context, current_round, new_bad_ranges, [])
 
-    fixed_bad_ranges = [] 
+    prev_bad_ranges = [] 
     current_round = 1
+    
     # step 2: if the routing is good, return the results.
-    while len(current_bad_ranges) > 0 and current_round < 10:
-
-        log_results(run_context, "starting_fixing_timing", True)
-        fixed_bad_ranges.append(current_bad_ranges[0]) 
+    while len(new_bad_ranges) > 0 and current_round < 10:
+        append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
 
         # step 3: fix the timing.
-        job_timings, solution = solver.solve(fixed_bad_ranges)
+        job_timings, solution = solver.solve(prev_bad_ranges)
         # step 4: do the routing again.
-        lb_decisions, current_bad_ranges = route_flows(jobs, options, run_context, job_profiles, job_timings, current_round, 
-                                                       fixed_bad_ranges=fixed_bad_ranges)   
-        
-        log_results(run_context, "bad_ranges", current_bad_ranges)      
-        log_results(run_context, "prev_bad_ranges", fixed_bad_ranges)      
+        lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                                   job_profiles, job_timings, 
+                                                   current_round, 
+                                                   highlighted_ranges=prev_bad_ranges)   
+
+        log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges)
         
         current_round += 1 
         

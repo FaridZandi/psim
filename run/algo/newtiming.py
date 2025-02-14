@@ -599,7 +599,26 @@ class TimingSolver():
         print(job_max_load, file=sys.stderr)
         
         rem = [self.capacity] * self.max_length
-
+        
+        ##############################################
+        # I want to do something interesting. 
+        # if a range is present in the bad ranges, more than once, 
+        # I want to reduce the rem by a little bit 
+        
+        # find the ranges that are present more than once
+        presence_map = [0] * self.max_length    
+        for s, e in bad_ranges:
+            for t in range(s, e):
+                presence_map[t] += 1
+        
+        for t in range(self.max_length):
+            if presence_map[t] > 1:
+                rem[t] -= (presence_map[t] - 1) 
+                rem[t] = max(1, rem[t])
+                
+                
+        ##############################################
+        
         service_attained = {job_id: 0 for job_id in job_ids}        
         current_iters = {job_id: 0 for job_id in job_ids} 
         not_done_jobs = set(job_ids) 
@@ -616,6 +635,7 @@ class TimingSolver():
             best_active_start = 0 
             best_active_end = 0
             best_result_type = None
+            best_max_load = 0 
             
             for throttle_rate in throttle_rates:
                 max_load = job_max_load[throttle_rate][job_id]
@@ -631,16 +651,15 @@ class TimingSolver():
                 else: 
                     result_type = "regular"          
 
-                active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)   
+                active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, 
+                                                                        throttle_rate, inflate)   
                 
                 overlaps = overlap_count(active_start, active_end, bad_ranges)
                 
                 if overlaps > 0:
-                    print(f"Job {job_id}, in the range {active_start} - {active_end} overlaps {overlaps} bad ranges", file=sys.stderr)
                     inflate *= (1 + overlaps * 0.01 * (5 + job_id))
-                    active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, throttle_rate, inflate)
-                    print(f"Job {job_id}, in the range {active_start} - {active_end} after inflation", file=sys.stderr)
-                       
+                    active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, 
+                                                                            throttle_rate, inflate)
                     
                 delay = find_earliest_available_time(active_start, active_end, rem, max_load) 
                 finish_time = active_end + delay     
@@ -654,13 +673,11 @@ class TimingSolver():
                     best_active_start = active_start    
                     best_active_end = active_end
                     best_result_type = result_type
+                    best_max_load = max_load
 
 
-            max_load = job_max_load[best_throttle_rate][job_id]
-            max_load = min(max_load, self.capacity)
-              
             for t in range(best_active_start + best_delay, best_active_end + best_delay):
-                rem[t] -= max_load
+                rem[t] -= best_max_load
                 
             # update the solution
             sol.deltas[job_id][current_iter] = best_delay

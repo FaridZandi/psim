@@ -108,6 +108,11 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
     sys.stderr.write("Combined subplot figure has been saved in the directory: {}\n".format(plots_dir))
 
 
+###############################################################################
+###############################################################################
+###############################################################################
+
+
 def plot_ranged_keys_line(d, val_max, ax, label):   
     max_time = max([key[1] for key in d.keys()])   
     
@@ -141,12 +146,11 @@ def plot_ranges(ax, ranges):
 
 
 def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_degrees, 
-                     available_colors_max, bad_ranges, hash_to_traffic_id, plot_path):
+                     available_colors_max, highlighted_ranges, hash_to_traffic_id, plot_path):
     # two plots on top of each other
     fig, axes = plt.subplots(4, 1, figsize=(10, 10), sharex=True)   
     # adjust hspace
     fig.subplots_adjust(hspace=0.5)
-    
     
     def plot_stuff(ax, data, other_ax=None):
         y = 0
@@ -188,11 +192,15 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_de
     axes[2].set_xlabel("Time")
     axes[2].legend() 
     
-    plot_ranges(axes[3], bad_ranges)
+    plot_ranges(axes[3], highlighted_ranges)
+    axes[3].set_title("Highlighted Ranges")
     
     plt.savefig(plot_path, bbox_inches='tight', dpi=300)
-    
-    
+
+
+###############################################################################
+###############################################################################
+###############################################################################
 
 def plot_edge_coloring(edges, edge_color_map, plot_path):
     """
