@@ -327,14 +327,12 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     options.pop("inflate")
     
     #########################################################################################################
-    # handle the placement
+
     placement_related_base_path = config_sweeper.custom_files_dir + "/" + "p-"
     placement_related_added_keys = [] 
     for key in placement_related_keys:
         if key in config_sweeper.relevant_keys:
             placement_related_added_keys.append(key)
-    # sort the keys so that the path is always the same.    
-    # placement_related_added_keys.sort()
     
     # add the keys to the base path.
     placement_identifier = ""   
@@ -352,6 +350,67 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     config_sweeper.thread_states[run_context["worker-id-for-profiling"]] = tstate
     
     run_context["placement-related-dir"] = placement_related_base_path
+    os.makedirs(placement_related_base_path, exist_ok=True)
+    
+    #######################################################################################################
+
+    scheduling_related_base_path = placement_related_base_path + "s-"
+    scheduling_related_added_keys = []  
+    for key in scheduling_related_keys:
+        if key in config_sweeper.relevant_keys:
+            scheduling_related_added_keys.append(key)
+    
+    # scheduling_related_added_keys.sort()
+    scheduling_identifier = "" 
+    for key in scheduling_related_added_keys:
+        if key in original_options:  
+            value = original_options[key]    
+        else:
+            value = run_context[key]    
+        scheduling_identifier += summarize_key_ids(key) + "-" + str(value) + "-"
+    
+    scheduling_identifier = scheduling_identifier[:-1]
+    scheduling_related_base_path += (scheduling_identifier + "/")
+    os.makedirs(scheduling_related_base_path, exist_ok=True)
+    run_context["schedulings-dir"] = scheduling_related_base_path   
+    
+    #######################################################################################################
+
+    runtime_related_base_path = run_context["schedulings-dir"] + "r-" + str(run_context["exp-uuid"]) + "-"
+    runtime_related_added_keys = [] 
+    for key in config_sweeper.relevant_keys:
+        if key not in placement_related_keys and key not in scheduling_related_keys:    
+            # everything else that remains would be related to the runtime.
+            runtime_related_added_keys.append(key)  
+            
+    runtime_related_added_keys.sort()   
+    
+    runtime_identifier = ""
+    for key in runtime_related_added_keys:  
+        if key in original_options:  
+            value = original_options[key]    
+        else:
+            value = run_context[key]
+        runtime_identifier += summarize_key_ids(key) + "-" + str(value) + "-"
+    runtime_identifier = runtime_identifier[:-1]    
+    runtime_related_base_path += (runtime_identifier + "/")
+    
+    run_context["runtime-dir"] = runtime_related_base_path
+    os.makedirs(runtime_related_base_path, exist_ok=True)    
+    
+    #######################################################################################################
+    
+    output_file_path = f"{run_context['runtime-dir']}/output-{run_context['exp-uuid']}.txt"
+    # open the file and write the options and the context in it 
+    with open(output_file_path, "w") as f:
+        f.write("Options:\n")
+        f.write(json.dumps(original_options, sort_keys=True, indent=4))
+        f.write("\n\nContext:\n")
+        f.write(json.dumps(run_context, sort_keys=True, indent=4))
+        
+    run_context["output-file"] = output_file_path
+    
+    #######################################################################################################
 
     placements_dir = placement_related_base_path + "placements/"   
     profiles_dir = placement_related_base_path + "profiles/"
@@ -381,48 +440,12 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     #######################################################################################################
     
-    # handle the timing
-    # timings_dir = "{}/timings/{}-{}/{}/{}/{}/{}/{}/{}/".format(config_sweeper.custom_files_dir, 
-    #                                             placement_mode, ring_mode, placement_seed, 
-    #                                             timing_scheme, 
-    #                                             run_context["routing-fit-strategy"], 
-    #                                             run_context["compat-score-mode"], 
-    #                                             run_context["throttle-search"], 
-    #                                             options["subflows"])       
-    
-    # routings_dir = "{}/routings/{}-{}/{}/{}/{}/{}/{}/{}/".format(config_sweeper.custom_files_dir,    
-    #                                             placement_mode, ring_mode, placement_seed,
-    #                                             timing_scheme, 
-    #                                             run_context["routing-fit-strategy"], 
-    #                                             run_context["compat-score-mode"],
-    #                                             run_context["throttle-search"], 
-    #                                             options["subflows"])   
-    
-    scheduling_related_base_path = placement_related_base_path + "s-"
-    scheduling_related_added_keys = []  
-    for key in scheduling_related_keys:
-        if key in config_sweeper.relevant_keys:
-            scheduling_related_added_keys.append(key)
-    
-    # scheduling_related_added_keys.sort()
-    scheduling_identifier = "" 
-    for key in scheduling_related_added_keys:
-        if key in original_options:  
-            value = original_options[key]    
-        else:
-            value = run_context[key]    
-        scheduling_identifier += summarize_key_ids(key) + "-" + str(value) + "-"
-    
-    scheduling_identifier = scheduling_identifier[:-1]
-    scheduling_related_base_path += (scheduling_identifier + "/")
-    
     timings_dir = scheduling_related_base_path + "timings/" 
     routings_dir = scheduling_related_base_path + "routings/"
     
     os.makedirs(timings_dir, exist_ok=True)
     os.makedirs(routings_dir, exist_ok=True)    
     
-    run_context["schedulings-dir"] = scheduling_related_base_path   
     run_context["timings-dir"] = timings_dir    
     run_context["routings-dir"] = routings_dir
     
@@ -468,30 +491,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     run_context["job-timings"] = job_timings    
     
     ###############################################################################################
-        
-    runtime_related_base_path = run_context["schedulings-dir"] + "r-"
-    runtime_related_added_keys = [] 
-    for key in config_sweeper.relevant_keys:
-        if key not in placement_related_keys and key not in scheduling_related_keys:    
-            # everything else that remains would be related to the runtime.
-            runtime_related_added_keys.append(key)  
-            
-    runtime_related_added_keys.sort()   
-    
-    runtime_identifier = ""
-    for key in runtime_related_added_keys:  
-        if key in original_options:  
-            value = original_options[key]    
-        else:
-            value = run_context[key]
-        runtime_identifier += summarize_key_ids(key) + "-" + str(value) + "-"
-    runtime_identifier = runtime_identifier[:-1]    
-    runtime_related_base_path += (runtime_identifier + "/")
-    
-    run_context["runtime-dir"] = runtime_related_base_path
-    os.makedirs(runtime_related_base_path, exist_ok=True)    
-    
-    ###############################################################################################
+
     options["simulation-seed"] += run_context["placement-seed"]
     
 
@@ -515,11 +515,15 @@ def plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
             summarized_job_profiles=summarized_job_profiles 
         )
         
+        logical_capacity = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
         with config_sweeper.thread_lock:
             for smoothing_window in [1, 100]:
+                print(f"starting visulization for exp: {run_context['exp-uuid']}, smoothing_window: {smoothing_window}")
+                
                 timing.visualize_link_loads_runtime(
                     link_loads=link_loads,
                     run_context=run_context,
+                    logical_capacity=logical_capacity,
                     smoothing_window=smoothing_window, 
                     plot_dir=run_context["runtime-dir"],
                     suffix="_runtime_{}".format(smoothing_window)

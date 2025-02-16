@@ -11,7 +11,88 @@ import pickle as pkl
 import math 
 from utils.util import rage_quit
 
-def generate_job_basics(options, run_context, job_machine_counts=None):
+
+def perturb_placement(jobs): 
+    job1 = random.choice(jobs)
+    job2 = random.choice(jobs)
+    
+    job1_machine_index = random.randint(0, len(job1["machines"]) - 1) 
+    job2_machine_index = random.randint(0, len(job2["machines"]) - 1)
+    
+    # swap the machines.
+    job1_machine = job1["machines"][job1_machine_index]
+    job2_machine = job2["machines"][job2_machine_index]
+    
+    job1["machines"][job1_machine_index] = job2_machine
+    job2["machines"][job2_machine_index] = job1_machine
+    
+def measure_entrorpy(jobs, rack_size):
+    cross_rack_flows = 0
+    total_flows = 0   
+    
+    for job in jobs:
+        machines = job["machines"] 
+
+        for i in range(len(machines)):
+            src_machine = machines[i] 
+            dest_machine = machines[(i + 1) % len(machines)]
+            
+            src_rack = src_machine // rack_size
+            dest_rack = dest_machine // rack_size
+
+            if src_rack != dest_rack:   
+                cross_rack_flows += 1
+                
+            total_flows += 1
+            
+    return cross_rack_flows / (total_flows)
+
+def generate_job_basics(options, run_context, job_machine_counts=None): 
+    attempts = 0 
+
+    cmmcmp_range = run_context["selected-setting"]["cmmcmp-range"]        
+
+    closest_distance = 1e9
+    closest_jobs = None 
+    closest_assigned_machines = 0
+    
+    while attempts < 1000:
+        jobs, assigned_machines = generate_job_basics_(options, run_context, job_machine_counts) 
+
+        ratios = [] 
+        
+        for job in jobs:
+            comp_time = job["comp_size"] 
+            comm_time = 2 * job["comm_size"] / options["link-bandwidth"]
+            ratio = comm_time / comp_time 
+            ratios.append(round(ratio, 2))
+            
+        average_ratio = sum(ratios) / len(ratios) 
+        
+        
+        if average_ratio >= cmmcmp_range[0] and average_ratio <= cmmcmp_range[1]:
+            closest_jobs = jobs
+            closest_assigned_machines = assigned_machines
+            
+            break
+        else:
+            distance = min(abs(average_ratio - cmmcmp_range[0]), abs(average_ratio - cmmcmp_range[1]))
+
+            if distance < closest_distance: 
+                closest_distance = distance
+                closest_jobs = jobs
+                closest_assigned_machines = assigned_machines
+        
+        attempts += 1 
+
+    print("ratios: ", ratios, " average_ratio: ", average_ratio, " acceptable range: ", cmmcmp_range, " attempts: ", attempts)  
+
+    if attempts == 1000:    
+        print("Warning: Could not find a job with the desired communication/computation ratio.")
+
+    return closest_jobs, closest_assigned_machines
+
+def generate_job_basics_(options, run_context, job_machine_counts=None):
     machine_count = options["machine-count"]
     
     jobs_machine_count_high = run_context["selected-setting"]["jobs-machine-count-high"]
@@ -43,7 +124,6 @@ def generate_job_basics(options, run_context, job_machine_counts=None):
             elif random_mode == "range":
                 this_job_machine_count = random.randint(jobs_machine_count_low, jobs_machine_count_high)
             
-        
         if this_job_machine_count > machines_left:
             this_job_machine_count = machines_left    
         
@@ -100,8 +180,23 @@ def generate_compact_placement_file(options, run_context):
         all_machines = all_machines[job["machine_count"]:]
                                
     return jobs
-            
-            
+
+def generate_entropy_placement_file(options, run_context):  
+    desired_entropy = run_context["placement-parameters"]["desired-entropy"]
+    jobs = generate_compact_placement_file(options, run_context)
+
+    current_entropy = measure_entrorpy(jobs, options["ft-server-per-rack"])
+    
+    perturbation_count = 0 
+    max_perturbation_count = 1000   
+    
+    while current_entropy < desired_entropy and perturbation_count < max_perturbation_count:    
+        perturb_placement(jobs)
+        perturbation_count += 1
+        current_entropy = measure_entrorpy(jobs, options["ft-server-per-rack"])
+
+    return jobs
+
 
 def generate_semirandom_placement_file(options, run_context, fragmentation_factor):
     machine_count = options["machine-count"]
@@ -419,7 +514,39 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
                 job["base_period"] = psim_finish_time
                 
             print("profiled job: ", job_id, " with throttle factor: ", throttle_factor, " period: ", psim_finish_time)
-                                                      
+            
+            
+def handle_rings(jobs, placement_mode, ring_mode): 
+    if placement_mode.startswith("manual"):
+       return 
+    
+    if ring_mode == "random":
+        for job in jobs:
+            random.shuffle(job["machines"]) 
+
+    elif ring_mode == "sorted": 
+        for job in jobs:
+            job["machines"] = sorted(job["machines"])  
+
+    elif ring_mode == "letitbe":
+        pass    
+
+    else: 
+        raise Exception("Error: unknown ring mode: " + ring_mode)      
+    
+def set_iter_counts(jobs, run_context):
+    # at this point, all the profiles are ready and each job has a period associated with it.   
+    for job in jobs: 
+        period = job["base_period"] 
+        sim_length = run_context["sim-length"]  
+        iter_count = math.floor(sim_length / period)
+
+        if iter_count < 1:
+            iter_count = 1   
+
+        job["iter_count"] = iter_count
+        
+                                         
 def generate_placement_file(placement_path, placement_seed,   
                             options, run_context, config_sweeper):  
     
@@ -443,6 +570,9 @@ def generate_placement_file(placement_path, placement_seed,
 
     elif placement_mode == "random":
         jobs = generate_random_placement_file(options, run_context)
+    
+    elif placement_mode == "entropy":
+        jobs = generate_entropy_placement_file(options, run_context)
 
     elif placement_mode.startswith("semirandom"):   
         if "_" in placement_mode:
@@ -473,21 +603,7 @@ def generate_placement_file(placement_path, placement_seed,
         
     random.seed(run_context["experiment-seed"] + placement_seed + ring_magic)
         
-    ring_mode = run_context["ring-mode"]    
-    if not placement_mode.startswith("manual"):
-        if ring_mode == "random":
-            for job in jobs:
-                random.shuffle(job["machines"]) 
-    
-        elif ring_mode == "sorted": 
-            for job in jobs:
-                job["machines"] = sorted(job["machines"])  
-    
-        elif ring_mode == "letitbe":
-            pass    
-    
-        else: 
-            raise Exception("Error: unknown ring mode: " + ring_mode)
+    handle_rings(jobs, placement_mode, run_context["ring-mode"] )
     
     with open(placement_path, "w") as f:
         json.dump(jobs, f, indent=4)
@@ -495,17 +611,7 @@ def generate_placement_file(placement_path, placement_seed,
 
     # we want to do the profiling here. 
     profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path) 
-    
-    # at this point, all the profiles are ready and each job has a period associated with it.   
-    for job in jobs: 
-        period = job["base_period"] 
-        
-        sim_length = run_context["sim-length"]  
-        iter_count = math.floor(sim_length / period)
-        if iter_count < 1:
-            iter_count = 1   
-        job["iter_count"] = iter_count  
-       
+    set_iter_counts(jobs, run_context)
     
     # now we save the jobs with the iter count.       
     with open(placement_path, "w") as f:
@@ -514,3 +620,56 @@ def generate_placement_file(placement_path, placement_seed,
     
     return jobs
     
+
+
+
+if __name__ == "__main__":
+    options = {
+        'machine-count': 96,
+        'ft-server-per-rack': 8,
+    }        
+    
+    run_context = {
+        'experiment-seed': 76,
+        'placement-mode': 'compact',
+        'placement-parameters': {'placement-seed-limit': 100},
+        'placement-seed': 1,
+        'ring-mode': 'random',
+        'selected-setting': {'comm-size': [1600,1800,2000,2200,2400,2600,2800,3000,3200,3400,
+                                           3600,3800,4000,4200,4400,4600,4800,5000,5200,5400,5600,
+                                            5800, 6000,6200,6400,6600,6800,7000,7200,7400,7600,7800,
+                                            8000,8200,8400,8600,8800,9000,9200,9400,9600, 9800],
+                            'comp-size': [50,60,70,80,90,100,110,120,130,140,150,160,170,180,190,
+                                          200,210,220,230,240,250,260,270,280,290,300,310,320,
+                                            330,340,350,360,370,380,390,400,410,420,430,440],
+                            'ft-server-per-rack': 8,
+                            'iter-count': [30],
+                            'jobs-machine-count-high': 12,
+                            'jobs-machine-count-low': 12,
+                            'layer-count': [1],
+        },
+        'sim-length': 4000,}
+    
+    
+    
+    for desired_entropy in [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]:
+        jobs = generate_compact_placement_file(options, run_context)
+        
+        entropies = [] 
+        
+        for i in range(1000): 
+            entropy = measure_entrorpy(jobs, options["ft-server-per-rack"])
+            perturb_placement(jobs)    
+            entropies.append(entropy)
+            
+            if entropy > desired_entropy:
+                break
+            
+        print("desired_entropy: ", desired_entropy, " rounds: ", i)
+            
+    # plot the entropies.
+    # import matplotlib.pyplot as plt
+    
+    # plt.plot(entropies)
+    # plt.savefig("entropies.png")    
+        

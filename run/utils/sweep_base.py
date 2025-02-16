@@ -324,12 +324,6 @@ class ConfigSweeper:
         run_context["worker-id-for-profiling"] = worker_id  
         
         self.thread_states[worker_id] = "running exp-{}".format(this_exp_uuid)  
-              
-        output_file_path = self.exp_outputs_dir + "output-{}.txt".format(run_context["exp-uuid"])
-        with open(output_file_path, "w+") as f:
-            f.write("output file for experiment {}\n\n\n".format(run_context["exp-uuid"]))
-
-        run_context["output-file"] = output_file_path
 
         # options will have the base options, and the current combination of the 
         # sweep config parameters.
@@ -338,14 +332,6 @@ class ConfigSweeper:
         options.update(exp)
         options["workers-dir"] = self.workers_dir
 
-        with open(output_file_path, "a+") as f:
-            f.write("options: \n")
-            pprint(options, stream=f)
-            f.write("\n\n\n")
-            f.write("run_context: \n")
-            pprint(run_context, stream=f)
-            f.write("\n\n\n")   
-            
         # a final chance for the user to modify the options before making the command. 
         if self.run_command_options_modifier is not None:
             self.run_command_options_modifier(options, self, run_context)

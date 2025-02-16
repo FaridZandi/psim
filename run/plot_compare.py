@@ -31,7 +31,7 @@ def annotate(ax):
             ha='center',  # Center horizontally
             va='top',  # Align to bottom of text
             rotation=90,  # Rotate text 90 degrees
-            fontsize=10,  # Font size
+            fontsize=6,  # Font size
             color=color,  # Font color
         )
         
@@ -52,6 +52,25 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
                     data=df, ax=ax, legend=legend, errorbar=('ci', 50))
         ax.axhline(y=1, color='black', linestyle='--')
 
+    elif plot_type == "heatmap":  
+        # the rows will be the plot_x_params 
+        # the columns will be subplot_hue_params
+        # the values will be plot_y_param
+        
+        df_pivoted = df.pivot_table(
+            index=plot_x_params,
+            columns=subplot_hue_params,
+            values=plot_y_param,
+            aggfunc='mean'  # or 'sum', 'median', etc.
+        )        
+        # with borders on the heatmap
+        
+        sns.heatmap(df_pivoted, ax=ax, cmap="YlGnBu", annot=True, fmt=".2f", linewidths=0.5)        
+        
+        
+        legend = False
+        
+            
     elif plot_type == "bar":    
         sns.barplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
@@ -141,8 +160,8 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
     else:
         hue_len = 1 
         
-    width = subplot_y_len * 5
-    height = subplot_x * plot_x_len * 1.5 
+    width = subplot_y_len * plot_x_len
+    height = subplot_x * 1.5 
     
     # print(f"width: {width}, height: {height}")
     
@@ -205,6 +224,7 @@ if __name__ == "__main__":
     parser.add_argument("--subplot_hue_params", type=str, required=False)
     parser.add_argument("--plot_x_params", type=str, required=False)
     parser.add_argument("--plot_y_param", type=str, required=False)
+
         
     args = parser.parse_args()
         
@@ -223,8 +243,12 @@ if __name__ == "__main__":
     if args.plot_y_param is not None:
         plot_y_param = args.plot_y_param
 
+    main(args.file_name, file_dir, "heatmap")   
+
     main(args.file_name, file_dir, "bar")
     main(args.file_name, file_dir, "box") 
     main(args.file_name, file_dir, "cdf") 
+    main(args.file_name, file_dir, "line")   
+
+
     # main(args.file_name, file_dir, "violin") 
-    # main(args.file_name, file_dir, "line")   

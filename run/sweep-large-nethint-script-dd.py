@@ -21,7 +21,12 @@ def do_experiment(plot_stuff=False,
                   punish_oversubscribed_min=0.5, 
                   search_quota="a little", 
                   inflate=1.0, 
-                  ring_mode="letitbe"): 
+                  ring_mode="letitbe", 
+                  desired_entropy=0.5,
+                  cmmcmp_range=(0, 1),
+                  comm_size=(12000, 60000, 6000),
+                  comp_size=(200, 1000, 1),
+                  layer_count=(1, 2, 1)): 
     
     placement_options = 100
     
@@ -49,9 +54,12 @@ def do_experiment(plot_stuff=False,
         "jobs-machine-count-low": machine_count // job_count,
         "jobs-machine-count-high": machine_count // job_count,
         "placement-seed-range": seed_range,
-        "comm-size": list(range(1600, 10000, 200)),
-        "comp-size": list(range(50, 450, 10)), 
-        "layer-count": list(range(1, 2)),   
+        "cmmcmp-range": cmmcmp_range,   
+            
+        "comm-size": list(range(comm_size[0], comm_size[1], comm_size[2])),
+        "comp-size": list(range(comp_size[0], comp_size[1], comp_size[2])),
+        "layer-count": list(range(layer_count[0], layer_count[1], layer_count[2])),
+        
         "iter-count": [30], # iteration count
     }
     
@@ -224,7 +232,7 @@ def do_experiment(plot_stuff=False,
         "plot-intermediate-timing": False,
         "plot-final-timing": False,
         "plot-routing-assignment": False, 
-        "plot-merged-ranges": True, 
+        "plot-merged-ranges": False, 
         "plot-runtime-timing": False,
         "plot-link-empty-times": False,
         
@@ -246,6 +254,7 @@ def do_experiment(plot_stuff=False,
         },
         "routing-parameters": {},
         "placement-parameters": {
+            "desired-entropy": desired_entropy,
             "placement-seed-limit": placement_options,
         },   
         "selected-setting": selected_setting,
@@ -270,7 +279,9 @@ def do_experiment(plot_stuff=False,
     )
     
     summary = cs.sweep()
-    return summary 
+    results_dir = cs.get_results_dir()
+    
+    return summary, results_dir 
     
     
     
@@ -289,24 +300,35 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         plot_stuff = True
-        seed_range = 1
+        seed_range = 10
+        m = 10
+        clean_up_sweep_files = False
         
         exp_config = [
-            ("sim_length", [4000]),
+            ("sim_length", [200 * m]),
             
             ("machine_count", [48]),
             ("job_count", [4]),
             ("rack_size", [8]),
             
-            ("placement_mode", ["random"]), 
-            ("ring_mode", ["random"]), 
+            ("placement_mode", ["entropy"]), 
+            # ("desired_entropy", [0, 0.2, 0.4, 0.6, 0.8, 1.0]),
+            ("desired_entropy", [0.7]),
+            ("ring_mode", ["letitbe"]), 
             ("oversub", [2]),
+            ("cmmcmp_range", [(0.9, 1), (1.9, 2), (2.9, 3)]),
             
+            ("comm_size", [(120 * m, 600 * m, 60 * m)]),
+            ("comp_size", [(2 * m, 10 * m, 1 * m)]),
+            ("layer_count", [(1, 2, 1)]),
+               
             ("punish_oversubscribed_min", [1.0]), 
             ("search_quota", ["alot"]), 
             ("inflate", [1.0]),    
         ]
 
+        relevant_keys = [key for key, options in exp_config if len(options) > 1]    
+        
         all_results = [] 
         
         # go through all the possible combinations.
@@ -315,16 +337,28 @@ if __name__ == "__main__":
         
         for perm in permutations_dicts:
             print("Running experiment with settings: ", perm)
-            summary = do_experiment(plot_stuff=plot_stuff, 
-                                    seed_range=seed_range, 
-                                    **perm) 
+            
+            summary, results_dir = do_experiment(plot_stuff=plot_stuff, 
+                                                 seed_range=seed_range, 
+                                                 **perm) 
             
             for summary_item in summary:    
                 all_results.append({**summary_item, **perm})
             
             all_results_df = pd.DataFrame(all_results)    
             all_results_df.to_csv(path, index=False)
-    
+
+            perm_key = "_".join([f"{key}_{perm[key]}" for key in relevant_keys])
+            
+            #make a link to the results of this experiment.
+
+            print("results_dir: ", results_dir) 
+            
+            if clean_up_sweep_files:
+                os.system("rm -rf {}".format(results_dir)) 
+            else:
+                os.system("ln -s {} {}".format(results_dir, f"last-exp-results-link-{exp_number}/last-exp-results-link-{perm_key}"))
+                        
     # parser.add_argument("--file_name", type=str, required=True)
     # parser.add_argument("--plot_params", type=str, required=False)
     # parser.add_argument("--subplot_x_params", type=str, required=False)
@@ -339,10 +373,10 @@ if __name__ == "__main__":
     plot_command = "python3 plot_compare.py \
         --file_name {} \
         --plot_params metric \
-        --subplot_y_params placement_mode \
-        --subplot_x_params ring_mode \
+        --subplot_y_params cmmcmp_range \
+        --subplot_x_params desired_entropy \
         --subplot_hue_params comparison \
-        --plot_x_params inflate \
+        --plot_x_params machine_count \
         --plot_y_param values".format(path)
             
     print("running the plot command: ") 

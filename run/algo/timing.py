@@ -551,6 +551,7 @@ def get_link_loads_runtime(jobs, options, run_context, summarized_job_profiles):
 
 # visualize the link loads based on the runtime. 
 def visualize_link_loads_runtime(link_loads, run_context, 
+                                 logical_capacity,
                                  suffix="", plot_dir=None, 
                                  smoothing_window=1):      
 
@@ -625,10 +626,28 @@ def visualize_link_loads_runtime(link_loads, run_context,
                          labels=[f"Job: {job_id}" for job_id in job_ids], 
                          colors=[get_job_color(job_id) for job_id in job_ids])
 
-            ax.set_ylim(0, sum_max_job_load * 1.1)
+            
             max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
             ax.axhline(y=max_value_in_stack, color='blue', linestyle='--') 
-            # ax.legend(loc='upper left')
+            ax.text(max_length, max_value_in_stack, " max",
+                        verticalalignment='bottom', horizontalalignment='right', color='blue')
+            
+            y_max = max_value_in_stack * 1.1    
+                        
+            if logical_capacity is not None:  
+                ax.axhline(y=logical_capacity, color='r', linestyle='--') 
+                # add an annotation for the logical capacity, right next to the line 
+                ax.text(max_length, logical_capacity, " cap",
+                        verticalalignment='bottom', horizontalalignment='right', color='red')
+                
+                y_max = max(y_max, logical_capacity * 1.1)  
+                
+            for i in range(1, math.ceil(y_max) + 1):
+                ax.axhline(y=i, color='black', linestyle='-', linewidth=0.5)
+                        
+            ax.set_ylim(0, y_max)
+            
+            ax.legend(loc='upper left')
 
     # create one legend for all the subplots. with the contents of the color assignment to jobs.
     if len(assigned_job_colors) > 0:
@@ -703,27 +722,32 @@ def visualize_link_loads(link_loads, run_context,
                          labels=[f"Job: {job_id}" for job_id in job_ids], 
                          colors=[get_job_color(job_id) for job_id in job_ids])
 
-
-            ax.set_ylim(0, sum_max_job_load * 1.1)
+                        
+            max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
+            ax.axhline(y=max_value_in_stack, color='blue', linestyle='--') 
+            ax.text(max_length, max_value_in_stack, " max",
+                        verticalalignment='bottom', horizontalalignment='right', color='blue')
+            
+            y_max = max_value_in_stack * 1.1 
 
             if link_logical_bandwidth is not None:  
                 ax.axhline(y=link_logical_bandwidth, color='r', linestyle='--') 
-                
-                link_logical_bandwidth_int = int(link_logical_bandwidth) 
-                for i in range(1, link_logical_bandwidth_int + 1):
-                    ax.axhline(y=i, color='black', linestyle='-', linewidth=0.5)   
+                ax.text(max_length, link_logical_bandwidth, " cap",
+                        verticalalignment='bottom', horizontalalignment='right', color='red')
+                                
+                y_max = max(y_max, link_logical_bandwidth * 1.1)  
                      
                 # find the first place that the link goes over the logical bandwidth.
                 sum_signal = np.sum(job_loads_array, axis=0)
                 first_overload_index = np.argmax(sum_signal > link_logical_bandwidth)
                 if max(sum_signal) > link_logical_bandwidth:
                     min_over_capacity_time = min(min_over_capacity_time, first_overload_index) 
-                    
                     ax.axvline(x=first_overload_index, color='black', linestyle='--', linewidth=1)
             
-            max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
-            
-            ax.axhline(y=max_value_in_stack, color='blue', linestyle='--') 
+            for i in range(1, math.ceil(y_max) + 1):
+                ax.axhline(y=i, color='black', linestyle='-', linewidth=0.5) 
+
+            ax.set_ylim(0, y_max)
 
             ax.legend(loc='upper left')
 
