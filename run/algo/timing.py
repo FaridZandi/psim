@@ -14,7 +14,7 @@ import pickle as pkl
 import numpy as np 
 from utils.util import rage_quit
 import matplotlib.pyplot as plt
-
+from datetime import datetime
 
 from algo.newtiming import TimingSolver    
 
@@ -1194,11 +1194,13 @@ def log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges):
     bad_ranges_dir = f"{run_context['timings-dir']}/bad_ranges/"
     os.makedirs(bad_ranges_dir, exist_ok=True)
 
-    path = f"{bad_ranges_dir}/round_{current_round}.json"
+    path = f"{bad_ranges_dir}/round_{current_round}.txt"
         
     with open(path, "w") as f:
         f.write("new bad ranges:\n")
         json.dump(new_bad_ranges, f, indent=4)
+        f.write("\n")
+        f.write("\n")
         f.write("\n")
         f.write("prev bad ranges:\n")
         json.dump(prev_bad_ranges, f, indent=4)    
@@ -1241,24 +1243,38 @@ def faridv3_scheduling(jobs, options, run_context, job_profiles):
     job_timings, solution = solver.solve()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                    job_profiles, job_timings, 
-                                                   current_round, highlighted_ranges=[])
+                                                   current_round, highlighted_ranges=[], 
+                                                   early_return=False)
     
     log_bad_ranges(run_context, current_round, new_bad_ranges, [])
 
     prev_bad_ranges = [] 
     current_round = 1
+    max_attempts = 50
     
     # step 2: if the routing is good, return the results.
-    while len(new_bad_ranges) > 0 and current_round < 10:
+    while len(new_bad_ranges) > 0 and current_round < max_attempts:
         append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
 
         # step 3: fix the timing.
+        with open(run_context["output-file"], "a") as f:
+            f.write(f"timing round {current_round}, starting at {datetime.now()}\n")    
+            
         job_timings, solution = solver.solve(prev_bad_ranges)
         # step 4: do the routing again.
+        
+        with open(run_context["output-file"], "a") as f:
+            f.write(f"routing round {current_round}, starting at {datetime.now()}\n")    
+        
+        early_return = True
+        if current_round == max_attempts - 1:
+            early_return = False
+        
         lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                    job_profiles, job_timings, 
                                                    current_round, 
-                                                   highlighted_ranges=prev_bad_ranges)   
+                                                   highlighted_ranges=prev_bad_ranges, 
+                                                   early_return=early_return)   
 
         log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges)
         

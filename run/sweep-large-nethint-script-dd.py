@@ -302,24 +302,28 @@ if __name__ == "__main__":
         plot_stuff = True
         seed_range = 10
         m = 10
-        clean_up_sweep_files = False
+        clean_up_sweep_files = True
         
         exp_config = [
-            ("sim_length", [200 * m]),
+            ("sim_length", [400 * m]),
             
-            ("machine_count", [48]),
+            ("machine_count", [24, 48, 72]),
+            # ("machine_count", [48]),
+            
             ("job_count", [4]),
             ("rack_size", [8]),
             
             ("placement_mode", ["entropy"]), 
-            # ("desired_entropy", [0, 0.2, 0.4, 0.6, 0.8, 1.0]),
-            ("desired_entropy", [0.7]),
+            ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
+            # ("desired_entropy", [0.7]),
             ("ring_mode", ["letitbe"]), 
-            ("oversub", [2]),
-            ("cmmcmp_range", [(0.9, 1), (1.9, 2), (2.9, 3)]),
+            ("oversub", [1]),
+            
+            ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
+            # ("cmmcmp_range", [(3, 4)]),
             
             ("comm_size", [(120 * m, 600 * m, 60 * m)]),
-            ("comp_size", [(2 * m, 10 * m, 1 * m)]),
+            ("comp_size", [(2 * m, 20 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
                
             ("punish_oversubscribed_min", [1.0]), 
@@ -349,6 +353,8 @@ if __name__ == "__main__":
             all_results_df.to_csv(path, index=False)
 
             perm_key = "_".join([f"{key}_{perm[key]}" for key in relevant_keys])
+            # remove the parantheses from the perm_key
+            perm_key = perm_key.replace("(", "").replace(")", "").replace(" ", "")
             
             #make a link to the results of this experiment.
 
@@ -369,20 +375,44 @@ if __name__ == "__main__":
     
     exp_dir = f"results/exps/{exp_number}"
     path = f"{exp_dir}/results.csv"     
+    plot_commands_path = f"{exp_dir}/results_plot.sh"
+    
+    for plot_type in ["heatmap"]:
+        plot_command = f"python3 plot_compare.py \
+                        --file_name {path} \
+                        --plot_params metric \
+                        --subplot_y_params machine_count \
+                        --subplot_x_params comparison \
+                        --subplot_hue_params desired_entropy \
+                        --plot_x_params cmmcmp_range \
+                        --plot_y_param values \
+                        --plot_type {plot_type}"
 
-    plot_command = "python3 plot_compare.py \
-        --file_name {} \
-        --plot_params metric \
-        --subplot_y_params cmmcmp_range \
-        --subplot_x_params desired_entropy \
-        --subplot_hue_params comparison \
-        --plot_x_params machine_count \
-        --plot_y_param values".format(path)
-            
-    print("running the plot command: ") 
-    print(plot_command) 
-      
-    os.system(plot_command)
+        with open(plot_commands_path, "a") as f:
+            clean_plot_command = plot_command
+            while "  " in clean_plot_command:
+                clean_plot_command = clean_plot_command.replace("  ", " ") 
+            f.write(clean_plot_command + "\n\n")
+        # os.system(clean_plot_command)
+                        
+    for plot_type in ["bar"]:
+        plot_command = f"python3 plot_compare.py \
+                        --file_name {path} \
+                        --plot_params metric \
+                        --subplot_y_params desired_entropy \
+                        --subplot_x_params cmmcmp_range \
+                        --subplot_hue_params comparison \
+                        --plot_x_params machine_count \
+                        --plot_y_param values \
+                        --plot_type {plot_type}"
+                    
+        with open(plot_commands_path, "a") as f:
+            clean_plot_command = plot_command
+            while "  " in clean_plot_command:
+                clean_plot_command = clean_plot_command.replace("  ", " ") 
+            f.write(clean_plot_command + "\n\n")
+        # os.system(clean_plot_command)
     
         
+    os.system(f"chmod +x {plot_commands_path}") 
     

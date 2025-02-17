@@ -13,7 +13,7 @@ import math
 
 def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines, 
                                   lb_decisions, run_context, max_subflow_count, link_bandwidth, 
-                                  suffix=1, highlighted_ranges=[]): 
+                                  suffix=1, highlighted_ranges=[], early_return=False): 
 
     available_colors_max = num_spines * max_subflow_count
 
@@ -161,6 +161,9 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
     # use pprint to stderr 
     # pprint(solutions, stream=sys.stderr)
     
+    if early_return and len(bad_ranges) > 0:
+        return min_affected_time, max_affected_time, bad_ranges
+    
     for flow in all_flows:
         src_leaf = flow["srcrack"]
         dst_leaf = flow["dstrack"]
@@ -192,6 +195,7 @@ def route_flows_graph_coloring_v5(all_flows, rem, usage, num_spines,
             chosen_spine = chosen_spine % num_spines # just in case.    
             
             chosen_spines.append(chosen_spine)
+            
             # rotate the list. this is done assuming that all the members of this 
             # traffic pattern will happen at the same time. So they will consume 
             # all the list, and leave it as it was in the beginning, for the next

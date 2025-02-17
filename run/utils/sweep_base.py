@@ -43,7 +43,8 @@ class ConfigSweeper:
         self.global_exp_id = 0
 
         self.exp_q = queue.Queue()
-        self.thread_lock = threading.Lock()    
+        self.thread_lock = threading.Lock()  
+        self.plot_lock = threading.Lock()  
         
         # constants
         self.run_command_options_modifier = run_command_options_modifier

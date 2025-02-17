@@ -10,6 +10,9 @@ subplot_y_params = None
 subplot_hue_params = None
 plot_x_params = None
 plot_y_param = None
+plot_type = None 
+
+ext = "png" 
 
 hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
                      "pink", "gray", "olive", "cyan", "black", "yellow"] * 100
@@ -65,8 +68,18 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
         )        
         # with borders on the heatmap
         
-        sns.heatmap(df_pivoted, ax=ax, cmap="YlGnBu", annot=True, fmt=".2f", linewidths=0.5)        
+        df_pivoted -= 1
+        df_pivoted *= 100 
+        df_pivoted = df_pivoted.round(0)
         
+        sns.heatmap(df_pivoted, ax=ax,
+                    fmt=".0f", 
+                    cmap="YlGnBu", annot=True, 
+                    annot_kws={"size": 6},
+                    linewidths=0.5)        
+        
+        ax.set_ylabel(plot_x_params)
+        ax.set_xlabel(subplot_hue_params)
         
         legend = False
         
@@ -129,6 +142,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
     elif y_value is not None and subplot_y_params is not None:
         ax.set_title(f"{subplot_y_params}={y_value}")   
 
+    ax.title.set_size(8)
+
     ax.set_xlabel(plot_x_params)
     
 
@@ -137,10 +152,10 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
         df = df[df[plot_params] == value]
     
     if subplot_x_params is None: 
-        subplot_x = 1 
+        subplot_x_len = 1 
         subplot_x_values = [None]
     else:
-        subplot_x = len(df[subplot_x_params].unique())  
+        subplot_x_len = len(df[subplot_x_params].unique())  
         subplot_x_values = df[subplot_x_params].unique() 
         
     if subplot_y_params is None:
@@ -160,34 +175,36 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
     else:
         hue_len = 1 
         
-    width = subplot_y_len * plot_x_len
-    height = subplot_x * 1.5 
+    width = subplot_x_len * 3
+    height = subplot_y_len * 3 
     
     # print(f"width: {width}, height: {height}")
     
-    fig, axes = plt.subplots(subplot_x, subplot_y_len, 
-                             figsize=(width , height),
+    fig, axes = plt.subplots(subplot_y_len, subplot_x_len,
                              sharey=True,   
                              sharex=True,
                              squeeze=False)
+    
+    fig.set_figwidth(width) 
+    fig.set_figheight(height)
       
-    plt.subplots_adjust(hspace=1.5)
+    plt.subplots_adjust(hspace=0.5)
     # plt.subplots_adjust(wspace=0.5)
     
     for i, x_value in enumerate(subplot_x_values):
         for j, y_value in enumerate(subplot_y_values):
-            ax = axes[i, j]
+            ax = axes[j, i]
             legend = False
             
-            if i == len(subplot_x_values) - 1:
+            if i == len(subplot_x_values) // 2:
                 # if j == len(subplot_y_values) - 1:
                 # select the middle subplot to draw the legend
-                if j == len(subplot_y_values) // 2:
+                if j == len(subplot_y_values) - 1:
                     legend = True   
                 
             draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type)  
             
-    plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.png", bbox_inches='tight', dpi=200)        
+    plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.{ext}", bbox_inches='tight', dpi=200)        
                 
     
 def main(file_name, file_dir, plot_type): 
@@ -224,7 +241,7 @@ if __name__ == "__main__":
     parser.add_argument("--subplot_hue_params", type=str, required=False)
     parser.add_argument("--plot_x_params", type=str, required=False)
     parser.add_argument("--plot_y_param", type=str, required=False)
-
+    parser.add_argument("--plot_type", type=str, required=False)
         
     args = parser.parse_args()
         
@@ -242,13 +259,15 @@ if __name__ == "__main__":
         plot_x_params = args.plot_x_params
     if args.plot_y_param is not None:
         plot_y_param = args.plot_y_param
+    if args.plot_type is not None:
+        plot_type = args.plot_type
+        
 
-    main(args.file_name, file_dir, "heatmap")   
+    main(args.file_name, file_dir, plot_type)   
 
-    main(args.file_name, file_dir, "bar")
-    main(args.file_name, file_dir, "box") 
-    main(args.file_name, file_dir, "cdf") 
-    main(args.file_name, file_dir, "line")   
-
-
+    # main(args.file_name, file_dir, "heatmap")
+    # main(args.file_name, file_dir, "bar")
+    # main(args.file_name, file_dir, "box") 
+    # main(args.file_name, file_dir, "cdf") 
+    # main(args.file_name, file_dir, "line")   
     # main(args.file_name, file_dir, "violin") 

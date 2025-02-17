@@ -516,7 +516,7 @@ def plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
         )
         
         logical_capacity = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
-        with config_sweeper.thread_lock:
+        with config_sweeper.plot_lock:
             for smoothing_window in [1, 100]:
                 print(f"starting visulization for exp: {run_context['exp-uuid']}, smoothing_window: {smoothing_window}")
                 
@@ -1218,7 +1218,6 @@ def exp_filter_function(permutations_dicts, config_sweeper):
             comparison_setting[key] = value
 
         comparison_permutations.append(comparison_setting)  
-    
     
     # for all comparisons, and for all permutations_dicts, put them together and add them to the filtered_permutations
     
