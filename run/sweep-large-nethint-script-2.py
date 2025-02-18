@@ -223,10 +223,10 @@ def do_experiment(plot_stuff=False,
                                 }))
             
             if timing == "faridv4":
-                for fallback_threshold in [0.1, 0.2, 0.3, 0.4, 0.5]: 
-                    name += "+FB" + str(fallback_threshold)
+                for fallback_threshold in [0.9, 0.7, 0.5, 0.3]: 
+                    this_name = name + "+FB" + str(fallback_threshold)
 
-                    comparisons.append((name, {
+                    comparisons.append((this_name, {
                                         "timing-scheme": timing,
                                         "throttle-search": True if subflow_count > 1 else False,   
                                         "routing-fit-strategy": "graph-coloring-v5",  
