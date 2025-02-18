@@ -12,6 +12,8 @@ from networkx.algorithms.flow import maximum_flow
 from collections import deque, defaultdict
 import hashlib
 from itertools import chain
+from datetime import datetime   
+
 
 ############################################################################################################
 ############################################################################################################
@@ -29,9 +31,24 @@ from algo.routing_logics.simple_routing import route_flows_one_by_one
 ############################################################################################################
 ############################################################################################################
 
+def log_results(run_context, key, value):
+    # print to stderr first  
+    sys.stderr.write(f"KEY: {key}\n")
+    sys.stderr.write(f"VALUE: {value}\n")   
+
+    with open(run_context["output-file"], "a+") as f:
+        f.write(key + ":\n")
+        pprint(value, f) 
+        f.write("\n---------------------------------\n")   
+
+
+
 def route_flows(jobs, options, run_context, job_profiles, job_timings, 
                 suffix=1, highlighted_ranges=[], early_return=False): 
     
+    # log the current wall clock time: 
+    log_results(run_context, "getting the routing basics: ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
+
     servers_per_rack = options["ft-server-per-rack"]
     num_leaves = options["machine-count"] // servers_per_rack   
     num_spines = options["ft-core-count"]
@@ -71,9 +88,13 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
         total_time_delay = sum(job_deltas[job_id]) 
         this_job_time = total_productive_time + total_time_delay 
         routing_time = max(routing_time, this_job_time)     
-        
+    
+    log_results(run_context, "initializing stuff: ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
+
     rem = initialize_rem(num_leaves, num_spines, link_bandwidth, routing_time)
     usage = initialize_usage(all_job_ids, num_leaves, num_spines, routing_time)
+    
+    log_results(run_context, "getting the flows: ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
     
     all_flows = get_all_flows(job_profiles, job_deltas, job_throttle_rates, 
                               job_periods, job_iterations)
@@ -81,7 +102,9 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
     lb_decisions = {} 
     # for flow in all_flows:
     fit_strategy = run_context["routing-fit-strategy"] 
-     
+    
+    log_results(run_context, "Doing the main routing stuff ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
+
     # TODO: the times ranges can be calculated in here, instead of copying in each of the functions. 
     ############################################################################################################  
     # experimental code for graph coloring.
@@ -115,6 +138,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
                      min_affected_time, max_affected_time, 
                      routing_plot_dir, smoothing_window=1)
     
+    
     lb_decisions_proper = []    
     
     for (job_id, flow_id, iteration), selected_spines in lb_decisions.items():
@@ -125,6 +149,8 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
             "spine_count": len(selected_spines),     
             "spine_rates": [(s, mult) for s, mult in selected_spines]
         })
-    
+
+    log_results(run_context, "finished the routing stuff ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
+
     return lb_decisions_proper, bad_ranges
 

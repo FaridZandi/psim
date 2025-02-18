@@ -116,7 +116,25 @@ def find_earliest_available_time(start, end, rem, max):
         delay += 1
     return delay
 
-
+def find_earliest_available_time_all_links(start, end, rem, max, mult):
+    delay = 0 
+    window_sum = 0 
+    
+    all_link_ids = list(rem.keys())
+    
+    for link_id in all_link_ids:
+        window_sum += sum(rem[link_id][t] < max[link_id] * mult for t in range(start, end)) 
+        
+    while window_sum > 0:
+        for link_id in all_link_ids:
+            if rem[link_id][start + delay] < max[link_id] * mult:
+                window_sum -= 1  
+            if rem[link_id][end + delay] < max[link_id] * mult:
+                window_sum += 1  
+        delay += 1
+    
+    return delay        
+        
 def find_empty_ranges(signal):  
     empty_spaces = []
     current_space = None
@@ -541,8 +559,18 @@ class TimingSolver():
         
         plt.savefig(plot_path)    
         
-                    
-    def get_sequentail_solution(self):  
+    def make_solution(self, bad_ranges=[]): 
+        return Solution(self.job_map)   
+
+    def solve(self, bad_ranges=[]):
+        solution = self.make_solution(bad_ranges)
+        return solution.get_job_timings(), solution 
+    
+class SequentialSolver(TimingSolver):   
+    def __init__(self, jobs, run_context, options, job_profiles, scheme):
+        super().__init__(jobs, run_context, options, job_profiles, scheme)
+        
+    def make_solution(self, bad_ranges=[]):   
         sol = Solution(self.job_map)  
 
         # create a sequential solution for the jobs
@@ -571,9 +599,12 @@ class TimingSolver():
         return sol
     
     
+class LegoSolver(TimingSolver): 
     
-    
-    def get_lego_solution(self, bad_ranges):
+    def __init__(self, jobs, run_context, options, job_profiles, scheme):
+        super().__init__(jobs, run_context, options, job_profiles, scheme)
+
+    def make_solution(self, bad_ranges):
         links = list(self.links.values())   
         
         sol = Solution(self.job_map)    
@@ -700,6 +731,150 @@ class TimingSolver():
         
         return sol
     
-    def solve(self, bad_ranges=[]):
-        solution = self.get_lego_solution(bad_ranges)
-        return solution.get_job_timings(), solution 
+    
+    
+
+class LegoV2Solver(TimingSolver): 
+    
+    def __init__(self, jobs, run_context, options, job_profiles, scheme):
+        super().__init__(jobs, run_context, options, job_profiles, scheme)
+
+    def make_solution(self, bad_ranges):
+        links = list(self.links.values())   
+        
+        sol = Solution(self.job_map)    
+        
+        job_ids = list(self.job_map.keys())    
+        job_max_load = {}
+        
+        throttle_rates = [1.0]
+        if "throttle-search" in self.run_context and self.run_context["throttle-search"]:
+            throttle_rates = self.run_context["profiled-throttle-factors"]
+            
+        for throttle_rate in throttle_rates: 
+            job_max_load[throttle_rate] = {}
+            
+            for job_id in job_ids:
+                job_max_load[throttle_rate][job_id] = {}
+                for link in links:  
+                    job_max_load[throttle_rate][job_id][link.link_id] = 0 
+                      
+            for link in links:  
+                for job_load in link.job_loads: 
+                    job_id = job_load.job.job_id    
+
+                    max_load = job_load.link_profiles[throttle_rate]["max"] 
+                    job_max_load[throttle_rate][job_id][link.link_id] = max_load  
+        
+        # pprint(job_max_load, stream=sys.stderr)
+        
+        rem = {}
+        for link in links:  
+            rem[link.link_id] = [self.capacity] * self.max_length
+        
+        ##############################################
+        # I want to do something interesting. 
+        # if a range is present in the bad ranges, more than once, 
+        # I want to reduce the rem by a little bit 
+        
+        # find the ranges that are present more than once
+        presence_map = [0] * self.max_length    
+
+        for s, e in bad_ranges:
+            for t in range(s, e):
+                presence_map[t] += 1
+        
+        for t in range(self.max_length):
+            if presence_map[t] > 1:
+                for link in links:
+                    rem[link.link_id][t] -= (presence_map[t] - 1)   
+                    rem[link.link_id][t] = max(1, rem[link.link_id][t])
+                    
+        ##############################################
+        
+        service_attained = {job_id: 0 for job_id in job_ids}        
+        current_iters = {job_id: 0 for job_id in job_ids} 
+        not_done_jobs = set(job_ids) 
+        
+        while len(not_done_jobs) > 0:
+            # pick the job with the least service attained among the not done jobs
+            job_id = min(not_done_jobs, key=lambda x: service_attained[x])
+            job: Job = self.job_map[job_id]
+            current_iter = current_iters[job_id]    
+
+            best_finish_time = 1e9 
+            best_throttle_rate = 1.0     
+            best_delay = 0 
+            best_active_start = 0 
+            best_active_end = 0
+            best_result_type = None
+            best_load_mult = 1 
+            
+            for throttle_rate in throttle_rates:
+                max_loads = job_max_load[throttle_rate][job_id] 
+                max_max_load = max(max_loads.values()) 
+                
+                load_mult = 1 
+                inflate = 1.0 
+
+                if "inflate" in self.run_context:   
+                    inflate = self.run_context["inflate"]
+                    
+                if max_max_load > self.capacity:                    
+                    result_type = "overload"    
+                    inflate *= math.ceil(max_max_load / self.capacity)
+                    load_mult = self.capacity / max_max_load 
+                else: 
+                    result_type = "regular"          
+
+                active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, 
+                                                                        throttle_rate, inflate)   
+                
+                overlaps = overlap_count(active_start, active_end, bad_ranges)
+                
+                if overlaps > 0:
+                    inflate *= (1 + overlaps * 0.01 * (5 + job_id))
+                    active_start, active_end = sol.get_job_iter_active_time(job_id, current_iter, 
+                                                                            throttle_rate, inflate)
+                    
+                    
+                delay = find_earliest_available_time_all_links(active_start, active_end, 
+                                                               rem, max_loads, load_mult) 
+                finish_time = active_end + delay     
+                
+                if (finish_time < best_finish_time or 
+                    best_result_type == "overload" and result_type == "regular"):
+                     
+                    best_finish_time = finish_time
+                    best_throttle_rate = throttle_rate
+                    best_delay = delay  
+                    best_active_start = active_start    
+                    best_active_end = active_end
+                    best_result_type = result_type
+                    best_load_mult = load_mult
+
+            for link in links: 
+                for t in range(best_active_start + best_delay, best_active_end + best_delay):
+                    # rem[t] -= best_max_load
+                    rem[link.link_id][t] -= job_max_load[best_throttle_rate][job_id][link.link_id] * best_load_mult
+                    
+            # update the solution
+            sol.deltas[job_id][current_iter] = best_delay
+            sol.throttle_rates[job_id][current_iter] = best_throttle_rate   
+            
+            # update the current iter
+            current_iters[job_id] += 1    
+            service_attained[job_id] += job.base_period
+            
+            if current_iters[job_id] >= job.iter_count: 
+                not_done_jobs.remove(job_id)    
+            
+            # print("---------------------------------------", file=sys.stderr)
+        
+        if self.run_context["plot-link-empty-times"]:
+            timing_plots_dir = f"{self.run_context['timings-dir']}/"
+            os.makedirs(timing_plots_dir, exist_ok=True)
+            plot_path = f"{timing_plots_dir}/link_empty_times.png"    
+            self.plot_empty_ranges(sol, plot_path)  
+        
+        return sol

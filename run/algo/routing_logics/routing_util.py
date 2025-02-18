@@ -112,8 +112,9 @@ def get_all_flows(job_profiles, job_deltas,
             iter_throttle_rate = job_throttle_rates[job_id][iter]  
     
             for flow in job_profile[iter_throttle_rate]["flows"]: 
-                f = deepcopy(flow)
-                
+                # f = deepcopy(flow)
+                f = flow.copy() 
+                                
                 f["eff_start_time"] = f["start_time"] + shift
                 f["eff_end_time"] = f["end_time"] + shift
                 f["progress_shift"] = shift 

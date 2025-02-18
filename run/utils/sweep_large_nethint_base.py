@@ -205,7 +205,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
             output = json.loads(stdout.decode("utf-8")) 
 
             err_output = stderr.decode("utf-8") 
-            with open(run_context["output-file"], "w") as f:
+            with open(run_context["output-file"], "a") as f:
                 f.write(err_output) 
                 
         except json.JSONDecodeError as e:

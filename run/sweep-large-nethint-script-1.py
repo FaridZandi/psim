@@ -195,31 +195,37 @@ def do_experiment(plot_stuff=False,
 
     comparisons = []
     
-    comparisons.append(("faridv2-no-throt-perfect",
-                        {"timing-scheme": "faridv2",
-                         "lb-scheme": "perfect"}))
+    for timing in ["faridv2", "faridv4"]:
+        for subflow_count in [1, 4]:
+            comparisons.append(("{}-coloringv5-sub-{}".format(timing, subflow_count), {
+                                    "timing-scheme": timing,
+                                    "throttle-search": True if subflow_count > 1 else False,   
+                                    "routing-fit-strategy": "graph-coloring-v5",  
+                                    "subflows": subflow_count,     
+                                    "lb-scheme": "readprotocol"
+                                }))
     
-    for timing in ["faridv2", "faridv3"]:
-        for subflow_count in [1, 2, 4]:  
-            comparisons.append(("{}-graph-coloring-v5-sub-{}".format(timing, subflow_count),   
-                                {"timing-scheme": timing,
-                                "throttle-search": True,   
-                                "routing-fit-strategy": "graph-coloring-v5",  
-                                "subflows": subflow_count,     
-                                "lb-scheme": "readprotocol"}))
-        
-    comparisons.append(("faridv2-throt-perfect",
-                        {"timing-scheme": "faridv2",
-                         "throttle-search": True,
-                         "lb-scheme": "perfect"}))
+    comparisons.append(("faridv2-random", {
+                            "timing-scheme": "faridv2",
+                            "throttle-search": True,
+                            "lb-scheme": "random"
+                        }))       
     
-    comparisons.append(("zero-perfect",
-                        {"timing-scheme": "zero",
-                         "lb-scheme": "perfect"}))
+    comparisons.append(("zero-coloring-v3", {
+                            "timing-scheme": "zero",
+                            "routing-fit-strategy": "graph-coloring-v3",  
+                            "lb-scheme": "readprotocol"
+                        }))     
     
-    comparisons.append(("zero-leastloaded",
-                        {"timing-scheme": "zero",
-                         "lb-scheme": "leastloaded"}))
+    comparisons.append(("zero-perfect", {
+                            "timing-scheme": "zero",
+                            "lb-scheme": "perfect"
+                        }))
+    
+    comparisons.append(("random-perfect", {
+                            "timing-scheme": "random",
+                            "lb-scheme": "perfect"
+                        }))
 
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
@@ -300,27 +306,26 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         plot_stuff = True
-        seed_range = 10
+        seed_range = 4
         m = 10
-        clean_up_sweep_files = True
+        clean_up_sweep_files = False
         
         exp_config = [
             ("sim_length", [400 * m]),
             
-            ("machine_count", [24, 48, 72]),
-            # ("machine_count", [48]),
+            ("machine_count", [48]),
             
             ("job_count", [4]),
             ("rack_size", [8]),
             
             ("placement_mode", ["entropy"]), 
-            ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
-            # ("desired_entropy", [0.7]),
+            # ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
+            ("desired_entropy", [0.8]),
             ("ring_mode", ["letitbe"]), 
-            ("oversub", [1]),
+            ("oversub", [2]),
             
-            ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
-            # ("cmmcmp_range", [(3, 4)]),
+            # ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
+            ("cmmcmp_range", [(2, 3)]),
             
             ("comm_size", [(120 * m, 600 * m, 60 * m)]),
             ("comp_size", [(2 * m, 20 * m, 1 * m)]),
@@ -377,11 +382,11 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
     
-    for plot_type in ["heatmap"]:
+    for plot_type in []: # "heatmap"
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params machine_count \
+                        --subplot_y_params sim_length \
                         --subplot_x_params comparison \
                         --subplot_hue_params desired_entropy \
                         --plot_x_params cmmcmp_range \
@@ -402,7 +407,7 @@ if __name__ == "__main__":
                         --subplot_y_params desired_entropy \
                         --subplot_x_params cmmcmp_range \
                         --subplot_hue_params comparison \
-                        --plot_x_params machine_count \
+                        --plot_x_params sim_length \
                         --plot_y_param values \
                         --plot_type {plot_type}"
                     

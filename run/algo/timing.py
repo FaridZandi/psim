@@ -16,7 +16,7 @@ from utils.util import rage_quit
 import matplotlib.pyplot as plt
 from datetime import datetime
 
-from algo.newtiming import TimingSolver    
+from algo.newtiming import LegoSolver, LegoV2Solver   
 
 
 ####################################################################################
@@ -29,9 +29,9 @@ def log_results(run_context, key, value):
     sys.stderr.write(f"VALUE: {value}\n")   
 
     with open(run_context["output-file"], "a+") as f:
-        f.write("Results for: " + key + "\n\n")
+        f.write("Results for: " + key )
         pprint(value, f) 
-        f.write("\n\n---------------------------------\n\n")   
+        f.write("\n---------------------------------\n")   
 
 
 def visualize_workload_timing(jobs, options, run_context, 
@@ -1173,9 +1173,8 @@ def farid_timing(jobs, options, run_context, timing_scheme, job_profiles):
 
 
 def farid_timing_v2(jobs, options, run_context, timing_scheme, job_profiles):
-    from algo.newtiming import TimingSolver    
 
-    solver = TimingSolver(jobs, run_context, options, job_profiles, timing_scheme)
+    solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
     job_timings, solution = solver.solve()    
     
     # step 4: return the full schedule.  
@@ -1232,12 +1231,10 @@ def append_to_bad_ranges(bad_ranges, new_bad_ranges):
 def faridv3_scheduling(jobs, options, run_context, job_profiles):
     # the only supported mode for now 
     timing_scheme = run_context["timing-scheme"]
-    lb_scheme = options["lb-scheme"]
-    assert lb_scheme == "readprotocol"
     assert timing_scheme == "faridv3" 
 
 
-    solver = TimingSolver(jobs, run_context, options, job_profiles, timing_scheme)
+    solver = LegoSolver(jobs, run_context, options, job_profiles, timing_scheme)
     current_round = 0
     # step 1: do the timing first.
     job_timings, solution = solver.solve()
@@ -1250,20 +1247,20 @@ def faridv3_scheduling(jobs, options, run_context, job_profiles):
 
     prev_bad_ranges = [] 
     current_round = 1
-    max_attempts = 50
+    max_attempts = run_context["farid-rounds"]
     
     # step 2: if the routing is good, return the results.
     while len(new_bad_ranges) > 0 and current_round < max_attempts:
         append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
 
         # step 3: fix the timing.
-        with open(run_context["output-file"], "a") as f:
+        with open(run_context["output-file"], "a+") as f:
             f.write(f"timing round {current_round}, starting at {datetime.now()}\n")    
             
         job_timings, solution = solver.solve(prev_bad_ranges)
         # step 4: do the routing again.
         
-        with open(run_context["output-file"], "a") as f:
+        with open(run_context["output-file"], "a+") as f:
             f.write(f"routing round {current_round}, starting at {datetime.now()}\n")    
         
         early_return = True
@@ -1284,6 +1281,60 @@ def faridv3_scheduling(jobs, options, run_context, job_profiles):
 
              
        
+       
+
+def faridv4_scheduling(jobs, options, run_context, job_profiles):
+    # the only supported mode for now 
+    timing_scheme = run_context["timing-scheme"]
+    assert timing_scheme == "faridv4" 
+
+
+    solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
+    current_round = 0
+    
+    # step 1: do the timing first.
+    job_timings, solution = solver.solve()
+    lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                                   job_profiles, job_timings, 
+                                                   current_round, highlighted_ranges=[], 
+                                                   early_return=False)
+    
+    log_bad_ranges(run_context, current_round, new_bad_ranges, [])
+
+    prev_bad_ranges = [] 
+    current_round = 1
+    max_attempts = 50
+    
+    # step 2: if the routing is good, return the results.
+    while len(new_bad_ranges) > 0 and current_round < max_attempts:
+        append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
+
+        # step 3: fix the timing.
+        with open(run_context["output-file"], "a+") as f:
+            f.write(f"timing round {current_round}, starting at {datetime.now()}\n")    
+            
+        job_timings, solution = solver.solve(prev_bad_ranges)
+        # step 4: do the routing again.
+        
+        with open(run_context["output-file"], "a+") as f:
+            f.write(f"routing round {current_round}, starting at {datetime.now()}\n")    
+        
+        early_return = True
+        if current_round == max_attempts - 1:
+            early_return = False
+        
+        lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                                   job_profiles, job_timings, 
+                                                   current_round, 
+                                                   highlighted_ranges=prev_bad_ranges, 
+                                                   early_return=early_return)   
+
+        log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges)
+        
+        current_round += 1 
+        
+    return job_timings, lb_decisions
+
         
         
 
@@ -1308,8 +1359,8 @@ def get_job_timings(jobs, options, run_context, job_profiles, ):
         "cassini": cassini_timing, 
         "farid": farid_timing, 
         "faridv2": farid_timing_v2, 
-        "faridv3": farid_timing_v2,    
     }
+    
     if timing_scheme.split("_")[0] not in timing_funcions:
         raise ValueError(f"Invalid timing-scheme: {timing_scheme}")
     timing_func = timing_funcions[timing_scheme.split("_")[0]] 
@@ -1360,10 +1411,12 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     timing_scheme = run_context["timing-scheme"]
     lb_scheme = options["lb-scheme"]    
     
-    if timing_scheme == "faridv3" and lb_scheme == "readprotocol":
-        # do the timing and routing together.
+    if timing_scheme == "faridv3":
         job_timings, lb_decisions = faridv3_scheduling(jobs, options, 
                                                        run_context, job_profiles)
+    elif timing_scheme == "faridv4":
+        job_timings, lb_decisions = faridv4_scheduling(jobs, options, 
+                                                       run_context, job_profiles)   
     else:
         # do the timing first.
         job_timings = get_job_timings(jobs, options, run_context, 
