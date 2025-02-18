@@ -316,7 +316,7 @@ def do_experiment(plot_stuff=False,
 if __name__ == "__main__":
     os.system("./git_backup.sh")
 
-    original_exp_number = None
+    original_exp_number = 5363
     seed_range = 5
     m = 10
     clean_up_sweep_files = False
@@ -335,7 +335,7 @@ if __name__ == "__main__":
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params fallback_threshold \
+                        --subplot_y_params machine_count \
                         --subplot_x_params comparison \
                         --subplot_hue_params job_count \
                         --plot_x_params rack_size \
@@ -355,7 +355,7 @@ if __name__ == "__main__":
                         --subplot_y_params job_count \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
-                        --plot_x_params fallback_threshold \
+                        --plot_x_params machine_count \
                         --plot_y_param values \
                         --plot_type {plot_type}"
                     
