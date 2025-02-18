@@ -220,9 +220,19 @@ def do_experiment(plot_stuff=False,
                                     "throttle-search": True if subflow_count > 1 else False,   
                                     "routing-fit-strategy": "graph-coloring-v5",  
                                     "subflows": subflow_count,     
-                                    "fallback-threshold": fallback_threshold, 
                                     "lb-scheme": "readprotocol"
                                 }))
+            
+            if timing == "faridv4":
+                name += "+FB"
+                comparisons.append((name, {
+                                        "timing-scheme": timing,
+                                        "throttle-search": True if subflow_count > 1 else False,   
+                                        "routing-fit-strategy": "graph-coloring-v5",  
+                                        "subflows": subflow_count,     
+                                        "fallback-threshold": fallback_threshold, 
+                                        "lb-scheme": "readprotocol"
+                                    }))
 
     comparisons.append(("RO", {
                             "timing-scheme": "zero",
