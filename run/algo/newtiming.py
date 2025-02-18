@@ -658,7 +658,7 @@ class LegoSolver(TimingSolver):
             # pick the job with the least service attained among the not done jobs
             job_id = min(not_done_jobs, key=lambda x: service_attained[x])
             job: Job = self.job_map[job_id]
-            current_iter = current_iters[job_id]    
+            current_iter = current_iters[job_id]
 
             best_finish_time = 1e9 
             best_throttle_rate = 1.0     

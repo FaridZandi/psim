@@ -256,14 +256,12 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
     
     print("simulating to get the placement info ...")
     
-    sim_length = run_context["sim-length"]
-    
     placement_info = get_job_placement_info(
             strategy=placement_strategy,
             ring_mode=run_context["ring-mode"], 
             rack_size=options["ft-server-per-rack"],
             total_machine_count=options["machine-count"],
-            sim_length=sim_length)  
+            sim_length=10000)  
     
     job_machine_counts = [job["machine_count"] for job in placement_info]
     

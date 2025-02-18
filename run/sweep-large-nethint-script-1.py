@@ -157,7 +157,7 @@ def do_experiment(plot_stuff=False,
         },
     } 
 
-    core_count = base_options["ft-server-per-rack"] // oversub
+    core_count = int(base_options["ft-server-per-rack"] // oversub)
 
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
@@ -183,7 +183,7 @@ def do_experiment(plot_stuff=False,
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": False, 
-        "farid-rounds": 30, 
+        "farid-rounds": 100, 
         
         "lb-scheme": "random", 
         "routing-fit-strategy": "best",    
@@ -195,9 +195,22 @@ def do_experiment(plot_stuff=False,
 
     comparisons = []
     
+    comparisons.append(("TS", {
+                            "timing-scheme": "faridv2",
+                            "throttle-search": True,
+                            "lb-scheme": "random"
+                        }))
+       
     for timing in ["faridv2", "faridv4"]:
         for subflow_count in [1, 4]:
-            comparisons.append(("{}-coloringv5-sub-{}".format(timing, subflow_count), {
+            name = "TS+RO"
+            if subflow_count > 1:
+                name += f"+SUB+TH"
+                
+            if timing == "faridv4":
+                name += "+REP"
+                
+            comparisons.append((name, {
                                     "timing-scheme": timing,
                                     "throttle-search": True if subflow_count > 1 else False,   
                                     "routing-fit-strategy": "graph-coloring-v5",  
@@ -205,25 +218,14 @@ def do_experiment(plot_stuff=False,
                                     "lb-scheme": "readprotocol"
                                 }))
     
-    comparisons.append(("faridv2-random", {
-                            "timing-scheme": "faridv2",
-                            "throttle-search": True,
-                            "lb-scheme": "random"
-                        }))       
-    
-    comparisons.append(("zero-coloring-v3", {
+    comparisons.append(("RO", {
                             "timing-scheme": "zero",
                             "routing-fit-strategy": "graph-coloring-v3",  
                             "lb-scheme": "readprotocol"
                         }))     
     
-    comparisons.append(("zero-perfect", {
+    comparisons.append(("Perfect", {
                             "timing-scheme": "zero",
-                            "lb-scheme": "perfect"
-                        }))
-    
-    comparisons.append(("random-perfect", {
-                            "timing-scheme": "random",
                             "lb-scheme": "perfect"
                         }))
 
@@ -306,29 +308,32 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         plot_stuff = True
-        seed_range = 4
+        seed_range = 20
         m = 10
-        clean_up_sweep_files = False
+        clean_up_sweep_files = True
         
         exp_config = [
             ("sim_length", [400 * m]),
             
-            ("machine_count", [48]),
+            ("machine_count", [24, 48, 72, 96]),
             
-            ("job_count", [4]),
-            ("rack_size", [8]),
+            ("job_count", [2, 4, 6, 8]),
             
-            ("placement_mode", ["entropy"]), 
+            ("rack_size", [4, 6, 8, 12]),
+            
+            ("placement_mode", ["random"]), 
             # ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
             ("desired_entropy", [0.8]),
             ("ring_mode", ["letitbe"]), 
+            # ("oversub", [1, 2, 4]),
             ("oversub", [2]),
             
             # ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
-            ("cmmcmp_range", [(2, 3)]),
+            ("cmmcmp_range", [(0.5, 2)]),
+            # ("cmmcmp_range", [(2, 3)]),
             
-            ("comm_size", [(120 * m, 600 * m, 60 * m)]),
-            ("comp_size", [(2 * m, 20 * m, 1 * m)]),
+            ("comm_size", [(120 * m, 360 * m, 60 * m)]),
+            ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
                
             ("punish_oversubscribed_min", [1.0]), 
@@ -382,14 +387,14 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
     
-    for plot_type in []: # "heatmap"
+    for plot_type in ["heatmap"]:  
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params sim_length \
+                        --subplot_y_params machine_count \
                         --subplot_x_params comparison \
-                        --subplot_hue_params desired_entropy \
-                        --plot_x_params cmmcmp_range \
+                        --subplot_hue_params job_count \
+                        --plot_x_params rack_size \
                         --plot_y_param values \
                         --plot_type {plot_type}"
 
@@ -404,10 +409,10 @@ if __name__ == "__main__":
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params desired_entropy \
-                        --subplot_x_params cmmcmp_range \
+                        --subplot_y_params job_count \
+                        --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
-                        --plot_x_params sim_length \
+                        --plot_x_params machine_count \
                         --plot_y_param values \
                         --plot_type {plot_type}"
                     

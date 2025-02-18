@@ -1303,7 +1303,7 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
 
     prev_bad_ranges = [] 
     current_round = 1
-    max_attempts = 50
+    max_attempts = run_context["farid-rounds"]
     
     # step 2: if the routing is good, return the results.
     while len(new_bad_ranges) > 0 and current_round < max_attempts:
