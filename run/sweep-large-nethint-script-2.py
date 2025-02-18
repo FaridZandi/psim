@@ -307,7 +307,7 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 5
+    seed_range = 1
     m = 10
     clean_up_sweep_files = False
     
@@ -369,7 +369,7 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             
             ("machine_count", [48]),
-            ("job_count", [2]),
+            ("job_count", [12]),
             ("rack_size", [6]),
 
             ("placement_mode", ["random"]), 

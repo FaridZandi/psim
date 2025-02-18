@@ -1357,7 +1357,6 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
         f.write(f"average job cost: {average_job_cost}\n")
         f.flush()
         
-        
     if average_job_cost > run_context["fallback-threshold"] or bad_range_ratio > run_context["fallback-threshold"]:
         # get zero timing + v3 routing 
         job_timings, solution = solver.get_zero_solution()
