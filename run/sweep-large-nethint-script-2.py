@@ -26,7 +26,8 @@ def do_experiment(plot_stuff=False,
                   cmmcmp_range=(0, 1),
                   comm_size=(12000, 60000, 6000),
                   comp_size=(200, 1000, 1),
-                  layer_count=(1, 2, 1)): 
+                  layer_count=(1, 2, 1), 
+                  fallback_threshold=1e9): 
     
     placement_options = 100
     
@@ -219,22 +220,10 @@ def do_experiment(plot_stuff=False,
                                     "throttle-search": True if subflow_count > 1 else False,   
                                     "routing-fit-strategy": "graph-coloring-v5",  
                                     "subflows": subflow_count,     
+                                    "fallback-threshold": fallback_threshold, 
                                     "lb-scheme": "readprotocol"
                                 }))
-            
-            if timing == "faridv4":
-                for fallback_threshold in [0.9, 0.7, 0.5, 0.3]: 
-                    this_name = name + "+FB" + str(fallback_threshold)
 
-                    comparisons.append((this_name, {
-                                        "timing-scheme": timing,
-                                        "throttle-search": True if subflow_count > 1 else False,   
-                                        "routing-fit-strategy": "graph-coloring-v5",  
-                                        "subflows": subflow_count,     
-                                        "lb-scheme": "readprotocol",
-                                        "fallback-threshold": fallback_threshold, 
-                                    }))
-    
     comparisons.append(("RO", {
                             "timing-scheme": "zero",
                             "routing-fit-strategy": "graph-coloring-v3",  
@@ -317,7 +306,7 @@ if __name__ == "__main__":
     # make a backup of the current state of the repository.
     os.system("./git_backup.sh")
     
-    original_exp_number = 5363
+    original_exp_number = None
     seed_range = 5
     m = 10
     clean_up_sweep_files = False
@@ -394,6 +383,7 @@ if __name__ == "__main__":
             
             # ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
             ("cmmcmp_range", [(0.5, 2)]),
+            ("fallback_threshold", [0.7]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
