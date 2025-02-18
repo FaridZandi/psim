@@ -316,7 +316,7 @@ def do_experiment(plot_stuff=False,
 if __name__ == "__main__":
     os.system("./git_backup.sh")
 
-    original_exp_number = 5363
+    original_exp_number = None
     seed_range = 5
     m = 10
     clean_up_sweep_files = False
