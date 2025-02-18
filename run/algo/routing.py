@@ -44,7 +44,8 @@ def log_results(run_context, key, value):
 
 
 def route_flows(jobs, options, run_context, job_profiles, job_timings, 
-                suffix=1, highlighted_ranges=[], early_return=False): 
+                suffix=1, highlighted_ranges=[], early_return=False, 
+                override_routing_strategy=None): 
     
     # log the current wall clock time: 
     log_results(run_context, "getting the routing basics: ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
@@ -101,8 +102,11 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
                     
     lb_decisions = {} 
     # for flow in all_flows:
-    fit_strategy = run_context["routing-fit-strategy"] 
     
+    fit_strategy = run_context["routing-fit-strategy"] 
+    if override_routing_strategy is not None:
+        fit_strategy = override_routing_strategy
+        
     log_results(run_context, "Doing the main routing stuff ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
 
     # TODO: the times ranges can be calculated in here, instead of copying in each of the functions. 

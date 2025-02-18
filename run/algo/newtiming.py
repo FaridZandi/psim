@@ -246,9 +246,28 @@ class Solution():
             self.throttle_rates[job_id] = [1.0] * iter_count
             
     def get_job_cost(self, job_id):    
-        # TODO: implement this  
-        return 0
+        job = self.job_map[job_id]
+        cost = 0
+        for i in range(len(self.deltas[job_id])):
+            delta = self.deltas[job_id][i]
+            
+            throttle_rate = self.throttle_rates[job_id][i]
+            period = job.periods[throttle_rate]
+            throttle_cost = period - job.base_period
+            
+            cost += delta + throttle_cost
+        
+        return cost
 
+    def get_average_job_cost(self):   
+        total_cost = 0
+        for job_id in self.job_map.keys():
+            total_cost += self.get_job_cost(job_id)
+            
+        average_cost = total_cost / len(self.job_map) 
+
+        return average_cost
+    
 
     def get_job_timings(self):  
         job_timings = []    
@@ -562,6 +581,10 @@ class TimingSolver():
     def make_solution(self, bad_ranges=[]): 
         return Solution(self.job_map)   
 
+    def get_zero_solution(self):
+        solution = Solution(self.job_map)
+        return solution.get_job_timings(), solution
+    
     def solve(self, bad_ranges=[]):
         solution = self.make_solution(bad_ranges)
         return solution.get_job_timings(), solution 

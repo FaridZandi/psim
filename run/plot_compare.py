@@ -39,7 +39,7 @@ def annotate(ax):
         )
         
         
-def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type):        
+def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type, val_range):        
     if x_value is not None: 
         df = df[df[subplot_x_params] == x_value]     
     if y_value is not None: 
@@ -60,23 +60,30 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
         # the columns will be subplot_hue_params
         # the values will be plot_y_param
         
+        
         df_pivoted = df.pivot_table(
             index=plot_x_params,
             columns=subplot_hue_params,
             values=plot_y_param,
             aggfunc='mean'  # or 'sum', 'median', etc.
         )        
+        
         # with borders on the heatmap
         
         df_pivoted -= 1
         df_pivoted *= 100 
         df_pivoted = df_pivoted.round(0)
         
+        cbar_min = int((val_range[0] - 1) * 100)
+        cbar_max = int((val_range[1] - 1) * 100)
+        
         sns.heatmap(df_pivoted, ax=ax,
                     fmt=".0f", 
                     cmap="YlGnBu", annot=True, 
                     annot_kws={"size": 6},
-                    linewidths=0.5)        
+                    linewidths=0.5, 
+                    vmin=cbar_min, vmax=cbar_max
+                    )        
         
         ax.set_ylabel(plot_x_params)
         ax.set_xlabel(subplot_hue_params)
@@ -144,12 +151,17 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
 
     ax.title.set_size(8)
 
-    ax.set_xlabel(plot_x_params)
+    if plot_type != "heatmap":
+        ax.set_xlabel(plot_x_params)
     
 
 def draw_plot(df, value, file_dir, hue_order, plot_type):   
     if value is not None: 
         df = df[df[plot_params] == value]
+    
+    min_value = df["values"].min()
+    max_value = df["values"].max()
+    val_range = (min_value, max_value)
     
     if subplot_x_params is None: 
         subplot_x_len = 1 
@@ -202,7 +214,7 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
                 if j == len(subplot_y_values) - 1:
                     legend = True   
                 
-            draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type)  
+            draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type, val_range)  
             
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.{ext}", bbox_inches='tight', dpi=200)        
                 
@@ -213,6 +225,9 @@ def main(file_name, file_dir, plot_type):
     
     df["values"] = df["values"].apply(lambda x: [float(i) for i in x[1:-1].split(",")])
     df = df.explode("values")
+    
+
+    
     df["values"] = df["values"].astype(float)
     
     if subplot_hue_params is not None:

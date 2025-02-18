@@ -184,8 +184,10 @@ def do_experiment(plot_stuff=False,
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": False, 
-        "farid-rounds": 100, 
+        "farid-rounds": 10, 
         
+        "fallback-threshold": 1e9, 
+
         "lb-scheme": "random", 
         "routing-fit-strategy": "best",    
         "subflows": 1,
@@ -219,6 +221,19 @@ def do_experiment(plot_stuff=False,
                                     "subflows": subflow_count,     
                                     "lb-scheme": "readprotocol"
                                 }))
+            
+            if timing == "faridv4":
+                for fallback_threshold in [0.1, 0.2, 0.3, 0.4, 0.5]: 
+                    name += "+FB" + str(fallback_threshold)
+
+                    comparisons.append((name, {
+                                        "timing-scheme": timing,
+                                        "throttle-search": True if subflow_count > 1 else False,   
+                                        "routing-fit-strategy": "graph-coloring-v5",  
+                                        "subflows": subflow_count,     
+                                        "lb-scheme": "readprotocol",
+                                        "fallback-threshold": fallback_threshold, 
+                                    }))
     
     comparisons.append(("RO", {
                             "timing-scheme": "zero",
@@ -245,6 +260,7 @@ def do_experiment(plot_stuff=False,
         "plot-merged-ranges": False, 
         "plot-runtime-timing": False,
         "plot-link-empty-times": False,
+        
         
         "profiled-throttle-factors": profiled_throttle_factors, 
         
@@ -298,8 +314,11 @@ def do_experiment(plot_stuff=False,
 # Here, we iterate over things that will have different baselines to compare against.   
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
 if __name__ == "__main__":
-    original_exp_number = 5278
-
+    original_exp_number = None
+    seed_range = 5
+    m = 10
+    clean_up_sweep_files = False
+    
     if original_exp_number is not None: 
         exp_number = original_exp_number
     else:
@@ -310,11 +329,11 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
     
-    for plot_type in ["heatmap"]:  
+    for plot_type in []:  
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params machine_count \
+                        --subplot_y_params fallback_threshold \
                         --subplot_x_params comparison \
                         --subplot_hue_params job_count \
                         --plot_x_params rack_size \
@@ -334,7 +353,7 @@ if __name__ == "__main__":
                         --subplot_y_params job_count \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
-                        --plot_x_params machine_count \
+                        --plot_x_params fallback_threshold \
                         --plot_y_param values \
                         --plot_type {plot_type}"
                     
@@ -354,30 +373,24 @@ if __name__ == "__main__":
         os.system("rm -f last-exp-results-link-*") 
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
-        plot_stuff = True
-        seed_range = 20
-        m = 10
-        clean_up_sweep_files = True
-        
         exp_config = [
             ("sim_length", [400 * m]),
             
-            ("machine_count", [24, 48, 72, 96]),
-            
-            ("job_count", [6, 8]),
-            
-            ("rack_size", [4, 6, 8]),
-            
+            ("machine_count", [48]),
+            ("job_count", [2]),
+            ("rack_size", [6]),
+
             ("placement_mode", ["random"]), 
+            ("ring_mode", ["letitbe"]), 
+            
             # ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
             ("desired_entropy", [0.8]),
-            ("ring_mode", ["letitbe"]), 
+
             # ("oversub", [1, 2, 4]),
             ("oversub", [2]),
             
             # ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
             ("cmmcmp_range", [(0.5, 2)]),
-            # ("cmmcmp_range", [(2, 3)]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
@@ -399,8 +412,7 @@ if __name__ == "__main__":
         for perm in permutations_dicts:
             print("Running experiment with settings: ", perm)
             
-            summary, results_dir = do_experiment(plot_stuff=plot_stuff, 
-                                                 seed_range=seed_range, 
+            summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  **perm) 
             
             for summary_item in summary:    

@@ -159,7 +159,8 @@ placement_related_keys = ["placement-mode", "ring-mode",
 
 # things that would affect the scheduling, the timing and the routing.
 scheduling_related_keys = ["timing-scheme", "subflows", "throttle-search", 
-                           "routing-fit-strategy", "compat-score-mode", "farid-rounds", "lb-scheme", "inflate"] 
+                           "routing-fit-strategy", "compat-score-mode", "farid-rounds", 
+                           "lb-scheme", "inflate", "fallback-threshold"] 
 
 def summarize_key_ids(key): 
     s = key.split("-")
@@ -249,11 +250,6 @@ def run_command_options_modifier(options, config_sweeper, run_context):
         "original_timing_scheme": options["timing-scheme"],
     })
 
-    if "routing-fit-strategy" in options:
-        run_context["routing-fit-strategy"] = options["routing-fit-strategy"]
-        options.pop("routing-fit-strategy") 
-    else: 
-        run_context["routing-fit-strategy"] = ""
         
     # if the lb scheme involves making random decisions, then we need to run multiple reps.    
     if options["lb-scheme"] in lbs_involving_randomness:
@@ -283,28 +279,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     if options["timing-scheme"] == "farid":
         run_context["farid_timing"] = True
-        
-    if "compat-score-mode" in options: 
-        run_context["compat-score-mode"] = options["compat-score-mode"]
-        options.pop("compat-score-mode") 
-        
-    if "throttle-search" in options: 
-        run_context["throttle-search"] = options["throttle-search"]
-        options.pop("throttle-search")
-    
-    if "farid-rounds" in options:
-        run_context["farid-rounds"] = options["farid-rounds"]
-        options.pop("farid-rounds")   
     
     options["load-metric"] = default_load_metric_map[options["lb-scheme"]]
-    
-    # the subflows are fed to simulator as general-param-1
-    # TODO: I don't like this. 
-    # run_context["subflows"] = options["subflows"]
-    # options["general-param-1"] = options["subflows"]
-    # options.pop("subflows") 
-    
-    ### based on the placement seed, we need to generate the placements. 
     
     # handle the placement
     placement_mode = options["placement-mode"] 
@@ -312,19 +288,15 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     placement_seed = options["placement-seed"] 
     timing_scheme = options["timing-scheme"]    
 
-    run_context.update({
-        "placement-mode": options["placement-mode"],
-        "ring-mode": options["ring-mode"],
-        "placement-seed": options["placement-seed"], 
-        "timing-scheme": options["timing-scheme"],  
-        "inflate": options["inflate"],
-    })
+    move_from_op_to_cxt = ["compat-score-mode", "throttle-search", 
+                           "farid-rounds", "routing-fit-strategy", 
+                           "placement-mode", "ring-mode", "placement-seed",
+                           "timing-scheme", "inflate", "fallback-threshold"]
     
-    options.pop("placement-mode")   
-    options.pop("ring-mode")
-    options.pop("placement-seed")   
-    options.pop("timing-scheme")
-    options.pop("inflate")
+    for key in move_from_op_to_cxt: 
+        if key in options:
+            run_context[key] = options[key]
+            options.pop(key)
     
     #########################################################################################################
 

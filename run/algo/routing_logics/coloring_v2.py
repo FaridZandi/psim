@@ -8,8 +8,6 @@ def route_flows_graph_coloring_v2(all_flows, rem, usage, num_spines,
 
     min_affected_time = 1e9   
     max_affected_time = 0 
-    fit_strategy = run_context["routing-fit-strategy"] 
-    routing_plot_dir = run_context["routing-plot-dir"]  
     
     all_flows.sort(key=lambda x: x["eff_start_time"])
         
