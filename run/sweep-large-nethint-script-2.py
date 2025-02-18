@@ -252,12 +252,12 @@ def do_experiment(plot_stuff=False,
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "plot-initial-timing": False,
+        "plot-initial-timing": True,
         "plot-intermediate-timing": False,
-        "plot-final-timing": False,
+        "plot-final-timing": True,
         "plot-routing-assignment": False, 
-        "plot-merged-ranges": False, 
-        "plot-runtime-timing": False,
+        "plot-merged-ranges": True, 
+        "plot-runtime-timing": True,
         "plot-link-empty-times": False,
         
         
@@ -317,7 +317,7 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 10
+    seed_range = 1
     m = 10
     clean_up_sweep_files = False
     
