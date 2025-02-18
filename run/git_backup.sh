@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # create a backup of the git repository
 
 # if there's an error, stop the script  

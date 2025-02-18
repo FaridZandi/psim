@@ -314,9 +314,10 @@ def do_experiment(plot_stuff=False,
 # Here, we iterate over things that will have different baselines to compare against.   
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
 if __name__ == "__main__":
+    # make a backup of the current state of the repository.
     os.system("./git_backup.sh")
-
-    original_exp_number = None
+    
+    original_exp_number = 5363
     seed_range = 5
     m = 10
     clean_up_sweep_files = False
