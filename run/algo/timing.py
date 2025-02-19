@@ -1221,7 +1221,11 @@ def log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges):
         json.dump(prev_bad_ranges, f, indent=4)    
         f.flush()
 
-
+def log_progress(run_context, message): 
+    with open(run_context["output-file"], "a+") as f:   
+        f.write(f"{message}\n")
+        f.flush()
+        
 def append_to_bad_ranges(bad_ranges, new_bad_ranges):
     # we just do it one at a time.
     new_bad_ranges.sort() 
@@ -1307,7 +1311,10 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
     solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
     current_round = 0
     
+    
     # step 1: do the vanilla timing first.
+    log_progress(run_context, "starting vanilla timing")    
+    
     job_timings, solution = solver.solve()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                job_profiles, job_timings, 
@@ -1332,6 +1339,8 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
         append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
 
         # step 2.1: fix the timing.
+        log_progress(run_context, "starting timing fix, round {}".format(current_round))    
+        
         job_timings, solution = solver.solve_with_bad_ranges(prev_bad_ranges)
         # step 2.2: do the routing again.
         lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
@@ -1351,9 +1360,8 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
     # step 3: if routing is still bad, try inflating the whole thing and see if it helps.
     ################################################################################
     for inflate in [1.1, 1.2]:
-        with open(run_context["output-file"], "a+") as f:
-            f.write(f"inflation round {inflate}, starting at {datetime.now()}\n")    
-        
+        log_progress(run_context, "starting timing fix, inflate {}".format(inflate))    
+
         job_timings, solution = solver.solve_with_inflation(base_inflate=inflate)
                
         lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
@@ -1376,11 +1384,7 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
     bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
     average_job_cost = solution.get_average_job_cost() / run_context["sim-length"]
 
-    with open(run_context["output-file"], "a+") as f:
-        f.write(f"Giving up on fixing things. Fallback. \n")
-        f.write(f"bad range ratio: {bad_range_ratio}\n")    
-        f.write(f"average job cost: {average_job_cost}\n")
-        f.flush()
+    log_progress(run_context, "starting zero timing, bad range ratio: {}, average job cost: {}".format(bad_range_ratio, average_job_cost))
         
     job_timings, solution = solver.get_zero_solution()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 

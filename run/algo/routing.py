@@ -47,9 +47,6 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
                 suffix=1, highlighted_ranges=[], early_return=False, 
                 override_routing_strategy=None): 
     
-    # log the current wall clock time: 
-    log_results(run_context, "getting the routing basics: ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
-
     servers_per_rack = options["ft-server-per-rack"]
     num_leaves = options["machine-count"] // servers_per_rack   
     num_spines = options["ft-core-count"]
@@ -90,12 +87,8 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
         this_job_time = total_productive_time + total_time_delay 
         routing_time = max(routing_time, this_job_time)     
     
-    log_results(run_context, "initializing stuff: ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
-
     rem = initialize_rem(num_leaves, num_spines, link_bandwidth, routing_time)
     usage = initialize_usage(all_job_ids, num_leaves, num_spines, routing_time)
-    
-    log_results(run_context, "getting the flows: ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
     
     all_flows = get_all_flows(job_profiles, job_deltas, job_throttle_rates, 
                               job_periods, job_iterations)
@@ -107,8 +100,6 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
     if override_routing_strategy is not None:
         fit_strategy = override_routing_strategy
         
-    log_results(run_context, "Doing the main routing stuff ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
-
     # TODO: the times ranges can be calculated in here, instead of copying in each of the functions. 
     ############################################################################################################  
     # experimental code for graph coloring.
@@ -153,8 +144,6 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
             "spine_count": len(selected_spines),     
             "spine_rates": [(s, mult) for s, mult in selected_spines]
         })
-
-    log_results(run_context, "finished the routing stuff ", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))    
 
     return lb_decisions_proper, bad_ranges
 
