@@ -54,7 +54,7 @@ def hopcroft_karp(graph):
 
 def color_bipartite_multigraph_helper(input_edges):
     if not input_edges:
-        return [], 0
+        return {}, 0
 
     edges = [(r[0], r[1]) for r in input_edges]   
   
