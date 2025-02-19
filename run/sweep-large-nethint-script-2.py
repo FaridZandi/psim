@@ -252,12 +252,12 @@ def do_experiment(plot_stuff=False,
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "plot-initial-timing": True,
+        "plot-initial-timing": False,
         "plot-intermediate-timing": False,
-        "plot-final-timing": True,
+        "plot-final-timing": False,
         "plot-routing-assignment": False, 
-        "plot-merged-ranges": True, 
-        "plot-runtime-timing": True,
+        "plot-merged-ranges": False, 
+        "plot-runtime-timing": False,
         "plot-link-empty-times": False,
         
         
@@ -335,7 +335,7 @@ if __name__ == "__main__":
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params machine_count \
+                        --subplot_y_params inflate \
                         --subplot_x_params comparison \
                         --subplot_hue_params job_count \
                         --plot_x_params rack_size \
@@ -355,7 +355,7 @@ if __name__ == "__main__":
                         --subplot_y_params job_count \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
-                        --plot_x_params machine_count \
+                        --plot_x_params inflate \
                         --plot_y_param values \
                         --plot_type {plot_type}"
                     
@@ -401,7 +401,7 @@ if __name__ == "__main__":
                
             ("punish_oversubscribed_min", [1.0]), 
             ("search_quota", ["alot"]), 
-            ("inflate", [1.0]),    
+            ("inflate", [1, 1.1]),    
         ]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
