@@ -185,7 +185,7 @@ def do_experiment(plot_stuff=False,
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": False, 
-        "farid-rounds": 10, 
+        "farid-rounds": 5, 
         
         "fallback-threshold": 1e9, 
 

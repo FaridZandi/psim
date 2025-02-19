@@ -1205,7 +1205,7 @@ def log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges):
     bad_ranges_dir = f"{run_context['timings-dir']}/bad_ranges/"
     os.makedirs(bad_ranges_dir, exist_ok=True)
     
-    path = f"{bad_ranges_dir}/round_{current_round}.txt"
+    path = f"{bad_ranges_dir}/{current_round}.txt"
     
     bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
     
@@ -1320,7 +1320,7 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
                                                job_profiles, job_timings, 
                                                current_round, highlighted_ranges=[])
     
-    log_bad_ranges(run_context, current_round, new_bad_ranges, [])
+    log_bad_ranges(run_context, "1.0_vanilla", new_bad_ranges, [])
 
     # step 1.5: if the routing is good, return the results.
     if len(new_bad_ranges) == 0:
@@ -1331,24 +1331,31 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
     # step 2: if the routing is bad, then trying patching it up a little bit. 
     ################################################################################
 
-    prev_bad_ranges = [] 
-    max_attempts = run_context["farid-rounds"]
+    for inflate in [1.0, 1.1, 1.2, 1.3]:
 
-    current_round = 1
-    while len(new_bad_ranges) > 0 and current_round < max_attempts:
-        append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
+        max_attempts = run_context["farid-rounds"]
+        current_round = 1
+        prev_bad_ranges = [] 
 
-        # step 2.1: fix the timing.
-        log_progress(run_context, "starting timing fix, round {}".format(current_round))    
-        
-        job_timings, solution = solver.solve_with_bad_ranges(prev_bad_ranges)
-        # step 2.2: do the routing again.
-        lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
-                                                   job_profiles, job_timings, current_round, 
-                                                   highlighted_ranges=prev_bad_ranges)   
+        while len(new_bad_ranges) > 0 and current_round < max_attempts:
+            append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
 
-        log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges)
-        current_round += 1 
+            # step 2.1: fix the timing.
+            log_progress(run_context, "starting timing fix, round {}".format(current_round))    
+            
+            job_timings, solution = solver.solve_with_bad_ranges_and_inflation(prev_bad_ranges, inflate)
+            # step 2.2: do the routing again.
+            lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                                    job_profiles, job_timings, current_round, 
+                                                    highlighted_ranges=prev_bad_ranges)   
+
+            log_bad_ranges(run_context, f"inflation_{inflate}_round_{current_round}", 
+                           new_bad_ranges, prev_bad_ranges)
+            
+            current_round += 1
+            
+        if len(new_bad_ranges) == 0:
+            break 
         
     # step 2.5: if the routing is good, return the results.
     bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
@@ -1357,29 +1364,7 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
 
 
     ################################################################################
-    # step 3: if routing is still bad, try inflating the whole thing and see if it helps.
-    ################################################################################
-    for inflate in [1.1, 1.2, 1.3]:
-        log_progress(run_context, "starting timing fix, inflate {}".format(inflate))    
-
-        job_timings, solution = solver.solve_with_inflation(base_inflate=inflate)
-               
-        lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
-                                                   job_profiles, job_timings, 
-                                                   current_round, 
-                                                   highlighted_ranges=[], 
-                                                   early_return=False)   
-        
-        log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges)
-        
-        if len(new_bad_ranges) == 0:
-            break
-    
-    if len(new_bad_ranges) == 0:
-        return job_timings, lb_decisions
-
-    ################################################################################
-    # step 4: if routing is still bad, then do the zero timing + v3 routing.
+    # step 3: if routing is still bad, then do the zero timing + v3 routing.
     ################################################################################
     bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
     average_job_cost = solution.get_average_job_cost() / run_context["sim-length"]
