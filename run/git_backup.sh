@@ -33,6 +33,6 @@ else
     # just keep going on the current branch
     git add -u
     git commit -m "backup $(date)"
-    git push
+    git push --set-upstream origin $branch_name
 fi
 
