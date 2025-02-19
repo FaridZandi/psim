@@ -1359,7 +1359,7 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
     ################################################################################
     # step 3: if routing is still bad, try inflating the whole thing and see if it helps.
     ################################################################################
-    for inflate in [1.1, 1.2]:
+    for inflate in [1.1, 1.2, 1.3]:
         log_progress(run_context, "starting timing fix, inflate {}".format(inflate))    
 
         job_timings, solution = solver.solve_with_inflation(base_inflate=inflate)
