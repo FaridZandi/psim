@@ -626,7 +626,10 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
 
         elif metric == "subflow_ratio":
             job_numbers = run_context["subflow_ratio"]   
-                        
+        
+        elif metric == "total_time":
+            job_numbers = get_psim_time(output)["last"]    
+            
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 
