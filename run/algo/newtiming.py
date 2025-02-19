@@ -593,15 +593,17 @@ class TimingSolver():
         return solution.get_job_timings(), solution 
     
     def solve_with_bad_ranges(self, bad_ranges):
-        solution = self.make_solution(bad_ranges)
+        solution = self.make_solution(bad_ranges=bad_ranges)
         return solution.get_job_timings(), solution
     
     def solve_with_inflation(self, base_inflate):
-        solution = self.make_solution(base_inflate)
+        solution = self.make_solution(base_inflate=base_inflate)
         return solution.get_job_timings(), solution 
     
     
-    
+########################################################################################   
+########################################################################################   
+########################################################################################   
     
 class SequentialSolver(TimingSolver):   
     def __init__(self, jobs, run_context, options, job_profiles, scheme):
@@ -634,7 +636,13 @@ class SequentialSolver(TimingSolver):
             print(sol.deltas, file=sys.stderr)     
             
         return sol
-    
+
+
+
+########################################################################################   
+########################################################################################   
+########################################################################################
+
     
 class LegoSolver(TimingSolver): 
     
@@ -768,8 +776,10 @@ class LegoSolver(TimingSolver):
         
         return sol
     
-    
-    
+ 
+########################################################################################   
+########################################################################################   
+########################################################################################   
 
 class LegoV2Solver(TimingSolver): 
     

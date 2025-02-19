@@ -401,7 +401,7 @@ if __name__ == "__main__":
                
             ("punish_oversubscribed_min", [1.0]), 
             ("search_quota", ["alot"]), 
-            ("inflate", [1, 1.1]),    
+            ("inflate", [1]),    
         ]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
