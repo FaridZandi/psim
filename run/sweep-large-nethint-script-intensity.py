@@ -336,7 +336,7 @@ if __name__ == "__main__":
     original_exp_number = None
     seed_range = 20
     m = 50
-    clean_up_sweep_files = False
+    clean_up_sweep_files = True
     
     if original_exp_number is not None: 
         exp_number = original_exp_number
