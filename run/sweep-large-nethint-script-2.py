@@ -365,8 +365,6 @@ if __name__ == "__main__":
                 clean_plot_command = clean_plot_command.replace("  ", " ") 
             f.write(clean_plot_command + "\n\n")
     
-        
-    
     if original_exp_number is None:
         exp_dir = f"results/exps/{exp_number}"
         path = f"results/exps/{exp_number}/results.csv" 
