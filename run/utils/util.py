@@ -144,43 +144,15 @@ def get_base_dir():
 
 
    
-def get_psim_time(job_output, print_output=False): 
-    psim_times = []
-    output_lines = [] 
-    for line in iter(job_output.readline, b''):
-        output = line.decode("utf-8")
-        if "psim time:" in output:
-            psim_time = float(output.split("psim time:")[1])
-            psim_times.append(psim_time)
-            
-        if print_output:
-            print(output, end="")
-            sys.stdout.flush()
-            sys.stderr.flush()
-        else :
-            output_lines.append(output)
+def get_psim_time(output): 
     
-    if len(psim_times) == 0:
-        print("no psim times found, simulation probably failed")
-        print("Please check the output to see what went wrong")
-        print("no point in continuing, exiting")
-        for line in output_lines:
-            print(line, end="")
+    for line in output:
+        if "psim time:" in line:
+            psim_time = float(line.split("psim time:")[1])
+            return psim_time        
         
-        rage_quit("no psim times found, simulation probably failed")
-        
-        
-    else:     
-        result = {
-            "all": psim_times,
-            "avg": np.mean(psim_times), 
-            "max": np.max(psim_times),
-            "min": np.min(psim_times),
-            "median": np.median(psim_times), 
-            "last": psim_times[-1]
-        } 
+    rage_quit("no psim times found, simulation probably failed")
     
-    return result
 
 
 def get_random_string(length):

@@ -599,6 +599,10 @@ class TimingSolver():
     def solve_with_inflation(self, base_inflate):
         solution = self.make_solution(base_inflate=base_inflate)
         return solution.get_job_timings(), solution 
+
+    def solve_with_bad_ranges_and_inflation(self, bad_ranges, base_inflate):
+        solution = self.make_solution(bad_ranges=bad_ranges, base_inflate=base_inflate)
+        return solution.get_job_timings(), solution
     
     
 ########################################################################################   

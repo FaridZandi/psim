@@ -27,7 +27,7 @@ def do_experiment(plot_stuff=False,
                   comm_size=(12000, 60000, 6000),
                   comp_size=(200, 1000, 1),
                   layer_count=(1, 2, 1), 
-                  fallback_threshold=1e9): 
+                  fallback_threshold=0.5): 
     
     placement_options = 100
     
@@ -121,6 +121,13 @@ def do_experiment(plot_stuff=False,
             "better": "lower",
             "type": "per_iter",
         }, 
+        "total_time": {
+            "avg_cdf_plot": True,   
+            "iter_avg_plot": False,  
+            "compare_mode": "divide",
+            "better": "lower",
+            "type": "single_number",
+        }, 
         "rolling_iter_time": {
             "avg_cdf_plot": False,   
             "iter_avg_plot": True,  
@@ -162,14 +169,21 @@ def do_experiment(plot_stuff=False,
 
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     
+    considered_sub = 1 
+    
     if core_count == 2: 
         profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2
     elif core_count == 3: 
-        profiled_throttle_factors = [1.0, 0.66, 0.33]
+        profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2
     elif core_count == 4:
-        profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
+        profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2
     elif core_count == 6:
-        profiled_throttle_factors = [1.0, 0.83, 0.66, 0.5, 0.33, 0.16]
+        profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2
+        
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
@@ -185,7 +199,7 @@ def do_experiment(plot_stuff=False,
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": False, 
-        "farid-rounds": 10, 
+        "farid-rounds": 6, 
         
         "fallback-threshold": 1e9, 
 
@@ -204,41 +218,44 @@ def do_experiment(plot_stuff=False,
                             "throttle-search": False,
                             "lb-scheme": "random"
                         }))
-       
+    
+    comparisons.append(("RO3", {
+                            "timing-scheme": "zero",
+                            "routing-fit-strategy": "graph-coloring-v3",  
+                            "lb-scheme": "readprotocol"
+                        }))
+    
+    comparisons.append(("RO5", {
+                            "timing-scheme": "zero",
+                            "routing-fit-strategy": "graph-coloring-v5",  
+                            "lb-scheme": "readprotocol"
+                        }))
+    
     for timing in ["faridv2", "faridv4"]:
-        for subflow_count in [1, core_count]:
-            name = "TS+RO"
-            
-            if subflow_count > 1:
-                name += f"+SUB+TH"
+        for subflow_count in [1, considered_sub]:
+            for coloring in ["graph-coloring-v5"]:
+                name = "TS"
                 
-            if timing == "faridv4":
-                name += "+REP"
+                if coloring == "graph-coloring-v3": 
+                    name += "+RO3"
+                elif coloring == "graph-coloring-v5":
+                    name += "+RO5"
                 
-            comparisons.append((name, {
-                                    "timing-scheme": timing,
-                                    "throttle-search": True if subflow_count > 1 else False,   
-                                    "routing-fit-strategy": "graph-coloring-v5",  
-                                    "subflows": subflow_count,     
-                                    "lb-scheme": "readprotocol"
-                                }))
-            
-            if timing == "faridv4":
-                name += "+FB"
+                if subflow_count > 1:
+                    name += f"+SUB+TH"
+                    
+                if timing == "faridv4":
+                    name += "+REP"
+                    
                 comparisons.append((name, {
                                         "timing-scheme": timing,
                                         "throttle-search": True if subflow_count > 1 else False,   
-                                        "routing-fit-strategy": "graph-coloring-v5",  
+                                        "routing-fit-strategy": coloring,     
                                         "subflows": subflow_count,     
                                         "fallback-threshold": fallback_threshold, 
                                         "lb-scheme": "readprotocol"
                                     }))
-
-    comparisons.append(("RO", {
-                            "timing-scheme": "zero",
-                            "routing-fit-strategy": "graph-coloring-v3",  
-                            "lb-scheme": "readprotocol"
-                        }))     
+            
     
     comparisons.append(("Perfect", {
                             "timing-scheme": "zero",
@@ -317,8 +334,8 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 1
-    m = 10
+    seed_range = 3
+    m = 30
     clean_up_sweep_files = False
     
     if original_exp_number is not None: 
@@ -337,7 +354,7 @@ if __name__ == "__main__":
                         --plot_params metric \
                         --subplot_y_params inflate \
                         --subplot_x_params comparison \
-                        --subplot_hue_params job_count \
+                        --subplot_hue_params desired_entropy \
                         --plot_x_params rack_size \
                         --plot_y_param values \
                         --plot_type {plot_type}"
@@ -352,7 +369,7 @@ if __name__ == "__main__":
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params job_count \
+                        --subplot_y_params desired_entropy \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
                         --plot_x_params inflate \
@@ -374,24 +391,23 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [400 * m]),
+            ("sim_length", [200 * m]),
             
-            ("machine_count", [48]),
+            ("machine_count", [72]),
             ("job_count", [6]),
-            ("rack_size", [12]),
+            ("rack_size", [6]),
 
-            ("placement_mode", ["random"]), 
+            ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             
-            # ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
-            ("desired_entropy", [0.8]),
+            ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
 
             # ("oversub", [1, 2, 4]),
             ("oversub", [2]),
             
             # ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
-            ("cmmcmp_range", [(0.5, 2)]),
-            ("fallback_threshold", [0.7]),
+            ("cmmcmp_range", [(0.5, 1)]),
+            ("fallback_threshold", [0.5]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
