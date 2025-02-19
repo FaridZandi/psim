@@ -185,7 +185,7 @@ def do_experiment(plot_stuff=False,
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": False, 
-        "farid-rounds": 30, 
+        "farid-rounds": 10, 
         
         "fallback-threshold": 1e9, 
 
@@ -390,7 +390,7 @@ if __name__ == "__main__":
             ("oversub", [2]),
             
             # ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
-            ("cmmcmp_range", [(0.5, 2)]),
+            ("cmmcmp_range", [(0.5, 1)]),
             ("fallback_threshold", [0.7]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
