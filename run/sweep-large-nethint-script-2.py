@@ -379,8 +379,8 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             
             ("machine_count", [48]),
-            ("job_count", [12]),
-            ("rack_size", [6]),
+            ("job_count", [6]),
+            ("rack_size", [12]),
 
             ("placement_mode", ["random"]), 
             ("ring_mode", ["letitbe"]), 
