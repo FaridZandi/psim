@@ -333,7 +333,7 @@ if __name__ == "__main__":
     # make a backup of the current state of the repository.
     os.system("./git_backup.sh")
     
-    original_exp_number = None
+    original_exp_number = 5456
     seed_range = 20
     m = 50
     clean_up_sweep_files = True
@@ -348,14 +348,14 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
     
-    for plot_type in []:  
+    for plot_type in ["heatmap"]:  
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params inflate \
-                        --subplot_x_params comparison \
+                        --subplot_y_params comparison \
+                        --subplot_x_params machine_count \
                         --subplot_hue_params desired_entropy \
-                        --plot_x_params rack_size \
+                        --plot_x_params cmmcmp_range \
                         --plot_y_param values \
                         --plot_type {plot_type}"
 
@@ -370,9 +370,9 @@ if __name__ == "__main__":
                         --file_name {path} \
                         --plot_params metric \
                         --subplot_y_params desired_entropy \
-                        --subplot_x_params sim_length \
+                        --subplot_x_params cmmcmp_range \
                         --subplot_hue_params comparison \
-                        --plot_x_params inflate \
+                        --plot_x_params machine_count \
                         --plot_y_param values \
                         --plot_type {plot_type}"
                     
