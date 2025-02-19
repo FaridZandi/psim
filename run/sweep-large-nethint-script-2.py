@@ -168,11 +168,12 @@ def do_experiment(plot_stuff=False,
         profiled_throttle_factors = [1.0, 0.5]
         considered_sub = 2
     elif core_count == 3: 
-        profiled_throttle_factors = [1.0, 0.66, 0.33]
+        profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2
     elif core_count == 4:
-        profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
+        profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2
     elif core_count == 6:
-        # profiled_throttle_factors = [1.0, 0.83, 0.66, 0.5, 0.33, 0.16]
         profiled_throttle_factors = [1.0, 0.5]
         considered_sub = 2
         
@@ -225,7 +226,7 @@ def do_experiment(plot_stuff=False,
     
     for timing in ["faridv2", "faridv4"]:
         for subflow_count in [1, considered_sub]:
-            for coloring in ["graph-coloring-v3", "graph-coloring-v5"]:
+            for coloring in ["graph-coloring-v5"]:
                 name = "TS"
                 
                 if coloring == "graph-coloring-v3": 
@@ -387,7 +388,7 @@ if __name__ == "__main__":
             
             ("machine_count", [72]),
             ("job_count", [6]),
-            ("rack_size", [12]),
+            ("rack_size", [6]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
