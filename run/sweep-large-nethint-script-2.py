@@ -308,7 +308,7 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 10
+    seed_range = 4
     m = 30
     clean_up_sweep_files = False
     
@@ -328,7 +328,7 @@ if __name__ == "__main__":
                         --plot_params metric \
                         --subplot_y_params inflate \
                         --subplot_x_params comparison \
-                        --subplot_hue_params job_count \
+                        --subplot_hue_params desired_entropy \
                         --plot_x_params rack_size \
                         --plot_y_param values \
                         --plot_type {plot_type}"
@@ -343,7 +343,7 @@ if __name__ == "__main__":
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params job_count \
+                        --subplot_y_params desired_entropy \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
                         --plot_x_params inflate \
@@ -365,17 +365,16 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [400 * m]),
+            ("sim_length", [200 * m]),
             
             ("machine_count", [72]),
             ("job_count", [6]),
             ("rack_size", [12]),
 
-            ("placement_mode", ["random"]), 
+            ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             
-            # ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
-            ("desired_entropy", [0.8]),
+            ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
 
             # ("oversub", [1, 2, 4]),
             ("oversub", [2]),
