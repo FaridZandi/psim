@@ -333,7 +333,7 @@ if __name__ == "__main__":
     # make a backup of the current state of the repository.
     os.system("./git_backup.sh")
     
-    original_exp_number = 16
+    original_exp_number = None
     seed_range = 20
     m = 50
     clean_up_sweep_files = True
