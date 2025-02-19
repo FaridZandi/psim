@@ -205,30 +205,42 @@ def do_experiment(plot_stuff=False,
                             "lb-scheme": "random"
                         }))
     
-    comparisons.append(("RO", {
+    comparisons.append(("RO3", {
                             "timing-scheme": "zero",
                             "routing-fit-strategy": "graph-coloring-v3",  
                             "lb-scheme": "readprotocol"
                         }))
-       
+    
+    comparisons.append(("RO5", {
+                            "timing-scheme": "zero",
+                            "routing-fit-strategy": "graph-coloring-v5",  
+                            "lb-scheme": "readprotocol"
+                        }))
+    
     for timing in ["faridv2", "faridv4"]:
         for subflow_count in [1, core_count]:
-            name = "TS+RO"
-            
-            if subflow_count > 1:
-                name += f"+SUB+TH"
+            for coloring in ["graph-coloring-v3", "graph-coloring-v5"]:
+                name = "TS"
                 
-            if timing == "faridv4":
-                name += "+REP"
+                if coloring == "graph-coloring-v3": 
+                    name += "+RO3"
+                elif coloring == "graph-coloring-v5":
+                    name += "+RO5"
                 
-            comparisons.append((name, {
-                                    "timing-scheme": timing,
-                                    "throttle-search": True if subflow_count > 1 else False,   
-                                    "routing-fit-strategy": "graph-coloring-v5",  
-                                    "subflows": subflow_count,     
-                                    "fallback-threshold": fallback_threshold, 
-                                    "lb-scheme": "readprotocol"
-                                }))
+                if subflow_count > 1:
+                    name += f"+SUB+TH"
+                    
+                if timing == "faridv4":
+                    name += "+REP"
+                    
+                comparisons.append((name, {
+                                        "timing-scheme": timing,
+                                        "throttle-search": True if subflow_count > 1 else False,   
+                                        "routing-fit-strategy": coloring,     
+                                        "subflows": subflow_count,     
+                                        "fallback-threshold": fallback_threshold, 
+                                        "lb-scheme": "readprotocol"
+                                    }))
             
     
     comparisons.append(("Perfect", {
