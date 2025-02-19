@@ -578,22 +578,36 @@ class TimingSolver():
         
         plt.savefig(plot_path)    
         
-    def make_solution(self, bad_ranges=[]): 
+    def make_solution(self, bad_ranges=[], base_inflate=1.0): 
         return Solution(self.job_map)   
+
 
     def get_zero_solution(self):
         solution = Solution(self.job_map)
         return solution.get_job_timings(), solution
+
+
     
-    def solve(self, bad_ranges=[]):
-        solution = self.make_solution(bad_ranges)
+    def solve(self):
+        solution = self.make_solution()
         return solution.get_job_timings(), solution 
+    
+    def solve_with_bad_ranges(self, bad_ranges):
+        solution = self.make_solution(bad_ranges)
+        return solution.get_job_timings(), solution
+    
+    def solve_with_inflation(self, base_inflate):
+        solution = self.make_solution(base_inflate)
+        return solution.get_job_timings(), solution 
+    
+    
+    
     
 class SequentialSolver(TimingSolver):   
     def __init__(self, jobs, run_context, options, job_profiles, scheme):
         super().__init__(jobs, run_context, options, job_profiles, scheme)
         
-    def make_solution(self, bad_ranges=[]):   
+    def make_solution(self, bad_ranges=[], base_inflate=1.0):   
         sol = Solution(self.job_map)  
 
         # create a sequential solution for the jobs
@@ -627,9 +641,9 @@ class LegoSolver(TimingSolver):
     def __init__(self, jobs, run_context, options, job_profiles, scheme):
         super().__init__(jobs, run_context, options, job_profiles, scheme)
 
-    def make_solution(self, bad_ranges):
+    def make_solution(self, bad_ranges=[], base_inflate=1.0):
+
         links = list(self.links.values())   
-        
         sol = Solution(self.job_map)    
         
         job_ids = list(self.job_map.keys())    
@@ -762,7 +776,7 @@ class LegoV2Solver(TimingSolver):
     def __init__(self, jobs, run_context, options, job_profiles, scheme):
         super().__init__(jobs, run_context, options, job_profiles, scheme)
 
-    def make_solution(self, bad_ranges):
+    def make_solution(self, bad_ranges = [], base_inflate = 1.0):
         links = list(self.links.values())   
         
         sol = Solution(self.job_map)    
@@ -838,15 +852,15 @@ class LegoV2Solver(TimingSolver):
                 max_max_load = max(max_loads.values()) 
                 
                 load_mult = 1 
-                inflate = 1.0 
+                inflate = base_inflate
 
                 if "inflate" in self.run_context:   
-                    inflate = self.run_context["inflate"]
+                    inflate *= self.run_context["inflate"]
                     
                 if max_max_load > self.capacity:                    
                     result_type = "overload"    
                     inflate *= math.ceil(max_max_load / self.capacity)
-                    load_mult = self.capacity / max_max_load 
+                    load_mult = self.capacity / max_max_load     
                 else: 
                     result_type = "regular"          
 

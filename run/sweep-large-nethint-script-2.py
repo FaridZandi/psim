@@ -201,7 +201,7 @@ def do_experiment(plot_stuff=False,
     
     comparisons.append(("TS", {
                             "timing-scheme": "faridv2",
-                            "throttle-search": True,
+                            "throttle-search": False,
                             "lb-scheme": "random"
                         }))
        
