@@ -642,7 +642,9 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
         
         if metric_info["avg_cdf_plot"]:
             if metric_info["type"] == "single_number":
-                printed_metrics.append(metric)
+
+                printed_metrics.append("avg_{}".format(metric)) 
+
                 this_exp_results.update({   
                     "min_{}".format(metric): job_numbers,   
                     "max_{}".format(metric): job_numbers,
@@ -650,6 +652,7 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
                     "avg_{}".format(metric): job_numbers,
                     "all_{}".format(metric): job_numbers,
                 })
+
             elif metric_info["type"] == "per_iter":
                 avg_job_numbers = [] 
                 for rep in job_numbers:
