@@ -385,7 +385,7 @@ if __name__ == "__main__":
             ("job_count", [4, 6, 8]),
             ("rack_size", [6, 8, 12]),
 
-            ("placement_mode", ["entropy"]), 
+            ("placement_mode", ["random"]), 
             ("ring_mode", ["letitbe"]), 
             
             ("desired_entropy", [0.7]),
@@ -393,7 +393,7 @@ if __name__ == "__main__":
             # ("oversub", [1, 2, 4]),
             ("oversub", [1]),
             
-            ("cmmcmp_range", [(0, 2)]),
+            ("cmmcmp_range", [(1.5, 2)]),
   
             # ("cmmcmp_range", [(0.5, 2)]),
             ("fallback_threshold", [0.5]),
