@@ -316,7 +316,7 @@ def do_experiment(plot_stuff=False,
         exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format("", "", "",  
                                                             oversub, 
                                                             experiment_seed),
-        worker_thread_count=40, 
+        worker_thread_count=30, 
         plot_cdfs=False,
     )
     
@@ -334,8 +334,8 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 3
-    m = 30
+    seed_range = 20
+    m = 50
     clean_up_sweep_files = False
     
     if original_exp_number is not None: 
@@ -391,22 +391,23 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [200 * m, 400 * m, 800 * m]),
+            ("sim_length", [400 * m]),
             
-            ("machine_count", [72]),
+            ("machine_count", [24, 48, 72]),
             ("job_count", [6]),
-            ("rack_size", [6]),
+            ("rack_size", [8]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             
-            ("desired_entropy", [0.5, 0.6, 0.7, 0.8, 0.9]),
+            ("desired_entropy", [0.1, 0.3, 0.5, 0.7, 0.9]),
 
             # ("oversub", [1, 2, 4]),
             ("oversub", [2]),
             
-            # ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
-            ("cmmcmp_range", [(0.5, 2)]),
+            ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
+  
+            # ("cmmcmp_range", [(0.5, 2)]),
             ("fallback_threshold", [0.5]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
