@@ -370,7 +370,7 @@ if __name__ == "__main__":
                         --file_name {path} \
                         --plot_params metric \
                         --subplot_y_params desired_entropy \
-                        --subplot_x_params rack_size \
+                        --subplot_x_params sim_length \
                         --subplot_hue_params comparison \
                         --plot_x_params inflate \
                         --plot_y_param values \
@@ -391,7 +391,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [200 * m]),
+            ("sim_length", [200 * m, 400 * m, 800 * m]),
             
             ("machine_count", [72]),
             ("job_count", [6]),
@@ -406,7 +406,7 @@ if __name__ == "__main__":
             ("oversub", [2]),
             
             # ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
-            ("cmmcmp_range", [(0.5, 1)]),
+            ("cmmcmp_range", [(0.5, 2)]),
             ("fallback_threshold", [0.5]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
