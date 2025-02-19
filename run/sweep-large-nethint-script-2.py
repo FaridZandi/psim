@@ -162,14 +162,20 @@ def do_experiment(plot_stuff=False,
 
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     
+    considered_sub = 1 
+    
     if core_count == 2: 
         profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2
     elif core_count == 3: 
         profiled_throttle_factors = [1.0, 0.66, 0.33]
     elif core_count == 4:
         profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
     elif core_count == 6:
-        profiled_throttle_factors = [1.0, 0.83, 0.66, 0.5, 0.33, 0.16]
+        # profiled_throttle_factors = [1.0, 0.83, 0.66, 0.5, 0.33, 0.16]
+        profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2
+        
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
@@ -218,7 +224,7 @@ def do_experiment(plot_stuff=False,
                         }))
     
     for timing in ["faridv2", "faridv4"]:
-        for subflow_count in [1, core_count]:
+        for subflow_count in [1, considered_sub]:
             for coloring in ["graph-coloring-v3", "graph-coloring-v5"]:
                 name = "TS"
                 
