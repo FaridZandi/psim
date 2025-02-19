@@ -1221,7 +1221,11 @@ def log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges):
         json.dump(prev_bad_ranges, f, indent=4)    
         f.flush()
 
-
+def log_progress(run_context, message): 
+    with open(run_context["output-file"], "a+") as f:   
+        f.write(f"{message}\n")
+        f.flush()
+        
 def append_to_bad_ranges(bad_ranges, new_bad_ranges):
     # we just do it one at a time.
     new_bad_ranges.sort() 
@@ -1304,69 +1308,91 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
     timing_scheme = run_context["timing-scheme"]
     assert timing_scheme == "faridv4" 
 
-
     solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
     current_round = 0
     
-    # step 1: do the timing first.
+    
+    # step 1: do the vanilla timing first.
+    log_progress(run_context, "starting vanilla timing")    
+    
     job_timings, solution = solver.solve()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
-                                                   job_profiles, job_timings, 
-                                                   current_round, highlighted_ranges=[], 
-                                                   early_return=False)
+                                               job_profiles, job_timings, 
+                                               current_round, highlighted_ranges=[])
     
     log_bad_ranges(run_context, current_round, new_bad_ranges, [])
 
-    prev_bad_ranges = [] 
-    current_round = 1
-    max_attempts = run_context["farid-rounds"]
+    # step 1.5: if the routing is good, return the results.
+    if len(new_bad_ranges) == 0:
+        return job_timings, lb_decisions
     
-    # step 2: if the routing is good, return the results.
+    
+    ################################################################################
+    # step 2: if the routing is bad, then trying patching it up a little bit. 
+    ################################################################################
+
+    prev_bad_ranges = [] 
+    max_attempts = run_context["farid-rounds"]
+
+    current_round = 1
     while len(new_bad_ranges) > 0 and current_round < max_attempts:
-            
         append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
 
-        # step 3: fix the timing.
-        with open(run_context["output-file"], "a+") as f:
-            f.write(f"timing round {current_round}, starting at {datetime.now()}\n")    
-            
-        job_timings, solution = solver.solve(prev_bad_ranges)
-        # step 4: do the routing again.
+        # step 2.1: fix the timing.
+        log_progress(run_context, "starting timing fix, round {}".format(current_round))    
         
-        with open(run_context["output-file"], "a+") as f:
-            f.write(f"routing round {current_round}, starting at {datetime.now()}\n")    
-        
-        early_return = True
-        if current_round == max_attempts - 1:
-            early_return = False
-        
+        job_timings, solution = solver.solve_with_bad_ranges(prev_bad_ranges)
+        # step 2.2: do the routing again.
         lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
-                                                   job_profiles, job_timings, 
-                                                   current_round, 
-                                                   highlighted_ranges=prev_bad_ranges, 
-                                                   early_return=early_return)   
+                                                   job_profiles, job_timings, current_round, 
+                                                   highlighted_ranges=prev_bad_ranges)   
 
         log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges)
         current_round += 1 
-
-            
+        
+    # step 2.5: if the routing is good, return the results.
     bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
-    average_job_cost = solution.get_average_job_cost() / run_context["sim-length"]
+    if len(new_bad_ranges) == 0 and bad_range_ratio < run_context["fallback-threshold"]:
+        return job_timings, lb_decisions
 
-    with open(run_context["output-file"], "a+") as f:
-        f.write(f"average job cost: {average_job_cost}\n")
-        f.flush()
-        
-        
-    if average_job_cost > run_context["fallback-threshold"] or bad_range_ratio > run_context["fallback-threshold"]:
-        # get zero timing + v3 routing 
-        job_timings, solution = solver.get_zero_solution()
+
+    ################################################################################
+    # step 3: if routing is still bad, try inflating the whole thing and see if it helps.
+    ################################################################################
+    for inflate in [1.1, 1.2]:
+        log_progress(run_context, "starting timing fix, inflate {}".format(inflate))    
+
+        job_timings, solution = solver.solve_with_inflation(base_inflate=inflate)
+               
         lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                    job_profiles, job_timings, 
                                                    current_round, 
                                                    highlighted_ranges=[], 
-                                                   early_return=False, 
-                                                   override_routing_strategy="graph-coloring-v3")
+                                                   early_return=False)   
+        
+        log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges)
+        
+        if len(new_bad_ranges) == 0:
+            break
+    
+    if len(new_bad_ranges) == 0:
+        return job_timings, lb_decisions
+
+    ################################################################################
+    # step 4: if routing is still bad, then do the zero timing + v3 routing.
+    ################################################################################
+    bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
+    average_job_cost = solution.get_average_job_cost() / run_context["sim-length"]
+
+    log_progress(run_context, "starting zero timing, bad range ratio: {}, average job cost: {}".format(bad_range_ratio, average_job_cost))
+        
+    job_timings, solution = solver.get_zero_solution()
+    lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                                job_profiles, job_timings, 
+                                                current_round, 
+                                                highlighted_ranges=[], 
+                                                early_return=False, 
+                                                override_routing_strategy="graph-coloring-v3")
         
     return job_timings, lb_decisions
 

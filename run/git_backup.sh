@@ -1,4 +1,9 @@
+#!/usr/bin/env bash
+
 # create a backup of the git repository
+
+# if there's an error, stop the script  
+set -e
 
 # if we are the main branch 
 current_branch=$(git branch | grep \* | cut -d ' ' -f2) 

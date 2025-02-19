@@ -26,7 +26,8 @@ def do_experiment(plot_stuff=False,
                   cmmcmp_range=(0, 1),
                   comm_size=(12000, 60000, 6000),
                   comp_size=(200, 1000, 1),
-                  layer_count=(1, 2, 1)): 
+                  layer_count=(1, 2, 1), 
+                  fallback_threshold=1e9): 
     
     placement_options = 100
     
@@ -200,7 +201,7 @@ def do_experiment(plot_stuff=False,
     
     comparisons.append(("TS", {
                             "timing-scheme": "faridv2",
-                            "throttle-search": True,
+                            "throttle-search": False,
                             "lb-scheme": "random"
                         }))
        
@@ -223,18 +224,16 @@ def do_experiment(plot_stuff=False,
                                 }))
             
             if timing == "faridv4":
-                for fallback_threshold in [0.9, 0.7, 0.5, 0.3]: 
-                    this_name = name + "+FB" + str(fallback_threshold)
-
-                    comparisons.append((this_name, {
+                name += "+FB"
+                comparisons.append((name, {
                                         "timing-scheme": timing,
                                         "throttle-search": True if subflow_count > 1 else False,   
                                         "routing-fit-strategy": "graph-coloring-v5",  
                                         "subflows": subflow_count,     
-                                        "lb-scheme": "readprotocol",
                                         "fallback-threshold": fallback_threshold, 
+                                        "lb-scheme": "readprotocol"
                                     }))
-    
+
     comparisons.append(("RO", {
                             "timing-scheme": "zero",
                             "routing-fit-strategy": "graph-coloring-v3",  
@@ -314,10 +313,11 @@ def do_experiment(plot_stuff=False,
 # Here, we iterate over things that will have different baselines to compare against.   
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
 if __name__ == "__main__":
+    # make a backup of the current state of the repository.
     os.system("./git_backup.sh")
-
+    
     original_exp_number = None
-    seed_range = 5
+    seed_range = 1
     m = 10
     clean_up_sweep_files = False
     
@@ -335,7 +335,7 @@ if __name__ == "__main__":
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params fallback_threshold \
+                        --subplot_y_params inflate \
                         --subplot_x_params comparison \
                         --subplot_hue_params job_count \
                         --plot_x_params rack_size \
@@ -355,7 +355,7 @@ if __name__ == "__main__":
                         --subplot_y_params job_count \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
-                        --plot_x_params fallback_threshold \
+                        --plot_x_params inflate \
                         --plot_y_param values \
                         --plot_type {plot_type}"
                     
@@ -364,8 +364,6 @@ if __name__ == "__main__":
             while "  " in clean_plot_command:
                 clean_plot_command = clean_plot_command.replace("  ", " ") 
             f.write(clean_plot_command + "\n\n")
-    
-        
     
     if original_exp_number is None:
         exp_dir = f"results/exps/{exp_number}"
@@ -379,8 +377,8 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             
             ("machine_count", [48]),
-            ("job_count", [2]),
-            ("rack_size", [6]),
+            ("job_count", [6]),
+            ("rack_size", [12]),
 
             ("placement_mode", ["random"]), 
             ("ring_mode", ["letitbe"]), 
@@ -393,6 +391,7 @@ if __name__ == "__main__":
             
             # ("cmmcmp_range", [(0, 0.5), (0.5, 1), (1, 1.5), (1.5, 2)]),
             ("cmmcmp_range", [(0.5, 2)]),
+            ("fallback_threshold", [0.7]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
@@ -400,7 +399,7 @@ if __name__ == "__main__":
                
             ("punish_oversubscribed_min", [1.0]), 
             ("search_quota", ["alot"]), 
-            ("inflate", [1.0]),    
+            ("inflate", [1]),    
         ]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
