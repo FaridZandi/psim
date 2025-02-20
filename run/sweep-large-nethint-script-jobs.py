@@ -167,23 +167,8 @@ def do_experiment(plot_stuff=False,
 
     core_count = int(base_options["ft-server-per-rack"] // oversub)
 
-    # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
-    
-    considered_sub = 1 
-    
-    if core_count == 2: 
-        profiled_throttle_factors = [1.0, 0.5]
-        considered_sub = 2
-    elif core_count == 3: 
-        profiled_throttle_factors = [1.0, 0.5]
-        considered_sub = 2
-    elif core_count == 4:
-        profiled_throttle_factors = [1.0, 0.5]
-        considered_sub = 2
-    elif core_count == 6:
-        profiled_throttle_factors = [1.0, 0.5]
-        considered_sub = 2
-        
+    considered_sub = 2 
+    profiled_throttle_factors = [1.0, 0.5]
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
