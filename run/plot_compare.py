@@ -23,20 +23,21 @@ def annotate(ax):
         # if the patch is dark, use white text color
         # otherwise, use black text color
         # being dark means the sum of the RGB values is less than 1
-        if p.get_facecolor()[0] + p.get_facecolor()[1] + p.get_facecolor()[2] < 1:
+        if p.get_facecolor()[0] + p.get_facecolor()[1] + p.get_facecolor()[2] < 1.5:
             color = 'white'
         else:
             color = 'black'
-                    
-        ax.annotate(
-            f'{p.get_height():.2f}',  # Format to display integer
-            (p.get_x() + p.get_width() / 2., p.get_height()),  # Position above the bar
-            ha='center',  # Center horizontally
-            va='top',  # Align to bottom of text
-            rotation=90,  # Rotate text 90 degrees
-            fontsize=6,  # Font size
-            color=color,  # Font color
-        )
+               
+        if p.get_height() > 0:      
+            ax.annotate(
+                f'{p.get_height():.2f}',  # Format to display integer
+                (p.get_x() + p.get_width() / 2., p.get_height()),  # Position above the bar
+                ha='center',  # Center horizontally
+                va='top',  # Align to bottom of text
+                rotation=90,  # Rotate text 90 degrees
+                fontsize=6,  # Font size
+                color=color,  # Font color
+            )
         
         
 def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type, val_range):        

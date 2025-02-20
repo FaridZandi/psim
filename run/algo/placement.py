@@ -467,7 +467,7 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
             profiling_job_options["print-flow-progress-history"] = True
             profiling_job_options["timing-file"] = None  
             profiling_job_options["ft-core-count"] = 1  
-            profiling_job_options["ft-agg-core-link-capacity-mult"] = 100
+            profiling_job_options["ft-agg-core-link-capacity-mult"] = options["ft-core-count"]
             profiling_job_options["lb-scheme"] = "random"   
             profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"]
             profiling_job_options["stretch-factor"] = stretch_factor 
