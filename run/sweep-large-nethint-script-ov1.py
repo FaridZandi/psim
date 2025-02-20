@@ -169,11 +169,11 @@ def do_experiment(plot_stuff=False,
 
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     
+    profiled_throttle_factors = [1.0, 0.5]
+    
     if core_count > 1:
-        profiled_throttle_factors = [1.0, 0.5]
         considered_sub = 2
     else: 
-        profiled_throttle_factors = [1.0]
         considered_sub = 1     
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
