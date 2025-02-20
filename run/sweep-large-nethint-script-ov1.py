@@ -171,13 +171,13 @@ def do_experiment(plot_stuff=False,
     
     if core_count == 1:
         profiled_throttle_factors = [1.0]
-        considered_sub = [1]
+        considered_sub = []
     if core_count == 2: 
         profiled_throttle_factors = [1.0, 0.5]
         considered_sub = [2]     
     if core_count == 4 or core_count == 8:
         profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
-        considered_sub = [2, 4]
+        considered_sub = [4]
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
@@ -207,31 +207,31 @@ def do_experiment(plot_stuff=False,
 
     comparisons = []
     
-    comparisons.append(("TS", {
-                            "timing-scheme": "faridv2",
-                            "throttle-search": False,
-                            "lb-scheme": "random"
-                        }))
+    # comparisons.append(("TS", {
+    #                         "timing-scheme": "faridv2",
+    #                         "throttle-search": False,
+    #                         "lb-scheme": "random"
+    #                     }))
     
-    comparisons.append(("TS+TH", {
+    comparisons.append(("TS", {
                             "timing-scheme": "faridv2",
                             "throttle-search": True,
                             "lb-scheme": "random"
                         }))
     
+    comparisons.append(("RO", {
+                            "timing-scheme": "zero",
+                            "routing-fit-strategy": "graph-coloring-v3",  
+                            "lb-scheme": "readprotocol"
+                        }))
+    
     for subflow_count in considered_sub:
-        comparisons.append((f"TS+SUB{subflow_count}+TH", {
+        comparisons.append((f"TS+SUB", {
                                 "timing-scheme": "faridv2",
                                 "subflows": subflow_count, 
                                 "throttle-search": True,
                                 "lb-scheme": "random"
                             }))
-        
-    comparisons.append(("RO3", {
-                            "timing-scheme": "zero",
-                            "routing-fit-strategy": "graph-coloring-v3",  
-                            "lb-scheme": "readprotocol"
-                        }))
     
     # comparisons.append(("RO5", {
     #                         "timing-scheme": "zero",
@@ -242,15 +242,10 @@ def do_experiment(plot_stuff=False,
     for timing in ["faridv2", "faridv4"]:
         for subflow_count in list(set([1] + considered_sub)):
             for coloring in ["graph-coloring-v5"]:
-                name = "TS"
-                
-                if coloring == "graph-coloring-v3": 
-                    name += "+RO3"
-                elif coloring == "graph-coloring-v5":
-                    name += "+RO5"
+                name = "TS+RO"
                 
                 if subflow_count > 1:
-                    name += f"+SUB{subflow_count}+TH"
+                    name += f"+SUB"
                     
                 if timing == "faridv4":
                     name += "+REP"
