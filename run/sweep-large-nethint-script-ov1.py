@@ -13,10 +13,10 @@ THREADS = 42
 def do_experiment(plot_stuff=False,
                   seed_range=1, 
                   placement_mode="random", 
-                  machine_count=6,
+                  machine_count=8,
                   rack_size=4,
                   oversub=1, 
-                  job_count=1, 
+                  job_sizes=(2, 2), 
                   sim_length=50000, 
                   punish_oversubscribed_min=0.5, 
                   search_quota="a little", 
@@ -52,8 +52,8 @@ def do_experiment(plot_stuff=False,
     selected_setting = { 
         "machine-count": machine_count,
         "ft-server-per-rack": rack_size,
-        "jobs-machine-count-low": machine_count // job_count,
-        "jobs-machine-count-high": machine_count // job_count,
+        "jobs-machine-count-low": job_sizes[0], 
+        "jobs-machine-count-high": job_sizes[1],
         "placement-seed-range": seed_range,
         "cmmcmp-range": cmmcmp_range,   
             
@@ -358,7 +358,7 @@ if __name__ == "__main__":
                         --subplot_y_params machine_count \
                         --subplot_x_params comparison \
                         --subplot_hue_params rack_size \
-                        --plot_x_params job_count \
+                        --plot_x_params job_sizes \
                         --plot_y_param values \
                         --plot_type {plot_type}"
 
@@ -372,7 +372,7 @@ if __name__ == "__main__":
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params job_count \
+                        --subplot_y_params job_sizes \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
                         --plot_x_params oversub \
@@ -397,8 +397,9 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             
             ("machine_count", [48]),
-            ("job_count", [4]),
             ("rack_size", [8]),
+            
+            ("job_sizes", [(12, 12)]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
@@ -447,7 +448,6 @@ if __name__ == "__main__":
             perm_key = perm_key.replace("(", "").replace(")", "").replace(" ", "")
             
             #make a link to the results of this experiment.
-
             print("results_dir: ", results_dir) 
             
             if clean_up_sweep_files:
