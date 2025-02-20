@@ -404,8 +404,8 @@ if __name__ == "__main__":
             
             ("desired_entropy", [0.5]),
 
-            # ("oversub", [1, 2, 4]),
-            ("oversub", [8, 4, 2, 1]),
+            ("oversub", [1, 2, 4, 8]),
+            # ("oversub", [8, 4, 2, 1]),
             
             ("cmmcmp_range", [(0, 2)]),
   
@@ -417,7 +417,7 @@ if __name__ == "__main__":
             ("layer_count", [(1, 2, 1)]),
                
             ("punish_oversubscribed_min", [0.9]), 
-            ("min_rate", [10]),
+            ("min_rate", [100]),
             ("search_quota", ["alot"]), 
             ("inflate", [1]),    
         ]
