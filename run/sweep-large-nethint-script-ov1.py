@@ -210,6 +210,19 @@ def do_experiment(plot_stuff=False,
                             "lb-scheme": "random"
                         }))
     
+    comparisons.append(("TS+TH", {
+                            "timing-scheme": "faridv2",
+                            "throttle-search": True,
+                            "lb-scheme": "random"
+                        }))
+    
+    comparisons.append(("TS+SUB+TH", {
+                            "timing-scheme": "faridv2",
+                            "subflows": considered_sub, 
+                            "throttle-search": True,
+                            "lb-scheme": "random"
+                        }))
+        
     comparisons.append(("RO3", {
                             "timing-scheme": "zero",
                             "routing-fit-strategy": "graph-coloring-v3",  

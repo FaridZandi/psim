@@ -55,7 +55,7 @@ git checkout master
 git merge --squash "$CURRENT_BRANCH"
 
 # Commit using the provided message, plus a summary of all commits from the backup branch
-git commit -m "$MESSAGE"
+git commit -m "Merging $CURRENT_BRANCH: $MESSAGE"
 
 # Push the merged result back to master
 git push origin master
