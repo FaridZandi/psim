@@ -167,14 +167,17 @@ def do_experiment(plot_stuff=False,
 
     core_count = int(base_options["ft-server-per-rack"] // oversub)
 
-    # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     
-    profiled_throttle_factors = [1.0, 0.5]
     
-    if core_count > 1:
-        considered_sub = 2
-    else: 
-        considered_sub = 1     
+    if core_count == 1:
+        profiled_throttle_factors = [1.0]
+        considered_sub = 1
+    if core_count == 2: 
+        profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2     
+    if core_count == 4 or core_count == 8:
+        profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
+        considered_sub = [2, 4]
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
@@ -216,12 +219,13 @@ def do_experiment(plot_stuff=False,
                             "lb-scheme": "random"
                         }))
     
-    comparisons.append(("TS+SUB+TH", {
-                            "timing-scheme": "faridv2",
-                            "subflows": considered_sub, 
-                            "throttle-search": True,
-                            "lb-scheme": "random"
-                        }))
+    for subflow_count in considered_sub:
+        comparisons.append((f"TS+SUB{subflow_count}+TH", {
+                                "timing-scheme": "faridv2",
+                                "subflows": subflow_count, 
+                                "throttle-search": True,
+                                "lb-scheme": "random"
+                            }))
         
     comparisons.append(("RO3", {
                             "timing-scheme": "zero",
@@ -236,7 +240,7 @@ def do_experiment(plot_stuff=False,
     #                     }))
     
     for timing in ["faridv2", "faridv4"]:
-        for subflow_count in list(set([1, considered_sub])):
+        for subflow_count in list(set([1] + considered_sub)):
             for coloring in ["graph-coloring-v5"]:
                 name = "TS"
                 
@@ -246,7 +250,7 @@ def do_experiment(plot_stuff=False,
                     name += "+RO5"
                 
                 if subflow_count > 1:
-                    name += f"+SUB+TH"
+                    name += f"+SUB{subflow_count}+TH"
                     
                 if timing == "faridv4":
                     name += "+REP"
