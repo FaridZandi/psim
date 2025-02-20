@@ -400,7 +400,7 @@ if __name__ == "__main__":
             ("job_count", [6]),
             ("rack_size", [8]),
 
-            ("placement_mode", ["entropy"]), 
+            ("placement_mode", ["random"]), 
             ("ring_mode", ["letitbe"]), 
             
             ("desired_entropy", [0.7]),
