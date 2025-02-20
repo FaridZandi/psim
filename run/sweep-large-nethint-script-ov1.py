@@ -19,6 +19,7 @@ def do_experiment(plot_stuff=False,
                   job_sizes=(2, 2), 
                   sim_length=50000, 
                   punish_oversubscribed_min=0.5, 
+                  min_rate=100, 
                   search_quota="a little", 
                   inflate=1.0, 
                   ring_mode="letitbe", 
@@ -167,8 +168,6 @@ def do_experiment(plot_stuff=False,
 
     core_count = int(base_options["ft-server-per-rack"] // oversub)
 
-    
-    
     if core_count == 1:
         profiled_throttle_factors = [1.0]
         considered_sub = []
@@ -187,7 +186,7 @@ def do_experiment(plot_stuff=False,
     
     comparison_base = {
         "punish-oversubscribed": True, 
-        "min-rate": 100,
+        "min-rate": min_rate,
         "punish-oversubscribed-min": punish_oversubscribed_min,   
 
         "timing-scheme": "zero", 
@@ -417,7 +416,8 @@ if __name__ == "__main__":
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
                
-            ("punish_oversubscribed_min", [1.0]), 
+            ("punish_oversubscribed_min", [0.9]), 
+            ("min_rate", [10])
             ("search_quota", ["alot"]), 
             ("inflate", [1]),    
         ]
