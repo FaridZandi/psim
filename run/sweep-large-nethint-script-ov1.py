@@ -394,7 +394,7 @@ if __name__ == "__main__":
         exp_config = [
             ("sim_length", [400 * m]),
             
-            ("machine_count", [48]),
+            ("machine_count", [24]),
             ("rack_size", [8]),
             
             ("job_sizes", [(4, 16)]),
