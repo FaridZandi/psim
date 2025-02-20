@@ -351,7 +351,7 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
     
-    for plot_type in ["heatmap"]:  
+    for plot_type in []: #["heatmap"]:  
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
@@ -400,10 +400,10 @@ if __name__ == "__main__":
             ("job_count", [6]),
             ("rack_size", [8]),
 
-            ("placement_mode", ["random"]), 
+            ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             
-            ("desired_entropy", [0.7]),
+            ("desired_entropy", [0]),
 
             # ("oversub", [1, 2, 4]),
             ("oversub", [8, 4, 2, 1]),
