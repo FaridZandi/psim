@@ -410,7 +410,7 @@ if __name__ == "__main__":
             ("cmmcmp_range", [(0, 2)]),
   
             # ("cmmcmp_range", [(0.5, 2)]),
-            ("fallback_threshold", [0.5]),
+            ("fallback_threshold", [1]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
