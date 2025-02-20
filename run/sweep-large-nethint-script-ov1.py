@@ -169,9 +169,12 @@ def do_experiment(plot_stuff=False,
 
     # profiled_throttle_factors = [1.0, 0.66, 0.5, 0.33]
     
-    profiled_throttle_factors = [1.0, 0.5]
-    considered_sub = 2
-        
+    if core_count > 1:
+        profiled_throttle_factors = [1.0, 0.5]
+        considered_sub = 2
+    else: 
+        profiled_throttle_factors = [1.0]
+        considered_sub = 1     
             
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
@@ -213,14 +216,14 @@ def do_experiment(plot_stuff=False,
                             "lb-scheme": "readprotocol"
                         }))
     
-    comparisons.append(("RO5", {
-                            "timing-scheme": "zero",
-                            "routing-fit-strategy": "graph-coloring-v5",  
-                            "lb-scheme": "readprotocol"
-                        }))
+    # comparisons.append(("RO5", {
+    #                         "timing-scheme": "zero",
+    #                         "routing-fit-strategy": "graph-coloring-v5",  
+    #                         "lb-scheme": "readprotocol"
+    #                     }))
     
     for timing in ["faridv2", "faridv4"]:
-        for subflow_count in [1, considered_sub]:
+        for subflow_count in list(set([1, considered_sub])):
             for coloring in ["graph-coloring-v5"]:
                 name = "TS"
                 
@@ -243,7 +246,6 @@ def do_experiment(plot_stuff=False,
                                         "fallback-threshold": fallback_threshold, 
                                         "lb-scheme": "readprotocol"
                                     }))
-            
     
     comparisons.append(("Perfect", {
                             "timing-scheme": "zero",
@@ -265,7 +267,6 @@ def do_experiment(plot_stuff=False,
         "plot-runtime-timing": False,
         "plot-link-empty-times": False,
         
-        
         "profiled-throttle-factors": profiled_throttle_factors, 
         
         # other stuff
@@ -282,6 +283,7 @@ def do_experiment(plot_stuff=False,
             "overall-solution-candidate-count": cassini_overall_solution_count,
             "save-profiles": True,
         },
+        
         "routing-parameters": {},
         "placement-parameters": {
             "desired-entropy": desired_entropy,
@@ -322,9 +324,9 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 20
-    m = 50
-    clean_up_sweep_files = True
+    seed_range = 4
+    m = 10
+    clean_up_sweep_files = False
     
     if original_exp_number is not None: 
         exp_number = original_exp_number
@@ -360,7 +362,7 @@ if __name__ == "__main__":
                         --subplot_y_params job_count \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
-                        --plot_x_params machine_count \
+                        --plot_x_params oversub \
                         --plot_y_param values \
                         --plot_type {plot_type}"
                     
@@ -381,19 +383,19 @@ if __name__ == "__main__":
         exp_config = [
             ("sim_length", [400 * m]),
             
-            ("machine_count", [24, 48, 72]),
-            ("job_count", [4, 6, 8]),
-            ("rack_size", [6, 8, 12]),
+            ("machine_count", [48]),
+            ("job_count", [6]),
+            ("rack_size", [8]),
 
-            ("placement_mode", ["random"]), 
+            ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             
             ("desired_entropy", [0.7]),
 
             # ("oversub", [1, 2, 4]),
-            ("oversub", [1]),
+            ("oversub", [1, 2, 4, 8]),
             
-            ("cmmcmp_range", [(1.5, 2)]),
+            ("cmmcmp_range", [(0, 2)]),
   
             # ("cmmcmp_range", [(0.5, 2)]),
             ("fallback_threshold", [0.5]),
