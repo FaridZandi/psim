@@ -210,11 +210,11 @@ def do_experiment(plot_stuff=False,
                             "lb-scheme": "random"
                         }))
     
-    # comparisons.append(("RO3", {
-    #                         "timing-scheme": "zero",
-    #                         "routing-fit-strategy": "graph-coloring-v3",  
-    #                         "lb-scheme": "readprotocol"
-    #                     }))
+    comparisons.append(("RO3", {
+                            "timing-scheme": "zero",
+                            "routing-fit-strategy": "graph-coloring-v3",  
+                            "lb-scheme": "readprotocol"
+                        }))
     
     # comparisons.append(("RO5", {
     #                         "timing-scheme": "zero",
@@ -222,35 +222,35 @@ def do_experiment(plot_stuff=False,
     #                         "lb-scheme": "readprotocol"
     #                     }))
     
-    # for timing in ["faridv2", "faridv4"]:
-    #     for subflow_count in list(set([1, considered_sub])):
-    #         for coloring in ["graph-coloring-v5"]:
-    #             name = "TS"
+    for timing in ["faridv2", "faridv4"]:
+        for subflow_count in list(set([1, considered_sub])):
+            for coloring in ["graph-coloring-v5"]:
+                name = "TS"
                 
-    #             if coloring == "graph-coloring-v3": 
-    #                 name += "+RO3"
-    #             elif coloring == "graph-coloring-v5":
-    #                 name += "+RO5"
+                if coloring == "graph-coloring-v3": 
+                    name += "+RO3"
+                elif coloring == "graph-coloring-v5":
+                    name += "+RO5"
                 
-    #             if subflow_count > 1:
-    #                 name += f"+SUB+TH"
+                if subflow_count > 1:
+                    name += f"+SUB+TH"
                     
-    #             if timing == "faridv4":
-    #                 name += "+REP"
+                if timing == "faridv4":
+                    name += "+REP"
                     
-    #             comparisons.append((name, {
-    #                                     "timing-scheme": timing,
-    #                                     "throttle-search": True if subflow_count > 1 else False,   
-    #                                     "routing-fit-strategy": coloring,     
-    #                                     "subflows": subflow_count,     
-    #                                     "fallback-threshold": fallback_threshold, 
-    #                                     "lb-scheme": "readprotocol"
-    #                                 }))
+                comparisons.append((name, {
+                                        "timing-scheme": timing,
+                                        "throttle-search": True if subflow_count > 1 else False,   
+                                        "routing-fit-strategy": coloring,     
+                                        "subflows": subflow_count,     
+                                        "fallback-threshold": fallback_threshold, 
+                                        "lb-scheme": "readprotocol"
+                                    }))
     
-    # comparisons.append(("Perfect", {
-    #                         "timing-scheme": "zero",
-    #                         "lb-scheme": "perfect"
-    #                     }))
+    comparisons.append(("Perfect", {
+                            "timing-scheme": "zero",
+                            "lb-scheme": "perfect"
+                        }))
 
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
@@ -362,7 +362,7 @@ if __name__ == "__main__":
                         --subplot_y_params job_count \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
-                        --plot_x_params machine_count \
+                        --plot_x_params oversub \
                         --plot_y_param values \
                         --plot_type {plot_type}"
                     
