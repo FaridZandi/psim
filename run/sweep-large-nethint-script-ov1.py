@@ -397,7 +397,7 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             
             ("machine_count", [48]),
-            ("job_count", [6]),
+            ("job_count", [4]),
             ("rack_size", [8]),
 
             ("placement_mode", ["entropy"]), 
