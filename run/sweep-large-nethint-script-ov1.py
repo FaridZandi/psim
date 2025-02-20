@@ -171,10 +171,10 @@ def do_experiment(plot_stuff=False,
     
     if core_count == 1:
         profiled_throttle_factors = [1.0]
-        considered_sub = 1
+        considered_sub = [1]
     if core_count == 2: 
         profiled_throttle_factors = [1.0, 0.5]
-        considered_sub = 2     
+        considered_sub = [2]     
     if core_count == 4 or core_count == 8:
         profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
         considered_sub = [2, 4]
