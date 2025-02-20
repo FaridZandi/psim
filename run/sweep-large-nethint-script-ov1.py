@@ -370,7 +370,7 @@ if __name__ == "__main__":
         plot_command = f"python3 plot_compare.py \
                         --file_name {path} \
                         --plot_params metric \
-                        --subplot_y_params job_sizes \
+                        --subplot_y_params desired_entropy \
                         --subplot_x_params rack_size \
                         --subplot_hue_params comparison \
                         --plot_x_params oversub \
@@ -394,17 +394,17 @@ if __name__ == "__main__":
         exp_config = [
             ("sim_length", [400 * m]),
             
-            ("machine_count", [24]),
+            ("machine_count", [48]),
             ("rack_size", [8]),
             
-            ("job_sizes", [(4, 16)]),
+            ("job_sizes", [(8, 8)]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            
-            ("desired_entropy", [0.5]),
+            ("desired_entropy", [0.3, 0.5, 0.7]),
 
-            ("oversub", [1, 2, 4, 8]),
+            # ("oversub", [1, 2, 4, 8]),
+            ("oversub", [1]),
             # ("oversub", [8, 4, 2, 1]),
             
             ("cmmcmp_range", [(0, 2)]),
@@ -414,7 +414,7 @@ if __name__ == "__main__":
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
-            ("layer_count", [(1, 3, 1)]),
+            ("layer_count", [(1, 2, 1)]),
                
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
