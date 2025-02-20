@@ -410,13 +410,13 @@ if __name__ == "__main__":
             ("cmmcmp_range", [(0, 2)]),
   
             # ("cmmcmp_range", [(0.5, 2)]),
-            ("fallback_threshold", [1]),
+            ("fallback_threshold", [0.5]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
                
-            ("punish_oversubscribed_min", [0.5]), 
+            ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("search_quota", ["alot"]), 
             ("inflate", [1]),    
