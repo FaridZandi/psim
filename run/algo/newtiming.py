@@ -226,9 +226,23 @@ class Job:
             # inflate the active range by the inflate factor
             active_range = end_time - start_time
             inflate_amount = int(active_range * (inflate - 1))
-            start_time = max(0, start_time - inflate_amount // 2)
-            end_time = end_time + inflate_amount // 2
             
+            # inflate_type = "both"
+            # inflate_type = "divide"
+            inflate_type = "end"
+            # inflate_type = "start"
+
+            if inflate_type == "divide":
+                start_time = max(0, start_time - inflate_amount // 2)
+                end_time = end_time + inflate_amount // 2
+            elif inflate_type == "end":
+                end_time = end_time + inflate_amount
+            elif inflate_type == "start":
+                start_time = max(0, start_time - inflate_amount)
+            elif inflate_type == "both":
+                start_time = max(0, start_time - inflate_amount)
+                end_time = end_time + inflate_amount
+                
         # print(f"Job {self.job_id} at rate {throttle_rate}, active range: {start_time} - {end_time}", file=sys.stderr)
             
         return (start_time, end_time) 
