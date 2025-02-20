@@ -417,7 +417,7 @@ if __name__ == "__main__":
             ("layer_count", [(1, 2, 1)]),
                
             ("punish_oversubscribed_min", [0.9]), 
-            ("min_rate", [10])
+            ("min_rate", [10]),
             ("search_quota", ["alot"]), 
             ("inflate", [1]),    
         ]
