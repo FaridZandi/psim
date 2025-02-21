@@ -42,7 +42,39 @@ def annotate(ax):
                 color=color,  # Font color
             )
         
+    
+def add_hatches(ax, hue_order):
+    """
+    Assigns a distinct hatch pattern to each hue level in the boxplot.
+    
+    Parameters
+    ----------
+    ax : matplotlib.axes.Axes
+        Axes object containing the boxplot.
+    hue_order : list
+        Ordered list of the hue categories used in sns.boxplot(..., hue_order=...).
+    """
+    hatch_styles = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
+    for i, _ in enumerate(hue_order):
+        hatch_styles[i] = hatch_styles[i] * 5  # Double the length of the hatch pattern
+    
+    # ax.patches holds the boxes created by the boxplot call
+    # Each patch corresponds to one box in the plot, 
+    # in order of x categories * hue categories.
+    for i, patch in enumerate(ax.patches):
+        # Map each patch to the correct hatch style based on hue index
+        # (the pattern repeats over hue groups in a cycle)
+        hue_index = i % len(hue_order)
+        patch.set_hatch(hatch_styles[hue_index])
         
+        # Make the hatch finer 
+        patch.set_linewidth(0.05)
+        
+        # Optional: set facecolor/edgecolor so the hatch is clearly visible
+        # patch.set_facecolor("white")
+        # patch.set_edgecolor("black")
+    
+    
 def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range):        
     if x_value is not None: 
         df = df[df[subplot_x_params] == x_value]     
@@ -51,6 +83,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     
     if len(df) == 0:
         return  
+    
+    legend_side = 'bottom'
     
     if plot_type == "line": 
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
@@ -109,9 +143,18 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     
     elif plot_type == "box":    
         sns.boxplot(x=plot_x_params, y=plot_y_param, 
-                    hue=subplot_hue_params, hue_order=hue_order, 
+                    hue=subplot_hue_params, 
+                    hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax)
+                    data=df, ax=ax, linewidth=0.5, 
+                    fliersize=0.5)
+        
+        add_hatches(ax, hue_order)
+        
+        # vertical line at y=1
+        ax.axhline(y=1, color='black', linestyle=':')
+        
+        legend_side = "right"
         
         if not legend:
             ax.get_legend().remove()
@@ -137,12 +180,15 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
             # sns.kdeplot(data, fill=True, common_norm=False, alpha=0.5, 
             #             ax=ax, label=hue, warn_singular=False, 
             #             color=hue_color_options[i])
-
             
         ax.axvline(x=1, color='black', linestyle='--')  
         
     if legend:
-        ax.legend(loc='upper center', bbox_to_anchor=(0.5, -0.3), ncol=1)  
+        if legend_side == "bottom":
+            ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.1), ncol=1)
+        elif legend_side == "right":   
+            # fully outside the plot 
+            ax.legend(loc="center left", bbox_to_anchor=(1.05, 0.5), ncol=1)
             
     # draw a horizontal line at y=1
     
@@ -191,8 +237,8 @@ def draw_plot(df, value, file_dir, hue_order):
     else:
         hue_len = 1 
         
-    width = subplot_x_len * 3
-    height = subplot_y_len * 3 
+    width = subplot_x_len * subplot_width
+    height = subplot_y_len * subplot_height 
     
     # print(f"width: {width}, height: {height}")
     
