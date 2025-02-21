@@ -383,6 +383,8 @@ if __name__ == "__main__":
             "subplot_hue_params": "comparison",
             "plot_x_params": "oversub",
             "plot_y_param": "values",
+            "sharex": True, 
+            "sharey": True,
             "subplot_width": 3,
             "subplot_height": 2,
             "plot_type": plot_type
@@ -408,18 +410,20 @@ if __name__ == "__main__":
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.5, 0.7, 0.9]),
+            # ("desired_entropy", [0.3, 0.5, 0.7, 0.9]),
+            ("desired_entropy", [0.3]),
 
-            ("oversub", [1, 2, 4, 8]),
-            # ("oversub", [8, 4, 2, 1]),
+            # ("oversub", [1, 2, 4, 8]),
+            ("oversub", [8, 4, 2, 1]),
             
             ("cmmcmp_range", [(0, 2)]),
   
             # ("cmmcmp_range", [(0.5, 2)]),
             ("fallback_threshold", [0.5]),
             
-            ("comm_size", [(120 * m, 360 * m, 60 * m)]),
-            ("comp_size", [(2 * m, 10 * m, 1 * m)]),
+            # ("comm_size", [(120 * m, 360 * m, 60 * m)]),
+            ("comm_size", [(120 * m, 180 * m, 60 * m)]),
+            ("comp_size", [(2 * m, 3 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
                
             ("punish_oversubscribed_min", [1]), 

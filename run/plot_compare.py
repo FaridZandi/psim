@@ -3,6 +3,7 @@ import pandas as pd
 import seaborn as sns   
 from matplotlib import pyplot as plt    
 import argparse 
+from pprint import pprint 
 
 plot_params = None
 subplot_x_params = None 
@@ -14,6 +15,10 @@ plot_type = None
 
 subplot_width = 3 
 subplot_height = 3 
+
+sharex = False
+sharey = False
+
 
 ext = "pdf" 
 
@@ -243,8 +248,8 @@ def draw_plot(df, value, file_dir, hue_order):
     # print(f"width: {width}, height: {height}")
     
     fig, axes = plt.subplots(subplot_y_len, subplot_x_len,
-                             sharey=True,   
-                             sharex=True,
+                             sharey=sharey,
+                             sharex=sharex,
                              squeeze=False)
     
     fig.set_figwidth(width) 
@@ -310,8 +315,13 @@ if __name__ == "__main__":
     parser.add_argument("--ext", type=str, required=False)  
     parser.add_argument("--subplot_width", type=int, required=False)    
     parser.add_argument("--subplot_height", type=int, required=False)
+    parser.add_argument("--sharex", type=bool, required=False)  
+    parser.add_argument("--sharey", type=bool, required=False)
         
     args = parser.parse_args()
+    
+    pprint(args)
+    
         
     file_dir = "/".join(args.file_name.split("/")[:-1]) 
     
@@ -335,6 +345,10 @@ if __name__ == "__main__":
         subplot_width = args.subplot_width
     if args.subplot_height is not None:
         subplot_height = args.subplot_height
+    if args.sharex is not None: 
+        sharex = args.sharex
+    if args.sharey is not None:
+        sharey = args.sharey
 
     main(args.file_name, file_dir)   
 
