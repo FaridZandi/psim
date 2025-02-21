@@ -415,13 +415,13 @@ if __name__ == "__main__":
             ("machine_count", [48]),
             ("rack_size", [8]),
             
-            # ("job_sizes", [(48, 48), (24, 24), (4, 16), (4, 8)]),
-            ("job_sizes", [(4, 16)]),
+            ("job_sizes", [(48, 48), (24, 24), (4, 16), (4, 8)]),
+            # ("job_sizes", [(4, 16)]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             # ("desired_entropy", [0.3, 0.5, 0.7, 0.9]),
-            ("desired_entropy", [0.3]),
+            ("desired_entropy", [0.5]),
 
             # ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),
