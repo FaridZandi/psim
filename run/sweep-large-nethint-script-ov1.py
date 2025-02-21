@@ -403,7 +403,7 @@ if __name__ == "__main__":
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.5, 0.7]),
+            ("desired_entropy", [0.5]),
 
             ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),

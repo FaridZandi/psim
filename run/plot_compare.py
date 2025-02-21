@@ -12,6 +12,9 @@ plot_x_params = None
 plot_y_param = None
 plot_type = None 
 
+subplot_width = 3 
+subplot_height = 3 
+
 ext = "pdf" 
 
 hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
@@ -40,7 +43,7 @@ def annotate(ax):
             )
         
         
-def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type, val_range):        
+def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range):        
     if x_value is not None: 
         df = df[df[subplot_x_params] == x_value]     
     if y_value is not None: 
@@ -156,7 +159,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plo
         ax.set_xlabel(plot_x_params)
     
 
-def draw_plot(df, value, file_dir, hue_order, plot_type):   
+def draw_plot(df, value, file_dir, hue_order):   
     if value is not None: 
         df = df[df[plot_params] == value]
     
@@ -215,12 +218,12 @@ def draw_plot(df, value, file_dir, hue_order, plot_type):
                 if j == len(subplot_y_values) - 1:
                     legend = True   
                 
-            draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, plot_type, val_range)  
+            draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range)  
             
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.{ext}", bbox_inches='tight', dpi=200)        
                 
     
-def main(file_name, file_dir, plot_type): 
+def main(file_name, file_dir): 
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
@@ -243,7 +246,7 @@ def main(file_name, file_dir, plot_type):
 
     for value in unique_values: 
         print(f"value: {value}, plot_type: {plot_type}")    
-        draw_plot(df, value, file_dir, hue_order, plot_type)    
+        draw_plot(df, value, file_dir, hue_order)    
         
 
 if __name__ == "__main__":
@@ -258,6 +261,9 @@ if __name__ == "__main__":
     parser.add_argument("--plot_x_params", type=str, required=False)
     parser.add_argument("--plot_y_param", type=str, required=False)
     parser.add_argument("--plot_type", type=str, required=False)
+    parser.add_argument("--ext", type=str, required=False)  
+    parser.add_argument("--subplot_width", type=int, required=False)    
+    parser.add_argument("--subplot_height", type=int, required=False)
         
     args = parser.parse_args()
         
@@ -277,13 +283,11 @@ if __name__ == "__main__":
         plot_y_param = args.plot_y_param
     if args.plot_type is not None:
         plot_type = args.plot_type
-        
+    if args.ext is not None:
+        ext = args.ext  
+    if args.subplot_width is not None:
+        subplot_width = args.subplot_width
+    if args.subplot_height is not None:
+        subplot_height = args.subplot_height
 
-    main(args.file_name, file_dir, plot_type)   
-
-    # main(args.file_name, file_dir, "heatmap")
-    # main(args.file_name, file_dir, "bar")
-    # main(args.file_name, file_dir, "box") 
-    # main(args.file_name, file_dir, "cdf") 
-    # main(args.file_name, file_dir, "line")   
-    # main(args.file_name, file_dir, "violin") 
+    main(args.file_name, file_dir)   
