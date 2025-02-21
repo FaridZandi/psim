@@ -274,8 +274,8 @@ def do_experiment(plot_stuff=False,
         "plot-intermediate-timing": False,
         "plot-final-timing": False,
         "plot-routing-assignment": False, 
-        "plot-merged-ranges": False, 
-        "plot-runtime-timing": False,
+        "plot-merged-ranges": True, 
+        "plot-runtime-timing": True,
         "plot-link-empty-times": False,
         
         "profiled-throttle-factors": profiled_throttle_factors, 
@@ -335,7 +335,7 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 4
+    seed_range = 2
     m = 10
     clean_up_sweep_files = False
     
@@ -401,7 +401,7 @@ if __name__ == "__main__":
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.5, 0.7]),
+            ("desired_entropy", [0.3]),
 
             # ("oversub", [1, 2, 4, 8]),
             ("oversub", [1]),
