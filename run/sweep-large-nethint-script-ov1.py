@@ -354,7 +354,7 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 10
+    seed_range = 4
     m = 20
     clean_up_sweep_files = False
     
@@ -383,7 +383,7 @@ if __name__ == "__main__":
         create_command(plot_args, plot_commands_path)
         
                         
-    for plot_type in ["bar"]:
+    for plot_type in ["bar", "box"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
@@ -415,12 +415,12 @@ if __name__ == "__main__":
             ("machine_count", [48]),
             ("rack_size", [8]),
             
-            ("job_sizes", [(48, 48)]),
+            ("job_sizes", [(48, 48), (24, 24), (8, 16), (4, 8)]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.5, 0.7, 0.9]),
-            # ("desired_entropy", [0.3]),
+            # ("desired_entropy", [0.3, 0.5, 0.7, 0.9]),
+            ("desired_entropy", [0.3]),
 
             # ("oversub", [1, 2, 4, 8]),
             ("oversub", [8, 4, 2, 1]),
