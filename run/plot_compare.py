@@ -25,6 +25,14 @@ legend_side = "bottom"
 
 ext = "pdf" 
 
+values_name = "values"
+
+
+###############################################################################
+###############################################################################
+###############################################################################
+
+
 hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
                      "pink", "gray", "olive", "cyan", "black", "yellow"] * 100
 
@@ -98,6 +106,9 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     if y_value is not None: 
         df = df[df[subplot_y_params] == y_value]
     
+    # turn on sns grid for this subplot
+    ax.grid(True)    
+    
     if len(df) == 0:
         return  
     
@@ -154,6 +165,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         annotate(ax)
         ax.axhline(y=1, color='black', linestyle='--')
         ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1)) 
+        ax.set_ylabel(values_name)
         
         if not legend:
             ax.get_legend().remove()
@@ -176,11 +188,13 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         
         # vertical line at y=1
         ax.axhline(y=1, color='black', linestyle=':', linewidth=0.5)
-        
+        ax.set_ylabel(values_name)
         ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1)) 
         
         if not legend:
             ax.get_legend().remove()
+            
+            
     if plot_type == "violin":
         sns.violinplot(x=plot_x_params, y=plot_y_param,
                         hue=subplot_hue_params, hue_order=hue_order, 
@@ -190,6 +204,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         if not legend:
             ax.get_legend().remove()
         ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1))       
+        ax.set_ylabel(values_name)
+
 
     elif plot_type == "cdf":
         # draw a cdf plot
@@ -200,6 +216,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
             sns.kdeplot(data, cumulative=True, ax=ax, label=hue, warn_singular=False, 
                         color=hue_color_options[i])
             
+            ax.set_xlabel(subplot_hue_params)
+
             # sns.kdeplot(data, fill=True, common_norm=False, alpha=0.5, 
             #             ax=ax, label=hue, warn_singular=False, 
             #             color=hue_color_options[i])
@@ -207,7 +225,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         xlim_min = min(val_range[0] - 0.1, 0.9)
         xlim_max = max(val_range[1] + 0.1, 1.1)   
         ax.set_xlim(xlim_min, xlim_max) 
-            
+        ax.set_xlabel(values_name)
+
         ax.axvline(x=1, color='black', linestyle='--')  
         
     if legend:
@@ -229,8 +248,9 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     ax.title.set_size(8)
    
 
-    if plot_type != "heatmap":
+    if plot_type != "heatmap" and plot_type != "cdf":
         ax.set_xlabel(plot_x_params)
+    
     
 
 def draw_plot(df, value, hue_order):   
@@ -343,6 +363,7 @@ if __name__ == "__main__":
     parser.add_argument("--sharex", type=bool, required=False)  
     parser.add_argument("--sharey", type=bool, required=False)
     parser.add_argument("--legend_side", type=str, required=False)  
+    parser.add_argument("--values_name", type=str, required=False)  
     
     args = parser.parse_args()
         

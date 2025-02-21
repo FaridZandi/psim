@@ -332,7 +332,7 @@ if __name__ == "__main__":
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "desired_entropy",
+            "subplot_y_params": "machine_count",
             "subplot_x_params": "rack_size",
             "subplot_hue_params": "desired_entropy",
             "plot_x_params": "job_sizes",
@@ -343,7 +343,8 @@ if __name__ == "__main__":
             "subplot_height": 2,
             "plot_type": plot_type, 
             "legend_side": "right",
-            "ext": "png"
+            "ext": "png", 
+            "values_name": "Speedup"
         }
 
         create_command(plot_args, plot_commands_path)
@@ -372,7 +373,7 @@ if __name__ == "__main__":
 
             # ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),
-            ("oversub", [2]),
+            ("oversub", [1, 2]),
             # ("oversub", [8]),
             
             ("cmmcmp_range", [(0, 2)]),
