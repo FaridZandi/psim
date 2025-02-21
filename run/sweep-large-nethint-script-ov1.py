@@ -415,26 +415,26 @@ if __name__ == "__main__":
             ("machine_count", [48]),
             ("rack_size", [8]),
             
-            ("job_sizes", [(6,6)]),
+            ("job_sizes", [(48, 48)]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            # ("desired_entropy", [0.3, 0.5, 0.7, 0.9]),
-            ("desired_entropy", [0.3]),
+            ("desired_entropy", [0.3, 0.5, 0.7, 0.9]),
+            # ("desired_entropy", [0.3]),
 
             # ("oversub", [1, 2, 4, 8]),
-            # ("oversub", [8, 4, 2, 1]),
-            ("oversub", [8]),
+            ("oversub", [8, 4, 2, 1]),
+            # ("oversub", [8]),
             
             ("cmmcmp_range", [(0, 2)]),
   
             # ("cmmcmp_range", [(0.5, 2)]),
             ("fallback_threshold", [0.5]),
             
-            # ("comm_size", [(120 * m, 360 * m, 60 * m)]),
-            ("comm_size", [(120 * m, 121 * m, 60 * m)]),
-            # ("comp_size", [(2 * m, 10 * m, 1 * m)]),
-            ("comp_size", [(2 * m, 2 * m + 1, 1 * m)]),
+            ("comm_size", [(120 * m, 360 * m, 60 * m)]),
+            # ("comm_size", [(120 * m, 121 * m, 60 * m)]),
+            ("comp_size", [(2 * m, 10 * m, 1 * m)]),
+            # ("comp_size", [(2 * m, 2 * m + 1, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
                
             ("punish_oversubscribed_min", [1]), 
