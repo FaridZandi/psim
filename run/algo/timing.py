@@ -1318,7 +1318,8 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
     job_timings, solution = solver.solve()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                job_profiles, job_timings, 
-                                               current_round, highlighted_ranges=[])
+                                               suffix=current_round, 
+                                               highlighted_ranges=[])
     
     log_bad_ranges(run_context, "1.0_vanilla", new_bad_ranges, [])
 
@@ -1346,8 +1347,9 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
             job_timings, solution = solver.solve_with_bad_ranges_and_inflation(prev_bad_ranges, inflate)
             # step 2.2: do the routing again.
             lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
-                                                    job_profiles, job_timings, current_round, 
-                                                    highlighted_ranges=prev_bad_ranges)   
+                                                       job_profiles, job_timings, 
+                                                       suffix=f"{inflate}_{current_round}", 
+                                                       highlighted_ranges=prev_bad_ranges)   
 
             log_bad_ranges(run_context, f"inflation_{inflate}_round_{current_round}", 
                            new_bad_ranges, prev_bad_ranges)
@@ -1374,7 +1376,7 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
     job_timings, solution = solver.get_zero_solution()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                 job_profiles, job_timings, 
-                                                current_round, 
+                                                suffix=current_round, 
                                                 highlighted_ranges=[], 
                                                 early_return=False, 
                                                 override_routing_strategy="graph-coloring-v3")

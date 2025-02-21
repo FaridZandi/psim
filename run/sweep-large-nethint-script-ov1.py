@@ -3,7 +3,7 @@ from utils.sweep_large_nethint_base import *
 from utils.sweep_base import ConfigSweeper
 import itertools
 
-experiment_seed = 76
+experiment_seed = 77
 random_rep_count = 1
 THREADS = 42
 
@@ -273,9 +273,9 @@ def do_experiment(plot_stuff=False,
         "plot-initial-timing": False,
         "plot-intermediate-timing": False,
         "plot-final-timing": False,
-        "plot-routing-assignment": False, 
+        "plot-routing-assignment": True, 
         "plot-merged-ranges": True, 
-        "plot-runtime-timing": True,
+        "plot-runtime-timing": False,
         "plot-link-empty-times": False,
         
         "profiled-throttle-factors": profiled_throttle_factors, 
