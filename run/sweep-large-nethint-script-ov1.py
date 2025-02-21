@@ -170,7 +170,7 @@ def do_experiment(plot_stuff=False,
 
     if core_count == 1:
         profiled_throttle_factors = [1.0]
-        considered_sub = []
+        considered_sub = [1]
     if core_count == 2: 
         profiled_throttle_factors = [1.0, 0.5]
         considered_sub = [2]     
@@ -239,24 +239,33 @@ def do_experiment(plot_stuff=False,
     #                     }))
     
     for timing in ["faridv2", "faridv4"]:
-        for subflow_count in list(set([1] + considered_sub)):
-            for coloring in ["graph-coloring-v5"]:
-                name = "TS+RO"
+        for subflow_count in considered_sub:
+            name = "TS+RO+SUB"
                 
-                if subflow_count > 1:
-                    name += f"+SUB"
-                    
-                if timing == "faridv4":
-                    name += "+REP"
-                    
-                comparisons.append((name, {
-                                        "timing-scheme": timing,
-                                        "throttle-search": True if subflow_count > 1 else False,   
-                                        "routing-fit-strategy": coloring,     
-                                        "subflows": subflow_count,     
-                                        "fallback-threshold": fallback_threshold, 
-                                        "lb-scheme": "readprotocol"
-                                    }))
+            if timing == "faridv4":
+                name += "+REP"
+                
+            comparisons.append((name, {
+                                    "timing-scheme": timing,
+                                    "throttle-search": True if subflow_count > 1 else False,   
+                                    "routing-fit-strategy": "graph-coloring-v5",     
+                                    "subflows": subflow_count,     
+                                    "fallback-threshold": fallback_threshold, 
+                                    "lb-scheme": "readprotocol"
+                                }))
+        
+        subflow_count = 1   
+        name = "TS+RO"
+        if timing == "faridv4":
+            name += "+REP"
+        
+        comparisons.append((name, {
+                                "timing-scheme": timing,
+                                "throttle-search": False,   
+                                "routing-fit-strategy": "graph-coloring-v5",     
+                                "fallback-threshold": fallback_threshold, 
+                                "lb-scheme": "readprotocol"
+                            }))   
     
     comparisons.append(("Perfect", {
                             "timing-scheme": "zero",
@@ -414,7 +423,8 @@ if __name__ == "__main__":
             ("desired_entropy", [0.3]),
 
             # ("oversub", [1, 2, 4, 8]),
-            ("oversub", [8, 4, 2, 1]),
+            # ("oversub", [8, 4, 2, 1]),
+            ("oversub", [8]),
             
             ("cmmcmp_range", [(0, 2)]),
   

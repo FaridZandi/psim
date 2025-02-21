@@ -5,6 +5,8 @@ from matplotlib import pyplot as plt
 import argparse 
 from pprint import pprint 
 
+file_name = None 
+
 plot_params = None
 subplot_x_params = None 
 subplot_y_params = None 
@@ -19,6 +21,7 @@ subplot_height = 3
 sharex = False
 sharey = False
 
+legend_side = "bottom"  
 
 ext = "pdf" 
 
@@ -89,8 +92,6 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     if len(df) == 0:
         return  
     
-    legend_side = 'bottom'
-    
     if plot_type == "line": 
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
@@ -159,8 +160,6 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         # vertical line at y=1
         ax.axhline(y=1, color='black', linestyle=':')
         
-        legend_side = "right"
-        
         if not legend:
             ax.get_legend().remove()
     
@@ -190,9 +189,9 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         
     if legend:
         if legend_side == "bottom":
-            ax.legend(loc="upper center", bbox_to_anchor=(0.5, 1.1), ncol=1)
+            ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.5), ncol=3)
+            
         elif legend_side == "right":   
-            # fully outside the plot 
             ax.legend(loc="center left", bbox_to_anchor=(1.05, 0.5), ncol=1)
             
     # draw a horizontal line at y=1
@@ -210,7 +209,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         ax.set_xlabel(plot_x_params)
     
 
-def draw_plot(df, value, file_dir, hue_order):   
+def draw_plot(df, value, hue_order):   
     if value is not None: 
         df = df[df[plot_params] == value]
     
@@ -263,25 +262,28 @@ def draw_plot(df, value, file_dir, hue_order):
             ax = axes[j, i]
             legend = False
             
-            if i == len(subplot_x_values) // 2:
-                # if j == len(subplot_y_values) - 1:
-                # select the middle subplot to draw the legend
-                if j == len(subplot_y_values) - 1:
-                    legend = True   
-                
-            draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range)  
+            if legend_side == "bottom": 
+                if i == len(subplot_x_values) // 2:
+                    if j == len(subplot_y_values) - 1:
+                        legend = True   
+            if legend_side == "right":  
+                if j == len(subplot_y_values) // 2:
+                    if i == len(subplot_x_values) - 1:
+                        legend = True
+                            
             
+            draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range)  
+    
+    file_dir = "/".join(file_name.split("/")[:-1]) 
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.{ext}", bbox_inches='tight', dpi=200)        
                 
     
-def main(file_name, file_dir): 
+def make_plots(): 
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
     df["values"] = df["values"].apply(lambda x: [float(i) for i in x[1:-1].split(",")])
     df = df.explode("values")
-    
-
     
     df["values"] = df["values"].astype(float)
     
@@ -297,7 +299,7 @@ def main(file_name, file_dir):
 
     for value in unique_values: 
         print(f"value: {value}, plot_type: {plot_type}")    
-        draw_plot(df, value, file_dir, hue_order)    
+        draw_plot(df, value, hue_order)    
         
 
 if __name__ == "__main__":
@@ -317,38 +319,13 @@ if __name__ == "__main__":
     parser.add_argument("--subplot_height", type=int, required=False)
     parser.add_argument("--sharex", type=bool, required=False)  
     parser.add_argument("--sharey", type=bool, required=False)
-        
+    parser.add_argument("--legend_side", type=str, required=False)  
+    
     args = parser.parse_args()
-    
-    pprint(args)
-    
         
-    file_dir = "/".join(args.file_name.split("/")[:-1]) 
-    
-    if args.plot_params is not None:
-        plot_params = args.plot_params
-    if args.subplot_x_params is not None:
-        subplot_x_params = args.subplot_x_params
-    if args.subplot_y_params is not None:
-        subplot_y_params = args.subplot_y_params
-    if args.subplot_hue_params is not None:
-        subplot_hue_params = args.subplot_hue_params
-    if args.plot_x_params is not None:
-        plot_x_params = args.plot_x_params
-    if args.plot_y_param is not None:
-        plot_y_param = args.plot_y_param
-    if args.plot_type is not None:
-        plot_type = args.plot_type
-    if args.ext is not None:
-        ext = args.ext  
-    if args.subplot_width is not None:
-        subplot_width = args.subplot_width
-    if args.subplot_height is not None:
-        subplot_height = args.subplot_height
-    if args.sharex is not None: 
-        sharex = args.sharex
-    if args.sharey is not None:
-        sharey = args.sharey
+    for arg in vars(args):
+        if getattr(args, arg) is not None:
+            globals()[arg] = getattr(args, arg)
 
-    main(args.file_name, file_dir)   
+    make_plots()   
 
