@@ -467,7 +467,7 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
             profiling_job_options["print-flow-progress-history"] = True
             profiling_job_options["timing-file"] = None  
             profiling_job_options["ft-core-count"] = 1  
-            profiling_job_options["ft-agg-core-link-capacity-mult"] = options["ft-core-count"]
+            profiling_job_options["ft-agg-core-link-capacity-mult"] = run_context["profiling-core-count"]
             profiling_job_options["lb-scheme"] = "random"   
             profiling_job_options["worker-id"] = run_context["worker-id-for-profiling"]
             profiling_job_options["stretch-factor"] = stretch_factor 
@@ -503,9 +503,9 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
             with open(profile_file_path, "wb") as f:
                 pkl.dump(this_job_prof, f)    
             
-            # profile_file_path_json = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.json"   
-            # with open(profile_file_path_json, "w") as f:    
-            #     json.dump(this_job_prof, f, indent=4) 
+            profile_file_path_json = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.json"   
+            with open(profile_file_path_json, "w") as f:    
+                json.dump(this_job_prof, f, indent=4) 
                 
             job["period"][str(throttle_factor)] = psim_finish_time
             if throttle_factor == 1.0:  

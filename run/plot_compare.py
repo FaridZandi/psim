@@ -12,7 +12,7 @@ plot_x_params = None
 plot_y_param = None
 plot_type = None 
 
-ext = "png" 
+ext = "pdf" 
 
 hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
                      "pink", "gray", "olive", "cyan", "black", "yellow"] * 100
