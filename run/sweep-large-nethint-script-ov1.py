@@ -273,8 +273,8 @@ def do_experiment(plot_stuff=False,
         "plot-initial-timing": False,
         "plot-intermediate-timing": False,
         "plot-final-timing": False,
-        "plot-routing-assignment": True, 
-        "plot-merged-ranges": True, 
+        "plot-routing-assignment": False, 
+        "plot-merged-ranges": False, 
         "plot-runtime-timing": False,
         "plot-link-empty-times": False,
         
@@ -336,7 +336,7 @@ if __name__ == "__main__":
     
     original_exp_number = None
     seed_range = 2
-    m = 10
+    m = 100
     clean_up_sweep_files = False
     
     if original_exp_number is not None: 
