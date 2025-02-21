@@ -423,7 +423,8 @@ if __name__ == "__main__":
             ("desired_entropy", [0.3]),
 
             # ("oversub", [1, 2, 4, 8]),
-            ("oversub", [8, 4, 2, 1]),
+            # ("oversub", [8, 4, 2, 1]),
+            ("oversub", [2]),
             # ("oversub", [8]),
             
             ("cmmcmp_range", [(0, 2)]),
