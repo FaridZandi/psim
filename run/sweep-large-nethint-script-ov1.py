@@ -356,7 +356,7 @@ if __name__ == "__main__":
     original_exp_number = None
     seed_range = 4
     m = 20
-    clean_up_sweep_files = False
+    clean_up_sweep_files = True
     
     if original_exp_number is not None: 
         exp_number = original_exp_number
@@ -421,7 +421,7 @@ if __name__ == "__main__":
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             # ("desired_entropy", [0.3, 0.5, 0.7, 0.9]),
-            ("desired_entropy", [0.]),
+            ("desired_entropy", [0.3]),
 
             # ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),
