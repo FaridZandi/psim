@@ -345,8 +345,8 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 4
-    m = 10
+    seed_range = 20
+    m = 20
     clean_up_sweep_files = False
     
     if original_exp_number is not None: 
