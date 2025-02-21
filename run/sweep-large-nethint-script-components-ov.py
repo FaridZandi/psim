@@ -384,11 +384,11 @@ if __name__ == "__main__":
             "subplot_y_params": "desired_entropy",
             "subplot_x_params": "rack_size",
             "subplot_hue_params": "comparison",
-            "plot_x_params": "job_sizes",
+            "plot_x_params": "oversub",
             "plot_y_param": "values",
             # "sharex": True, 
             # "sharey": True,
-            "subplot_width": 3,
+            "subplot_width": 5,
             "subplot_height": 2,
             "plot_type": plot_type, 
             "ext": "png"
