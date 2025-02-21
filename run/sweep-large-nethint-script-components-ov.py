@@ -232,16 +232,23 @@ def do_experiment(plot_stuff=False,
                                 "lb-scheme": "random"
                             }))
     
-    # comparisons.append(("RO5", {
-    #                         "timing-scheme": "zero",
-    #                         "routing-fit-strategy": "graph-coloring-v5",  
-    #                         "lb-scheme": "readprotocol"
-    #                     }))
-    
     for timing in ["faridv2", "faridv4"]:
+
+        subflow_count = 1   
+        name = "TS+RO"
+        if timing == "faridv4":
+            name += "+REP"
+
+        comparisons.append((name, {
+                                "timing-scheme": timing,
+                                "throttle-search": False,   
+                                "routing-fit-strategy": "graph-coloring-v5",     
+                                "fallback-threshold": fallback_threshold, 
+                                "lb-scheme": "readprotocol"
+                            }))   
+        
         for subflow_count in considered_sub:
             name = "TS+RO+SUB"
-                
             if timing == "faridv4":
                 name += "+REP"
                 
@@ -253,20 +260,7 @@ def do_experiment(plot_stuff=False,
                                     "fallback-threshold": fallback_threshold, 
                                     "lb-scheme": "readprotocol"
                                 }))
-        
-        subflow_count = 1   
-        name = "TS+RO"
-        if timing == "faridv4":
-            name += "+REP"
-        
-        comparisons.append((name, {
-                                "timing-scheme": timing,
-                                "throttle-search": False,   
-                                "routing-fit-strategy": "graph-coloring-v5",     
-                                "fallback-threshold": fallback_threshold, 
-                                "lb-scheme": "readprotocol"
-                            }))   
-    
+
     comparisons.append(("Perfect", {
                             "timing-scheme": "zero",
                             "lb-scheme": "perfect"
@@ -415,7 +409,7 @@ if __name__ == "__main__":
             ("machine_count", [48]),
             ("rack_size", [8]),
             
-            ("job_sizes", [(48, 48), (24, 24), (4, 16), (4, 8)]),
+            ("job_sizes", [(4, 16)]),
             # ("job_sizes", [(4, 16)]),
 
             ("placement_mode", ["entropy"]), 
@@ -424,8 +418,8 @@ if __name__ == "__main__":
             ("desired_entropy", [0.5]),
 
             # ("oversub", [1, 2, 4, 8]),
-            # ("oversub", [8, 4, 2, 1]),
-            ("oversub", [2]),
+            ("oversub", [8, 4, 2, 1]),
+            # ("oversub", [2]),
             # ("oversub", [8]),
             
             ("cmmcmp_range", [(0, 2)]),

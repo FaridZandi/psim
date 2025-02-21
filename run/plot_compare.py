@@ -73,8 +73,17 @@ def add_hatches(ax, hue_order):
         # Map each patch to the correct hatch style based on hue index
         # (the pattern repeats over hue groups in a cycle)
         hue_index = i % len(hue_order)
-        patch.set_hatch(hatch_styles[hue_index])
+        # get the label of the patch 
+        patch_label = patch.get_label()
+        if patch_label == "":
+            continue
         
+        # get the label of the hue
+        hue_label = hue_order[hue_index]
+        print(f"hue_label: {hue_label}, hue_index: {hue_index}, hatch: {hatch_styles[hue_index]}, patch_label: {patch_label}")
+        
+        patch.set_hatch(hatch_styles[hue_index])
+
         # Make the hatch finer 
         patch.set_linewidth(0.05)
         
@@ -91,6 +100,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     
     if len(df) == 0:
         return  
+    
     
     if plot_type == "line": 
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
@@ -139,7 +149,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         sns.barplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax, errorbar=None)     
+                    data=df, ax=ax, errorbar=None)
         
         annotate(ax)
         ax.axhline(y=1, color='black', linestyle='--')
@@ -148,6 +158,12 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
             ax.get_legend().remove()
     
     elif plot_type == "box":    
+        sns.barplot(x=plot_x_params, y=plot_y_param, 
+                    hue=subplot_hue_params, hue_order=hue_order, 
+                    palette=hue_color_options[:len(hue_order)],    
+                    data=df, ax=ax, errorbar=None, alpha=0.3, legend=False) 
+        
+        
         sns.boxplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, 
                     hue_order=hue_order, 
@@ -155,10 +171,10 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                     data=df, ax=ax, linewidth=0.5, 
                     fliersize=0.5)
         
-        add_hatches(ax, hue_order)
+        # add_hatches(ax, hue_order)
         
         # vertical line at y=1
-        ax.axhline(y=1, color='black', linestyle=':')
+        ax.axhline(y=1, color='black', linestyle=':', linewidth=0.5)
         
         if not legend:
             ax.get_legend().remove()
@@ -204,6 +220,9 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         ax.set_title(f"{subplot_y_params}={y_value}")   
 
     ax.title.set_size(8)
+   
+    ylim = (val_range[0] - 0.1, val_range[1] + 0.1)
+    ax.set_ylim(ylim)       
 
     if plot_type != "heatmap":
         ax.set_xlabel(plot_x_params)
@@ -270,7 +289,6 @@ def draw_plot(df, value, hue_order):
                 if j == len(subplot_y_values) // 2:
                     if i == len(subplot_x_values) - 1:
                         legend = True
-                            
             
             draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range)  
     
