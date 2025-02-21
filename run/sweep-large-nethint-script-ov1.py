@@ -284,7 +284,7 @@ def do_experiment(plot_stuff=False,
         "plot-final-timing": False,
         "plot-routing-assignment": False, 
         "plot-merged-ranges": False, 
-        "plot-runtime-timing": False,
+        "plot-runtime-timing": True,
         "plot-link-empty-times": False,
         
         "profiled-throttle-factors": profiled_throttle_factors, 
@@ -410,7 +410,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [400 * m]),
+            ("sim_length", [100 * m]),
             
             ("machine_count", [48]),
             ("rack_size", [8]),
