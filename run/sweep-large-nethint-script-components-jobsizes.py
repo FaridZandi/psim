@@ -347,7 +347,7 @@ if __name__ == "__main__":
     # make a backup of the current state of the repository.
     os.system("./git_backup.sh")
     
-    original_exp_number = None
+    original_exp_number = 5606
     seed_range = 4
     m = 20
     clean_up_sweep_files = True
@@ -390,7 +390,9 @@ if __name__ == "__main__":
             # "sharey": True,
             "subplot_width": 3,
             "subplot_height": 2,
-            "plot_type": plot_type
+            "plot_type": plot_type, 
+            "legend_side": "right",
+            "ext": "png"
         }
 
         create_command(plot_args, plot_commands_path)
