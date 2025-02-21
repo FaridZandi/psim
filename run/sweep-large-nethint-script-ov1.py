@@ -338,7 +338,7 @@ if __name__ == "__main__":
     
     original_exp_number = None
     seed_range = 2
-    m = 100
+    m = 10
     clean_up_sweep_files = False
     
     if original_exp_number is not None: 
@@ -399,14 +399,13 @@ if __name__ == "__main__":
             ("machine_count", [48]),
             ("rack_size", [8]),
             
-            ("job_sizes", [(8, 8)]),
+            ("job_sizes", [(4, 16)]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3]),
+            ("desired_entropy", [0.3, 0.5, 0.7]),
 
-            # ("oversub", [1, 2, 4, 8]),
-            ("oversub", [1]),
+            ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),
             
             ("cmmcmp_range", [(0, 2)]),
