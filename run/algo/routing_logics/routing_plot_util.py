@@ -96,7 +96,7 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
                             f'Leaf {leaf}, Spine {spine}', leaf, spine, 'down', 
                             min_affected_time, max_affected_time)   
             
-            if leaf == len(num_leaves) - 1 and spine == len(num_spines) - 1:
+            if leaf == num_leaves - 1 and spine == num_spines - 1:
                 ax_up.legend()
                 ax_down.legend() 
             
