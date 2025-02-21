@@ -368,19 +368,19 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
     
-    for plot_type in []: #["heatmap"]:  
-        plot_args = {
-            "file_name": path,
-            "plot_params": "metric",
-            "subplot_y_params": "machine_count",
-            "subplot_x_params": "comparison",
-            "subplot_hue_params": "rack_size",
-            "plot_x_params": "job_sizes",
-            "plot_y_param": "values",
-            "plot_type": plot_type
-        }
+    # for plot_type in []: #["heatmap"]:  
+    #     plot_args = {
+    #         "file_name": path,
+    #         "plot_params": "metric",
+    #         "subplot_y_params": "machine_count",
+    #         "subplot_x_params": "comparison",
+    #         "subplot_hue_params": "rack_size",
+    #         "plot_x_params": "job_sizes",
+    #         "plot_y_param": "values",
+    #         "plot_type": plot_type
+    #     }
         
-        create_command(plot_args, plot_commands_path)
+    #     create_command(plot_args, plot_commands_path)
         
                         
     for plot_type in ["bar", "box"]:
@@ -390,10 +390,10 @@ if __name__ == "__main__":
             "subplot_y_params": "desired_entropy",
             "subplot_x_params": "rack_size",
             "subplot_hue_params": "comparison",
-            "plot_x_params": "oversub",
+            "plot_x_params": "job_sizes",
             "plot_y_param": "values",
-            "sharex": True, 
-            "sharey": True,
+            # "sharex": True, 
+            # "sharey": True,
             "subplot_width": 3,
             "subplot_height": 2,
             "plot_type": plot_type
@@ -415,12 +415,13 @@ if __name__ == "__main__":
             ("machine_count", [48]),
             ("rack_size", [8]),
             
-            ("job_sizes", [(48, 48), (24, 24), (8, 16), (4, 8)]),
+            # ("job_sizes", [(48, 48), (24, 24), (4, 16), (4, 8)]),
+            ("job_sizes", [(4, 16)]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             # ("desired_entropy", [0.3, 0.5, 0.7, 0.9]),
-            ("desired_entropy", [0.3]),
+            ("desired_entropy", [0.]),
 
             # ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),
