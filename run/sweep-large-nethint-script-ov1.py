@@ -218,11 +218,11 @@ def do_experiment(plot_stuff=False,
                             "lb-scheme": "random"
                         }))
     
-    comparisons.append(("RO", {
-                            "timing-scheme": "zero",
-                            "routing-fit-strategy": "graph-coloring-v3",  
-                            "lb-scheme": "readprotocol"
-                        }))
+    # comparisons.append(("RO", {
+    #                         "timing-scheme": "zero",
+    #                         "routing-fit-strategy": "graph-coloring-v3",  
+    #                         "lb-scheme": "readprotocol"
+    #                     }))
     
     for subflow_count in considered_sub:
         comparisons.append((f"TS+SUB", {
@@ -329,7 +329,15 @@ def do_experiment(plot_stuff=False,
     return summary, results_dir 
     
     
+def create_command(plot_args, plot_commands_path):  
+    plot_command = "python3 plot_compare.py " + " ".join([f"--{key} {value}" for key, value in plot_args.items()])
     
+    with open(plot_commands_path, "a") as f:
+        clean_plot_command = plot_command
+        while "  " in clean_plot_command:
+            clean_plot_command = clean_plot_command.replace("  ", " ") 
+        f.write(clean_plot_command + "\n\n")
+
 # Here, we iterate over things that will have different baselines to compare against.   
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
 if __name__ == "__main__":
@@ -337,7 +345,7 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 2
+    seed_range = 10
     m = 10
     clean_up_sweep_files = False
     
@@ -352,39 +360,36 @@ if __name__ == "__main__":
     plot_commands_path = f"{exp_dir}/results_plot.sh"
     
     for plot_type in []: #["heatmap"]:  
-        plot_command = f"python3 plot_compare.py \
-                        --file_name {path} \
-                        --plot_params metric \
-                        --subplot_y_params machine_count \
-                        --subplot_x_params comparison \
-                        --subplot_hue_params rack_size \
-                        --plot_x_params job_sizes \
-                        --plot_y_param values \
-                        --plot_type {plot_type}"
-
-        with open(plot_commands_path, "a") as f:
-            clean_plot_command = plot_command
-            while "  " in clean_plot_command:
-                clean_plot_command = clean_plot_command.replace("  ", " ") 
-            f.write(clean_plot_command + "\n\n")
+        plot_args = {
+            "file_name": path,
+            "plot_params": "metric",
+            "subplot_y_params": "machine_count",
+            "subplot_x_params": "comparison",
+            "subplot_hue_params": "rack_size",
+            "plot_x_params": "job_sizes",
+            "plot_y_param": "values",
+            "plot_type": plot_type
+        }
+        
+        create_command(plot_args, plot_commands_path)
+        
                         
     for plot_type in ["bar"]:
-        plot_command = f"python3 plot_compare.py \
-                        --file_name {path} \
-                        --plot_params metric \
-                        --subplot_y_params desired_entropy \
-                        --subplot_x_params rack_size \
-                        --subplot_hue_params comparison \
-                        --plot_x_params oversub \
-                        --plot_y_param values \
-                        --plot_type {plot_type}"
-                    
-        with open(plot_commands_path, "a") as f:
-            clean_plot_command = plot_command
-            while "  " in clean_plot_command:
-                clean_plot_command = clean_plot_command.replace("  ", " ") 
-            f.write(clean_plot_command + "\n\n")
-    
+        plot_args = {
+            "file_name": path,
+            "plot_params": "metric",
+            "subplot_y_params": "desired_entropy",
+            "subplot_x_params": "rack_size",
+            "subplot_hue_params": "comparison",
+            "plot_x_params": "oversub",
+            "plot_y_param": "values",
+            "subplot_width": 3,
+            "subplot_height": 2,
+            "plot_type": plot_type
+        }
+
+        create_command(plot_args, plot_commands_path)
+            
     if original_exp_number is None:
         exp_dir = f"results/exps/{exp_number}"
         path = f"results/exps/{exp_number}/results.csv" 
