@@ -305,6 +305,8 @@ def do_experiment(plot_stuff=False,
         "comparison-base": comparison_base,              
         
         "comparisons": comparisons,
+        
+        "profiling-core-count": core_count,
     } 
     
     cs = ConfigSweeper(
