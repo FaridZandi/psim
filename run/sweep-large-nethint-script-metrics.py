@@ -125,11 +125,18 @@ def do_experiment(plot_stuff=False,
         "total_time": {
             "avg_cdf_plot": True,   
             "iter_avg_plot": False,  
-            "compare_mode": "divide",
-            "better": "higher",
+            "compare_mode": "self",
+            "better": "lower",
             "type": "single_number",
         }, 
         "total_congested_time": {
+            "avg_cdf_plot": True,   
+            "iter_avg_plot": False,  
+            "compare_mode": "self",
+            "better": "lower",
+            "type": "single_number",
+        },
+        "job_slowdown_fairness": {
             "avg_cdf_plot": True,   
             "iter_avg_plot": False,  
             "compare_mode": "self",
@@ -352,7 +359,7 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 4
+    seed_range = 1
     m = 20
     clean_up_sweep_files = False
     
@@ -381,7 +388,7 @@ if __name__ == "__main__":
     #     create_command(plot_args, plot_commands_path)
         
                         
-    for plot_type in ["cdf"]:
+    for plot_type in ["bar"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
@@ -421,12 +428,12 @@ if __name__ == "__main__":
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.7, 0.9]),
+            ("desired_entropy", [0.7]),
             # ("desired_entropy", [0.5]),
 
             # ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),
-            ("oversub", [2, 1]),
+            ("oversub", [2]),
             # ("oversub", [8]),
             
             ("cmmcmp_range", [(0, 2)]),

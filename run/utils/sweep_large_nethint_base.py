@@ -631,6 +631,15 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = int(get_psim_time(output))   
         elif metric == "total_congested_time":
             job_numbers = int(get_psim_total_congested_time(output))
+        
+        elif metric == "job_slowdown_fairness":
+            jobs = run_context["jobs"]
+            job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], 
+                                                   all_jobs_running=all_jobs_running)
+            
+            pprint(job_numbers)
+                
+                
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 

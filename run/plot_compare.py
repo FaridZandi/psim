@@ -108,6 +108,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     if y_value is not None: 
         df = df[df[subplot_y_params] == y_value]
     
+    legend = False 
+    
     # turn on sns grid for this subplot
     ax.grid(True)    
     
