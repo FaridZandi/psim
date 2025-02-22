@@ -299,9 +299,9 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 1
+    seed_range = 30
     m = 20
-    clean_up_sweep_files = False
+    clean_up_sweep_files = True
     
     if original_exp_number is not None: 
         exp_number = original_exp_number
@@ -333,7 +333,7 @@ if __name__ == "__main__":
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "rack_size",
-            "subplot_x_params": "oversub",
+            "subplot_x_params": "",
             "subplot_hue_params": "desired_entropy",
             "plot_x_params": "job_sizes",
             "plot_y_param": "values",
