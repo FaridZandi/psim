@@ -923,6 +923,9 @@ void PSim::save_run_results(){
         total_finished_task_count += protocol->finished_task_count;
     }
 
+    double congested_time = this->network->get_total_congested_time();
+
+    spdlog::info("Total congested time: {}", congested_time);   
     spdlog::info("Simulation Finished at {}", timer);
     spdlog::info("Timer: {}, Task Completion: {}/{}", timer, total_finished_task_count, total_task_count);
 

@@ -193,7 +193,7 @@ double Network::make_progress_on_flows(double current_time, double step_size,
     for (auto& bn: bottlenecks){
         bn->congested_time += bn->bwalloc->is_congested() * step_size;
     }
-    
+
     if (GConf::inst().record_bottleneck_history){
         for (auto& bn: bottlenecks){
             bn->total_register_history.push_back(bn->bwalloc->total_registered);
@@ -213,7 +213,14 @@ std::vector<int> Network::get_core_bottleneck_ids(){
    return std::vector<int>(); 
 }
 
-
+double Network::get_total_congested_time(){
+    double total = 0; 
+    for (auto& bn: bottlenecks){
+        total += bn->congested_time; 
+    }
+    total /= bottlenecks.size();
+    return total; 
+}
 
 
 //==============================================================================

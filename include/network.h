@@ -71,6 +71,8 @@ public:
 
     virtual std::vector<int> get_core_bottleneck_ids();
 
+    double get_total_congested_time(); 
+
 private:
 
 };
