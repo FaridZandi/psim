@@ -637,7 +637,6 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], 
                                                    all_jobs_running=all_jobs_running)
             
-            pprint(job_numbers)
                 
                 
         else: 
