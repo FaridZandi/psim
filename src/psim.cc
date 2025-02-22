@@ -502,7 +502,10 @@ void PSim::log_results() {
 
     spdlog::critical("psim time: {}", timer);
 
+    double congested_time = this->network->get_total_congested_time();
 
+    spdlog::critical("Total congested time: {}", congested_time);   
+    
     if (this->protocols.size() != 1) {
         spdlog::error("the rest of log_results is only supported for single protocol runs");
         return;
@@ -608,9 +611,7 @@ void PSim::log_results() {
     spdlog::critical("critical path core choices: {}", cp_core_choices);
 
 
-    double congested_time = this->network->get_total_congested_time();
 
-    spdlog::info("Total congested time: {}", congested_time);   
 
     spdlog::critical("-------------------------------------------------------");
 }
