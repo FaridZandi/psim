@@ -22,7 +22,10 @@ public:
     virtual void register_rate(int id, double rate, int priority) = 0;
     virtual void compute_allocations() = 0;
     virtual double get_allocated_rate(int id, double registered_rate = -1, int priority = -1) = 0;
-    virtual void register_utilization(double utilization);
+    
+    void register_utilization(double utilization);
+    bool is_congested(); 
+    
 private: 
 };
 
@@ -53,6 +56,7 @@ public:
     void register_rate(int id, double rate, int priority);
     void compute_allocations();
     double get_allocated_rate(int id, double registered_rate = -1, int priority = -1);
+
 private:
 };
 
@@ -71,6 +75,7 @@ public:
     void register_rate(int id, double rate, int priority);
     void compute_allocations();
     double get_allocated_rate(int id, double registered_rate = -1, int priority = -1);
+
 private:
 };
 
@@ -90,6 +95,7 @@ public:
     void register_rate(int id, double rate, int priority);
     void compute_allocations();
     double get_allocated_rate(int id, double registered_rate = -1, int priority = -1);
+
 private:
 };
 

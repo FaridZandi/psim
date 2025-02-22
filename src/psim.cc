@@ -400,10 +400,6 @@ void PSim::mark_critical_path(){
         // of the tasks will collide. sorry for the stupid design.
         break;
     }
-
-
-
-
 }
 
 void PSim::traverse_critical_path(PTask* task) {
