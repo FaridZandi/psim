@@ -349,7 +349,10 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     #######################################################################################################
 
-    runtime_related_base_path = run_context["schedulings-dir"] + "r-" + str(run_context["exp-uuid"]) + "-"
+    runtime_related_base_path = run_context["schedulings-dir"]
+    runtime_related_base_path += str(run_context["comparison"]) + "-"
+    runtime_related_base_path += str(run_context["exp-uuid"]) + "-"
+
     runtime_related_added_keys = [] 
     for key in config_sweeper.relevant_keys:
         if key not in placement_related_keys and key not in scheduling_related_keys:    
