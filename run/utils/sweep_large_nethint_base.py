@@ -657,9 +657,10 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             # job_numbers = np.std(slowdown_rates)
             
             # compute jain's fairness index.
-            fairness_index = sum(slowdown_rates) ** 2 / (len(slowdown_rates) * sum([x ** 2 for x in slowdown_rates]))
-            job_numbers = fairness_index
+            # fairness_index = sum(slowdown_rates) ** 2 / (len(slowdown_rates) * sum([x ** 2 for x in slowdown_rates]))
+            # job_numbers = fairness_index
                 
+            job_numbers = np.max(slowdown_rates)
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 

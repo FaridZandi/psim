@@ -372,7 +372,8 @@ if __name__ == "__main__":
     os.makedirs(exp_dir, exist_ok=True)
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
-    
+    os.system(f"chmod +x {plot_commands_path}")
+
     # for plot_type in []: #["heatmap"]:  
     #     plot_args = {
     #         "file_name": path,
@@ -485,9 +486,6 @@ if __name__ == "__main__":
             else:
                 os.system("ln -s {} {}".format(results_dir, f"last-exp-results-link-{exp_number}/last-exp-results-link-{perm_key}"))
                         
-
-    os.system(f"chmod +x {plot_commands_path}")
-    os.system(f"cat {plot_commands_path}")
     os.system(f"echo 'running plot commands'")
     os.system(f"./{plot_commands_path}")
     
