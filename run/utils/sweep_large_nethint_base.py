@@ -634,10 +634,20 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
         
         elif metric == "job_slowdown_fairness":
             jobs = run_context["jobs"]
-            job_numbers = get_all_rep_iter_lengths(output, options["rep-count"], 
+            iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
                                                    all_jobs_running=all_jobs_running)
+        
+            iter_lengths = iter_lengths[0]  
+            slowdown_rates = []
             
+            for job_id, iter_length in iter_lengths.items():
+                avg_iter_length = np.mean(iter_length)  
                 
+                job = [job for job in jobs if job["job_id"] == job_id][0]
+                slowdown = avg_iter_length / job["base_period"]
+                slowdown_rates.append(slowdown)
+                
+            job_numbers = np.std(slowdown_rates) / np.mean(slowdown_rates)
                 
         else: 
             rage_quit("Unknown metric: {}".format(metric))
