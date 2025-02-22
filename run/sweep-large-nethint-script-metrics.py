@@ -359,9 +359,9 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 5
-    m = 20
-    clean_up_sweep_files = False
+    seed_range = 20
+    m = 100
+    clean_up_sweep_files = True
     
     if original_exp_number is not None: 
         exp_number = original_exp_number
@@ -372,7 +372,6 @@ if __name__ == "__main__":
     os.makedirs(exp_dir, exist_ok=True)
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
-    os.system(f"chmod +x {plot_commands_path}")
 
     # for plot_type in []: #["heatmap"]:  
     #     plot_args = {
@@ -409,7 +408,9 @@ if __name__ == "__main__":
         }
 
         create_command(plot_args, plot_commands_path)
-            
+    
+    os.system(f"chmod +x {plot_commands_path}")
+        
     if original_exp_number is None:
         exp_dir = f"results/exps/{exp_number}"
         path = f"results/exps/{exp_number}/results.csv" 
@@ -434,7 +435,7 @@ if __name__ == "__main__":
 
             # ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),
-            ("oversub", [2]),
+            ("oversub", [1, 2]),
             # ("oversub", [8]),
             
             ("cmmcmp_range", [(0, 2)]),
