@@ -291,7 +291,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     move_from_op_to_cxt = ["compat-score-mode", "throttle-search", 
                            "farid-rounds", "routing-fit-strategy", 
                            "placement-mode", "ring-mode", "placement-seed",
-                           "timing-scheme", "inflate", "fallback-threshold"]
+                           "timing-scheme", "inflate", "fallback-threshold", 
+                           "comparison"]
     
     for key in move_from_op_to_cxt: 
         if key in options:
@@ -640,12 +641,16 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             iter_lengths = iter_lengths[0]  
             slowdown_rates = []
             
+            
             for job_id, iter_length in iter_lengths.items():
                 avg_iter_length = np.mean(iter_length)  
                 
                 job = [job for job in jobs if job["job_id"] == job_id][0]
                 slowdown = avg_iter_length / job["base_period"]
                 slowdown_rates.append(slowdown)
+                
+            pprint(run_context["comparison"])
+            pprint(slowdown_rates)
                 
             job_numbers = np.std(slowdown_rates) / np.mean(slowdown_rates)
                 
@@ -1140,19 +1145,21 @@ def exp_filter_function(permutations_dicts, config_sweeper):
     
     for comparison in comparisons:  
         comparison_setting = comparison_base.copy()
+        comparison_name = comparison[0]
         for key, value in comparison[1].items():
             comparison_setting[key] = value
 
-        comparison_permutations.append(comparison_setting)  
+        comparison_permutations.append((comparison_name, comparison_setting))  
     
     # for all comparisons, and for all permutations_dicts, put them together and add them to the filtered_permutations
     filtered_permutations = []
     
-    for comparison in comparison_permutations:
+    for comparison_name, comparison_setting in comparison_permutations:
         for exp in permutations_dicts:
             new_exp = exp.copy()
             
-            new_exp.update(comparison)
+            new_exp.update(comparison_setting)
+            new_exp.update({"comparison": comparison_name})
             filtered_permutations.append(new_exp)   
             
     relevant_keys = set()  
