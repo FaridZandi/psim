@@ -230,6 +230,8 @@ public:
     std::vector<double> total_register_history;
     std::vector<double> total_allocated_history;
 
+    double congested_time;  
+
 private:
     void setup_bwalloc();
 };
