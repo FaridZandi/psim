@@ -126,7 +126,7 @@ def do_experiment(plot_stuff=False,
             "avg_cdf_plot": True,   
             "iter_avg_plot": False,  
             "compare_mode": "divide",
-            "better": "lower",
+            "better": "higher",
             "type": "single_number",
         }, 
         "total_congested_time": {
@@ -376,7 +376,7 @@ if __name__ == "__main__":
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.1, 0.3, 0.5, 0.7, 0.9]),
+            ("desired_entropy", [0.7, 0.9]),
             # ("desired_entropy", [0.5]),
 
             # ("oversub", [1, 2, 4, 8]),

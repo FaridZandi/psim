@@ -502,8 +502,8 @@ void PSim::log_results() {
 
     spdlog::critical("psim time: {}", timer);
 
-    double congested_time = this->network->get_total_congested_time();
-
+    int tier = 2; 
+    double congested_time = this->network->get_total_congested_time(tier);
     spdlog::critical("Total congested time: {}", congested_time);   
     
     if (this->protocols.size() != 1) {

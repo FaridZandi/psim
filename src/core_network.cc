@@ -307,9 +307,11 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
             server_loc_map[machine_num] = ft_loc{-1, i, k, -1, -1};
 
             Bottleneck *bn_up = create_bottleneck(server_tor_link_capacity);
+            bn_up->tier = 1;
             server_tor_bottlenecks[ft_loc{-1, i, k, 1, -1}] = bn_up;
 
             Bottleneck *bn_down = create_bottleneck(server_tor_link_capacity);
+            bn_down->tier = 1;  
             server_tor_bottlenecks[ft_loc{-1, i, k, 2, -1}] = bn_down;
         }
 
@@ -340,9 +342,11 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
 
         for (int c = 0; c < core_count; c++) {
             Bottleneck *bn_up = create_bottleneck(core_link_capacity);
+            bn_up->tier = 2;    
             core_bottlenecks[ft_loc{-1, i, -1, 1, c}] = bn_up;
 
             Bottleneck *bn_down = create_bottleneck(core_link_capacity);
+            bn_down->tier = 2;
             core_bottlenecks[ft_loc{-1, i, -1, 2, c}] = bn_down;
         }
     }

@@ -213,12 +213,16 @@ std::vector<int> Network::get_core_bottleneck_ids(){
    return std::vector<int>(); 
 }
 
-double Network::get_total_congested_time(){
+double Network::get_total_congested_time(int tier){
     double total = 0; 
+    int count = 0;
     for (auto& bn: bottlenecks){
-        total += bn->congested_time; 
+        if (bn->tier == tier){
+            total += bn->congested_time;
+            count += 1;  
+        }
     }
-    total /= bottlenecks.size();
+    total /= count;     
     return total; 
 }
 
@@ -323,6 +327,8 @@ Bottleneck::Bottleneck(double bandwidth) {
     this->bandwidth = bandwidth;
     this->current_flow_count = 0;
     this->current_flow_size_sum = 0;
+
+    this->tier = 0;
 
     setup_bwalloc();
 
