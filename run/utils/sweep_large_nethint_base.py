@@ -1141,7 +1141,7 @@ def exp_filter_function(permutations_dicts, config_sweeper):
     comparison_permutations = [] 
     
     # add the comparison_base to the permutations_dicts
-    comparison_permutations.append(comparison_base)
+    comparison_permutations.append(("base", comparison_base))   
     
     for comparison in comparisons:  
         comparison_setting = comparison_base.copy()
