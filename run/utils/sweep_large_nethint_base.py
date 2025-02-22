@@ -350,7 +350,6 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     #######################################################################################################
 
     runtime_related_base_path = run_context["schedulings-dir"]
-    runtime_related_base_path += str(run_context["comparison"]) + "-"
     runtime_related_base_path += str(run_context["exp-uuid"]) + "-"
 
     runtime_related_added_keys = [] 
