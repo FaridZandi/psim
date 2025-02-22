@@ -352,7 +352,7 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 1
+    seed_range = 4
     m = 20
     clean_up_sweep_files = False
     
@@ -387,8 +387,8 @@ if __name__ == "__main__":
             "plot_params": "metric",
             "subplot_y_params": "rack_size",
             "subplot_x_params": "oversub",
-            "subplot_hue_params": "desired_entropy",
-            "plot_x_params": "job_sizes",
+            "subplot_hue_params": "comparison",
+            "plot_x_params": "desired_entropy",
             "plot_y_param": "values",
             # "sharex": True, 
             # "sharey": True,
@@ -426,7 +426,7 @@ if __name__ == "__main__":
 
             # ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),
-            ("oversub", [1]),
+            ("oversub", [2, 1]),
             # ("oversub", [8]),
             
             ("cmmcmp_range", [(0, 2)]),
