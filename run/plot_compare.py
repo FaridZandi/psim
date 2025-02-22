@@ -4,6 +4,7 @@ import seaborn as sns
 from matplotlib import pyplot as plt    
 import argparse 
 from pprint import pprint 
+import numpy as np 
 
 file_name = None 
 
@@ -21,6 +22,7 @@ subplot_height = 3
 sharex = False
 sharey = False
 
+legend_cols = 1 
 legend_side = "bottom"  
 
 ext = "pdf" 
@@ -213,7 +215,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
             
             data = df[df[subplot_hue_params] == hue][plot_y_param]  
 
-            sns.kdeplot(data, cumulative=True, ax=ax, label=hue, warn_singular=False, 
+            sns.kdeplot(data, cumulative=True, ax=ax, 
+                        label=hue, warn_singular=False, 
                         color=hue_color_options[i])
             
             ax.set_xlabel(subplot_hue_params)
@@ -228,13 +231,28 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         ax.set_xlabel(values_name)
 
         ax.axvline(x=1, color='black', linestyle='--')  
+    
+    elif plot_type == "cdf2":
         
-    if legend:
-        if legend_side == "bottom":
-            ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.5), ncol=3)
+        # cdf without kde. just sort and do the regular cdf plot
+        
+        for i, hue in enumerate(hue_order):
+            data = df[df[subplot_hue_params] == hue][plot_y_param]  
+            data = data.sort_values()
+            yvals = np.arange(len(data)) / float(len(data))
+            ax.plot(data, yvals, label=hue, color=hue_color_options[i])
+        
+        
+        xlim_min = min(val_range[0] - 0.1, 0.9) 
+        xlim_max = max(val_range[1] + 0.1, 1.1)
+        
+        ax.set_xlim(xlim_min, xlim_max)
+        ax.set_xlabel(values_name)
+        
+        ax.axvline(x=1, color='black', linestyle='--')  
+
             
-        elif legend_side == "right":   
-            ax.legend(loc="center left", bbox_to_anchor=(1.05, 0.5), ncol=1)
+
             
     # draw a horizontal line at y=1
     
@@ -299,7 +317,7 @@ def draw_plot(df, value, hue_order):
     fig.set_figheight(height)
       
     plt.subplots_adjust(hspace=0.5)
-    # plt.subplots_adjust(wspace=0.5)
+    plt.subplots_adjust(wspace=0.35)
     
     for i, x_value in enumerate(subplot_x_values):
         for j, y_value in enumerate(subplot_y_values):
@@ -316,6 +334,15 @@ def draw_plot(df, value, hue_order):
                         legend = True
             
             draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range)  
+            
+            if legend:
+                handles, labels = ax.get_legend_handles_labels()
+                
+                if legend_side == "bottom":
+                    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=legend_cols)
+                    
+                elif legend_side == "right":   
+                    fig.legend(handles, labels, loc="center left", bbox_to_anchor=(1.05, 0.5), ncol=legend_cols)
     
     file_dir = "/".join(file_name.split("/")[:-1]) 
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.{ext}", bbox_inches='tight', dpi=200)        
@@ -364,7 +391,8 @@ if __name__ == "__main__":
     parser.add_argument("--sharey", type=bool, required=False)
     parser.add_argument("--legend_side", type=str, required=False)  
     parser.add_argument("--values_name", type=str, required=False)  
-    
+    parser.add_argument("--legend_cols", type=int, required=False)
+        
     args = parser.parse_args()
         
     for arg in vars(args):

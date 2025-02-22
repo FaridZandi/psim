@@ -332,8 +332,8 @@ if __name__ == "__main__":
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "machine_count",
-            "subplot_x_params": "rack_size",
+            "subplot_y_params": "rack_size",
+            "subplot_x_params": "oversub",
             "subplot_hue_params": "desired_entropy",
             "plot_x_params": "job_sizes",
             "plot_y_param": "values",
