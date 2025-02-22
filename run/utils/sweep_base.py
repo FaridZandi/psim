@@ -27,7 +27,8 @@ class ConfigSweeper:
                  exp_filter_function=None,
                  exp_name="exp",
                  worker_thread_count=DEFAULT_WORKER_THREAD_COUNT, 
-                 plot_cdfs=False):  
+                 plot_cdfs=False, 
+                 store_outputs=False):  
         
         # arguments
         self.sweep_config = sweep_config
@@ -79,7 +80,7 @@ class ConfigSweeper:
         self.last_df_save_time = datetime.datetime.now() 
         self.df_save_interval_seconds = 300 
         
-        self.do_store_outputs = False
+        self.do_store_outputs = store_outputs
         self.plot_cdfs = plot_cdfs  
         self.relevant_keys = [] 
         

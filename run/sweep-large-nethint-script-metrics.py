@@ -275,6 +275,7 @@ def do_experiment(plot_stuff=False,
                                                             experiment_seed),
         worker_thread_count=30, 
         plot_cdfs=False,
+        store_outputs=True,
     )
     
     summary = cs.sweep()
