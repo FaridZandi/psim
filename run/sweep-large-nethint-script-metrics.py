@@ -129,6 +129,13 @@ def do_experiment(plot_stuff=False,
             "better": "lower",
             "type": "single_number",
         }, 
+        "total_congested_time": {
+            "avg_cdf_plot": True,   
+            "iter_avg_plot": False,  
+            "compare_mode": "divide",
+            "better": "lower",
+            "type": "single_number",
+        },
         "rolling_iter_time": {
             "avg_cdf_plot": False,   
             "iter_avg_plot": True,  

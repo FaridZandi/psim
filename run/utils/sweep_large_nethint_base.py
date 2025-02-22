@@ -629,7 +629,8 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
         
         elif metric == "total_time":
             job_numbers = int(get_psim_time(output))   
-            
+        elif metric == "total_congested_time":
+            job_numbers = int(get_psim_total_congested_time(output))
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 

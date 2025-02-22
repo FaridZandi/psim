@@ -143,17 +143,25 @@ def get_base_dir():
     return base_dir
 
 
-   
+# [14:14:13.445] [critical] run number: 1
+# [14:14:13.445] [critical] psim time: 8020
+# [14:14:13.445] [critical] Total congested time: 1.375
+
 def get_psim_time(output): 
-    
     for line in output:
         if "psim time:" in line:
             psim_time = float(line.split("psim time:")[1])
             return psim_time        
         
     rage_quit("no psim times found, simulation probably failed")
-    
 
+def get_psim_total_congested_time(output):  
+    for line in output:
+        if "Total congested time:" in line:
+            congested_time = float(line.split("Total congested time:")[1])
+            return congested_time
+
+    rage_quit("no congested times found, simulation probably failed")
 
 def get_random_string(length):
     letters = "abcdefghijklmnopqrstuvwxyz"
