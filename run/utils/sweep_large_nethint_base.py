@@ -655,12 +655,9 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             pprint(slowdown_rates)
                 
             job_numbers = np.std(slowdown_rates)
-            
             # compute jain's fairness index.
-            # fairness_index = sum(slowdown_rates) ** 2 / (len(slowdown_rates) * sum([x ** 2 for x in slowdown_rates]))
-            # job_numbers = fairness_index
+            # job_numbers = sum(slowdown_rates) ** 2 / (len(slowdown_rates) * sum([x ** 2 for x in slowdown_rates]))
                 
-            # job_numbers = np.max(slowdown_rates)
         elif metric == "job_times": 
             jobs = run_context["jobs"]
             iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
@@ -676,6 +673,12 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
                 job_times.append(avg_iter_length)
 
             job_numbers = job_times 
+        
+        elif metric == "job_base_periods":
+            jobs = run_context["jobs"]
+            job_base_periods = [job["base_period"] for job in jobs]
+            job_numbers = job_base_periods
+            
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 
