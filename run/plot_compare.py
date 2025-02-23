@@ -277,6 +277,18 @@ def draw_plot(df, value, hue_order):
     if value is not None: 
         df = df[df[plot_params] == value]
     
+    # get all the types of values, it's in the type column  
+    types = df["type"].unique()
+    if len(types) > 1: 
+        exit(f"Error: more than one type of values in the dataframe: {types}")
+    data_type = types[0]    
+    
+    if data_type == "single_number" or data_type == "per_iter"    
+        df["values"] = df["values"].astype(float)
+    elif data_type == "single_list": 
+        print("single_list")
+        input() 
+    
     min_value = df["values"].min()
     max_value = df["values"].max()
     val_range = (min_value, max_value)
@@ -357,7 +369,6 @@ def make_plots():
     df["values"] = df["values"].apply(lambda x: [float(i) for i in x[1:-1].split(",")])
     df = df.explode("values")
     
-    df["values"] = df["values"].astype(float)
     
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
@@ -370,6 +381,7 @@ def make_plots():
         unique_values = df[plot_params].unique()
 
     for value in unique_values: 
+            
         print(f"value: {value}, plot_type: {plot_type}")    
         draw_plot(df, value, hue_order)    
         

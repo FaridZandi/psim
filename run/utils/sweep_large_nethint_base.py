@@ -1080,6 +1080,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         # add results for base 
         summary.append({    
             "metric": metric,
+            "type": metric_info["type"],
             "comparison": "base",
             "mean": base_mean,
             "values": base_values
@@ -1132,6 +1133,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 
             summary.append({
                 "metric": metric,   
+                "type": metric_info["type"],
                 "comparison": comparison_name,
                 "mean": merged_mean, 
                 "values": list(merged_df["speedup"])
