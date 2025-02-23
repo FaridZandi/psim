@@ -1064,7 +1064,10 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 base_mean = base_df[avg_metric_key].mean()
                 
             elif metric_info["type"] == "single_list":
+                print(base_df[avg_metric_key])
+                
                 rows_sum = base_df[avg_metric_key].iloc[0] 
+                
                 for i in range(1, len(base_df)):
                     for j in range(len(rows_sum)):
                         rows_sum[j] += base_df[avg_metric_key].iloc[i][j]
