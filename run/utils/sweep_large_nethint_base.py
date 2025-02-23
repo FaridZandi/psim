@@ -687,7 +687,7 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
                 json.dump(job_numbers, f, indent=4)
         
         if metric_info["avg_cdf_plot"]:
-            if metric_info["type"] == "single_number":
+            if metric_info["type"] == "single_number" or metric_info["type"] == "single_list":
 
                 printed_metrics.append("avg_{}".format(metric)) 
 
@@ -812,6 +812,9 @@ def get_comparison_color(comparison):
 
 
 def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
+    print("this doesn't work yet.")    
+    return 
+
     import matplotlib.pyplot as plt 
     import seaborn as sns   
     
@@ -1052,7 +1055,19 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         
         base_mean = None 
         base_values = None 
+        
         if metric_info["compare_mode"] == "self":
+            if metric_info["type"] == "single_number":
+                base_mean = base_df[avg_metric_key].mean()
+                base_values = list(base_df[avg_metric_key])
+                
+            elif metric_info["type"] == "single_list":
+                first_row = base_df[avg_metric_key].iloc[0] 
+                for i in range(1, len(base_df)):
+                    first_row += base_df[avg_metric_key].iloc[i]
+                base_mean = first_row / len(base_df)
+                base_values = list(base_df[avg_metric_key])
+                
             base_mean = base_df[avg_metric_key].mean()
             base_values = list(base_df[avg_metric_key])
         if metric_info["compare_mode"] == "divide":
