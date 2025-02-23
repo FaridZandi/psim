@@ -1059,7 +1059,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         if metric_info["compare_mode"] == "self":
             if metric_info["type"] == "single_number" or metric_info["type"] == "per_iter":
                 base_mean = base_df[avg_metric_key].mean()
-                base_values = list(base_df[avg_metric_key])
                 
             elif metric_info["type"] == "single_list":
                 rows_sum = base_df[avg_metric_key].iloc[0] 
@@ -1068,7 +1067,9 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 for j in range(len(rows_sum)):
                     rows_sum[j] = rows_sum[j] / len(base_df)    
                 base_mean = rows_sum
-                base_values = list(base_df[avg_metric_key])
+
+            base_values = list(base_df[avg_metric_key])
+                
         if metric_info["compare_mode"] == "divide":
             base_mean = 1
             base_values = [1 for _ in range(len(base_df))]
@@ -1116,11 +1117,23 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 elif metric_info["better"] == "higher":
                     speedup = merged_df[compared_key] - merged_df[base_key]
                     merged_df["speedup"] = round(speedup, rounding_precision) 
-                    
+            
+            merged_mean = None 
+            if metric_info["type"] == "single_number" or metric_info["type"] == "per_iter":
+                merged_mean = merged_df["speedup"].mean()
+                
+            elif metric_info["type"] == "single_list":
+                rows_sum = merged_df["speedup"].iloc[0] 
+                for i in range(1, len(merged_df)):
+                    rows_sum += merged_df["speedup"].iloc[i]
+                for j in range(len(rows_sum)):
+                    rows_sum[j] = rows_sum[j] / len(merged_df)    
+                merged_mean = rows_sum
+                
             summary.append({
                 "metric": metric,   
                 "comparison": comparison_name,
-                "mean": merged_df["speedup"].mean(),    
+                "mean": merged_mean, 
                 "values": list(merged_df["speedup"])
             })
             
