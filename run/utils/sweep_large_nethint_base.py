@@ -661,6 +661,21 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             # job_numbers = fairness_index
                 
             # job_numbers = np.max(slowdown_rates)
+        elif metric == "job_times": 
+            jobs = run_context["jobs"]
+            iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
+                                                   all_jobs_running=True)
+        
+            iter_lengths = iter_lengths[0]  
+            job_times = []
+            
+            for job_id, iter_length in iter_lengths.items():
+                avg_iter_length = np.mean(iter_length)  
+                
+                job = [job for job in jobs if job["job_id"] == job_id][0]
+                job_times.append(avg_iter_length)
+
+            job_numbers = job_times 
         else: 
             rage_quit("Unknown metric: {}".format(metric))
 
