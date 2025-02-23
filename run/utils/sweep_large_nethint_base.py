@@ -1057,7 +1057,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         base_values = None 
         
         if metric_info["compare_mode"] == "self":
-            if metric_info["type"] == "single_number":
+            if metric_info["type"] == "single_number" or metric_info["type"] == "per_iter":
                 base_mean = base_df[avg_metric_key].mean()
                 base_values = list(base_df[avg_metric_key])
                 
@@ -1069,9 +1069,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                     rows_sum[j] = rows_sum[j] / len(base_df)    
                 base_mean = rows_sum
                 base_values = list(base_df[avg_metric_key])
-                
-            base_mean = base_df[avg_metric_key].mean()
-            base_values = list(base_df[avg_metric_key])
         if metric_info["compare_mode"] == "divide":
             base_mean = 1
             base_values = [1 for _ in range(len(base_df))]
