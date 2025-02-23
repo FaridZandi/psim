@@ -1066,7 +1066,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
             elif metric_info["type"] == "single_list":
                 rows_sum = base_df[avg_metric_key].iloc[0] 
                 for i in range(1, len(base_df)):
-                    rows_sum += base_df[avg_metric_key].iloc[i]
+                    for j in range(len(rows_sum)):
+                        rows_sum[j] += base_df[avg_metric_key].iloc[i][j]
                 for j in range(len(rows_sum)):
                     rows_sum[j] = rows_sum[j] / len(base_df)    
                 base_mean = rows_sum
@@ -1129,7 +1130,8 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
             elif metric_info["type"] == "single_list":
                 rows_sum = merged_df["speedup"].iloc[0] 
                 for i in range(1, len(merged_df)):
-                    rows_sum += merged_df["speedup"].iloc[i]
+                    for j in range(len(rows_sum)):
+                        rows_sum[j] += merged_df["speedup"].iloc[i][j]  
                 for j in range(len(rows_sum)):
                     rows_sum[j] = rows_sum[j] / len(merged_df)    
                 merged_mean = rows_sum
