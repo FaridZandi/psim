@@ -1066,10 +1066,12 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
             elif metric_info["type"] == "single_list":
                 print(base_df[avg_metric_key])
                 
-                rows_sum = base_df[avg_metric_key].iloc[0] 
+                rows_sum = base_df[avg_metric_key].iloc[0].copy()
+                print(rows_sum) 
                 
                 for i in range(1, len(base_df)):
                     print(base_df[avg_metric_key].iloc[i])
+                    print(f"len(rows_sum): {len(rows_sum)}, len(row[i]): {len(base_df[avg_metric_key].iloc[i])}")
                     
                     for j in range(len(rows_sum)):
                         rows_sum[j] += base_df[avg_metric_key].iloc[i][j]
@@ -1133,10 +1135,12 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 merged_mean = merged_df["speedup"].mean()
                 
             elif metric_info["type"] == "single_list":
-                rows_sum = merged_df["speedup"].iloc[0] 
+                rows_sum = merged_df["speedup"].iloc[0].copy()
+                
                 for i in range(1, len(merged_df)):
                     for j in range(len(rows_sum)):
-                        rows_sum[j] += merged_df["speedup"].iloc[i][j]  
+                        rows_sum[j] += merged_df["speedup"].iloc[i][j]
+                          
                 for j in range(len(rows_sum)):
                     rows_sum[j] = rows_sum[j] / len(merged_df)    
                 merged_mean = rows_sum
