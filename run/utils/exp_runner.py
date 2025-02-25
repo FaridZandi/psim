@@ -317,7 +317,7 @@ def do_experiment(seed_range=1,
         exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format("", "", "",  
                                                             oversub, 
                                                             experiment_seed),
-        worker_thread_count=30, 
+        worker_thread_count=40, 
         plot_cdfs=False,
         store_outputs=True,
     )
