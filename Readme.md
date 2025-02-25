@@ -11,6 +11,8 @@ git clone --recursive git@github.com:FaridZandi/psim.git
 
 ### dependencies 
 ```
+# install gcc-9.4, python3.8
+
 sudo apt-get install libboost-all-dev -y
  
 python3 -m pip install matplotlib numpy pandas networkx seaborn scipy
