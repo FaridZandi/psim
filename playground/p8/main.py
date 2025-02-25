@@ -4,7 +4,7 @@ import sys
 import math 
 from pprint import pprint
 
-base_seed = 44233
+base_seed = 442
 random.seed(base_seed)
 
 # this script path: 
@@ -71,31 +71,63 @@ class Simulation():
         self.service_rates = []     
         self.inter_arrival_times = [] 
         self.max_jobs_in_same_rack = []
+        
+        self.m_alpha = 0.5
+        self.m_mult = 1 
+        self.m_add = 1
+        self.m_max = self.total_machine_count // 4
+        
+        self.d_alpha = 1.16
+        self.d_mult = 1100
+        self.d_add = 2000
+        
+        self.i_alpha = 1.16
+        self.i_mult = 200
+        self.i_add = 1
+        self.i_max = 10000
     
-    def get_job_machine_count(self):
-        # return random.randint(2, 18) # mean 10
+        self.mean_job_machine_count = 0 
+        self.mean_job_duration = 0
+        self.mean_interarrival_time = 0
+        
+        sample_count = 100000
 
-        # a pareto distribution with with mean 10 
-        r = int(random.paretovariate(0.5)) + 2
-        if r > (self.total_machine_count // 4):
-            r = (self.total_machine_count // 4)
+        for i in range(sample_count):
+            self.mean_job_machine_count += self.get_job_machine_count()
+            self.mean_job_duration += self.get_job_duration()
+            self.mean_interarrival_time += self.get_interarrival_time()
             
+        self.mean_job_machine_count /= sample_count
+        self.mean_job_duration /= sample_count
+        self.mean_interarrival_time /= sample_count
+        
+        print(f"Mean job machine count: {self.mean_job_machine_count}")
+        print(f"Mean job duration: {self.mean_job_duration}")
+        print(f"Mean interarrival time: {self.mean_interarrival_time}")
+
+        # so on average, a job will arrive every x seconds, staying for y seconds and using z machines.
+        expected_util = (self.mean_job_machine_count * self.mean_job_duration)
+        expected_util /= (self.mean_interarrival_time * self.total_machine_count)
+        
+        print(f"Expected utilization: {expected_util}")
+
+
+    def get_job_machine_count(self):
+        r = int(random.paretovariate(self.m_alpha)) * self.m_mult + self.m_add
+        if r > self.m_max:
+            r = self.m_max
         return r 
 
     def get_job_duration(self):
-        # return random.randint(1, 20000) # mean 10000
-
-        r = int(random.paretovariate(1.16)) * 1500 + 2000
+        r = int(random.paretovariate(self.d_alpha)) * self.d_mult + self.d_add
+        
         return r
 
     def get_interarrival_time(self):
-        # return random.randint(1, 240) # mean 200
-
-        r = int(random.paretovariate(1.16)) * 120 + 1
-        
-        if r > 10000:
-            r = 10000
-            
+        r = int(random.paretovariate(self.i_alpha)) * self.i_mult + self.i_add   
+        if r > self.i_max:
+            r = self.i_max
+                        
         return r
 
     def mark_machine_as_busy(self, machine_id, job_id): 
@@ -192,7 +224,38 @@ class Simulation():
         # Return an empty list if no free extent is found
         return []
     
-    
+    def find_largest_free_extent(self, job_machine_count):
+        max_start = -1
+        max_length = 0
+        current_start = -1
+        current_length = 0
+
+        for i in range(self.total_machine_count):
+            if not self.is_busy[i]:  # Free machine
+                if current_length == 0:
+                    current_start = i  # Start a new free block
+                current_length += 1
+            else:  # Busy machine
+                if current_length > max_length:  # Found a larger free block
+                    max_length = current_length
+                    max_start = current_start
+                current_length = 0  # Reset current block
+
+        # Final check in case the largest block is at the end
+        if current_length > max_length:
+            max_length = current_length
+            max_start = current_start
+
+        # If no free block exists
+        if max_length == 0:
+            return []
+
+        # If we can find an exact match of job_machine_count, return it
+        if max_length >= job_machine_count:
+            return list(range(max_start, max_start + job_machine_count))
+
+        # Otherwise, return the largest available free extent
+        return list(range(max_start, max_start + max_length))
     
     def find_machines_for_job(self, job_machine_count):
         
@@ -212,22 +275,18 @@ class Simulation():
                     machines.append(machine_id) 
 
 
-        if self.strategy == "firstfit" or self.strategy == "firstfit_strict":
-            machines = self.find_free_extent(job_machine_count) 
+        if self.strategy == "firstfit":
+            # machines = self.find_free_extent(job_machine_count) 
+            machines = self.find_largest_free_extent(job_machine_count)
             
-            if len(machines) == 0:
-                if self.strategy == "firstfit_strict":
-                    return None
+            if len(machines) < job_machine_count:
+                machines_needed = job_machine_count - len(machines)
                 
-                if self.strategy == "firstfit":
-                    # get the random number between 0 and 1 
-                    r = random.random()
-                    if r < self.alpha:
-                        return None
+                all_machines = list(range(self.total_machine_count))
                 
-                machines_needed = job_machine_count
+                random.shuffle(all_machines)
                 
-                for i in range(self.total_machine_count):
+                for i in all_machines:
                     if not self.is_busy[i]:
                         machines.append(i)
                         machines_needed -= 1
@@ -304,9 +363,10 @@ class Simulation():
         # the ring stuff. 
         if self.ring_mode == "random":
             random.shuffle(machines)
+        elif self.ring_mode == "letitbe":
+            pass
         elif self.ring_mode == "optimal":
             machines.sort()
-    
         return machines     
     
     def measure_entrorpy(self, deduct_base_entropy = True):
@@ -485,7 +545,6 @@ class Simulation():
         if self.current_time == 75000 and self.verbose: 
             pprint(max_jobs_in_same_rack)  
             self.visualize_assignments()
-            input("Press Enter to continue...")  
                 
         return max_jobs_in_same_rack / self.rack_size       
     
@@ -707,13 +766,14 @@ def main():
     exp_dir = "{}/out/{}/".format(this_dir, exp_number)  
     os.makedirs(this_dir, exist_ok=True)
 
-    for alpha in [0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]:
+    # for alpha in [0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]:
+    for alpha in [0]:
         for strategy in ["firstfit"]:
-            for ring_mode in ["optimal"]:
+            for ring_mode in ["letitbe", "random", "optimal"]:
                 
-                sim_length = 1000000
-                rack_size = 16
-                rack_count = 15
+                sim_length = 2000000
+                rack_size = 8
+                rack_count = 16
                 
                 setting_dir = "{}/{}_{}_{}/".format(exp_dir, strategy, ring_mode, alpha)
                 
@@ -725,7 +785,7 @@ def main():
                             rack_size=rack_size, 
                             rack_count=rack_count, 
                             setting_dir=setting_dir,
-                            verbose=True,  
+                            verbose=False,  
                             alpha=alpha)
                 
                 s.simulate()    
@@ -733,34 +793,34 @@ def main():
                 #####################################################################
                 
                 
-                # history = { 
-                #     "entropies": downsample(s.entropies),
-                #     "base_entropies": downsample(s.base_entropies),
-                #     "utilizations": downsample(s.utilizations),
-                #     "service_rates": downsample(s.service_rates),
-                #     "max_jobs_in_same_rack": downsample(s.max_jobs_in_same_rack)
-                # } 
+                history = { 
+                    "entropies": downsample(s.entropies),
+                    "base_entropies": downsample(s.base_entropies),
+                    "utilizations": downsample(s.utilizations),
+                    "service_rates": downsample(s.service_rates),
+                    "max_jobs_in_same_rack": downsample(s.max_jobs_in_same_rack)
+                } 
                 
-                # fig, ax = plt.subplots(2, 1, figsize=(6, 3), sharex=True)    
+                fig, ax = plt.subplots(2, 1, figsize=(6, 3), sharex=True)    
                     
-                # ax[0].plot(downsample(s.entropies), label="entropy")    
-                # ax[0].plot(downsample(s.base_entropies), label="base entropy")
+                ax[0].plot(downsample(s.entropies), label="entropy")    
+                ax[0].plot(downsample(s.base_entropies), label="base entropy")
                 # ax[0].plot(downsample(s.max_jobs_in_same_rack), label="max jobs in same rack")
-                # ax[0].set_ylabel("entropy")
-                # ax[0].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+                ax[0].set_ylabel("entropy")
+                ax[0].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
 
-                # ax[1].plot(downsample(s.service_rates), label="service rate")
-                # ax[1].plot(downsample(s.utilizations), label="utilization") 
+                ax[1].plot(downsample(s.service_rates), label="service rate")
+                ax[1].plot(downsample(s.utilizations), label="utilization") 
     
-                # ax[1].set_ylabel("utilization")
-                # ax[1].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+                ax[1].set_ylabel("utilization")
+                ax[1].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
                 
-                # # plt.ylim(-0.02, 1.02)
-                # plt.title("Strategy: {}, Ring Mode: {}".format(strategy, ring_mode))
-                # plt.xlabel("time")
+                # plt.ylim(-0.02, 1.02)
+                plt.title("Strategy: {}, Ring Mode: {}".format(strategy, ring_mode))
+                plt.xlabel("time")
                 
-                # plt.savefig("{}/output.png".format(setting_dir), dpi = 300, bbox_inches = "tight")
-                # plt.clf()
+                plt.savefig("{}/output.png".format(setting_dir), dpi = 300, bbox_inches = "tight")
+                plt.clf()
                 
                 # #####################################################################
                 
