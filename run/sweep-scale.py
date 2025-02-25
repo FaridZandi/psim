@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 1
+    seed_range = 20
     m = 10
     
     clean_up_sweep_files = True
@@ -77,7 +77,8 @@ if __name__ == "__main__":
             ("inflate", [1]),    
         ]
 
-        comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
+        # comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
+        comparisons = ["TS+RO+SUB+REP"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         
