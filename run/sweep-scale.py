@@ -12,8 +12,8 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 20
-    m = 10
+    seed_range = 100
+    m = 100
     
     clean_up_sweep_files = True
 
@@ -28,18 +28,18 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["bar", "box"]:
+    for plot_type in ["line"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "desired_entropy",
             "subplot_x_params": "rack_size",
             "subplot_hue_params": "comparison",
-            "plot_x_params": "oversub",
+            "plot_x_params": "machine_count",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 5,
+            "subplot_width": 3,
             "subplot_height": 2,
             "plot_type": plot_type, 
             "ext": "png", 
@@ -60,7 +60,7 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [96]),
+            ("machine_count", [24, 32, 40, 48, 56, 64, 72, 80, 88, 96]),
             ("rack_size", [8]),
             ("job_sizes", [(4, 16)]),
             ("placement_mode", ["entropy"]), 

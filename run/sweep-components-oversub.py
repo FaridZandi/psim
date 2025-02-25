@@ -77,7 +77,7 @@ if __name__ == "__main__":
             ("inflate", [1]),    
         ]
 
-        comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
+        comparisons = ["TS", "TS+RO", "TS+RO+SUB", "TS+RO+SUB+REP"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         
