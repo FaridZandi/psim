@@ -38,7 +38,7 @@ def plot_link_usage(ax, time_range,
     
     ax.set_title(f'{link_label} - {direction}')
     ax.set_xlabel('Time')
-    ax.set_ylabel('Remaining Capacity')
+    ax.set_ylabel('Util. (%)')
     
     ax.grid(True)
     ax.set_xlim(min_affected_time - 100, max_affected_time + 100)
