@@ -242,53 +242,53 @@ def do_experiment(plot_stuff=False,
                             "lb-scheme": "random"
                         }))
     
-    # comparisons.append(("RO", {
-    #                         "timing-scheme": "zero",
-    #                         "routing-fit-strategy": "graph-coloring-v3",  
-    #                         "lb-scheme": "readprotocol"
-    #                     }))
+    comparisons.append(("RO", {
+                            "timing-scheme": "zero",
+                            "routing-fit-strategy": "graph-coloring-v3",  
+                            "lb-scheme": "readprotocol"
+                        }))
     
-    # for subflow_count in considered_sub:
-    #     comparisons.append((f"TS+SUB", {
-    #                             "timing-scheme": "faridv2",
-    #                             "subflows": subflow_count, 
-    #                             "throttle-search": True,
-    #                             "lb-scheme": "random"
-    #                         }))
+    for subflow_count in considered_sub:
+        comparisons.append((f"TS+SUB", {
+                                "timing-scheme": "faridv2",
+                                "subflows": subflow_count, 
+                                "throttle-search": True,
+                                "lb-scheme": "random"
+                            }))
     
-    # for timing in ["faridv2", "faridv4"]:
+    for timing in ["faridv2", "faridv4"]:
 
-    #     subflow_count = 1   
-    #     name = "TS+RO"
-    #     if timing == "faridv4":
-    #         name += "+REP"
+        subflow_count = 1   
+        name = "TS+RO"
+        if timing == "faridv4":
+            name += "+REP"
 
-    #     comparisons.append((name, {
-    #                             "timing-scheme": timing,
-    #                             "throttle-search": False,   
-    #                             "routing-fit-strategy": "graph-coloring-v5",     
-    #                             "fallback-threshold": fallback_threshold, 
-    #                             "lb-scheme": "readprotocol"
-    #                         }))   
+        comparisons.append((name, {
+                                "timing-scheme": timing,
+                                "throttle-search": False,   
+                                "routing-fit-strategy": "graph-coloring-v5",     
+                                "fallback-threshold": fallback_threshold, 
+                                "lb-scheme": "readprotocol"
+                            }))   
         
-    #     for subflow_count in considered_sub:
-    #         name = "TS+RO+SUB"
-    #         if timing == "faridv4":
-    #             name += "+REP"
+        for subflow_count in considered_sub:
+            name = "TS+RO+SUB"
+            if timing == "faridv4":
+                name += "+REP"
                 
-    #         comparisons.append((name, {
-    #                                 "timing-scheme": timing,
-    #                                 "throttle-search": True if subflow_count > 1 else False,   
-    #                                 "routing-fit-strategy": "graph-coloring-v5",     
-    #                                 "subflows": subflow_count,     
-    #                                 "fallback-threshold": fallback_threshold, 
-    #                                 "lb-scheme": "readprotocol"
-    #                             }))
+            comparisons.append((name, {
+                                    "timing-scheme": timing,
+                                    "throttle-search": True if subflow_count > 1 else False,   
+                                    "routing-fit-strategy": "graph-coloring-v5",     
+                                    "subflows": subflow_count,     
+                                    "fallback-threshold": fallback_threshold, 
+                                    "lb-scheme": "readprotocol"
+                                }))
 
-    # comparisons.append(("Perfect", {
-    #                         "timing-scheme": "zero",
-    #                         "lb-scheme": "perfect"
-    #                     }))
+    comparisons.append(("Perfect", {
+                            "timing-scheme": "zero",
+                            "lb-scheme": "perfect"
+                        }))
 
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
