@@ -455,7 +455,7 @@ if __name__ == "__main__":
             ("cmmcmp_range", [(0, 2)]),
   
             # ("cmmcmp_range", [(0.5, 2)]),
-            ("fallback_threshold", [0.5]),
+            ("fallback_threshold", [1.5, 2]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             # ("comm_size", [(120 * m, 121 * m, 60 * m)]),
