@@ -434,7 +434,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [100 * m]),
+            ("sim_length", [50 * m]),
             
             ("machine_count", [12]),
             ("rack_size", [4]),
@@ -452,10 +452,10 @@ if __name__ == "__main__":
             ("oversub", [2]),
             # ("oversub", [8]),
             
-            ("cmmcmp_range", [(0, 2)]),
+            ("cmmcmp_range", [(1.5, 2)]),
   
             # ("cmmcmp_range", [(0.5, 2)]),
-            ("fallback_threshold", [1.5, 2]),
+            ("fallback_threshold", [0.5]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             # ("comm_size", [(120 * m, 121 * m, 60 * m)]),
