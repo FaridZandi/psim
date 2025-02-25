@@ -643,6 +643,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
                             verticalalignment='bottom', horizontalalignment='right', color='red')
                 
                 y_max = max(y_max, logical_capacity * 1.1)  
+                # y_max = max_value_in_stack * 1.1 
                 
             for i in range(1, math.ceil(y_max) + 1):
                 ax.axhline(y=i, color='black', linestyle='-', linewidth=0.5)
@@ -730,7 +731,8 @@ def visualize_link_loads(link_loads, run_context,
             ax.text(max_length, max_value_in_stack, " max",
                         verticalalignment='bottom', horizontalalignment='right', color='blue')
             
-            y_max = max_value_in_stack * 1.1 
+            y_max = max(4, max_value_in_stack) * 1.1    
+            # y_max = max_value_in_stack * 1.1 
 
             if link_logical_bandwidth is not None:  
                 ax.axhline(y=link_logical_bandwidth, color='r', linestyle='--') 
