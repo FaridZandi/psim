@@ -336,3 +336,11 @@ def create_command(plot_args, plot_commands_path):
         while "  " in clean_plot_command:
             clean_plot_command = clean_plot_command.replace("  ", " ") 
         f.write(clean_plot_command + "\n\n")
+        
+def get_global_config(): 
+    return {
+        "machines": 48,
+        "mult": 20, 
+        "sim": 400, 
+        "seed_range": 1,
+    }

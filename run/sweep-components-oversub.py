@@ -2,7 +2,7 @@ from utils.util import *
 from utils.sweep_large_nethint_base import *
 from utils.sweep_base import ConfigSweeper
 import itertools
-from utils.exp_runner import do_experiment, create_command
+from utils.exp_runner import do_experiment, create_command, get_global_config
 
 # Here, we iterate over things that will have different baselines to compare against.   
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
@@ -10,11 +10,14 @@ if __name__ == "__main__":
     # make a backup of the current state of the repository.
     os.system("./git_backup.sh")
     
-    original_exp_number = None
-    seed_range = 4
-    m = 20
-    clean_up_sweep_files = True
+    g = get_global_config()
     
+    seed_range = 1
+    m = 10
+    
+    clean_up_sweep_files = True
+
+    original_exp_number = None
     if original_exp_number is not None: 
         exp_number = original_exp_number
     else:
@@ -43,7 +46,6 @@ if __name__ == "__main__":
             "values_name": "Speedup", 
             "exclude_base": True,   
         }
-
         create_command(plot_args, plot_commands_path)
         
     os.system(f"chmod +x {plot_commands_path}")
@@ -58,12 +60,12 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [72]),
+            ("machine_count", [48]),
             ("rack_size", [8]),
             ("job_sizes", [(4, 16)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3]),
+            ("desired_entropy", [0.5]),
             ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
