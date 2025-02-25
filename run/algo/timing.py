@@ -636,9 +636,10 @@ def visualize_link_loads_runtime(link_loads, run_context,
                         
             if logical_capacity is not None:  
                 ax.axhline(y=logical_capacity, color='r', linestyle='--') 
-                # add an annotation for the logical capacity, right next to the line 
-                ax.text(max_length, logical_capacity, " cap",
-                        verticalalignment='bottom', horizontalalignment='right', color='red')
+                # add an annotation for the logical capacity, right next to the line
+                if logical_capacity != max_value_in_stack: 
+                    ax.text(max_length, logical_capacity, " cap",
+                            verticalalignment='bottom', horizontalalignment='right', color='red')
                 
                 y_max = max(y_max, logical_capacity * 1.1)  
                 
@@ -732,7 +733,8 @@ def visualize_link_loads(link_loads, run_context,
 
             if link_logical_bandwidth is not None:  
                 ax.axhline(y=link_logical_bandwidth, color='r', linestyle='--') 
-                ax.text(max_length, link_logical_bandwidth, " cap",
+                if link_logical_bandwidth != max_value_in_stack: 
+                    ax.text(max_length, link_logical_bandwidth, " cap",
                         verticalalignment='bottom', horizontalalignment='right', color='red')
                                 
                 y_max = max(y_max, link_logical_bandwidth * 1.1)  
