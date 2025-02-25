@@ -411,41 +411,22 @@ class ConfigSweeper:
                 with open(run_context["runtime-dir"] + "/results.txt", "w+") as f:
                     pprint(results, stream=f, indent=4, width=100) 
                                     
-            if not add_to_results:
-                return results
-            
-            else: 
-                self.exp_results.append(results)
+            self.exp_results.append(results)
 
-                # save the results to a csv file every 10 seconds
-                time_since_last_save = datetime.datetime.now() - self.last_df_save_time
-                if time_since_last_save.total_seconds() > self.df_save_interval_seconds:
-                    self.last_df_save_time = datetime.datetime.now()
+            relevent_results = {key: results[key] for key in self.relevant_keys}   
+            relevent_metrics = {key: results[key] for key in printed_metrics}
+            relevent_results.update(relevent_metrics)
+            
+            pprint(relevent_results)
+            
+            if "runtime-dir" in run_context:    
+                with open(run_context["runtime-dir"] + "/summarized_results.txt", "w+") as f:
+                    pprint(relevent_results, stream=f, indent=4, width=100) 
                     
-                    df = pd.DataFrame(self.exp_results)
-                    df.to_csv(self.raw_csv_path)
-                    
-                    if self.custom_save_results_func is not None:
-                        try: 
-                            self.custom_save_results_func(df, self, self.global_context, plot=False)
-                        except Exception as e:
-                            print("error in custom_save_results_func")
-                            print(e)
-                
-                relevent_results = {key: results[key] for key in self.relevant_keys}   
-                relevent_metrics = {key: results[key] for key in printed_metrics}
-                relevent_results.update(relevent_metrics)
-                
-                pprint(relevent_results)
-                
-                if "runtime-dir" in run_context:    
-                    with open(run_context["runtime-dir"] + "/summarized_results.txt", "w+") as f:
-                        pprint(relevent_results, stream=f, indent=4, width=100) 
-                        
-                print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))
-                print("duration: {}".format(duration))
-                print("worker id: {}".format(worker_id))
-                print("--------------------------------------------")
+            print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))
+            print("duration: {}".format(duration))
+            print("worker id: {}".format(worker_id))
+            print("--------------------------------------------")
                 
         self.thread_states[worker_id] = "exp-{}-done with the experiment".format(this_exp_uuid)  
         self.log_for_thread(run_context, "Done with the lock to save the results")

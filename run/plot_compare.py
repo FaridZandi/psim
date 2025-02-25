@@ -29,6 +29,7 @@ ext = "pdf"
 
 values_name = "values"
 
+exclude_base = False    
 
 ###############################################################################
 ###############################################################################
@@ -207,6 +208,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         
         if not legend:
             ax.get_legend().remove()
+            
         ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1))       
         ax.set_ylabel(values_name)
 
@@ -253,9 +255,6 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         
         ax.axvline(x=1, color='black', linestyle='--')  
 
-            
-
-            
     # draw a horizontal line at y=1
     
     if y_value is not None and subplot_y_params is not None:
@@ -368,6 +367,9 @@ def make_plots():
     df = df.explode("values")
     df["values"] = df["values"].astype(float)
     
+    if exclude_base:
+        df = df[df["comparison"] != "base"] 
+        
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
     else:
@@ -404,7 +406,8 @@ if __name__ == "__main__":
     parser.add_argument("--legend_side", type=str, required=False)  
     parser.add_argument("--values_name", type=str, required=False)  
     parser.add_argument("--legend_cols", type=int, required=False)
-        
+    parser.add_argument("--exclude_base", type=bool, required=False)    
+    
     args = parser.parse_args()
         
     for arg in vars(args):

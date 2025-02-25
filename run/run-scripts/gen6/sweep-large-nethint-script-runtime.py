@@ -242,53 +242,53 @@ def do_experiment(plot_stuff=False,
                             "lb-scheme": "random"
                         }))
     
-    # comparisons.append(("RO", {
-    #                         "timing-scheme": "zero",
-    #                         "routing-fit-strategy": "graph-coloring-v3",  
-    #                         "lb-scheme": "readprotocol"
-    #                     }))
+    comparisons.append(("RO", {
+                            "timing-scheme": "zero",
+                            "routing-fit-strategy": "graph-coloring-v3",  
+                            "lb-scheme": "readprotocol"
+                        }))
     
-    # for subflow_count in considered_sub:
-    #     comparisons.append((f"TS+SUB", {
-    #                             "timing-scheme": "faridv2",
-    #                             "subflows": subflow_count, 
-    #                             "throttle-search": True,
-    #                             "lb-scheme": "random"
-    #                         }))
+    for subflow_count in considered_sub:
+        comparisons.append((f"TS+SUB", {
+                                "timing-scheme": "faridv2",
+                                "subflows": subflow_count, 
+                                "throttle-search": True,
+                                "lb-scheme": "random"
+                            }))
     
-    # for timing in ["faridv2", "faridv4"]:
+    for timing in ["faridv2", "faridv4"]:
 
-    #     subflow_count = 1   
-    #     name = "TS+RO"
-    #     if timing == "faridv4":
-    #         name += "+REP"
+        subflow_count = 1   
+        name = "TS+RO"
+        if timing == "faridv4":
+            name += "+REP"
 
-    #     comparisons.append((name, {
-    #                             "timing-scheme": timing,
-    #                             "throttle-search": False,   
-    #                             "routing-fit-strategy": "graph-coloring-v5",     
-    #                             "fallback-threshold": fallback_threshold, 
-    #                             "lb-scheme": "readprotocol"
-    #                         }))   
+        comparisons.append((name, {
+                                "timing-scheme": timing,
+                                "throttle-search": False,   
+                                "routing-fit-strategy": "graph-coloring-v5",     
+                                "fallback-threshold": fallback_threshold, 
+                                "lb-scheme": "readprotocol"
+                            }))   
         
-    #     for subflow_count in considered_sub:
-    #         name = "TS+RO+SUB"
-    #         if timing == "faridv4":
-    #             name += "+REP"
+        for subflow_count in considered_sub:
+            name = "TS+RO+SUB"
+            if timing == "faridv4":
+                name += "+REP"
                 
-    #         comparisons.append((name, {
-    #                                 "timing-scheme": timing,
-    #                                 "throttle-search": True if subflow_count > 1 else False,   
-    #                                 "routing-fit-strategy": "graph-coloring-v5",     
-    #                                 "subflows": subflow_count,     
-    #                                 "fallback-threshold": fallback_threshold, 
-    #                                 "lb-scheme": "readprotocol"
-    #                             }))
+            comparisons.append((name, {
+                                    "timing-scheme": timing,
+                                    "throttle-search": True if subflow_count > 1 else False,   
+                                    "routing-fit-strategy": "graph-coloring-v5",     
+                                    "subflows": subflow_count,     
+                                    "fallback-threshold": fallback_threshold, 
+                                    "lb-scheme": "readprotocol"
+                                }))
 
-    # comparisons.append(("Perfect", {
-    #                         "timing-scheme": "zero",
-    #                         "lb-scheme": "perfect"
-    #                     }))
+    comparisons.append(("Perfect", {
+                            "timing-scheme": "zero",
+                            "lb-scheme": "perfect"
+                        }))
 
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
@@ -297,12 +297,12 @@ def do_experiment(plot_stuff=False,
         "sim-length": sim_length,
 
         "plot-iteration-graphs": False, 
-        "plot-initial-timing": False,
+        "plot-initial-timing": True,
         "plot-intermediate-timing": False,
-        "plot-final-timing": False,
-        "plot-routing-assignment": False, 
+        "plot-final-timing": True,
+        "plot-routing-assignment": True, 
         "plot-merged-ranges": False, 
-        "plot-runtime-timing": False,
+        "plot-runtime-timing": True,
         "plot-link-empty-times": False,
         
         "profiled-throttle-factors": profiled_throttle_factors, 
@@ -375,7 +375,7 @@ if __name__ == "__main__":
     original_exp_number = None
     seed_range = 1
     m = 10
-    clean_up_sweep_files = True
+    clean_up_sweep_files = False
     
     if original_exp_number is not None: 
         exp_number = original_exp_number
@@ -434,12 +434,12 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [100 * m]),
+            ("sim_length", [50 * m]),
             
-            ("machine_count", [48]),
-            ("rack_size", [8]),
+            ("machine_count", [12]),
+            ("rack_size", [4]),
             
-            ("job_sizes", [(4, 16)]),
+            ("job_sizes", [(4, 4)]),
             # ("job_sizes", [(4, 16)]),
 
             ("placement_mode", ["entropy"]), 
@@ -452,7 +452,7 @@ if __name__ == "__main__":
             ("oversub", [2]),
             # ("oversub", [8]),
             
-            ("cmmcmp_range", [(0, 2)]),
+            ("cmmcmp_range", [(1.5, 2)]),
   
             # ("cmmcmp_range", [(0.5, 2)]),
             ("fallback_threshold", [0.5]),

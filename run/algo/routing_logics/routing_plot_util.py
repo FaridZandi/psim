@@ -38,7 +38,7 @@ def plot_link_usage(ax, time_range,
     
     ax.set_title(f'{link_label} - {direction}')
     ax.set_xlabel('Time')
-    ax.set_ylabel('Remaining Capacity')
+    ax.set_ylabel('Util. (%)')
     
     ax.grid(True)
     ax.set_xlim(min_affected_time - 100, max_affected_time + 100)
@@ -74,7 +74,7 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
     total_subplots = num_leaves * num_spines * 2  # Two plots (up and down) per leaf-spine pair
     fig, axes = plt.subplots(num_leaves, num_spines * 2, 
                              sharey=True, sharex=True,
-                             figsize=(num_spines * 8, num_leaves * 3), 
+                             figsize=(num_spines * 8, num_leaves * 1.5), 
                              constrained_layout=True, squeeze=False)
 
     # Iterate over each leaf, spine pair to plot its remaining capacity
