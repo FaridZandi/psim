@@ -187,7 +187,7 @@ def do_experiment(seed_range=1,
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": False, 
-        "farid-rounds": 6, 
+        "farid-rounds": 12, 
         
         "fallback-threshold": fallback_threshold, 
 
