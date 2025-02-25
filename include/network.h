@@ -71,6 +71,8 @@ public:
 
     virtual std::vector<int> get_core_bottleneck_ids();
 
+    double get_total_congested_time(int tier); 
+
 private:
 
 };
@@ -229,6 +231,9 @@ public:
     // history
     std::vector<double> total_register_history;
     std::vector<double> total_allocated_history;
+
+    double congested_time;  
+    int tier;
 
 private:
     void setup_bwalloc();

@@ -503,9 +503,9 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
             with open(profile_file_path, "wb") as f:
                 pkl.dump(this_job_prof, f)    
             
-            profile_file_path_json = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.json"   
-            with open(profile_file_path_json, "w") as f:    
-                json.dump(this_job_prof, f, indent=4) 
+            # profile_file_path_json = f"{run_context['profiles-dir']}/{job_id}_{throttle_factor}.json"   
+            # with open(profile_file_path_json, "w") as f:    
+            #     json.dump(this_job_prof, f, indent=4) 
                 
             job["period"][str(throttle_factor)] = psim_finish_time
             if throttle_factor == 1.0:  

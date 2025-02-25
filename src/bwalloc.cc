@@ -14,10 +14,12 @@ void BandwidthAllocator::reset() {
 
 void BandwidthAllocator::register_utilization(double utilization) {
     utilized_bandwidth += utilization;
-
 }
 
-
+bool BandwidthAllocator::is_congested() {
+    bool congested = total_registered > total_available;    
+    return congested;
+}
 
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -60,6 +62,7 @@ double FairShareBandwidthAllocator::get_allocated_rate(int id, double registered
 
 
 
+
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -83,21 +86,15 @@ void MaxMinFairShareBandwidthAllocator::reset(){
 
 void MaxMinFairShareBandwidthAllocator::register_rate(int id, double rate, int priority){
     register_list.push_back(std::make_pair(id, rate));
+    total_registered += rate;
 }
 
 void MaxMinFairShareBandwidthAllocator::compute_allocations(){
-
     std::sort(register_list.begin(), register_list.end(), 
         [](const std::pair<int, double>& a, const std::pair<int, double>& b) -> bool {
             return a.second < b.second;
         }
     );
-
-    
-    double total_registered = 0; 
-    for (auto& item : register_list) {
-        total_registered += item.second;
-    }
 
     bool punish = GConf::inst().punish_oversubscribed;     
 
@@ -136,6 +133,7 @@ double MaxMinFairShareBandwidthAllocator::get_allocated_rate(int id, double regi
         return allocated;
     }
 }
+
 
 ////////////////////////////////////////////////////////////////////////////////////
 ////////////////////////////////////////////////////////////////////////////////////
@@ -208,7 +206,6 @@ double FixedLevelsBandwidthAllocator::get_allocated_rate(int id, double register
 
     return allocated_rate;
 }
-
 
 
 

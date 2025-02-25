@@ -400,10 +400,6 @@ void PSim::mark_critical_path(){
         // of the tasks will collide. sorry for the stupid design.
         break;
     }
-
-
-
-
 }
 
 void PSim::traverse_critical_path(PTask* task) {
@@ -506,7 +502,10 @@ void PSim::log_results() {
 
     spdlog::critical("psim time: {}", timer);
 
-
+    int tier = 2; 
+    double congested_time = this->network->get_total_congested_time(tier);
+    spdlog::critical("Total congested time: {}", congested_time);   
+    
     if (this->protocols.size() != 1) {
         spdlog::error("the rest of log_results is only supported for single protocol runs");
         return;
@@ -610,6 +609,7 @@ void PSim::log_results() {
     spdlog::critical("core choices: {}", core_choices);
     spdlog::critical("core choices size: {}", core_choices_size);
     spdlog::critical("critical path core choices: {}", cp_core_choices);
+
 
 
 

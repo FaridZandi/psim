@@ -185,10 +185,13 @@ double Network::make_progress_on_flows(double current_time, double step_size,
             job_progress_through_core[flow->jobid] += flow_step_progress;
         } 
 
-
         if (flow->status == PTaskStatus::FINISHED) {
             step_finished_flows.push_back(flow);
         }
+    }
+
+    for (auto& bn: bottlenecks){
+        bn->congested_time += bn->bwalloc->is_congested() * step_size;
     }
 
     if (GConf::inst().record_bottleneck_history){
@@ -210,7 +213,18 @@ std::vector<int> Network::get_core_bottleneck_ids(){
    return std::vector<int>(); 
 }
 
-
+double Network::get_total_congested_time(int tier){
+    double total = 0; 
+    int count = 0;
+    for (auto& bn: bottlenecks){
+        if (bn->tier == tier){
+            total += bn->congested_time;
+            count += 1;  
+        }
+    }
+    total /= count;     
+    return total; 
+}
 
 
 //==============================================================================
@@ -314,10 +328,14 @@ Bottleneck::Bottleneck(double bandwidth) {
     this->current_flow_count = 0;
     this->current_flow_size_sum = 0;
 
+    this->tier = 0;
+
     setup_bwalloc();
 
     this->load_metric = GConf::inst().load_metric;
     this->drop_chance_multiplier = GConf::inst().drop_chance_multiplier;
+
+    this->congested_time = 0; 
 }
 
 

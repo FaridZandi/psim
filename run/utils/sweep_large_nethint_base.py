@@ -291,7 +291,8 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     move_from_op_to_cxt = ["compat-score-mode", "throttle-search", 
                            "farid-rounds", "routing-fit-strategy", 
                            "placement-mode", "ring-mode", "placement-seed",
-                           "timing-scheme", "inflate", "fallback-threshold"]
+                           "timing-scheme", "inflate", "fallback-threshold", 
+                           "comparison"]
     
     for key in move_from_op_to_cxt: 
         if key in options:
@@ -348,7 +349,9 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     #######################################################################################################
 
-    runtime_related_base_path = run_context["schedulings-dir"] + "r-" + str(run_context["exp-uuid"]) + "-"
+    runtime_related_base_path = run_context["schedulings-dir"]
+    runtime_related_base_path += str(run_context["exp-uuid"]) + "-"
+
     runtime_related_added_keys = [] 
     for key in config_sweeper.relevant_keys:
         if key not in placement_related_keys and key not in scheduling_related_keys:    
@@ -629,6 +632,52 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
         
         elif metric == "total_time":
             job_numbers = int(get_psim_time(output))   
+        elif metric == "total_congested_time":
+            job_numbers = int(get_psim_total_congested_time(output))
+        
+        elif metric == "job_slowdown_fairness":
+            jobs = run_context["jobs"]
+            iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
+                                                   all_jobs_running=True)
+        
+            iter_lengths = iter_lengths[0]  
+            slowdown_rates = []
+            
+            
+            for job_id, iter_length in iter_lengths.items():
+                avg_iter_length = np.mean(iter_length)  
+                
+                job = [job for job in jobs if job["job_id"] == job_id][0]
+                slowdown = avg_iter_length / job["base_period"]
+                slowdown_rates.append(slowdown)
+                
+            pprint(run_context["comparison"])
+            pprint(slowdown_rates)
+                
+            job_numbers = np.std(slowdown_rates)
+            # compute jain's fairness index.
+            # job_numbers = sum(slowdown_rates) ** 2 / (len(slowdown_rates) * sum([x ** 2 for x in slowdown_rates]))
+                
+        elif metric == "job_times": 
+            jobs = run_context["jobs"]
+            iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
+                                                   all_jobs_running=True)
+        
+            iter_lengths = iter_lengths[0]  
+            job_times = []
+            
+            for job_id, iter_length in iter_lengths.items():
+                avg_iter_length = np.mean(iter_length)  
+                
+                job = [job for job in jobs if job["job_id"] == job_id][0]
+                job_times.append(avg_iter_length)
+
+            job_numbers = job_times 
+        
+        elif metric == "job_base_periods":
+            jobs = run_context["jobs"]
+            job_base_periods = [job["base_period"] for job in jobs]
+            job_numbers = job_base_periods
             
         else: 
             rage_quit("Unknown metric: {}".format(metric))
@@ -641,7 +690,7 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
                 json.dump(job_numbers, f, indent=4)
         
         if metric_info["avg_cdf_plot"]:
-            if metric_info["type"] == "single_number":
+            if metric_info["type"] == "single_number" or metric_info["type"] == "single_list":
 
                 printed_metrics.append("avg_{}".format(metric)) 
 
@@ -766,6 +815,9 @@ def get_comparison_color(comparison):
 
 
 def plot_job_iteration_times(exp_results_df, config_sweeper, global_context):
+    print("this doesn't work yet.")    
+    return 
+
     import matplotlib.pyplot as plt 
     import seaborn as sns   
     
@@ -1002,7 +1054,37 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         base_df = exp_results_df 
         for key, value in base_setting.items():
             base_df = base_df[base_df[key] == value]    
-                            
+        
+        
+        base_mean = None 
+        base_values = None 
+        
+        if metric_info["compare_mode"] == "self":
+            if metric_info["type"] == "single_number" or metric_info["type"] == "per_iter":
+                base_mean = base_df[avg_metric_key].mean()
+                
+            elif metric_info["type"] == "single_list":
+                # not necessarily something that I can do
+                base_mean = [] 
+
+            base_values = list(base_df[avg_metric_key])
+                
+        if metric_info["compare_mode"] == "divide":
+            base_mean = 1
+            base_values = [1 for _ in range(len(base_df))]
+        if metric_info["compare_mode"] == "subtract":
+            base_mean = 0
+            base_values = [0 for _ in range(len(base_df))]
+            
+        # add results for base 
+        summary.append({    
+            "metric": metric,
+            "type": metric_info["type"],
+            "comparison": "base",
+            "mean": base_mean,
+            "values": base_values
+        })
+        
         for comparison_name, compared_df_setting in comparisons:
             compared_df = exp_results_df
             
@@ -1015,27 +1097,39 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
             merged_df = pd.merge(base_df, compared_df, on=merge_on, 
                                  suffixes=('_base', '_compared'))
             
-            base_avg_metric_key = "{}_base".format(avg_metric_key)
-            compared_avg_metric_key = "{}_compared".format(avg_metric_key)
+            base_key = "{}_base".format(avg_metric_key)
+            compared_key = "{}_compared".format(avg_metric_key)
             
             if metric_info["compare_mode"] == "self":
-                merged_df["speedup"] = merged_df[compared_avg_metric_key]
+                merged_df["speedup"] = merged_df[compared_key]
+                
             elif metric_info["compare_mode"] == "divide":
                 if metric_info["better"] == "lower":    
-                    merged_df["speedup"] = round(merged_df[base_avg_metric_key] / merged_df[compared_avg_metric_key], rounding_precision)
+                    speedup = merged_df[base_key] / merged_df[compared_key]
+                    merged_df["speedup"] = round(speedup, rounding_precision)
                 elif metric_info["better"] == "higher": 
-                    merged_df["speedup"] = round(merged_df[compared_avg_metric_key] / merged_df[base_avg_metric_key], rounding_precision)
+                    speedup = merged_df[compared_key] / merged_df[base_key]
+                    merged_df["speedup"] = round(speedup, rounding_precision)
             elif metric_info["compare_mode"] == "subtract":
-                # merged_df["speedup"] = merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key]
                 if metric_info["better"] == "lower":    
-                    merged_df["speedup"] = round(merged_df[base_avg_metric_key] - merged_df[compared_avg_metric_key], rounding_precision)
-                elif metric_info["better"] == "higher": 
-                    merged_df["speedup"] = round(merged_df[compared_avg_metric_key] - merged_df[base_avg_metric_key], rounding_precision)
-                    
+                    speedup = merged_df[base_key] - merged_df[compared_key]
+                    merged_df["speedup"] = round(speedup, rounding_precision)
+                elif metric_info["better"] == "higher":
+                    speedup = merged_df[compared_key] - merged_df[base_key]
+                    merged_df["speedup"] = round(speedup, rounding_precision) 
+            
+            merged_mean = None 
+            if metric_info["type"] == "single_number" or metric_info["type"] == "per_iter":
+                merged_mean = merged_df["speedup"].mean()
+                
+            elif metric_info["type"] == "single_list":
+                merged_mean = []
+                
             summary.append({
                 "metric": metric,   
+                "type": metric_info["type"],
                 "comparison": comparison_name,
-                "mean": merged_df["speedup"].mean(),    
+                "mean": merged_mean, 
                 "values": list(merged_df["speedup"])
             })
             
@@ -1044,63 +1138,6 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
             csv_path = metric_csv_dir + f"speedup_{comparison_name}.csv"
             speedup_df = merged_df[saved_columns]
             speedup_df.to_csv(csv_path, index=False)
-
-            # comparison_results.append((comparison_name, speedup_df))
-        
-        # super_merged = comparison_results[0][1]
-        
-        # column_name = "speedup_{}".format(comparison_results[0][0]) 
-        # super_merged.rename(columns={"speedup": column_name}, inplace=True)              
-
-        # for comparison_name, comparison_df in comparison_results[1:]:
-        #     super_merged = super_merged.merge(comparison_df, on=merge_on)
-        #     super_merged.rename(columns={"speedup": "speedup_{}".format(comparison_name)}, inplace=True)
-        
-        # # reduce the dataframe on "placement-seed"
-        # group_on = merge_on.copy()
-        # group_on.remove("placement-seed")
-
-        # agg_dict = {}
-        
-        # for comparison_name, _ in comparisons:
-        #     agg_dict[f"speedup_{comparison_name}_min"] = (f"speedup_{comparison_name}", "min")
-        #     agg_dict[f"speedup_{comparison_name}_max"] = (f"speedup_{comparison_name}", "max")
-        #     agg_dict[f"speedup_{comparison_name}_values"] = (f"speedup_{comparison_name}", lambda x: sorted(list(x)))
-
-        # cdf_params = ["speedup_{}_values".format(comparison_name) for comparison_name, _ in comparisons] 
-        
-        # grouped_df = super_merged.groupby(by=group_on).agg(**agg_dict)
-            
-        # # store the results for the current placement 
-        # metric_grouped_csv_path = "{}/results.csv".format(metric_csv_dir)   
-        # grouped_df.reset_index().to_csv(metric_grouped_csv_path, index=False)
-
-        # do some plotting as well. 
-        # metric_placement_plot_path = metric_plots_dir + "{}.png".format(placement)
-
-        # title = "Speedup in {} of {} over {}".format(
-        #     metric, compared_lb_scheme, base_lb_scheme,
-        # ).replace(" ", "$") 
-        
-        # plot_results(interesting_keys=["machines" , "cores"], 
-        #              plotted_key_min="speedup_or_lb_min", 
-        #              plotted_key_max="speedup_or_lb_max", 
-        #              title=title, 
-        #              random_seed=experiment_seed,
-        #              csv_path=metric_placement_grouped_csv_path,
-        #              plot_path=metric_placement_plot_path,
-        #              script_path=config_sweeper.plot_commands_script, 
-        #              actually_plot=plot)
-        
-        # if config_sweeper.plot_cdfs:
-        #     # store the final output
-        #     plot_cdfs(separating_params=["machines", "cores"], 
-        #             cdf_params=cdf_params, 
-        #             placement_names="placement_names",
-        #             placement_csv_paths=[metric_grouped_csv_path],
-        #             plots_dir=metric_plots_dir, 
-        #             script_path=config_sweeper.plot_commands_script, 
-        #             actually_plot=plot)
 
     return summary
     
@@ -1143,69 +1180,31 @@ def check_comparison_sanity(exp_context, sweep_config):
     
 def exp_filter_function(permutations_dicts, config_sweeper):    
     
-    # print("starting to filter the permutations, starting with {} permutations".format(len(permutations_dicts)))
-
-    # comparison_base = config_sweeper.global_context["comparison-base"].copy()
-    # comparisons = config_sweeper.global_context["comparisons"].copy() 
-
-    # comparison_settings = [comparison_base.copy()]  
-    # for comparison in comparisons:  
-    #     comparison_setting = comparison_base.copy()
-    #     for key, value in comparison[1].items():
-    #         comparison_setting[key] = value
-    #     comparison_settings.append(comparison_setting)  
-        
-    # filtered_permutations = []
-    # relevant_keys = set() 
-    
-    # for exp in permutations_dicts:
-    #     exp_valid = False    
-    #     for comparison in comparison_settings:  
-    #         found_in_this_comparison = True 
-    #         for key, value in comparison.items():
-    #             relevant_keys.add(key)
-    #             if exp[key] != value:
-    #                 found_in_this_comparison = False
-    #                 break
-    #         if found_in_this_comparison:
-    #             exp_valid = True
-    #             break
-    #     if exp_valid:
-    #         filtered_permutations.append(exp)
-            
-    # for key, value in config_sweeper.sweep_config.items():
-    #     if len(value) > 1:
-    #         relevant_keys.add(key)
-    
-    # print("filtered down to {} permutations".format(len(filtered_permutations)))
-    
-    # return filtered_permutations, relevant_keys
-    
-
     comparison_base = config_sweeper.global_context["comparison-base"].copy()
     comparisons = config_sweeper.global_context["comparisons"].copy() 
     
     comparison_permutations = [] 
     
     # add the comparison_base to the permutations_dicts
-    comparison_permutations.append(comparison_base)
+    comparison_permutations.append(("base", comparison_base))   
     
     for comparison in comparisons:  
         comparison_setting = comparison_base.copy()
+        comparison_name = comparison[0]
         for key, value in comparison[1].items():
             comparison_setting[key] = value
 
-        comparison_permutations.append(comparison_setting)  
+        comparison_permutations.append((comparison_name, comparison_setting))  
     
     # for all comparisons, and for all permutations_dicts, put them together and add them to the filtered_permutations
-    
     filtered_permutations = []
     
-    for comparison in comparison_permutations:
+    for comparison_name, comparison_setting in comparison_permutations:
         for exp in permutations_dicts:
             new_exp = exp.copy()
             
-            new_exp.update(comparison)
+            new_exp.update(comparison_setting)
+            new_exp.update({"comparison": comparison_name})
             filtered_permutations.append(new_exp)   
             
     relevant_keys = set()  

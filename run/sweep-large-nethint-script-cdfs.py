@@ -170,7 +170,7 @@ def do_experiment(plot_stuff=False,
 
     if core_count == 1:
         profiled_throttle_factors = [1.0]
-        considered_sub = []
+        considered_sub = [1]
     if core_count == 2: 
         profiled_throttle_factors = [1.0, 0.5]
         considered_sub = [2]     
@@ -206,61 +206,15 @@ def do_experiment(plot_stuff=False,
 
     comparisons = []
     
-    # comparisons.append(("TS", {
-    #                         "timing-scheme": "faridv2",
-    #                         "throttle-search": False,
-    #                         "lb-scheme": "random"
-    #                     }))
-    
-    comparisons.append(("TS", {
-                            "timing-scheme": "faridv2",
-                            "throttle-search": True,
-                            "lb-scheme": "random"
-                        }))
-    
-    comparisons.append(("RO", {
-                            "timing-scheme": "zero",
-                            "routing-fit-strategy": "graph-coloring-v3",  
+    subflow_count = considered_sub[0]
+
+    comparisons.append(("TS+RO+SUB+REP", {
+                            "timing-scheme": "faridv4",
+                            "throttle-search": True if subflow_count > 1 else False,   
+                            "routing-fit-strategy": "graph-coloring-v5",     
+                            "subflows": subflow_count,     
+                            "fallback-threshold": fallback_threshold, 
                             "lb-scheme": "readprotocol"
-                        }))
-    
-    for subflow_count in considered_sub:
-        comparisons.append((f"TS+SUB", {
-                                "timing-scheme": "faridv2",
-                                "subflows": subflow_count, 
-                                "throttle-search": True,
-                                "lb-scheme": "random"
-                            }))
-    
-    # comparisons.append(("RO5", {
-    #                         "timing-scheme": "zero",
-    #                         "routing-fit-strategy": "graph-coloring-v5",  
-    #                         "lb-scheme": "readprotocol"
-    #                     }))
-    
-    for timing in ["faridv2", "faridv4"]:
-        for subflow_count in list(set([1] + considered_sub)):
-            for coloring in ["graph-coloring-v5"]:
-                name = "TS+RO"
-                
-                if subflow_count > 1:
-                    name += f"+SUB"
-                    
-                if timing == "faridv4":
-                    name += "+REP"
-                    
-                comparisons.append((name, {
-                                        "timing-scheme": timing,
-                                        "throttle-search": True if subflow_count > 1 else False,   
-                                        "routing-fit-strategy": coloring,     
-                                        "subflows": subflow_count,     
-                                        "fallback-threshold": fallback_threshold, 
-                                        "lb-scheme": "readprotocol"
-                                    }))
-    
-    comparisons.append(("Perfect", {
-                            "timing-scheme": "zero",
-                            "lb-scheme": "perfect"
                         }))
 
     # to be give to the CS, which will be used to populate the run_context.
@@ -329,7 +283,15 @@ def do_experiment(plot_stuff=False,
     return summary, results_dir 
     
     
+def create_command(plot_args, plot_commands_path):  
+    plot_command = "python3 plot_compare.py " + " ".join([f"--{key} {value}" for key, value in plot_args.items()])
     
+    with open(plot_commands_path, "a") as f:
+        clean_plot_command = plot_command
+        while "  " in clean_plot_command:
+            clean_plot_command = clean_plot_command.replace("  ", " ") 
+        f.write(clean_plot_command + "\n\n")
+
 # Here, we iterate over things that will have different baselines to compare against.   
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
 if __name__ == "__main__":
@@ -337,9 +299,9 @@ if __name__ == "__main__":
     os.system("./git_backup.sh")
     
     original_exp_number = None
-    seed_range = 2
-    m = 10
-    clean_up_sweep_files = False
+    seed_range = 30
+    m = 20
+    clean_up_sweep_files = True
     
     if original_exp_number is not None: 
         exp_number = original_exp_number
@@ -351,40 +313,42 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
     
-    for plot_type in []: #["heatmap"]:  
-        plot_command = f"python3 plot_compare.py \
-                        --file_name {path} \
-                        --plot_params metric \
-                        --subplot_y_params machine_count \
-                        --subplot_x_params comparison \
-                        --subplot_hue_params rack_size \
-                        --plot_x_params job_sizes \
-                        --plot_y_param values \
-                        --plot_type {plot_type}"
-
-        with open(plot_commands_path, "a") as f:
-            clean_plot_command = plot_command
-            while "  " in clean_plot_command:
-                clean_plot_command = clean_plot_command.replace("  ", " ") 
-            f.write(clean_plot_command + "\n\n")
+    # for plot_type in []: #["heatmap"]:  
+    #     plot_args = {
+    #         "file_name": path,
+    #         "plot_params": "metric",
+    #         "subplot_y_params": "machine_count",
+    #         "subplot_x_params": "comparison",
+    #         "subplot_hue_params": "rack_size",
+    #         "plot_x_params": "job_sizes",
+    #         "plot_y_param": "values",
+    #         "plot_type": plot_type
+    #     }
+        
+    #     create_command(plot_args, plot_commands_path)
+        
                         
-    for plot_type in ["bar"]:
-        plot_command = f"python3 plot_compare.py \
-                        --file_name {path} \
-                        --plot_params metric \
-                        --subplot_y_params desired_entropy \
-                        --subplot_x_params rack_size \
-                        --subplot_hue_params comparison \
-                        --plot_x_params oversub \
-                        --plot_y_param values \
-                        --plot_type {plot_type}"
-                    
-        with open(plot_commands_path, "a") as f:
-            clean_plot_command = plot_command
-            while "  " in clean_plot_command:
-                clean_plot_command = clean_plot_command.replace("  ", " ") 
-            f.write(clean_plot_command + "\n\n")
-    
+    for plot_type in ["cdf"]:
+        plot_args = {
+            "file_name": path,
+            "plot_params": "metric",
+            "subplot_y_params": "rack_size",
+            "subplot_x_params": "",
+            "subplot_hue_params": "desired_entropy",
+            "plot_x_params": "job_sizes",
+            "plot_y_param": "values",
+            # "sharex": True, 
+            # "sharey": True,
+            "subplot_width": 3,
+            "subplot_height": 2,
+            "plot_type": plot_type, 
+            "legend_side": "right",
+            "ext": "png", 
+            "values_name": "Speedup"
+        }
+
+        create_command(plot_args, plot_commands_path)
+            
     if original_exp_number is None:
         exp_dir = f"results/exps/{exp_number}"
         path = f"results/exps/{exp_number}/results.csv" 
@@ -400,13 +364,17 @@ if __name__ == "__main__":
             ("rack_size", [8]),
             
             ("job_sizes", [(4, 16)]),
+            # ("job_sizes", [(4, 16)]),
 
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.5, 0.7]),
+            ("desired_entropy", [0.1, 0.3, 0.5, 0.7, 0.9]),
+            # ("desired_entropy", [0.5]),
 
-            ("oversub", [1, 2, 4, 8]),
+            # ("oversub", [1, 2, 4, 8]),
             # ("oversub", [8, 4, 2, 1]),
+            ("oversub", [1, 2]),
+            # ("oversub", [8]),
             
             ("cmmcmp_range", [(0, 2)]),
   
@@ -414,7 +382,9 @@ if __name__ == "__main__":
             ("fallback_threshold", [0.5]),
             
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
+            # ("comm_size", [(120 * m, 121 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
+            # ("comp_size", [(2 * m, 2 * m + 1, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
                
             ("punish_oversubscribed_min", [1]), 
