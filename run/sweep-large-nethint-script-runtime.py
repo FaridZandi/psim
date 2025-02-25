@@ -375,7 +375,7 @@ if __name__ == "__main__":
     original_exp_number = None
     seed_range = 1
     m = 10
-    clean_up_sweep_files = True
+    clean_up_sweep_files = False
     
     if original_exp_number is not None: 
         exp_number = original_exp_number
@@ -436,10 +436,10 @@ if __name__ == "__main__":
         exp_config = [
             ("sim_length", [100 * m]),
             
-            ("machine_count", [48]),
-            ("rack_size", [8]),
+            ("machine_count", [12]),
+            ("rack_size", [4]),
             
-            ("job_sizes", [(4, 16)]),
+            ("job_sizes", [(4, 4)]),
             # ("job_sizes", [(4, 16)]),
 
             ("placement_mode", ["entropy"]), 
