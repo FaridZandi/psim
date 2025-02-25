@@ -12,8 +12,8 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 1
-    m = 100
+    seed_range = 20
+    m = 10
     
     clean_up_sweep_files = True
 
