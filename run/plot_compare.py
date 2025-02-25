@@ -29,6 +29,7 @@ ext = "pdf"
 
 values_name = "values"
 
+exclude_base = False    
 
 ###############################################################################
 ###############################################################################
@@ -368,6 +369,9 @@ def make_plots():
     df = df.explode("values")
     df["values"] = df["values"].astype(float)
     
+    if exclude_base:
+        df = df[df["comparison"] != "base"] 
+        
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
     else:
@@ -404,7 +408,8 @@ if __name__ == "__main__":
     parser.add_argument("--legend_side", type=str, required=False)  
     parser.add_argument("--values_name", type=str, required=False)  
     parser.add_argument("--legend_cols", type=int, required=False)
-        
+    parser.add_argument("--exclude_base", type=bool, required=False)    
+    
     args = parser.parse_args()
         
     for arg in vars(args):

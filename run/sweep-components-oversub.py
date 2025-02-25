@@ -4,11 +4,6 @@ from utils.sweep_base import ConfigSweeper
 import itertools
 from utils.exp_runner import do_experiment, create_command
 
-experiment_seed = 77
-random_rep_count = 1
-THREADS = 42
-
-
 # Here, we iterate over things that will have different baselines to compare against.   
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
 if __name__ == "__main__":
@@ -39,12 +34,14 @@ if __name__ == "__main__":
             "subplot_hue_params": "comparison",
             "plot_x_params": "oversub",
             "plot_y_param": "values",
-            # "sharex": True, 
-            # "sharey": True,
+            "sharex": True, 
+            "sharey": True,
             "subplot_width": 5,
             "subplot_height": 2,
             "plot_type": plot_type, 
-            "ext": "png"
+            "ext": "png", 
+            "values_name": "Speedup", 
+            "exclude_base": True,   
         }
 
         create_command(plot_args, plot_commands_path)
@@ -61,13 +58,13 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
+            ("machine_count", [72]),
             ("rack_size", [8]),
             ("job_sizes", [(4, 16)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.5, 0.7]),
-            ("oversub", [8, 4, 2, 1]),
+            ("desired_entropy", [0.3]),
+            ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
@@ -78,7 +75,7 @@ if __name__ == "__main__":
             ("inflate", [1]),    
         ]
 
-        comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+SUB+RO+REP"]  
+        comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         
