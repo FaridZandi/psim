@@ -45,6 +45,7 @@ if __name__ == "__main__":
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
+            "legend_side": "none",
         }
         create_command(plot_args, plot_commands_path)
         
