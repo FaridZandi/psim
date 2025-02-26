@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 100
+    seed_range = 400
     m = 100
     
     clean_up_sweep_files = True
@@ -28,29 +28,28 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["bar", "box"]:
+    for plot_type in ["cdf"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "desired_entropy",
-            "subplot_x_params": "rack_size",
-            "subplot_hue_params": "comparison",
-            "plot_x_params": "oversub",
+            "subplot_y_params": "machine_count",
+            "subplot_x_params": "oversub",
+            "subplot_hue_params": "desired_entropy",
+            "plot_x_params": "job_sizes",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 5,
+            "subplot_width": 3,
             "subplot_height": 2,
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
-            "legend_side": "none"
         }
         create_command(plot_args, plot_commands_path)
         
     os.system(f"chmod +x {plot_commands_path}")
-            
+    
     if original_exp_number is None:
         exp_dir = f"results/exps/{exp_number}"
         path = f"results/exps/{exp_number}/results.csv" 
@@ -63,12 +62,12 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             ("machine_count", [48]),
             ("rack_size", [8]),
-            ("job_sizes", [(4, 16)]),
+            ("job_sizes", [(4, 48)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.5]),
-            ("oversub", [1, 2, 4, 8]),
-            ("cmmcmp_range", [(0, 2)]),
+            ("desired_entropy", [0.5, 0.6, 0.7]),
+            ("oversub", [1, 2]),
+            ("cmmcmp_range", [(0, 2)]), 
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
@@ -78,7 +77,8 @@ if __name__ == "__main__":
             ("inflate", [1]),    
         ]
 
-        comparisons = ["TS", "TS+RO", "TS+RO+SUB", "TS+RO+SUB+REP"]
+        # comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
+        comparisons = ["TS+RO+SUB+REP"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         

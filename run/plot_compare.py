@@ -112,7 +112,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     legend = False 
     
     # turn on sns grid for this subplot
-    ax.grid(True)    
+    if plot_type != "heatmap":  
+        ax.grid(True)    
     
     if len(df) == 0:
         return  
