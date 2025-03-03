@@ -131,7 +131,8 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
         plot_routing(run_context, rem, usage, all_job_ids, 
                      num_leaves, num_spines, routing_time, 
                      min_affected_time, max_affected_time, 
-                     routing_plot_dir, smoothing_window=1)
+                     routing_plot_dir, smoothing_window=1, 
+                     suffix=suffix)
     
     
     lb_decisions_proper = []    
