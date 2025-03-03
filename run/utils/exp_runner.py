@@ -263,20 +263,21 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "perfect"
                         }))
 
+
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
     exp_context = {
         "sim-length": sim_length,
 
-        "plot-iteration-graphs": False, 
+        "plot-iteration-graphs": plot_stuff, 
         "plot-initial-timing": plot_stuff,
-        "plot-intermediate-timing": False,
+        "plot-intermediate-timing": plot_stuff,
         "plot-final-timing": plot_stuff,
         "plot-routing-assignment": plot_stuff, 
         "plot-merged-ranges": plot_stuff, 
         "plot-runtime-timing": plot_stuff,
-        "plot-link-empty-times": False,
+        "plot-link-empty-times": plot_stuff,
         
         "profiled-throttle-factors": profiled_throttle_factors, 
         
