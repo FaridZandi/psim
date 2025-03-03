@@ -24,7 +24,8 @@ sharey = False
 
 legend_cols = 1 
 legend_side = "bottom"  
-
+legend_title = None 
+ 
 ext = "pdf" 
 
 values_name = "values"
@@ -408,7 +409,8 @@ if __name__ == "__main__":
     parser.add_argument("--values_name", type=str, required=False)  
     parser.add_argument("--legend_cols", type=int, required=False)
     parser.add_argument("--exclude_base", type=bool, required=False)    
-    
+    parser.add_argument("--legend_title", type=str, required=False) 
+       
     args = parser.parse_args()
         
     for arg in vars(args):
