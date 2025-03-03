@@ -667,7 +667,7 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_times = []
             
             for job_id, iter_length in iter_lengths.items():
-                avg_iter_length = np.mean(iter_length)  
+                avg_iter_length = np.round(np.mean(iter_length), 2)  
                 
                 job = [job for job in jobs if job["job_id"] == job_id][0]
                 job_times.append(avg_iter_length)
