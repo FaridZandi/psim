@@ -1486,19 +1486,23 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     dump_scheduling_results(job_timings, lb_decisions, 
                             timing_file_path, routing_file_path)    
 
+    add_to_context = {
+        "job_costs": [get_solution_cost_job(job, job_timings, job_profiles) for job in jobs]
+    }
     # returning the results just in case as well. 
-    return job_timings, lb_decisions    
+    return job_timings, lb_decisions, add_to_context     
 
 
 if __name__ == "__main__":
     
     input_data = json.load(sys.stdin)
     # call the main function
-    job_timings, lb_decisions = generate_timing_file(**input_data)
+    job_timings, lb_decisions, add_to_context = generate_timing_file(**input_data)
     
     dumped_data = {
         "job_timings": job_timings, 
-        "lb_decisions": lb_decisions
+        "lb_decisions": lb_decisions,
+        "add_to_context": add_to_context,
     } 
     
     # write the output to stdout

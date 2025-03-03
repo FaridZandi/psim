@@ -45,6 +45,13 @@ all_metrics = {
         "better": "lower",
         "type": "single_list",
     }, 
+    "job_costs": {
+        "avg_cdf_plot": True,
+        "iter_avg_plot": False,
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_list",
+    }, 
     "rolling_iter_time": {
         "avg_cdf_plot": False,   
         "iter_avg_plot": True,  
