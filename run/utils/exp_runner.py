@@ -127,7 +127,8 @@ def do_experiment(seed_range=1,
                   experiment_seed=77, 
                   recorded_metrics=[], 
                   added_comparisons=[], 
-                  plot_stuff=False
+                  plot_stuff=False, 
+                  farid_rounds=12,  
                   ): 
     
     
@@ -215,7 +216,7 @@ def do_experiment(seed_range=1,
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": False, 
-        "farid-rounds": 12, 
+        "farid-rounds": farid_rounds, 
         
         "fallback-threshold": fallback_threshold, 
 
