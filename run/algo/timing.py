@@ -921,8 +921,9 @@ def get_avg_job_cost(job_id, jobs, job_timings):
     for job_timing in job_timings:
         if job_timing["job_id"] == job_id:
             job_cost += get_solution_cost_job(job, job_timing["deltas"], job_timing["throttle_rates"])
+            return job_cost / job["iter_count"]
+
     
-    return job_cost / job["iter_count"]
 
     
 def get_timeshifts(jobs, options, run_context, job_profiles, 
