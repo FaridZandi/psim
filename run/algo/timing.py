@@ -910,9 +910,7 @@ def get_solution_cost_job_load(job_load, deltas, throttle_rates):
     #     return job_timings
     
 def get_avg_job_cost(job_id, jobs, job_timings):
-    job_cost = 0 
     job = None
-    
     for j in jobs:
         if j["job_id"] == job_id:
             job = j
@@ -920,7 +918,17 @@ def get_avg_job_cost(job_id, jobs, job_timings):
         
     for job_timing in job_timings:
         if job_timing["job_id"] == job_id:
-            job_cost += get_solution_cost_job(job, job_timing["deltas"], job_timing["throttle_rates"])
+            job_cost = 0 
+            
+            job_cost = sum(job_timing["deltas"])
+            
+            for throttle_rate in job_timing["throttle_rates"]:
+                period = job["period"][str(throttle_rate)]
+                base_period = job["base_period"]       
+                
+                throttle_cost = period - base_period    
+                job_cost += throttle_cost   
+                
             return job_cost / job["iter_count"]
 
     
