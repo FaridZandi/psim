@@ -897,6 +897,34 @@ def get_solution_cost_job_load(job_load, deltas, throttle_rates):
     
     return job_cost
     
+
+# this is how the job timings are generated 
+    # def get_job_timings(self):  
+    #     job_timings = []    
+    #     for job_id, job in self.job_map.items():
+    #         job_timings.append({
+    #             "deltas": self.deltas[job_id],  
+    #             "throttle_rates": self.throttle_rates[job_id],     
+    #             "job_id": job_id
+    #         })   
+    #     return job_timings
+    
+def get_avg_job_cost(job_id, jobs, job_timings):
+    job_cost = 0 
+    job = None
+    
+    for j in jobs:
+        if j["job_id"] == job_id:
+            job = j
+            break
+        
+    for job_timing in job_timings:
+        if job_timing["job_id"] == job_id:
+            job_cost += get_solution_cost_job(job, job_timing["deltas"], job_timing["throttle_rates"])
+    
+    return job_cost / job["iter_count"]
+
+    
 def get_timeshifts(jobs, options, run_context, job_profiles, 
                    starting_iterations=None, base_deltas=None, 
                    weights=None, base_throttle_rates=None, round=0):       
@@ -1486,8 +1514,11 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     dump_scheduling_results(job_timings, lb_decisions, 
                             timing_file_path, routing_file_path)    
 
+    job_ids = [job["job_id"] for job in jobs] 
+    job_ids.sort()
+    
     add_to_context = {
-        "job_costs": [get_solution_cost_job(job, job_timings, job_profiles) for job in jobs]
+        "job_costs": [get_avg_job_cost(job_id, job_timings) for job_id in job_ids],
     }
     # returning the results just in case as well. 
     return job_timings, lb_decisions, add_to_context     
