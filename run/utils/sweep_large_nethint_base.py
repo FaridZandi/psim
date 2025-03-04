@@ -663,7 +663,24 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = np.std(slowdown_rates)
             # compute jain's fairness index.
             # job_numbers = sum(slowdown_rates) ** 2 / (len(slowdown_rates) * sum([x ** 2 for x in slowdown_rates]))
+        elif metric == "job_slowdowns":
+            jobs = run_context["jobs"]
+            iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
+                                                   all_jobs_running=True)
+        
+            iter_lengths = iter_lengths[0]  
+            slowdown_rates = []
+            
+            
+            for job_id, iter_length in iter_lengths.items():
+                avg_iter_length = np.mean(iter_length)  
                 
+                job = [job for job in jobs if job["job_id"] == job_id][0]
+                slowdown = avg_iter_length / job["base_period"]
+                slowdown = round(slowdown, 2)   
+                slowdown_rates.append(slowdown)
+
+            job_numbers = slowdown_rates
         elif metric == "job_times": 
             jobs = run_context["jobs"]
             iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
