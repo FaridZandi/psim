@@ -228,8 +228,8 @@ class Job:
             inflate_amount = int(active_range * (inflate - 1))
             
             # inflate_type = "both"
-            inflate_type = "divide"
-            # inflate_type = "end"
+            # inflate_type = "divide"
+            inflate_type = "end"
             # inflate_type = "start"
 
             if inflate_type == "divide":
