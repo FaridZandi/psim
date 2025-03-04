@@ -1518,7 +1518,7 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     job_ids.sort()
     
     add_to_context = {
-        "job_costs": [get_avg_job_cost(job_id, job_timings) for job_id in job_ids],
+        "job_costs": [get_avg_job_cost(job_id, jobs, job_timings) for job_id in job_ids],
     }
     # returning the results just in case as well. 
     return job_timings, lb_decisions, add_to_context     
