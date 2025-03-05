@@ -37,7 +37,7 @@ def plot_link_usage(ax, time_range,
     ax.axhline(y=100, color='black', linestyle='--')
     
     ax.set_title(f'{link_label} - {direction}')
-    ax.set_xlabel('Time')
+    ax.set_xlabel('Time (ms)')
     ax.set_ylabel('Util. (%)')
     
     ax.grid(True)
