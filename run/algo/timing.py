@@ -57,10 +57,11 @@ def visualize_workload_timing(jobs, options, run_context,
     
     link_logical_bandwidth = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
     
-    visualize_link_loads(link_loads, run_context, deltas=deltas, 
-                         throttle_rates=throttle_rates,
-                         link_logical_bandwidth=link_logical_bandwidth, 
-                         suffix=suffix, separate_plots=True)
+    for sep in [True, False]:    
+        visualize_link_loads(link_loads, run_context, deltas=deltas, 
+                            throttle_rates=throttle_rates,
+                            link_logical_bandwidth=link_logical_bandwidth, 
+                            suffix=suffix, separate_plots=sep)
 
 # all the workloads will be starting at the same time, at time 0.
 # this is technically the worst case scenario.
