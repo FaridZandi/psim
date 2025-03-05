@@ -60,7 +60,7 @@ def visualize_workload_timing(jobs, options, run_context,
     visualize_link_loads(link_loads, run_context, deltas=deltas, 
                          throttle_rates=throttle_rates,
                          link_logical_bandwidth=link_logical_bandwidth, 
-                         suffix=suffix)
+                         suffix=suffix, separate_plots=True)
 
 # all the workloads will be starting at the same time, at time 0.
 # this is technically the worst case scenario.
@@ -674,10 +674,11 @@ def visualize_link_loads_runtime(link_loads, run_context,
                 ax = axes[rack][i]
                 ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
             
-    plt.tight_layout()
-    plot_path = f"{plot_dir}/demand{suffix}.png"
-    plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
-    plt.close(fig)
+    if not separate_plots:
+        plt.tight_layout()
+        plot_path = f"{plot_dir}/demand{suffix}.png"
+        plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
+        plt.close(fig)
     
 ####################################################################################################
 ####################################################################################################
@@ -788,13 +789,14 @@ def visualize_link_loads(link_loads, run_context,
             for i, direction in enumerate(["up", "down"]):
                 ax = axes[rack][i]
                 ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
-            
-    plt.tight_layout()
-    timing_plots_dir = f"{run_context['timings-dir']}/"
-    os.makedirs(timing_plots_dir, exist_ok=True)
-    plot_path = f"{timing_plots_dir}/demand{suffix}.png"  
-    plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
-    plt.close(fig)
+        
+    if not separate_plots:
+        plt.tight_layout()
+        timing_plots_dir = f"{run_context['timings-dir']}/"
+        os.makedirs(timing_plots_dir, exist_ok=True)
+        plot_path = f"{timing_plots_dir}/demand{suffix}.png"  
+        plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
+        plt.close(fig)
 
     
 def get_good_until(jobs, link_loads_list, run_context, 
