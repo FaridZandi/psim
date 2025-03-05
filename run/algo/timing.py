@@ -634,7 +634,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
             
             max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
             ax.axhline(y=max_value_in_stack, color='blue', linestyle='--') 
-            ax.text(max_length, max_value_in_stack, " max",
+            ax.text(max_length, max_value_in_stack, " max load",
                         verticalalignment='bottom', horizontalalignment='right', color='blue')
 
 
@@ -644,7 +644,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
                 ax.axhline(y=logical_capacity, color='r', linestyle='--') 
                 # add an annotation for the logical capacity, right next to the line
                 if logical_capacity != max_value_in_stack: 
-                    ax.text(max_length, logical_capacity, " cap",
+                    ax.text(max_length, logical_capacity, " capacity",
                             verticalalignment='bottom', horizontalalignment='right', color='red')
                 
                 y_max = max(y_max, logical_capacity * 1.1)  
@@ -677,7 +677,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
     if not separate_plots:
         plt.tight_layout()
         plot_path = f"{plot_dir}/demand{suffix}.png"
-        plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
+        plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
         plt.close(fig)
     
 ####################################################################################################
@@ -713,13 +713,13 @@ def visualize_link_loads(link_loads, run_context,
     for rack in range(num_racks):
         for i, direction in enumerate(["up", "down"]):
             if not separate_plots:
-               ax = axes[rack][i]
+                ax = axes[rack][i]
             else: 
                 fig, ax = plt.subplots(figsize=(5, 3))  
                 
             ax.set_title(f"Rack: {rack}, Direction: {direction}")
-            ax.set_xlabel("Time")
-            ax.set_ylabel("Load")
+            ax.set_xlabel("Time (ms)")
+            ax.set_ylabel("Load (link capacity units)")
             
             if len(link_loads[rack][direction]) == 0:
                 ax.text(0.5, 0.5, "No jobs", horizontalalignment='center', verticalalignment='center', transform=ax.transAxes)  
@@ -745,7 +745,7 @@ def visualize_link_loads(link_loads, run_context,
                         
             max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
             ax.axhline(y=max_value_in_stack, color='blue', linestyle='--') 
-            ax.text(max_length, max_value_in_stack, " max",
+            ax.text(max_length, max_value_in_stack, " max load",
                         verticalalignment='bottom', horizontalalignment='right', color='blue')
             
             y_max = max(4, max_value_in_stack) * 1.1    
@@ -754,7 +754,7 @@ def visualize_link_loads(link_loads, run_context,
             if link_logical_bandwidth is not None:  
                 ax.axhline(y=link_logical_bandwidth, color='r', linestyle='--') 
                 if link_logical_bandwidth != max_value_in_stack: 
-                    ax.text(max_length, link_logical_bandwidth, " cap",
+                    ax.text(max_length, link_logical_bandwidth, " capacity",
                         verticalalignment='bottom', horizontalalignment='right', color='red')
                                 
                 y_max = max(y_max, link_logical_bandwidth * 1.1)  
@@ -776,7 +776,7 @@ def visualize_link_loads(link_loads, run_context,
             if separate_plots: 
                 plt.tight_layout()
                 plot_path = f"{run_context['timings-dir']}/demand{suffix}_{rack}_{direction}.png"
-                plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
+                plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
                 plt.close(fig)
 
     # create one legend for all the subplots. with the contents of the color assignment to jobs.
@@ -784,11 +784,12 @@ def visualize_link_loads(link_loads, run_context,
         handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=get_job_color(job_id), label=f"Job: {job_id}") for job_id in assigned_job_colors]
         fig.legend(handles=handles, loc='upper right')
     
-    if min_over_capacity_time < 1e9:
-        for rack in range(num_racks):
-            for i, direction in enumerate(["up", "down"]):
-                ax = axes[rack][i]
-                ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
+    if not separate_plots: 
+        if min_over_capacity_time < 1e9:
+            for rack in range(num_racks):
+                for i, direction in enumerate(["up", "down"]):
+                    ax = axes[rack][i]
+                    ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
         
     if not separate_plots:
         plt.tight_layout()
