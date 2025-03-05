@@ -75,7 +75,6 @@ if __name__ == "__main__":
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
-            ("search_quota", ["alot"]), 
             ("inflate", [1]),    
         ]
 
