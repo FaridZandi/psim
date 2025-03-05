@@ -502,7 +502,8 @@ def plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
                     logical_capacity=logical_capacity,
                     smoothing_window=smoothing_window, 
                     plot_dir=run_context["runtime-dir"],
-                    suffix="_runtime_{}".format(smoothing_window)
+                    suffix="_runtime_{}".format(smoothing_window),
+                    separate_plots=True
                 )
     
     # copy the final timing output to the runtime dir.

@@ -553,7 +553,7 @@ def get_link_loads_runtime(jobs, options, run_context, summarized_job_profiles):
 def visualize_link_loads_runtime(link_loads, run_context, 
                                  logical_capacity,
                                  suffix="", plot_dir=None, 
-                                 smoothing_window=1):      
+                                 smoothing_window=1, separate_plots=False):      
 
     import matplotlib.pyplot as plt
     import numpy as np
@@ -563,9 +563,10 @@ def visualize_link_loads_runtime(link_loads, run_context,
     num_directions = 2  # "up" and "down"
 
 
-    # Create a figure and subplots
-    fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), 
-                             squeeze=False, sharex=True)
+    if not separate_plots: 
+        # Create a figure and subplots
+        fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), 
+                                squeeze=False, sharex=True)
 
     global job_color_index
     job_color_index = 0
@@ -574,7 +575,11 @@ def visualize_link_loads_runtime(link_loads, run_context,
     
     for rack in range(num_racks):
         for i, direction in enumerate(["up", "down"]):
-            ax = axes[rack][i]
+            if not separate_plots:
+                ax = axes[rack][i]
+            else: 
+                fig, ax = plt.subplots(figsize=(5, 3))
+                
             ax.set_title(f"Rack: {rack}, Direction: {direction}")
             ax.set_xlabel("Time")
             ax.set_ylabel("Load")
@@ -652,6 +657,12 @@ def visualize_link_loads_runtime(link_loads, run_context,
             
             ax.legend(loc='upper left')
 
+            if separate_plots: 
+                plt.tight_layout()
+                plot_path = f"{plot_dir}/demand{suffix}_{rack}_{direction}.png"
+                plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
+                plt.close(fig)
+
     # create one legend for all the subplots. with the contents of the color assignment to jobs.
     if len(assigned_job_colors) > 0:
         handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=get_job_color(job_id), label=f"Job: {job_id}") for job_id in assigned_job_colors]
@@ -665,7 +676,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
             
     plt.tight_layout()
     plot_path = f"{plot_dir}/demand{suffix}.png"
-    plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
+    plt.savefig(plot_path, bbox_inches='tight', dpi=300)    
     plt.close(fig)
     
 ####################################################################################################
