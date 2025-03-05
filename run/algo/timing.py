@@ -583,7 +583,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
                 
             ax.set_title(f"Rack: {rack}, Direction: {direction}")
             ax.set_xlabel("Time")
-            ax.set_ylabel("Load")
+            ax.set_ylabel("Load (link capacity units)")
             
             if len(link_loads[rack][direction]) == 0:
                 ax.text(0.5, 0.5, "No jobs", horizontalalignment='center', 
