@@ -582,7 +582,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
                 fig, ax = plt.subplots(figsize=(5, 3))
                 
             ax.set_title(f"Rack: {rack}, Direction: {direction}")
-            ax.set_xlabel("Time")
+            ax.set_xlabel("Time (ms)")
             ax.set_ylabel("Load (link capacity units)")
             
             if len(link_loads[rack][direction]) == 0:
