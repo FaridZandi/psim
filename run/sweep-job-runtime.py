@@ -94,7 +94,7 @@ if __name__ == "__main__":
             
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
-                                                 experiment_seed=682, 
+                                                 experiment_seed=777, 
                                                  farid_rounds=4,
                                                  plot_stuff=True, 
                                                  **perm) 
