@@ -73,7 +73,7 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
     # Create a figure with multiple subplots
     total_subplots = num_leaves * num_spines * 2  # Two plots (up and down) per leaf-spine pair
     fig, axes = plt.subplots(num_leaves, num_spines * 2, 
-                             sharey=True, sharex=True,
+                            #  sharey=True, sharex=True,
                              figsize=(num_spines * 8, num_leaves * 1.5), 
                              constrained_layout=True, squeeze=False)
 
@@ -106,7 +106,7 @@ def plot_routing(run_context, rem, usage, all_job_ids, num_leaves,
     # Save the entire subplot grid
     for ext in ['png']:
         plt_path = os.path.join(plots_dir, 'remaining_{}_{}.{}'.format(smoothing_window, suffix, ext))
-        plt.savefig(plt_path)
+        plt.savefig(plt_path, bbox_inches='tight', dpi=300) 
     plt.close(fig)
 
     sys.stderr.write("Combined subplot figure has been saved in the directory: {}\n".format(plots_dir))
