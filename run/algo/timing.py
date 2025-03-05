@@ -690,7 +690,7 @@ def get_job_color(job_id):
 def visualize_link_loads(link_loads, run_context, 
                          deltas, throttle_rates,
                          link_logical_bandwidth = None, 
-                         suffix=""): 
+                         suffix="", separate_plots=False): 
     
     import matplotlib.pyplot as plt
     import numpy as np
@@ -700,7 +700,8 @@ def visualize_link_loads(link_loads, run_context,
     num_directions = 2  # "up" and "down"
 
     # Create a figure and subplots
-    fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), squeeze=False, sharex=True)
+    if not separate_plots:
+        fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), squeeze=False, sharex=True)
 
     global job_color_index
     job_color_index = 0
@@ -710,7 +711,11 @@ def visualize_link_loads(link_loads, run_context,
     
     for rack in range(num_racks):
         for i, direction in enumerate(["up", "down"]):
-            ax = axes[rack][i]
+            if not separate_plots:
+               ax = axes[rack][i]
+            else: 
+                fig, ax = plt.subplots(figsize=(5, 3))  
+                
             ax.set_title(f"Rack: {rack}, Direction: {direction}")
             ax.set_xlabel("Time")
             ax.set_ylabel("Load")
@@ -766,6 +771,12 @@ def visualize_link_loads(link_loads, run_context,
             ax.set_ylim(0, y_max)
 
             ax.legend(loc='upper left')
+            
+            if separate_plots: 
+                plt.tight_layout()
+                plot_path = f"{run_context['timings-dir']}/demand{suffix}_{rack}_{direction}.png"
+                plt.savefig(plot_path, bbox_inches='tight', dpi=100)    
+                plt.close(fig)
 
     # create one legend for all the subplots. with the contents of the color assignment to jobs.
     if len(assigned_job_colors) > 0:
