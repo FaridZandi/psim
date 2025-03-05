@@ -644,7 +644,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
             if logical_capacity is not None:  
                 ax.axhline(y=logical_capacity, color='r', linestyle='--') 
                 # add an annotation for the logical capacity, right next to the line
-                if logical_capacity != max_value_in_stack: 
+                if int(logical_capacity) != int(max_value_in_stack): 
                     ax.text(max_length, logical_capacity, " capacity",
                             verticalalignment='bottom', horizontalalignment='right', color='red')
                 
