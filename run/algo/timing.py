@@ -658,6 +658,8 @@ def visualize_link_loads_runtime(link_loads, run_context,
             
             ax.legend(loc='upper left')
 
+            ax.set_xlim(0, 650)
+              
             if separate_plots: 
                 plt.tight_layout()
                 plot_path = f"{plot_dir}/demand{suffix}_{rack}_{direction}.png"
@@ -774,6 +776,7 @@ def visualize_link_loads(link_loads, run_context,
             ax.set_ylim(0, y_max)
 
             ax.legend(loc='upper left')
+            ax.set_xlim(0, 650)
             
             if separate_plots: 
                 plt.tight_layout()
