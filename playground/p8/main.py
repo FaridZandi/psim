@@ -37,7 +37,7 @@ class Simulation():
     
     def __init__(self, strategy, ring_mode, sim_length, 
                  rack_size, rack_count, setting_dir, 
-                 verbose = False, alpha = 0):
+                 verbose = False, alpha = 0, vis=False):
         
         self.rack_size = rack_size  
         self.rack_count = rack_count            
@@ -45,6 +45,7 @@ class Simulation():
         self.setting_dir = setting_dir  
         self.alpha = alpha  
         self.verbose = verbose  
+        self.vis = vis
         
         
         self.sim_length = sim_length    
@@ -412,17 +413,21 @@ class Simulation():
         else: 
             return cross_rack_flows / (total_flows)
     
-    def draw_rect(self, ax, bottom_left, width, height, color, job_id, text_color):
+    def draw_rect(self, ax, bottom_left, width, height, color, job_id, text_color, minimal):
         from matplotlib import patches  
         
         if job_id is None:
             label = None
             hatch = "x" 
+            if minimal:
+                hatch = None
+            linewidth = 0.5
         else:
             label = str(job_id)
             hatch = None
+            linewidth = 1
             
-        rect = patches.Rectangle(bottom_left, width, height, linewidth=1, edgecolor='black', facecolor=color, hatch=hatch)
+        rect = patches.Rectangle(bottom_left, width, height, linewidth=linewidth, edgecolor='black', facecolor=color, hatch=hatch)
         ax.add_patch(rect)
         
         ax.text(bottom_left[0] + width/2, 
@@ -438,10 +443,13 @@ class Simulation():
         
 
 
-    def visualize_assignments(self):
+    def visualize_assignments(self, suffix, minimal=False): 
         import matplotlib.pyplot as plt
         
-        fig, ax = plt.subplots(figsize=(self.rack_size, self.rack_count))
+        if minimal:
+            fig, ax = plt.subplots(figsize=(self.rack_size / 5, self.rack_count / 5))
+        else:
+            fig, ax = plt.subplots(figsize=(self.rack_size, self.rack_count))
         
         color_list = ["red", "blue", "green", "yellow", "purple", "orange", "cyan", "magenta", "brown", "pink", "white"] 
         color_list_index = 0    
@@ -471,7 +479,6 @@ class Simulation():
                 x_position = machine_idx
                 y_position = rack_idx
                 
-                
                 # translate the color from english name to hex
                 color = plt.cm.colors.to_hex(color)
                 
@@ -480,8 +487,11 @@ class Simulation():
                     text_color = "white"
                 else:
                     text_color = "black"
-                    
-                self.draw_rect(ax, (x_position, y_position), 1, 1, color, job_id, text_color)          
+                
+                if minimal:
+                    self.draw_rect(ax, (x_position, y_position), 1, 1, color, None, text_color, minimal)
+                else:   
+                    self.draw_rect(ax, (x_position, y_position), 1, 1, color, job_id, text_color, minimal)          
                 
         ax.set_xlim(0, self.rack_size)
         ax.set_ylim(0, self.rack_count)
@@ -489,19 +499,31 @@ class Simulation():
         # ax.set_xticks(np.arange(self.rack_size) + 0.5)
         # ax.set_yticks(np.arange(self.rack_count) + 0.5)
         # do the same without numpy
-        ax.set_xticks([i + 0.5 for i in range(self.rack_size)])
-        ax.set_yticks([i + 0.5 for i in range(self.rack_count)])
         
-        
-        ax.set_xticklabels([f'M {i+1}' for i in range(self.rack_size)])
-        ax.set_yticklabels([f'R {i+1}' for i in range(self.rack_count)])
-        
-        plt.title("Machine Job Assignments")
-        plt.xlabel("Machines")
-        plt.ylabel("Racks")
-        plt.savefig("{}/machine_job_assignments.png".format(self.setting_dir), 
+        if not minimal:
+            ax.set_xticks([i + 0.5 for i in range(self.rack_size)])
+            ax.set_yticks([i + 0.5 for i in range(self.rack_count)])
+            
+            ax.set_xticklabels([f'M {i+1}' for i in range(self.rack_size)])
+            ax.set_yticklabels([f'R {i+1}' for i in range(self.rack_count)])
+            
+            plt.title("Machine Job Assignments")
+            plt.xlabel("Machines")
+            plt.ylabel("Racks")
+        else: 
+            ax.set_xticks([])
+            ax.set_yticks([])
+            
+        plt.savefig("{}/machine_job_assignments_{}_{}.png".format(self.setting_dir, 
+                                                                  suffix, 
+                                                                  "minimal" if minimal else "full"),    
                     dpi = 300, bbox_inches = "tight")
         
+        plt.clf()
+        plt.cla() 
+        
+        plt.close(fig)
+
     def calculated_max_jobs_in_same_rack(self):
         max_jobs_in_same_rack = 0    
         
@@ -544,8 +566,7 @@ class Simulation():
         
         if self.current_time == 75000 and self.verbose: 
             pprint(max_jobs_in_same_rack)  
-            self.visualize_assignments()
-                
+                            
         return max_jobs_in_same_rack / self.rack_size       
     
     def send_to_waiting(self, job_id, duration, job_machines_count, arrival_time):
@@ -689,6 +710,14 @@ class Simulation():
             
             self.max_jobs_in_same_rack.append(self.calculated_max_jobs_in_same_rack())
             
+            if self.current_time % 10000 == 0: 
+                print(f"Time: {self.current_time}, Entropy: {new_entropy}, Base Entropy: {new_base_entropy}, Utilization: {utilization}, Service Rate: {service_rate}, Max Jobs in Same Rack: {self.max_jobs_in_same_rack[-1]}")
+                
+                if self.vis and new_base_entropy > 0.4 or self.current_time == 600000:
+                    print("Visualizing")
+                    self.visualize_assignments(self.current_time, minimal=True)
+                # self.visualize_assignments(self.current_time, minimal=False)
+
             self.current_time += 1 
             
         return self.entropies     
@@ -769,9 +798,9 @@ def main():
     # for alpha in [0.9, 0.91, 0.92, 0.93, 0.94, 0.95, 0.96, 0.97, 0.98, 0.99, 1.0]:
     for alpha in [0]:
         for strategy in ["firstfit"]:
-            for ring_mode in ["letitbe", "random", "optimal"]:
+            for ring_mode in ["letitbe"]: #"random", "optimal"]:
                 
-                sim_length = 2000000
+                sim_length = 1000000
                 rack_size = 8
                 rack_count = 16
                 
@@ -786,6 +815,7 @@ def main():
                             rack_count=rack_count, 
                             setting_dir=setting_dir,
                             verbose=False,  
+                            vis=False,
                             alpha=alpha)
                 
                 s.simulate()    
@@ -801,22 +831,25 @@ def main():
                     "max_jobs_in_same_rack": downsample(s.max_jobs_in_same_rack)
                 } 
                 
-                fig, ax = plt.subplots(2, 1, figsize=(6, 3), sharex=True)    
+                fig, ax = plt.subplots(1, 1, figsize=(6, 2), sharex=True)    
                     
-                ax[0].plot(downsample(s.entropies), label="entropy")    
-                ax[0].plot(downsample(s.base_entropies), label="base entropy")
+                # ax[0].plot(downsample(s.entropies), label="entropy")    
+                ax.plot(downsample(s.base_entropies), label="entropy")
                 # ax[0].plot(downsample(s.max_jobs_in_same_rack), label="max jobs in same rack")
-                ax[0].set_ylabel("entropy")
-                ax[0].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+                ax.set_ylabel("entropy")
+                # ax[0].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
 
-                ax[1].plot(downsample(s.service_rates), label="service rate")
-                ax[1].plot(downsample(s.utilizations), label="utilization") 
+                # ax[1].plot(downsample(s.service_rates), label="service rate")
+                # ax[1].plot(downsample(s.utilizations), label="utilization") 
     
-                ax[1].set_ylabel("utilization")
-                ax[1].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
+                # ax[1].set_ylabel("utilization")
+                # ax[1].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
                 
                 # plt.ylim(-0.02, 1.02)
-                plt.title("Strategy: {}, Ring Mode: {}".format(strategy, ring_mode))
+                # plt.title("Strategy: {}, Ring Mode: {}".format(strategy, ring_mode))
+                # remove the x ticks
+                plt.xticks([])
+                                
                 plt.xlabel("time")
                 
                 plt.savefig("{}/output.png".format(setting_dir), dpi = 300, bbox_inches = "tight")
