@@ -658,7 +658,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
             
             ax.legend(loc='upper left')
 
-            ax.set_xlim(0, 650)
+            ax.set_xlim(0, 700)
               
             if separate_plots: 
                 plt.tight_layout()
