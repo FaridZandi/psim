@@ -79,7 +79,7 @@ if __name__ == "__main__":
         ]
 
         # comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
-        comparisons = ["TS+RO+SUB+REP", "Perfect"]
+        comparisons = ["TS", "TS+RO+SUB+REP", "Perfect"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         

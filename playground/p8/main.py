@@ -790,7 +790,8 @@ def get_job_placement_info(strategy, job_machine_count, rack_size, rack_count, s
 
 def main():
     import matplotlib.pyplot as plt
-
+    import seaborn as sns
+    
     exp_number = get_incremented_number()
     exp_dir = "{}/out/{}/".format(this_dir, exp_number)  
     os.makedirs(this_dir, exist_ok=True)
@@ -831,10 +832,15 @@ def main():
                     "max_jobs_in_same_rack": downsample(s.max_jobs_in_same_rack)
                 } 
                 
-                fig, ax = plt.subplots(1, 1, figsize=(6, 2), sharex=True)    
+                fig, ax = plt.subplots(1, 1, figsize=(6, 1.5), sharex=True)    
                     
                 # ax[0].plot(downsample(s.entropies), label="entropy")    
-                ax.plot(downsample(s.base_entropies), label="entropy")
+                # ax.plot(downsample(s.base_entropies), label="entropy")
+                sns.lineplot(downsample(s.base_entropies), ax=ax)
+                ax.grid(True)
+                ax.set_xlim(0, len(downsample(s.base_entropies)))   
+                
+                                
                 # ax[0].plot(downsample(s.max_jobs_in_same_rack), label="max jobs in same rack")
                 ax.set_ylabel("entropy")
                 # ax[0].legend(loc='upper left', bbox_to_anchor=(1.05, 1))
