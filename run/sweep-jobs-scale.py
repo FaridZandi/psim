@@ -15,7 +15,7 @@ if __name__ == "__main__":
     seed_range = 1
     m = 10
     
-    clean_up_sweep_files = True
+    clean_up_sweep_files = False
 
     original_exp_number = None
     if original_exp_number is not None: 
@@ -63,7 +63,8 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             ("machine_count", [48]),
             ("rack_size", [8]),
-            ("job_sizes", [(48,48), (24,24), (16,16), (8,8), (4,4)]),
+            # ("job_sizes", [(48,48), (24,24), (16,16), (8,8), (4,4)]),
+            ("job_sizes", [(4,4), (8,8), (16,16), (24,24), (48,48)]),
             ("job_count", [1]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
