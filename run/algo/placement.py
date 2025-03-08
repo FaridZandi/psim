@@ -152,9 +152,9 @@ def generate_job_basics_(options, run_context, job_machine_counts=None):
         current_job_id += 1
         
         
-        if "job_count" in run_context["selected-setting"]:
-            if run_context["selected-setting"]["job_count"]:
-                if current_job_id >= run_context["selected-setting"]["job_count"]:
+        if "job-count" in run_context["selected-setting"]:
+            if run_context["selected-setting"]["job-count"]:
+                if current_job_id >= run_context["selected-setting"]["job-count"]:
                     break
                 
     return jobs, assigned_machines
