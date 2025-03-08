@@ -12,8 +12,8 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 1
-    m = 10
+    seed_range = 20
+    m = 100
     
     clean_up_sweep_files = False
 
@@ -28,13 +28,13 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["heatmap"]:
+    for plot_type in ["bar"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "desired_entropy",
             "subplot_x_params": "oversub",
-            "subplot_hue_params": "rack_size",
+            "subplot_hue_params": "comparison",
             "plot_x_params": "job_sizes",
             "plot_y_param": "values",
             "sharex": True, 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
-            "exclude_base": True,   
+            # "exclude_base": True,   
             "legend_side": "none",
         }
         create_command(plot_args, plot_commands_path)
