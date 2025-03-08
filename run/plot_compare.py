@@ -349,14 +349,17 @@ def draw_plot(df, value, hue_order):
                 handles, labels = ax.get_legend_handles_labels()
                 
                 if legend_side == "bottom":
-                    fig.legend(handles, labels, loc="upper center", bbox_to_anchor=(0.5, -0.1), ncol=legend_cols)
-                    
+                    fig.legend(handles, labels, loc="upper center", 
+                               bbox_to_anchor=(0.5, -0.1), ncol=legend_cols, 
+                               title=legend_title)
+
                 elif legend_side == "right":   
-                    fig.legend(handles, labels, loc="center left", bbox_to_anchor=(1.05, 0.5), ncol=legend_cols)
+                    fig.legend(handles, labels, loc="center left", 
+                               bbox_to_anchor=(1.05, 0.5), ncol=legend_cols,
+                               title=legend_title)
     
     file_dir = "/".join(file_name.split("/")[:-1]) 
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.{ext}", bbox_inches='tight', dpi=200)        
-                
     
 def make_plots(): 
     # read the csv file into pd dataframe

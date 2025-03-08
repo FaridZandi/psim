@@ -112,6 +112,7 @@ def do_experiment(seed_range=1,
                   machine_count=8,
                   rack_size=4,
                   oversub=1, 
+                  job_count=None,
                   job_sizes=(2, 2), 
                   sim_length=50000, 
                   punish_oversubscribed_min=0.5, 
@@ -146,6 +147,7 @@ def do_experiment(seed_range=1,
         "comp-size": list(range(comp_size[0], comp_size[1], comp_size[2])),
         "layer-count": list(range(layer_count[0], layer_count[1], layer_count[2])),
         "iter-count": [30], # placeholder. defined later based on the job length.
+        "job-count": job_count,
     }
     
     base_options = {
