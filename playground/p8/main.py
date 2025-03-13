@@ -465,7 +465,7 @@ class Simulation():
                 
                 # generate a random color for the job
                 if job_id is None:
-                    color = "gray"
+                    color = "white"
                 else: 
                     job_info = self.current_jobs_map[job_id]
                     if "color" in job_info:
@@ -816,7 +816,7 @@ def main():
                             rack_count=rack_count, 
                             setting_dir=setting_dir,
                             verbose=False,  
-                            vis=False,
+                            vis=True,
                             alpha=alpha)
                 
                 s.simulate()    
