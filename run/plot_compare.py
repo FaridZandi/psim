@@ -5,7 +5,9 @@ from matplotlib import pyplot as plt
 import argparse 
 from pprint import pprint 
 import numpy as np 
+import itertools
 
+# Define hatches per hue category
 file_name = None 
 
 plot_params = None
@@ -22,6 +24,9 @@ subplot_height = 3
 sharex = False
 sharey = False
 
+# custom_ylim = (0.9, 1.7) 
+custom_ylim = None
+
 legend_cols = 1 
 legend_side = "bottom"  
 legend_title = None 
@@ -36,6 +41,21 @@ exclude_base = False
 ###############################################################################
 ###############################################################################
 
+
+def translate(param):
+    if param == "job_sizes":
+        return "Job size range"
+    
+    if param == "desired_entropy":
+        return "Fragmentation"
+
+    if param == "rack_size":
+        return "Rack size"
+    
+    if param == "cmmcmp_range":
+        return "Comm./Comp. ratio"
+    
+    return param 
 
 hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
                      "pink", "gray", "olive", "cyan", "black", "yellow"] * 100
@@ -64,6 +84,8 @@ def annotate(ax):
         
     
 def add_hatches(ax, hue_order):
+    hue_order = list(hue_order)
+    
     """
     Assigns a distinct hatch pattern to each hue level in the boxplot.
     
@@ -74,9 +96,9 @@ def add_hatches(ax, hue_order):
     hue_order : list
         Ordered list of the hue categories used in sns.boxplot(..., hue_order=...).
     """
-    hatch_styles = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
+    hatch_styles = ['/', '\\', '+', 'x', 'o', 'O', '.', '*']
     for i, _ in enumerate(hue_order):
-        hatch_styles[i] = hatch_styles[i] * 5  # Double the length of the hatch pattern
+        hatch_styles[i] = hatch_styles[i] * 5 
     
     # ax.patches holds the boxes created by the boxplot call
     # Each patch corresponds to one box in the plot, 
@@ -84,25 +106,33 @@ def add_hatches(ax, hue_order):
     for i, patch in enumerate(ax.patches):
         # Map each patch to the correct hatch style based on hue index
         # (the pattern repeats over hue groups in a cycle)
-        hue_index = i % len(hue_order)
+        # hue_index = i % len(hue_order)
         # get the label of the patch 
         patch_label = patch.get_label()
+        # print(patch_label, patch) 
         if patch_label == "":
             continue
         
-        # get the label of the hue
+        try: 
+            hue_index = hue_order.index(patch_label)
+        except ValueError:
+            continue
+        
         hue_label = hue_order[hue_index]
-        print(f"hue_label: {hue_label}, hue_index: {hue_index}, hatch: {hatch_styles[hue_index]}, patch_label: {patch_label}")
         
+        # get the label of the hue
+        # hue_label = hue_order[hue_index]
+        # print(f"hue_label: {hue_label}, hue_index: {hue_index}, hatch: {hatch_styles[hue_index]}, patch_label: {patch_label}")
         patch.set_hatch(hatch_styles[hue_index])
-
-        # Make the hatch finer 
         patch.set_linewidth(0.05)
+        patch.set_alpha(0.5) 
         
-        # Optional: set facecolor/edgecolor so the hatch is clearly visible
-        # patch.set_facecolor("white")
-        # patch.set_edgecolor("black")
-    
+    # loop over artists to set the hatch
+    for i, artist in enumerate(ax.artists):
+        # print whatever we can from the artist
+        print(f"artist: {artist}")
+        artist.set_hatch(hatch_styles[i % len(hue_order)])  
+           
     
 def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range):        
     if x_value is not None: 
@@ -132,7 +162,6 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         # the columns will be subplot_hue_params
         # the values will be plot_y_param
         
-        
         df_pivoted = df.pivot_table(
             index=plot_x_params,
             columns=subplot_hue_params,
@@ -140,8 +169,21 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
             aggfunc='mean'  # or 'sum', 'median', etc.
         )        
         
-        # with borders on the heatmap
+        def extract_sort_key(x):
+            if isinstance(x, tuple):
+                return float(x[0])  # Sort by the first element of the tuple
+            elif isinstance(x, str) and x.startswith('(') and x.endswith(')'):
+                return float(x[1:-1].split(',')[0])  # Extract number from string tuple representation
+            else:
+                return float(x)  # Regular numeric values
+
+        custom_index_order = sorted(df_pivoted.index, key=extract_sort_key)
+        custom_column_order = sorted(df_pivoted.columns, key=extract_sort_key)
         
+        # Reorder the pivot table explicitly
+        df_pivoted = df_pivoted.reindex(index=custom_index_order, columns=custom_column_order)
+
+        # with borders on the heatmap
         df_pivoted -= 1
         df_pivoted *= 100 
         df_pivoted = df_pivoted.round(0)
@@ -152,13 +194,16 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         sns.heatmap(df_pivoted, ax=ax,
                     fmt=".0f", 
                     cmap="YlGnBu", annot=True, 
-                    annot_kws={"size": 6},
+                    annot_kws={"size": 15},
                     linewidths=0.5, 
-                    vmin=cbar_min, vmax=cbar_max
+                    # vmin=cbar_min, vmax=cbar_max
                     )        
         
-        ax.set_ylabel(plot_x_params)
-        ax.set_xlabel(subplot_hue_params)
+        ylabel = translate(plot_x_params)
+        xlabel = translate(subplot_hue_params)
+        
+        ax.set_ylabel(ylabel)
+        ax.set_xlabel(xlabel)
         
         legend = False
         
@@ -167,7 +212,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         sns.barplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax, errorbar=None)
+                    data=df, ax=ax, errorbar=None, legend=True)
         
         annotate(ax)
         ax.axhline(y=1, color='black', linestyle='--')
@@ -184,15 +229,13 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                     data=df, ax=ax, errorbar=None, alpha=0.3, legend=False) 
         
         
-        sns.boxplot(x=plot_x_params, y=plot_y_param, 
+        g = sns.boxplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, 
                     hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
                     data=df, ax=ax, linewidth=0.5, 
                     showfliers=False, fliersize=0.5)
-        
-        # add_hatches(ax, hue_order)
-        
+
         # vertical line at y=1
         ax.axhline(y=1, color='black', linestyle=':', linewidth=0.5)
         ax.set_ylabel(values_name)
@@ -234,6 +277,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         xlim_min = min(val_range[0] - 0.1, 0.9)
         xlim_max = max(val_range[1] + 0.1, 1.1)   
         ax.set_xlim(xlim_min, xlim_max) 
+
+            
         ax.set_xlabel(values_name)
 
         ax.axvline(x=1, color='black', linestyle='--')  
@@ -246,7 +291,9 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
             data = df[df[subplot_hue_params] == hue][plot_y_param]  
             data = data.sort_values()
             yvals = np.arange(len(data)) / float(len(data))
-            ax.plot(data, yvals, label=hue, color=hue_color_options[i])
+            ax.plot(data, yvals, label=hue, color=hue_color_options[i], 
+                    markevery=0.1, marker=['o', 's', 'x', 'v', '^', '<', '>'][i], 
+                    markersize=5)
         
         
         xlim_min = min(val_range[0] - 0.1, 0.9) 
@@ -258,6 +305,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         ax.axvline(x=1, color='black', linestyle='--')  
 
     # draw a horizontal line at y=1
+    if custom_ylim is not None:
+            ax.set_ylim(custom_ylim)
     
     if y_value is not None and subplot_y_params is not None:
         ax.set_title(f"{subplot_x_params}={x_value}\n {subplot_y_params}={y_value}")
@@ -266,11 +315,11 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     elif y_value is not None and subplot_y_params is not None:
         ax.set_title(f"{subplot_y_params}={y_value}")   
 
-    ax.title.set_size(8)
-   
+    ax.title.set_size(15)
 
     if plot_type != "heatmap" and plot_type != "cdf":
-        ax.set_xlabel(plot_x_params)
+        title = translate(plot_x_params)
+        ax.set_xlabel(title)
     
     
 
@@ -323,11 +372,17 @@ def draw_plot(df, value, hue_order):
                              sharex=sharex,
                              squeeze=False)
     
+    # increase font sizes 
+    plt.rcParams.update({'font.size': 15})
+    
+    
     fig.set_figwidth(width) 
     fig.set_figheight(height)
       
+    
+      
     plt.subplots_adjust(hspace=0.5)
-    plt.subplots_adjust(wspace=0.35)
+    # plt.subplots_adjust(wspace=0.35)
     
     for i, x_value in enumerate(subplot_x_values):
         for j, y_value in enumerate(subplot_y_values):
@@ -355,7 +410,7 @@ def draw_plot(df, value, hue_order):
 
                 elif legend_side == "right":   
                     fig.legend(handles, labels, loc="center left", 
-                               bbox_to_anchor=(1.05, 0.5), ncol=legend_cols,
+                               bbox_to_anchor=(0.95, 0.5), ncol=legend_cols,
                                title=legend_title)
     
     file_dir = "/".join(file_name.split("/")[:-1]) 
@@ -365,12 +420,23 @@ def make_plots():
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
+    # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"
+    df["comparison"] = df["comparison"].replace("TS+RO+SUB+REP", "Foresight")
+    
     # keep the rows that have types of "single_number" or "per_iter"
     df = df[df["type"].isin(["single_number", "per_iter"])]
     
     df["values"] = df["values"].apply(lambda x: [float(i) for i in x[1:-1].split(",")])
     df = df.explode("values")
     df["values"] = df["values"].astype(float)
+    
+    ##### temp ########
+    # for job_size, convert the tuple into a number 
+    # if plot_x_params == "job_sizes":
+    #     df["job_sizes"] = df["job_sizes"].apply(lambda x: x[1:-1].split(",")[0])
+    #     df["job_sizes"] = df["job_sizes"].astype(int)
+    ###################
+    
     
     if exclude_base:
         df = df[df["comparison"] != "base"] 
@@ -395,6 +461,7 @@ if __name__ == "__main__":
     
     # parse the arguments
     parser = argparse.ArgumentParser()
+    
     parser.add_argument("--file_name", type=str, required=True)
     parser.add_argument("--plot_params", type=str, required=False)
     parser.add_argument("--subplot_x_params", type=str, required=False)
@@ -404,8 +471,8 @@ if __name__ == "__main__":
     parser.add_argument("--plot_y_param", type=str, required=False)
     parser.add_argument("--plot_type", type=str, required=False)
     parser.add_argument("--ext", type=str, required=False)  
-    parser.add_argument("--subplot_width", type=int, required=False)    
-    parser.add_argument("--subplot_height", type=int, required=False)
+    parser.add_argument("--subplot_width", type=float, required=False)    
+    parser.add_argument("--subplot_height", type=float, required=False)
     parser.add_argument("--sharex", type=bool, required=False)  
     parser.add_argument("--sharey", type=bool, required=False)
     parser.add_argument("--legend_side", type=str, required=False)  
