@@ -176,7 +176,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
     timing_scheme = run_context["timing-scheme"]
     
     if not run_cassini_timing_in_subprocess: 
-        job_timings, lb_decisions = timing.generate_timing_file(timing_file_path, 
+        job_timings, lb_decisions, add_to_context = timing.generate_timing_file(timing_file_path, 
                                                                 routing_file_path,
                                                                 placement_seed, 
                                                                 jobs, 
@@ -198,13 +198,11 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
                                     stdin=subprocess.PIPE, 
                                     stdout=subprocess.PIPE, 
                                     stderr=subprocess.PIPE)
-                                    
         input_data = json.dumps(args).encode("utf-8")
-        
         stdout, stderr = process.communicate(input=input_data)
+
         try:
             output = json.loads(stdout.decode("utf-8")) 
-
             err_output = stderr.decode("utf-8") 
             with open(run_context["output-file"], "a") as f:
                 f.write(err_output) 
@@ -213,14 +211,14 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
             print("Error in the subprocess: ", e)
             print("stdout: ", stdout.decode("utf-8"))
             print("stderr: ", stderr.decode("utf-8"))   
-            
             print("input_data: ", input_data.decode("utf-8"))   
             rage_quit("Error in the subprocess")    
         
         job_timings = output["job_timings"] 
         lb_decisions = output["lb_decisions"]
+        add_to_context = output["add_to_context"]   
         
-    return job_timings, lb_decisions    
+    return job_timings, lb_decisions, add_to_context    
    
 def calc_placement(placement_file_path, placement_seed, options, run_context, config_sweeper):
     
@@ -436,12 +434,15 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                       placement_seed, jobs, options, 
                       run_context, run_cassini_timing_in_subprocess)
     
-    job_timings, lb_decisions = timing_cache.get(key=timing_file_path, 
+    job_timings, lb_decisions, add_to_context = timing_cache.get(key=timing_file_path, 
                                                  lock=config_sweeper.thread_lock, 
                                                  logger_func=config_sweeper.log_for_thread, 
                                                  run_context=run_context, 
                                                  calc_func=calc_timing, 
                                                  calc_func_args=calc_func_args)
+    
+    
+    run_context.update(add_to_context)  
     
     if lb_decisions is not None:
         total_subflows = 0
@@ -501,7 +502,8 @@ def plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
                     logical_capacity=logical_capacity,
                     smoothing_window=smoothing_window, 
                     plot_dir=run_context["runtime-dir"],
-                    suffix="_runtime_{}".format(smoothing_window)
+                    suffix="_runtime_{}".format(smoothing_window),
+                    separate_plots=True
                 )
     
     # copy the final timing output to the runtime dir.
@@ -634,7 +636,12 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = int(get_psim_time(output))   
         elif metric == "total_congested_time":
             job_numbers = int(get_psim_total_congested_time(output))
-        
+        elif metric == "job_costs":
+            job_numbers = run_context["job_costs"]
+        elif metric == "job_periods":
+            job_numbers = [] 
+            for job in run_context["jobs"]:
+                job_numbers.append(job["base_period"])
         elif metric == "job_slowdown_fairness":
             jobs = run_context["jobs"]
             iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
@@ -657,7 +664,24 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = np.std(slowdown_rates)
             # compute jain's fairness index.
             # job_numbers = sum(slowdown_rates) ** 2 / (len(slowdown_rates) * sum([x ** 2 for x in slowdown_rates]))
+        elif metric == "job_slowdowns":
+            jobs = run_context["jobs"]
+            iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
+                                                   all_jobs_running=True)
+        
+            iter_lengths = iter_lengths[0]  
+            slowdown_rates = []
+            
+            
+            for job_id, iter_length in iter_lengths.items():
+                avg_iter_length = np.mean(iter_length)  
                 
+                job = [job for job in jobs if job["job_id"] == job_id][0]
+                slowdown = avg_iter_length / job["base_period"]
+                slowdown = round(slowdown, 2)   
+                slowdown_rates.append(slowdown)
+
+            job_numbers = slowdown_rates
         elif metric == "job_times": 
             jobs = run_context["jobs"]
             iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
@@ -667,7 +691,7 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_times = []
             
             for job_id, iter_length in iter_lengths.items():
-                avg_iter_length = np.mean(iter_length)  
+                avg_iter_length = np.round(np.mean(iter_length), 2)  
                 
                 job = [job for job in jobs if job["job_id"] == job_id][0]
                 job_times.append(avg_iter_length)

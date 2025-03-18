@@ -38,6 +38,34 @@ all_metrics = {
         "better": "lower",
         "type": "single_number",
     },
+    "job_slowdowns": {
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_list",
+    },
+    "job_times": {
+        "avg_cdf_plot": True,
+        "iter_avg_plot": False,
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_list",
+    }, 
+    "job_costs": {
+        "avg_cdf_plot": True,
+        "iter_avg_plot": False,
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_list",
+    }, 
+    "job_periods": {
+        "avg_cdf_plot": True,
+        "iter_avg_plot": False,
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_list",
+    },
     "rolling_iter_time": {
         "avg_cdf_plot": False,   
         "iter_avg_plot": True,  
@@ -84,6 +112,7 @@ def do_experiment(seed_range=1,
                   machine_count=8,
                   rack_size=4,
                   oversub=1, 
+                  job_count=None,
                   job_sizes=(2, 2), 
                   sim_length=50000, 
                   punish_oversubscribed_min=0.5, 
@@ -99,7 +128,8 @@ def do_experiment(seed_range=1,
                   experiment_seed=77, 
                   recorded_metrics=[], 
                   added_comparisons=[], 
-                  plot_stuff=False
+                  plot_stuff=False, 
+                  farid_rounds=12,  
                   ): 
     
     
@@ -117,6 +147,7 @@ def do_experiment(seed_range=1,
         "comp-size": list(range(comp_size[0], comp_size[1], comp_size[2])),
         "layer-count": list(range(layer_count[0], layer_count[1], layer_count[2])),
         "iter-count": [30], # placeholder. defined later based on the job length.
+        "job-count": job_count,
     }
     
     base_options = {
@@ -187,7 +218,7 @@ def do_experiment(seed_range=1,
         "timing-scheme": "zero", 
         "compat-score-mode": "time-no-coll",
         "throttle-search": False, 
-        "farid-rounds": 12, 
+        "farid-rounds": farid_rounds, 
         
         "fallback-threshold": fallback_threshold, 
 
@@ -263,20 +294,21 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "perfect"
                         }))
 
+
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
     exp_context = {
         "sim-length": sim_length,
 
-        "plot-iteration-graphs": False, 
+        "plot-iteration-graphs": plot_stuff, 
         "plot-initial-timing": plot_stuff,
-        "plot-intermediate-timing": False,
+        "plot-intermediate-timing": plot_stuff,
         "plot-final-timing": plot_stuff,
         "plot-routing-assignment": plot_stuff, 
         "plot-merged-ranges": plot_stuff, 
         "plot-runtime-timing": plot_stuff,
-        "plot-link-empty-times": False,
+        "plot-link-empty-times": plot_stuff,
         
         "profiled-throttle-factors": profiled_throttle_factors, 
         
