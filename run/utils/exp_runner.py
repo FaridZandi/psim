@@ -232,20 +232,25 @@ def do_experiment(seed_range=1,
 
     comparisons = []
     
-    if "TS" in added_comparisons or len(added_comparisons) == 0:
+    if len(added_comparisons) == 0:
+        add_all = True
+    else:
+        add_all = False 
+        
+    if "TS" in added_comparisons or add_all:
         comparisons.append(("TS", {
                                 "timing-scheme": "faridv2",
                                 "throttle-search": False,
                                 "lb-scheme": "random"
                             }))
-    if "RO" in added_comparisons or len(added_comparisons) == 0:
+    if "RO" in added_comparisons or add_all:
         comparisons.append(("RO", {
                                 "timing-scheme": "zero",
                                 "routing-fit-strategy": "graph-coloring-v3",  
                                 "lb-scheme": "readprotocol"
                             }))
     
-    if "TS+SUB" in added_comparisons or len(added_comparisons) == 0:
+    if "TS+SUB" in added_comparisons or add_all:
         comparisons.append((f"TS+SUB", {
                                 "timing-scheme": "faridv2",
                                 "subflows": subflow_count, 
@@ -253,7 +258,7 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "random"
                             }))
     
-    if "TS+RO" in added_comparisons or len(added_comparisons) == 0:
+    if "TS+RO" in added_comparisons or add_all:
         comparisons.append(("TS+RO", {
                                 "timing-scheme": "faridv2",
                                 "throttle-search": False,
@@ -262,7 +267,7 @@ def do_experiment(seed_range=1,
                             }))
         
     
-    if "TS+RO+SUB" in added_comparisons or len(added_comparisons) == 0:    
+    if "TS+RO+SUB" in added_comparisons or add_all:   
         comparisons.append(("TS+RO+SUB", {
                                 "timing-scheme": "faridv2",
                                 "throttle-search": True if subflow_count > 1 else False,
@@ -271,7 +276,7 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
         
-    if "TS+RO+REP" in added_comparisons or len(added_comparisons) == 0:    
+    if "TS+RO+REP" in added_comparisons or add_all:
         comparisons.append(("TS+RO+REP", {
                                 "timing-scheme": "faridv4",
                                 "throttle-search": False,
@@ -279,7 +284,7 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
 
-    if "TS+RO+SUB+REP" in added_comparisons or len(added_comparisons) == 0: 
+    if "TS+RO+SUB+REP" in added_comparisons or add_all:
         comparisons.append(("TS+RO+SUB+REP", {
                                 "timing-scheme": "faridv4",
                                 "throttle-search": True if subflow_count > 1 else False,
@@ -288,12 +293,20 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
         
-    if "Perfect" in added_comparisons or len(added_comparisons) == 0:
+    if "Perfect" in added_comparisons or add_all:
         comparisons.append(("Perfect", {
                                 "timing-scheme": "zero",
                                 "lb-scheme": "perfect"
                         }))
 
+    if "coloring-v6" in added_comparisons or add_all:
+        comparisons.append(("coloring-v6", {
+                                 "timing-scheme": "faridv4",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "routing-fit-strategy": "graph-coloring-v6",  
+                                "lb-scheme": "readprotocol"
+                            }))
 
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 

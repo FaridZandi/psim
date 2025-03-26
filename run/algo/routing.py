@@ -25,6 +25,7 @@ from algo.routing_logics.coloring_v2 import route_flows_graph_coloring_v2
 from algo.routing_logics.coloring_v3 import route_flows_graph_coloring_v3   
 from algo.routing_logics.coloring_v4 import route_flows_graph_coloring_v4
 from algo.routing_logics.coloring_v5 import route_flows_graph_coloring_v5
+from algo.routing_logics.coloring_v6 import route_flows_graph_coloring_v6
 from algo.routing_logics.simple_routing import route_flows_one_by_one
     
 ############################################################################################################
