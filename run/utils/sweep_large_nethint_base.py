@@ -496,15 +496,16 @@ def plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
             for smoothing_window in [1, 10]:
                 print(f"starting visulization for exp: {run_context['exp-uuid']}, smoothing_window: {smoothing_window}")
                 
-                timing.visualize_link_loads_runtime(
-                    link_loads=link_loads,
-                    run_context=run_context,
-                    logical_capacity=logical_capacity,
-                    smoothing_window=smoothing_window, 
-                    plot_dir=run_context["runtime-dir"],
-                    suffix="_runtime_{}".format(smoothing_window),
-                    separate_plots=True
-                )
+                for sep in [False, True]:
+                    timing.visualize_link_loads_runtime(
+                        link_loads=link_loads,
+                        run_context=run_context,
+                        logical_capacity=logical_capacity,
+                        smoothing_window=smoothing_window, 
+                        plot_dir=run_context["runtime-dir"],
+                        suffix="_runtime_{}_{}".format(smoothing_window, "link" if sep else "all"),
+                        separate_plots=sep
+                    )
     
     # copy the final timing output to the runtime dir.
     if run_context["plot-final-timing"]:
