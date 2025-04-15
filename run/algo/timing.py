@@ -742,6 +742,8 @@ def visualize_link_loads(link_loads, run_context,
             job_loads_array = np.array(padded_job_loads)
 
             ax.stackplot(range(max_length), job_loads_array, 
+                         edgecolor = 'black',
+                         linewidth = 3,
                          labels=[f"Job: {job_id}" for job_id in job_ids], 
                          colors=[get_job_color(job_id) for job_id in job_ids])
 
