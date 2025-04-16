@@ -629,6 +629,9 @@ def visualize_link_loads_runtime(link_loads, run_context,
                 job_loads_array = np.array(smoothed_job_loads)
                             
             ax.stackplot(range(max_length), job_loads_array, 
+                         edgecolor = 'black',
+                         linewidth = 1,
+                         
                          labels=[f"Job: {job_id}" for job_id in job_ids], 
                          colors=[get_job_color(job_id) for job_id in job_ids])
 
@@ -759,7 +762,7 @@ def visualize_link_loads(link_loads, run_context,
 
             if link_logical_bandwidth is not None:  
                 ax.axhline(y=link_logical_bandwidth, color='r', linestyle='--') 
-                if link_logical_bandwidth != max_value_in_stack: 
+                if int(link_logical_bandwidth) != int(max_value_in_stack): 
                     ax.text(max_length, link_logical_bandwidth, " capacity",
                         verticalalignment='bottom', horizontalalignment='right', color='red')
                                 
