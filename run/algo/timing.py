@@ -690,10 +690,6 @@ def visualize_link_loads_runtime(link_loads, run_context,
 def get_job_color(job_id): 
     return plt.cm.tab20.colors[job_id % 20] 
 
-def get_hatch(job_id):  
-    hatches = ['/', '\\', '|', '-', '+', 'x', 'o', 'O', '.', '*']
-    return hatches[job_id % len(hatches)]   
-
     
 def visualize_link_loads(link_loads, run_context, 
                          deltas, throttle_rates,
@@ -750,9 +746,7 @@ def visualize_link_loads(link_loads, run_context,
                          linewidth = 1,
                          
                          labels=[f"Job: {job_id}" for job_id in job_ids], 
-                         colors=[get_job_color(job_id) for job_id in job_ids], 
-                         hatch=[get_hatch(job_id) for job_id in job_ids])
-            
+                         colors=[get_job_color(job_id) for job_id in job_ids])
 
                         
             max_value_in_stack = np.max(np.sum(job_loads_array, axis=0)) 
@@ -785,7 +779,7 @@ def visualize_link_loads(link_loads, run_context,
             ax.set_ylim(0, y_max)
 
             ax.legend(loc='upper left')
-            ax.set_xlim(0, 650)
+            ax.set_xlim(0, 700)
             
             if separate_plots: 
                 plt.tight_layout()
