@@ -24,15 +24,27 @@ if [ $current_branch == "master" ]; then
     echo "Creating branch $branch_name"
 
     # push the changes 
+    echo "running git checkout -b $branch_name"
     git checkout -b $branch_name
+
+    echo "running git add -u"
     git add -u 
+
+    echo "running git commit -m backup $(date)" 
     git commit -m "backup $(date)"
+
+    echo "running git push --set-upstream origin $branch_name"  
     git push --set-upstream origin $branch_name
 
 else
     # just keep going on the current branch
+    echo "running git add -u"   
     git add -u
+
+    echo "running git commit -m backup $(date)"
     git commit -m "backup $(date)"
+
+    echo "running git push --set-upstream origin $current_branch"   
     git push --set-upstream origin $branch_name
 fi
 
