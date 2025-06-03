@@ -317,7 +317,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
 
     ax.title.set_size(15)
 
-    if plot_type != "heatmap" and plot_type != "cdf":
+    if plot_type != "heatmap" and plot_type != "cdf" and plot_type != "cdf2":
         title = translate(plot_x_params)
         ax.set_xlabel(title)
     
@@ -371,9 +371,16 @@ def draw_plot(df, value, hue_order):
                              sharey=sharey,
                              sharex=sharex,
                              squeeze=False)
+
     
     # increase font sizes 
-    plt.rcParams.update({'font.size': 15})
+    plt.rcParams.update({
+        'font.size': 15,
+        'pdf.fonttype': 42,  # Use Type 1 fonts for PDF 
+        'ps.fonttype': 42,   # Use Type 1 fonts for PS    
+    })
+    
+
     
     
     fig.set_figwidth(width) 

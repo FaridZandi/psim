@@ -29,9 +29,24 @@ cmake ..
 make -j
 ```
 
-### Run 
+
+### IFIP Neworking 2025 Submission
+
+This simulator was used to evaluate the paper "**Foresight: Joint Time and Space Scheduling for Efficient Distributed ML Training**" published in the proceedings of the IFIP Networking 2025 Conference. 
+
+To Run the experiments, cd into the ``run`` directory, and run any of the following: 
 
 ```
-cd ../run
-python3 run.py
+# figure 5 
+python sweep-components-jobsizes.py 
+python sweep-components-oversub.py
+
+# Figure 6 
+python sweep-placement.py
+
+# Figure 7 
+python sweep-intensity.py
+python sweep-intensity.py
 ```
+
+The results will be generated under the ``results/exps/``. 
