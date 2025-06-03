@@ -713,7 +713,7 @@ class Simulation():
             if self.current_time % 10000 == 0: 
                 print(f"Time: {self.current_time}, Entropy: {new_entropy}, Base Entropy: {new_base_entropy}, Utilization: {utilization}, Service Rate: {service_rate}, Max Jobs in Same Rack: {self.max_jobs_in_same_rack[-1]}")
                 
-                if self.vis and new_base_entropy > 0.4 or self.current_time == 600000:
+                if self.vis and new_base_entropy > 0.2 or self.current_time == 600000:
                     print("Visualizing")
                     self.visualize_assignments(self.current_time, minimal=True)
                 # self.visualize_assignments(self.current_time, minimal=False)
