@@ -46,7 +46,7 @@ python sweep-placement.py
 
 # Figure 7 
 python sweep-intensity.py
-python sweep-intensity.py
+python sweep-topology.py
 ```
 
 The results will be generated under the ``results/exps/``. 
