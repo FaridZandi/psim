@@ -37,6 +37,8 @@ values_name = "values"
 
 exclude_base = False    
 
+temp_summarize_comp = False 
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -430,6 +432,10 @@ def make_plots():
     # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"
     df["comparison"] = df["comparison"].replace("TS+RO+SUB+REP", "Foresight")
     
+    if temp_summarize_comp:
+        # replace the comparison with the number that comes after the last hyphen
+        df["comparison"] = df["comparison"].apply(lambda x: x.split("-")[-1] if "-" in x else x)
+
     # keep the rows that have types of "single_number" or "per_iter"
     df = df[df["type"].isin(["single_number", "per_iter"])]
     
@@ -487,7 +493,8 @@ if __name__ == "__main__":
     parser.add_argument("--legend_cols", type=int, required=False)
     parser.add_argument("--exclude_base", type=bool, required=False)    
     parser.add_argument("--legend_title", type=str, required=False) 
-       
+    parser.add_argument("--temp-summarize-comp", type=bool, required=False)
+
     args = parser.parse_args()
         
     for arg in vars(args):

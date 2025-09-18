@@ -15,7 +15,7 @@ if __name__ == "__main__":
     seed_range = 5
     m = 100
     
-    clean_up_sweep_files = True
+    clean_up_sweep_files = False
 
     original_exp_number = None
     if original_exp_number is not None: 
@@ -34,7 +34,7 @@ if __name__ == "__main__":
             "plot_params": "metric",
             "subplot_y_params": "desired_entropy",
             "subplot_x_params": "rack_size",
-            "subplot_hue_params": "cmmcmp_range",
+            "subplot_hue_params": "desired_entropy",
             "plot_x_params": "comparison",
             "plot_y_param": "values",
             "sharex": True, 
