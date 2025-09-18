@@ -444,6 +444,9 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     run_context.update(add_to_context)  
     
+    if "fixing_rounds" not in add_to_context:
+        run_context["fixing_rounds"] = 0        
+    
     if lb_decisions is not None:
         total_subflows = 0
         total_flows = 0   
@@ -639,6 +642,8 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = int(get_psim_total_congested_time(output))
         elif metric == "job_costs":
             job_numbers = run_context["job_costs"]
+        elif metric == "fixing_rounds":
+            job_numbers = run_context["fixing_rounds"]
         elif metric == "job_periods":
             job_numbers = [] 
             for job in run_context["jobs"]:
@@ -659,8 +664,8 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
                 slowdown = avg_iter_length / job["base_period"]
                 slowdown_rates.append(slowdown)
                 
-            pprint(run_context["comparison"])
-            pprint(slowdown_rates)
+            # pprint(run_context["comparison"])
+            # pprint(slowdown_rates)
                 
             job_numbers = np.std(slowdown_rates)
             # compute jain's fairness index.

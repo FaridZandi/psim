@@ -1388,8 +1388,10 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
 
     solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
     current_round = 0
-    
-    
+    add_to_context = {
+        "fixing_rounds": 0
+    }
+
     # step 1: do the vanilla timing first.
     log_progress(run_context, "starting vanilla timing")    
     
@@ -1403,9 +1405,10 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
 
     # step 1.5: if the routing is good, return the results.
     if len(new_bad_ranges) == 0:
-        return job_timings, lb_decisions
-    
-    
+        add_to_context["fixing_rounds"] = 0
+        return job_timings, lb_decisions, add_to_context
+
+
     ################################################################################
     # step 2: if the routing is bad, then trying patching it up a little bit. 
     ################################################################################
@@ -1433,14 +1436,15 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
                            new_bad_ranges, prev_bad_ranges)
             
             current_round += 1
-            
+            add_to_context["fixing_rounds"] += 1
+
         if len(new_bad_ranges) == 0:
             break 
         
     # step 2.5: if the routing is good, return the results.
     bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
     if len(new_bad_ranges) == 0 and bad_range_ratio < run_context["fallback-threshold"]:
-        return job_timings, lb_decisions
+        return job_timings, lb_decisions, add_to_context
 
 
     ################################################################################
@@ -1458,11 +1462,69 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
                                                 highlighted_ranges=[], 
                                                 early_return=False, 
                                                 override_routing_strategy="graph-coloring-v3")
-        
-    return job_timings, lb_decisions
+    
+    add_to_context["fixing_rounds"] += 1000
+    return job_timings, lb_decisions, add_to_context
 
         
         
+
+def faridv5_scheduling(jobs, options, run_context, job_profiles):
+    # the only supported mode for now 
+    timing_scheme = run_context["timing-scheme"]
+    assert timing_scheme == "faridv5" 
+
+    solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
+    current_round = 0
+    add_to_context = {
+        "fixing_rounds": 0
+    }
+
+    # step 1: do the vanilla timing first.
+    log_progress(run_context, "starting vanilla timing")    
+    
+    job_timings, solution = solver.solve()
+    lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                               job_profiles, job_timings, 
+                                               suffix=current_round, 
+                                               highlighted_ranges=[])
+    
+    log_bad_ranges(run_context, "1.0_vanilla", new_bad_ranges, [])
+
+    # step 1.5: if the routing is good, return the results.
+    if len(new_bad_ranges) == 0:
+        add_to_context["fixing_rounds"] = 0
+        return job_timings, lb_decisions, add_to_context
+
+
+    ################################################################################
+    # step 2: if the routing is bad, then trying patching it up a little bit. 
+    ################################################################################
+
+    max_attempts = run_context["farid-rounds"]
+    current_round = 1
+    prev_bad_ranges = [] 
+
+    while len(new_bad_ranges) > 0 and current_round < max_attempts:
+        append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
+
+        # step 2.1: fix the timing.
+        log_progress(run_context, "starting timing fix, round {}".format(current_round))    
+        
+        job_timings, solution = solver.solve_with_bad_ranges_and_inflation(prev_bad_ranges, 1)
+        # step 2.2: do the routing again.
+        lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                                    job_profiles, job_timings, 
+                                                    suffix=f"1_{current_round}", 
+                                                    highlighted_ranges=prev_bad_ranges)   
+
+        log_bad_ranges(run_context, f"inflation_1_round_{current_round}", 
+                        new_bad_ranges, prev_bad_ranges)
+        
+        current_round += 1
+        add_to_context["fixing_rounds"] += 1
+
+    return job_timings, lb_decisions, add_to_context
 
     
 ############################################################################
@@ -1537,12 +1599,17 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
     timing_scheme = run_context["timing-scheme"]
     lb_scheme = options["lb-scheme"]    
     
+    add_to_context = {}
+    
     if timing_scheme == "faridv3":
         job_timings, lb_decisions = faridv3_scheduling(jobs, options, 
                                                        run_context, job_profiles)
     elif timing_scheme == "faridv4":
-        job_timings, lb_decisions = faridv4_scheduling(jobs, options, 
+        job_timings, lb_decisions, add_to_context = faridv4_scheduling(jobs, options, 
                                                        run_context, job_profiles)   
+    elif timing_scheme == "faridv5":
+        job_timings , lb_decisions, add_to_context = faridv5_scheduling(jobs, options, 
+                                                       run_context, job_profiles)
     else:
         # do the timing first.
         job_timings = get_job_timings(jobs, options, run_context, 
@@ -1561,10 +1628,10 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
 
     job_ids = [job["job_id"] for job in jobs] 
     job_ids.sort()
-    
-    add_to_context = {
+
+    add_to_context.update({
         "job_costs": [get_avg_job_cost(job_id, jobs, job_timings) for job_id in job_ids],
-    }
+    })
     # returning the results just in case as well. 
     return job_timings, lb_decisions, add_to_context     
 

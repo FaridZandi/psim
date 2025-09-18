@@ -59,16 +59,18 @@ class ConfigSweeper:
         self.run_id = str(get_incremented_number())
         self.base_dir = get_base_dir() 
         
+        hostname = os.uname()[1]    
+        
         self.input_dir = self.base_dir + "/input/"
         self.build_path = self.base_dir + "/build"
         self.run_path = self.base_dir + "/run"
         self.base_executable = self.build_path + "/psim"
-        self.results_dir = "results/sweep/{}-{}/".format(self.run_id, exp_name)
+        self.results_dir = "results-{}/sweep/{}-{}/".format(hostname, self.run_id, exp_name)
         self.run_executable = self.results_dir + "/psim-" + self.run_id
         self.csv_dir = self.results_dir + "/csv/"
         self.raw_csv_path = self.csv_dir + "raw_results.csv"    
         self.plots_dir = self.results_dir + "/plots/" 
-        self.workers_dir = self.run_path + "/workers/"
+        self.workers_dir = self.run_path + "/workers-{}".format(hostname)
         # self.workers_dir = "/tmp2/workers/"
         self.plot_commands_script = self.results_dir + "plot_commands.sh"
         self.custom_files_dir = self.results_dir + "custom_files/"  

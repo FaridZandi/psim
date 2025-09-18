@@ -154,9 +154,9 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax, legend=legend, errorbar=('ci', 50))
+                    data=df, ax=ax, legend=False, errorbar=('ci', 50))
         ax.axhline(y=1, color='black', linestyle='--')
-
+        
     elif plot_type == "heatmap":  
         # the rows will be the plot_x_params 
         # the columns will be subplot_hue_params

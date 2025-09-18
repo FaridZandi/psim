@@ -101,6 +101,13 @@ all_metrics = {
         "better": "lower",
         "type": "single_number", 
     },
+    "fixing_rounds": {  
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_number",
+    },
 } 
     
     
@@ -130,6 +137,7 @@ def do_experiment(seed_range=1,
                   added_comparisons=[], 
                   plot_stuff=False, 
                   farid_rounds=12,  
+                  worker_thread_count=40,
                   ): 
     
     
@@ -307,6 +315,17 @@ def do_experiment(seed_range=1,
                                 "routing-fit-strategy": "graph-coloring-v6",  
                                 "lb-scheme": "readprotocol"
                             }))
+        
+    if "rounds" in added_comparisons or add_all:
+        for rounds in range(1, 40, 5):
+            comparisons.append(("foresight-{}".format(rounds), {
+                                "timing-scheme": "faridv5",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "routing-fit-strategy": "graph-coloring-v5",  
+                                "lb-scheme": "readprotocol", 
+                                "farid-rounds": rounds, 
+                            }))
 
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
@@ -362,7 +381,7 @@ def do_experiment(seed_range=1,
         exp_name="nethint_LB+{}_TS+{}_R+{}_{}_{}".format("", "", "",  
                                                             oversub, 
                                                             experiment_seed),
-        worker_thread_count=40, 
+        worker_thread_count=worker_thread_count, 
         plot_cdfs=False,
         store_outputs=True,
     )

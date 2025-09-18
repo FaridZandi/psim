@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 3
+    seed_range = 5
     m = 100
     
     clean_up_sweep_files = True
@@ -34,8 +34,8 @@ if __name__ == "__main__":
             "plot_params": "metric",
             "subplot_y_params": "desired_entropy",
             "subplot_x_params": "rack_size",
-            "subplot_hue_params": "comparison",
-            "plot_x_params": "oversub",
+            "subplot_hue_params": "cmmcmp_range",
+            "plot_x_params": "comparison",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -45,7 +45,7 @@ if __name__ == "__main__":
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
-            "legend_side": "none"
+            "legend_side": "right",
         }
         create_command(plot_args, plot_commands_path)
         
@@ -67,8 +67,8 @@ if __name__ == "__main__":
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.5]),
-            ("oversub", [1, 2, 4, 8]),
-            ("cmmcmp_range", [(0, 2)]),
+            ("oversub", [2]),
+            ("cmmcmp_range", [(0,1), (1, 2)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
@@ -78,7 +78,7 @@ if __name__ == "__main__":
             ("inflate", [1]),    
         ]
 
-        comparisons = ["TS", "TS+RO", "TS+RO+SUB", "TS+RO+SUB+REP"]
+        comparisons = ["rounds"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         
