@@ -39,6 +39,7 @@ exclude_base = False
 
 temp_summarize_comp = False 
 filter = None
+suffix = ""
 
 ###############################################################################
 ###############################################################################
@@ -154,8 +155,6 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     
     
     if plot_type == "line": 
-        
-        print(df)
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
@@ -430,13 +429,21 @@ def draw_plot(df, value, hue_order):
                                title=legend_title)
     
     file_dir = "/".join(file_name.split("/")[:-1]) 
-    plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.{ext}", bbox_inches='tight', dpi=200)        
-    
+    plt.savefig(f"{file_dir}/plot_{value}_{plot_type}_{suffix}.{ext}", bbox_inches='tight', dpi=200)        
+
 def make_plots(): 
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
-
+    # filter the dataframe based on the filter argument
+    if filter is not None:
+        # filter would be like colummn_name=value
+        col_name, value = filter.split("=")
+        df = df[
+            (df[col_name] == value) |
+            (df[col_name] == int(value)) |
+            (df[col_name] == float(value))
+        ]
     
     
     # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"
@@ -460,11 +467,6 @@ def make_plots():
     #     df["job_sizes"] = df["job_sizes"].astype(int)
     ###################
     
-    # filter the dataframe based on the filter argument
-    if filter is not None:
-        # filter would be like colummn_name=value
-        col_name, value = filter.split("=")
-        df = df[df[col_name] == value]
     
     if exclude_base:
         df = df[df["comparison"] != "base"] 
@@ -510,6 +512,7 @@ if __name__ == "__main__":
     parser.add_argument("--legend_title", type=str, required=False) 
     parser.add_argument("--temp-summarize-comp", type=bool, required=False)
     parser.add_argument("--filter", type=str, required=False)
+    parser.add_argument("--suffix", type=str, required=False)
     
     args = parser.parse_args()
         
