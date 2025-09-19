@@ -390,10 +390,8 @@ def draw_plot(df, value, hue_order):
     
 
     
-    
     fig.set_figwidth(width) 
     fig.set_figheight(height)
-      
     
       
     plt.subplots_adjust(hspace=0.3)
