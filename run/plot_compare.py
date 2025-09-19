@@ -156,7 +156,11 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax, legend=False, errorbar=('ci', 50))
+                    data=df, ax=ax, legend=True, errorbar=('ci', 50),
+                    estimator='mean', marker='o')
+        
+        if not legend:
+            ax.get_legend().remove()    
         ax.axhline(y=1, color='black', linestyle='--')
         
     elif plot_type == "heatmap":  
