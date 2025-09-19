@@ -507,7 +507,7 @@ def plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
             for smoothing_window in [1, 10]:
                 print(f"starting visulization for exp: {run_context['exp-uuid']}, smoothing_window: {smoothing_window}")
                 
-                for sep in [False, True]:
+                for sep in [False]:
                     timing.visualize_link_loads_runtime(
                         link_loads=link_loads,
                         run_context=run_context,
