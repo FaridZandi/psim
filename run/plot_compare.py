@@ -436,11 +436,7 @@ def make_plots():
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
-    # filter the dataframe based on the filter argument
-    if filter is not None:
-        # filter would be like colummn_name=value
-        col_name, value = filter.split("=")
-        df = df[df[col_name] == value]
+
     
     
     # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"
@@ -464,6 +460,11 @@ def make_plots():
     #     df["job_sizes"] = df["job_sizes"].astype(int)
     ###################
     
+    # filter the dataframe based on the filter argument
+    if filter is not None:
+        # filter would be like colummn_name=value
+        col_name, value = filter.split("=")
+        df = df[df[col_name] == value]
     
     if exclude_base:
         df = df[df["comparison"] != "base"] 
