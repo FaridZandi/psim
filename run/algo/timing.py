@@ -57,7 +57,7 @@ def visualize_workload_timing(jobs, options, run_context,
     
     link_logical_bandwidth = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
     
-    for sep in [True, False]:    
+    for sep in [False]:    
         visualize_link_loads(link_loads, run_context, deltas=deltas, 
                             throttle_rates=throttle_rates,
                             link_logical_bandwidth=link_logical_bandwidth, 
