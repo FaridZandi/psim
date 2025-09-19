@@ -55,7 +55,6 @@ def generate_job_basics(options, run_context, job_machine_counts=None):
     closest_distance = 1e9
     closest_jobs = None 
     closest_assigned_machines = 0
-    closest_ratio = 0
     
     while attempts < 1000:
         jobs, assigned_machines = generate_job_basics_(options, run_context, job_machine_counts) 
@@ -83,7 +82,6 @@ def generate_job_basics(options, run_context, job_machine_counts=None):
                 closest_distance = distance
                 closest_jobs = jobs
                 closest_assigned_machines = assigned_machines
-                closest_ratio = average_ratio
         
         attempts += 1 
 
@@ -92,7 +90,7 @@ def generate_job_basics(options, run_context, job_machine_counts=None):
     if attempts == 1000:    
         print("Warning: Could not find a job with the desired communication/computation ratio.")
 
-    return closest_jobs, closest_assigned_machines, closest_ratio
+    return closest_jobs, closest_assigned_machines, average_ratio
 
 def generate_job_basics_(options, run_context, job_machine_counts=None):
     machine_count = options["machine-count"]
