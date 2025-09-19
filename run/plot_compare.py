@@ -396,7 +396,7 @@ def draw_plot(df, value, hue_order):
       
     
       
-    plt.subplots_adjust(hspace=0.5)
+    plt.subplots_adjust(hspace=0.3)
     # plt.subplots_adjust(wspace=0.35)
     
     for i, x_value in enumerate(subplot_x_values):
