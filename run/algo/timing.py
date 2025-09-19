@@ -1483,7 +1483,8 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     # step 1: do the vanilla timing first.
     log_progress(run_context, "starting vanilla timing")    
     
-    random.randomseed(run_context["experiment-seed"] + 12345)
+    SEED_MAGIC = 23423
+    random.seed(run_context["experiment-seed"] + SEED_MAGIC)
     
     job_timings, solution = solver.solve()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
@@ -1508,6 +1509,8 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     prev_bad_ranges = [] 
 
     while len(new_bad_ranges) > 0 and current_round < max_attempts:
+        random.seed(run_context["experiment-seed"] + SEED_MAGIC + current_round)
+
         append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
 
         # step 2.1: fix the timing.
