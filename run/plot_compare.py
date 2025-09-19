@@ -38,6 +38,7 @@ values_name = "values"
 exclude_base = False    
 
 temp_summarize_comp = False 
+filter = None
 
 ###############################################################################
 ###############################################################################
@@ -153,6 +154,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     
     
     if plot_type == "line": 
+        
+        print(df)
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
@@ -433,6 +436,13 @@ def make_plots():
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
+    # filter the dataframe based on the filter argument
+    if filter is not None:
+        # filter would be like colummn_name=value
+        col_name, value = filter.split("=")
+        df = df[df[col_name] == value]
+    
+    
     # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"
     df["comparison"] = df["comparison"].replace("TS+RO+SUB+REP", "Foresight")
     
@@ -498,7 +508,8 @@ if __name__ == "__main__":
     parser.add_argument("--exclude_base", type=bool, required=False)    
     parser.add_argument("--legend_title", type=str, required=False) 
     parser.add_argument("--temp-summarize-comp", type=bool, required=False)
-
+    parser.add_argument("--filter", type=str, required=False)
+    
     args = parser.parse_args()
         
     for arg in vars(args):

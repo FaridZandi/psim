@@ -55,6 +55,7 @@ def generate_job_basics(options, run_context, job_machine_counts=None):
     closest_distance = 1e9
     closest_jobs = None 
     closest_assigned_machines = 0
+    closest_ratio = 0
     
     while attempts < 1000:
         jobs, assigned_machines = generate_job_basics_(options, run_context, job_machine_counts) 
@@ -82,6 +83,7 @@ def generate_job_basics(options, run_context, job_machine_counts=None):
                 closest_distance = distance
                 closest_jobs = jobs
                 closest_assigned_machines = assigned_machines
+                closest_ratio = average_ratio
         
         attempts += 1 
 
@@ -90,7 +92,7 @@ def generate_job_basics(options, run_context, job_machine_counts=None):
     if attempts == 1000:    
         print("Warning: Could not find a job with the desired communication/computation ratio.")
 
-    return closest_jobs, closest_assigned_machines
+    return closest_jobs, closest_assigned_machines, closest_ratio
 
 def generate_job_basics_(options, run_context, job_machine_counts=None):
     machine_count = options["machine-count"]
@@ -165,31 +167,31 @@ def generate_random_placement_file(options, run_context):
     machine_count = options["machine-count"]
     all_machines = list(range(0, machine_count))
     
-    jobs, _ = generate_job_basics(options, run_context)  
+    jobs, _, cmmcmp_ratio = generate_job_basics(options, run_context)  
     
     for job in jobs:
         job["machines"] = random.sample(all_machines, job["machine_count"])
         for machine in job["machines"]:
             all_machines.remove(machine)
-                               
-    return jobs               
+
+    return jobs, cmmcmp_ratio
 
 
 def generate_compact_placement_file(options, run_context):
     machine_count = options["machine-count"]
     all_machines = list(range(0, machine_count))
-    
-    jobs, _ = generate_job_basics(options, run_context)  
-    
+
+    jobs, _, cmmcmp_ratio = generate_job_basics(options, run_context)
+
     for job in jobs:
         job["machines"] = all_machines[:job["machine_count"]]
         all_machines = all_machines[job["machine_count"]:]
-                               
-    return jobs
+
+    return jobs, cmmcmp_ratio
 
 def generate_entropy_placement_file(options, run_context):  
     desired_entropy = run_context["placement-parameters"]["desired-entropy"]
-    jobs = generate_compact_placement_file(options, run_context)
+    jobs, cmmcmp_ratio = generate_compact_placement_file(options, run_context)
 
     current_entropy = measure_entrorpy(jobs, options["ft-server-per-rack"])
     
@@ -199,9 +201,9 @@ def generate_entropy_placement_file(options, run_context):
     while current_entropy < desired_entropy and perturbation_count < max_perturbation_count:    
         perturb_placement(jobs)
         perturbation_count += 1
-        current_entropy = measure_entrorpy(jobs, options["ft-server-per-rack"])
+        current_entropy, cmmcmp_ratio = measure_entrorpy(jobs, options["ft-server-per-rack"])
 
-    return jobs
+    return jobs, cmmcmp_ratio
 
 
 def generate_semirandom_placement_file(options, run_context, fragmentation_factor):
@@ -209,7 +211,7 @@ def generate_semirandom_placement_file(options, run_context, fragmentation_facto
     allocated_machines = 0     
     available_machines = [True] * machine_count
     
-    jobs, assigned_machines = generate_job_basics(options, run_context)  
+    jobs, assigned_machines, cmmcmp_ratio = generate_job_basics(options, run_context)  
     
     while allocated_machines < assigned_machines: 
         # take a random job that is under allocated.    
@@ -254,10 +256,10 @@ def generate_semirandom_placement_file(options, run_context, fragmentation_facto
                     allocated_machines += 1 
                     available_machines[i] = False
                     break
-                               
-    return jobs    
-                                  
-                
+
+    return jobs, cmmcmp_ratio
+
+
 def generate_simulated_placement_file(options, run_context, placement_strategy):
     
     print("simulating to get the placement info ...")
@@ -271,13 +273,13 @@ def generate_simulated_placement_file(options, run_context, placement_strategy):
     
     job_machine_counts = [job["machine_count"] for job in placement_info]
     
-    jobs, _ = generate_job_basics(options, run_context, job_machine_counts)                        
+    jobs, _, cmmcmp_ratio = generate_job_basics(options, run_context, job_machine_counts)                        
     
     # placement_info is a list of dictionaries, each containing the placement information for a job.
     for job, job_placement_info in zip(jobs, placement_info):
         job["machines"] = job_placement_info["machines"]    
                 
-    return jobs
+    return jobs, cmmcmp_ratio
 
 
 def generate_manual_1_placement_file(options, run_context):   
@@ -322,7 +324,7 @@ def generate_manual_1_placement_file(options, run_context):
         }
     ]
     
-    return jobs
+    return jobs, 1.0
 
 
 def generate_manual_2_placement_file(options, run_context):   
@@ -367,7 +369,7 @@ def generate_manual_2_placement_file(options, run_context):
         }
     ]
     
-    return jobs
+    return jobs, 1.0
 
 
 
@@ -414,7 +416,7 @@ def generate_manual_3_placement_file(options, run_context):
         # maybe a third job as well later on? 
     ]
     
-    return jobs
+    return jobs, 1.0
 
 
 
@@ -458,7 +460,7 @@ def generate_manual_4_placement_file(options, run_context):
         }
     ]
     
-    return jobs
+    return jobs, 1.0
 
 def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path, stretch_factor=1):
     for job in jobs:
@@ -570,13 +572,13 @@ def generate_placement_file(placement_path, placement_seed,
     placement_mode = run_context["placement-mode"] 
     
     if placement_mode == "compact": 
-        jobs = generate_compact_placement_file(options, run_context)
+        jobs, cmmcmp_ratio = generate_compact_placement_file(options, run_context)
 
     elif placement_mode == "random":
-        jobs = generate_random_placement_file(options, run_context)
+        jobs, cmmcmp_ratio = generate_random_placement_file(options, run_context)
     
     elif placement_mode == "entropy":
-        jobs = generate_entropy_placement_file(options, run_context)
+        jobs, cmmcmp_ratio = generate_entropy_placement_file(options, run_context)
 
     elif placement_mode.startswith("semirandom"):   
         if "_" in placement_mode:
@@ -584,7 +586,7 @@ def generate_placement_file(placement_path, placement_seed,
             fragmentation_factor = int(fragmentation_factor)
         else:
             fragmentation_factor = 1   
-        jobs = generate_semirandom_placement_file(options, run_context, fragmentation_factor) 
+        jobs, cmmcmp_ratio = generate_semirandom_placement_file(options, run_context, fragmentation_factor) 
         
     elif placement_mode.startswith("sim"):
         if "_" in placement_mode:
@@ -592,16 +594,16 @@ def generate_placement_file(placement_path, placement_seed,
         else:
             placement_strategy = "firstfit"
               
-        jobs = generate_simulated_placement_file(options, run_context, placement_strategy)
+        jobs, cmmcmp_ratio = generate_simulated_placement_file(options, run_context, placement_strategy)
     
     elif placement_mode == "manual_1":
-        jobs = generate_manual_1_placement_file(options, run_context) 
+        jobs, cmmcmp_ratio = generate_manual_1_placement_file(options, run_context) 
     elif placement_mode == "manual_2":
-        jobs = generate_manual_2_placement_file(options, run_context)
+        jobs, cmmcmp_ratio = generate_manual_2_placement_file(options, run_context)
     elif placement_mode == "manual_3":
-        jobs = generate_manual_3_placement_file(options, run_context)
+        jobs, cmmcmp_ratio = generate_manual_3_placement_file(options, run_context)
     elif placement_mode == "manual_4":
-        jobs = generate_manual_4_placement_file(options, run_context)
+        jobs, cmmcmp_ratio = generate_manual_4_placement_file(options, run_context)
     else: 
         rage_quit("Error: unknown placement mode: " + placement_mode)
         
@@ -622,8 +624,10 @@ def generate_placement_file(placement_path, placement_seed,
         json.dump(jobs, f, indent=4)
         f.flush()
     
-    return jobs
-    
+    add_to_context = {  
+        "cmmcmp-ratio": cmmcmp_ratio,
+    }
+    return jobs, add_to_context
 
 
 

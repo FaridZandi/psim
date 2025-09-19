@@ -108,6 +108,13 @@ all_metrics = {
         "better": "lower",
         "type": "single_number",
     },
+    "cmmcmp_ratio": {
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_number",
+    },  
 } 
     
     
