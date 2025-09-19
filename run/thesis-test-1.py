@@ -15,7 +15,7 @@ if __name__ == "__main__":
     seed_range = 5
     m = 100
     
-    clean_up_sweep_files = False
+    clean_up_sweep_files = True
 
     original_exp_number = None
     if original_exp_number is not None: 
@@ -32,20 +32,21 @@ if __name__ == "__main__":
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "desired_entropy",
-            "subplot_x_params": "rack_size",
+            "subplot_y_params": "oversub",
+            "subplot_x_params": "job_sizes",
             "subplot_hue_params": "desired_entropy",
             "plot_x_params": "comparison",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 5,
-            "subplot_height": 2,
+            "subplot_width": 4,
+            "subplot_height": 4,
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
             "legend_side": "right",
+            "temp-summarize-comp": True
         }
         create_command(plot_args, plot_commands_path)
         
@@ -63,11 +64,11 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             ("machine_count", [48]),
             ("rack_size", [8]),
-            ("job_sizes", [(4, 16)]),
+            ("job_sizes", [(4, 16), (24, 24)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.5]),
-            ("oversub", [2]),
+            ("desired_entropy", [0.3, 0.5, 0.7]),
+            ("oversub", [2, 4]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
