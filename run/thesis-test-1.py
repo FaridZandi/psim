@@ -23,7 +23,10 @@ if __name__ == "__main__":
     else:
         exp_number = get_incremented_number() 
     
-    exp_dir = f"results/exps/{exp_number}"
+    hostname = os.uname()[1]    
+    results_dir = "results-{}".format(hostname) 
+
+    exp_dir = f"{results_dir}/exps/{exp_number}"
     os.makedirs(exp_dir, exist_ok=True)
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
@@ -54,8 +57,7 @@ if __name__ == "__main__":
     os.system(f"chmod +x {plot_commands_path}")
             
     if original_exp_number is None:
-        hostname = os.uname()[1]    
-        results_dir = "results-{}".format(hostname) 
+
         exp_dir = f"{results_dir}/exps/{exp_number}"
         path = f"{results_dir}/exps/{exp_number}/results.csv"
         os.makedirs(f"{results_dir}/exps/{exp_number}", exist_ok=True)
