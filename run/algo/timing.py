@@ -57,7 +57,7 @@ def visualize_workload_timing(jobs, options, run_context,
     
     link_logical_bandwidth = options["ft-core-count"] * options["ft-agg-core-link-capacity-mult"]
     
-    for sep in [True, False]:    
+    for sep in [False]:    
         visualize_link_loads(link_loads, run_context, deltas=deltas, 
                             throttle_rates=throttle_rates,
                             link_logical_bandwidth=link_logical_bandwidth, 
@@ -642,7 +642,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
                         verticalalignment='bottom', horizontalalignment='right', color='blue')
 
 
-            y_max = max(4, max_value_in_stack) * 1.1    
+            y_max = max(1, max_value_in_stack) * 1.1    
                         
             if logical_capacity is not None:  
                 ax.axhline(y=logical_capacity, color='r', linestyle='--') 
@@ -661,7 +661,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
             
             ax.legend(loc='upper left')
 
-            ax.set_xlim(0, 700)
+            # ax.set_xlim(0, 700)
               
             if separate_plots: 
                 plt.tight_layout()
@@ -757,7 +757,7 @@ def visualize_link_loads(link_loads, run_context,
             ax.text(max_length, max_value_in_stack, " max load",
                         verticalalignment='bottom', horizontalalignment='right', color='blue')
             
-            y_max = max(4, max_value_in_stack) * 1.1    
+            y_max = max(1, max_value_in_stack) * 1.1    
             # y_max = max_value_in_stack * 1.1 
 
             if link_logical_bandwidth is not None:  
@@ -782,7 +782,7 @@ def visualize_link_loads(link_loads, run_context,
             ax.set_ylim(0, y_max)
 
             ax.legend(loc='upper left')
-            ax.set_xlim(0, 700)
+            # ax.set_xlim(0, 700)
             
             if separate_plots: 
                 plt.tight_layout()
