@@ -37,6 +37,10 @@ values_name = "values"
 
 exclude_base = False    
 
+temp_summarize_comp = False 
+filter = None
+suffix = ""
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -154,7 +158,11 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         sns.lineplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax, legend=False, errorbar=('ci', 50))
+                    data=df, ax=ax, legend=True, errorbar=('ci', 50),
+                    estimator='mean', marker='o')
+        
+        if not legend:
+            ax.get_legend().remove()    
         ax.axhline(y=1, color='black', linestyle='--')
         
     elif plot_type == "heatmap":  
@@ -388,7 +396,7 @@ def draw_plot(df, value, hue_order):
       
     
       
-    plt.subplots_adjust(hspace=0.5)
+    plt.subplots_adjust(hspace=0.3)
     # plt.subplots_adjust(wspace=0.35)
     
     for i, x_value in enumerate(subplot_x_values):
@@ -421,15 +429,30 @@ def draw_plot(df, value, hue_order):
                                title=legend_title)
     
     file_dir = "/".join(file_name.split("/")[:-1]) 
-    plt.savefig(f"{file_dir}/plot_{value}_{plot_type}.{ext}", bbox_inches='tight', dpi=200)        
-    
+    plt.savefig(f"{file_dir}/plot_{value}_{plot_type}_{suffix}.{ext}", bbox_inches='tight', dpi=200)        
+
 def make_plots(): 
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
+    # filter the dataframe based on the filter argument
+    if filter is not None:
+        # filter would be like colummn_name=value
+        col_name, value = filter.split("=")
+        df = df[
+            (df[col_name] == value) |
+            (df[col_name] == int(value)) |
+            (df[col_name] == float(value))
+        ]
+    
+    
     # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"
     df["comparison"] = df["comparison"].replace("TS+RO+SUB+REP", "Foresight")
     
+    if temp_summarize_comp:
+        # replace the comparison with the number that comes after the last hyphen
+        df["comparison"] = df["comparison"].apply(lambda x: x.split("-")[-1] if "-" in x else x)
+
     # keep the rows that have types of "single_number" or "per_iter"
     df = df[df["type"].isin(["single_number", "per_iter"])]
     
@@ -487,7 +510,10 @@ if __name__ == "__main__":
     parser.add_argument("--legend_cols", type=int, required=False)
     parser.add_argument("--exclude_base", type=bool, required=False)    
     parser.add_argument("--legend_title", type=str, required=False) 
-       
+    parser.add_argument("--temp-summarize-comp", type=bool, required=False)
+    parser.add_argument("--filter", type=str, required=False)
+    parser.add_argument("--suffix", type=str, required=False)
+    
     args = parser.parse_args()
         
     for arg in vars(args):

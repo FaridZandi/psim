@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 5
+    seed_range = 20
     m = 100
     
     clean_up_sweep_files = True
@@ -23,38 +23,44 @@ if __name__ == "__main__":
     else:
         exp_number = get_incremented_number() 
     
-    exp_dir = f"results/exps/{exp_number}"
+    hostname = os.uname()[1]    
+    results_dir = "results-{}".format(hostname) 
+
+    exp_dir = f"{results_dir}/exps/{exp_number}"
     os.makedirs(exp_dir, exist_ok=True)
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["bar", "box"]:
+    for plot_type in ["bar", "box", "line"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "desired_entropy",
-            "subplot_x_params": "rack_size",
-            "subplot_hue_params": "cmmcmp_range",
+            "subplot_y_params": "cmmcmp_range",
+            "subplot_x_params": "job_sizes",
+            "subplot_hue_params": "desired_entropy",
             "plot_x_params": "comparison",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 5,
-            "subplot_height": 2,
+            "subplot_width": 4,
+            "subplot_height": 4,
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
             "legend_side": "right",
+            "temp-summarize-comp": True,
+            "legend_cols": 5,
         }
         create_command(plot_args, plot_commands_path)
         
     os.system(f"chmod +x {plot_commands_path}")
             
     if original_exp_number is None:
-        exp_dir = f"results/exps/{exp_number}"
-        path = f"results/exps/{exp_number}/results.csv" 
-        os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
+
+        exp_dir = f"{results_dir}/exps/{exp_number}"
+        path = f"{results_dir}/exps/{exp_number}/results.csv"
+        os.makedirs(f"{results_dir}/exps/{exp_number}", exist_ok=True)
 
         os.system("rm -f last-exp-results-link-*") 
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
@@ -63,12 +69,13 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             ("machine_count", [48]),
             ("rack_size", [8]),
-            ("job_sizes", [(4, 16)]),
+            ("job_sizes", [(4, 16), (16, 24), (24, 24)]),
+            # ("job_sizes", [(24, 24)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.5]),
+            ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
             ("oversub", [2]),
-            ("cmmcmp_range", [(0,1), (1, 2)]),
+            ("cmmcmp_range", [(0, 1), (1, 2)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),

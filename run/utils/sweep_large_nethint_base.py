@@ -193,11 +193,16 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
             "run_context": run_context,
         }
         
+        env = os.environ.copy()
+        env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
+
         # create a python subprocess, feed the json dump of the args to the subprocess.
         process = subprocess.Popen([current_executable, "-m", "algo.timing"], 
                                     stdin=subprocess.PIPE, 
                                     stdout=subprocess.PIPE, 
-                                    stderr=subprocess.PIPE)
+                                    stderr=subprocess.PIPE, 
+                                    env=env)
+        
         input_data = json.dumps(args).encode("utf-8")
         stdout, stderr = process.communicate(input=input_data)
 
@@ -222,13 +227,13 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
    
 def calc_placement(placement_file_path, placement_seed, options, run_context, config_sweeper):
     
-    jobs = generate_placement_file(placement_file_path, 
+    jobs, add_to_context = generate_placement_file(placement_file_path, 
                                    placement_seed,   
                                    options, 
                                    run_context,
                                    config_sweeper)  
     
-    return jobs
+    return jobs, add_to_context
    
 def run_command_options_modifier(options, config_sweeper, run_context):
     
@@ -396,7 +401,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
 
     placement_file_path = "{}/placement.txt".format(placements_dir)
         
-    jobs = placement_cache.get(key=placement_file_path, 
+    jobs, add_to_context = placement_cache.get(key=placement_file_path, 
                                lock=config_sweeper.thread_lock, 
                                logger_func=config_sweeper.log_for_thread, 
                                run_context=run_context, 
@@ -405,7 +410,10 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                                                options, run_context, config_sweeper))
 
     run_context["jobs"] = jobs  
-    
+    run_context.update(add_to_context)
+
+    print("cmmcmp ratio: ", add_to_context.get("cmmcmp_ratio", None))
+
     jobs_str = json.dumps(jobs, sort_keys=True).encode("utf-8")
     run_context["placement-hash"] = md5(jobs_str).hexdigest()
     
@@ -644,6 +652,8 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = run_context["job_costs"]
         elif metric == "fixing_rounds":
             job_numbers = run_context["fixing_rounds"]
+        elif metric == "cmmcmp_ratio":
+            job_numbers = run_context["cmmcmp_ratio"]
         elif metric == "job_periods":
             job_numbers = [] 
             for job in run_context["jobs"]:

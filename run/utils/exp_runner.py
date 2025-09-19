@@ -108,6 +108,13 @@ all_metrics = {
         "better": "lower",
         "type": "single_number",
     },
+    "cmmcmp_ratio": {
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_number",
+    },  
 } 
     
     
@@ -309,15 +316,24 @@ def do_experiment(seed_range=1,
 
     if "coloring-v6" in added_comparisons or add_all:
         comparisons.append(("coloring-v6", {
-                                 "timing-scheme": "faridv4",
+                                "timing-scheme": "faridv4",
                                 "throttle-search": True if subflow_count > 1 else False,
                                 "subflows": subflow_count, 
                                 "routing-fit-strategy": "graph-coloring-v6",  
                                 "lb-scheme": "readprotocol"
                             }))
         
+    if "coloring-v7" in added_comparisons or add_all:   
+        comparisons.append(("coloring-v7", {
+                                "timing-scheme": "faridv4",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "routing-fit-strategy": "graph-coloring-v7",  
+                                "lb-scheme": "readprotocol"
+                            }))
+        
     if "rounds" in added_comparisons or add_all:
-        for rounds in range(1, 40, 5):
+        for rounds in range(0, 101, 10):
             comparisons.append(("foresight-{}".format(rounds), {
                                 "timing-scheme": "faridv5",
                                 "throttle-search": True if subflow_count > 1 else False,
