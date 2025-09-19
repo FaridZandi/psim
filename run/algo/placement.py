@@ -625,7 +625,7 @@ def generate_placement_file(placement_path, placement_seed,
         f.flush()
     
     add_to_context = {  
-        "cmmcmp-ratio": cmmcmp_ratio,
+        "cmmcmp_ratio": cmmcmp_ratio,
     }
     return jobs, add_to_context
 
