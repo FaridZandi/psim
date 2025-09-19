@@ -1483,6 +1483,8 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     # step 1: do the vanilla timing first.
     log_progress(run_context, "starting vanilla timing")    
     
+    random.randomseed(run_context["experiment-seed"] + 12345)
+    
     job_timings, solution = solver.solve()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                job_profiles, job_timings, 
