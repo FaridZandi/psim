@@ -201,7 +201,7 @@ def generate_entropy_placement_file(options, run_context):
     while current_entropy < desired_entropy and perturbation_count < max_perturbation_count:    
         perturb_placement(jobs)
         perturbation_count += 1
-        current_entropy, cmmcmp_ratio = measure_entrorpy(jobs, options["ft-server-per-rack"])
+        current_entropy = measure_entrorpy(jobs, options["ft-server-per-rack"])
 
     return jobs, cmmcmp_ratio
 
