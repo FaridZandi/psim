@@ -12,8 +12,8 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 5
-    m = 1
+    seed_range = 20
+    m = 100
     
     clean_up_sweep_files = True
 
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["bar", "box"]:
+    for plot_type in ["bar", "box", "line"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
@@ -64,7 +64,7 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             ("machine_count", [48]),
             ("rack_size", [8]),
-            ("job_sizes", [(4, 16), (24, 24)]),
+            ("job_sizes", [(4, 8), (4, 16), (24, 24)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.3, 0.5, 0.7]),
