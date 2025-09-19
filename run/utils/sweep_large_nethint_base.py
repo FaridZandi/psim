@@ -193,11 +193,16 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
             "run_context": run_context,
         }
         
+        env = os.environ.copy()
+        env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
+
         # create a python subprocess, feed the json dump of the args to the subprocess.
         process = subprocess.Popen([current_executable, "-m", "algo.timing"], 
                                     stdin=subprocess.PIPE, 
                                     stdout=subprocess.PIPE, 
-                                    stderr=subprocess.PIPE)
+                                    stderr=subprocess.PIPE, 
+                                    env=env)
+        
         input_data = json.dumps(args).encode("utf-8")
         stdout, stderr = process.communicate(input=input_data)
 
