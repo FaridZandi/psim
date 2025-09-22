@@ -167,9 +167,9 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
 
 
     # open a file to log the decisions.
-    log_path = "{}/routing/routing_log_{}.txt".format(run_context["routings-dir"], suffix)  
-    log_file = open(log_path, "w")
-    log_file.write("job_id, flow_id, iteration, selected_spines\n")
+    # log_path = "{}/routing/routing_log_{}.txt".format(run_context["routings-dir"], suffix)  
+    # log_file = open(log_path, "w")
+    # log_file.write("job_id, flow_id, iteration, selected_spines\n")
     
     available_colors_max = num_spines * max_subflow_count
 
@@ -239,19 +239,19 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     for key in hash_to_time_ranges.keys():
         hash_to_time_ranges[key].sort()
     
-    
-    plot_rack_dependencies(hash_to_time_ranges, 
-                           traffic_pattern_to_src_racks, 
-                           traffic_pattern_to_dst_racks, 
-                            "{}/routing/rack_dependency_{}.png".format(run_context["routings-dir"], suffix))
+    if run_context["plot-merged-ranges"]:   
+        plot_rack_dependencies(hash_to_time_ranges, 
+                            traffic_pattern_to_src_racks, 
+                            traffic_pattern_to_dst_racks, 
+                                "{}/routing/rack_dependency_{}.png".format(run_context["routings-dir"], suffix))
     
     
     merged_ranges = merge_overlapping_ranges_v7(hash_to_time_ranges, 
                                                 traffic_pattern_to_src_racks, 
                                                 traffic_pattern_to_dst_racks)
 
-    pprint(merged_ranges, stream=log_file)
-    log_file.close()
+    # pprint(merged_ranges, stream=log_file)
+    # log_file.close()
         
     needed_color_count = {} 
     max_degrees = {} 
