@@ -88,16 +88,17 @@ def merge_overlapping_ranges_v7(ranges_dict,
         keys = component_keys[root]
         ranges.sort()
 
+        # Merge overlapping and back-to-back ranges
         summarized_ranges = []
         last_range = None
         for start, end in ranges:
             if last_range is None:
                 last_range = (start, end)
-            elif start > last_range[1] + 1:
+            elif start <= last_range[1] + 1:  # Merge if overlapping or back-to-back
+                last_range = (last_range[0], max(last_range[1], end))
+            else:
                 summarized_ranges.append(last_range)
                 last_range = (start, end)
-            else:
-                last_range = (last_range[0], max(last_range[1], end))
         if last_range is not None:
             summarized_ranges.append(last_range)
 
