@@ -83,7 +83,7 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]), 
-            ("farid_rounds", [100]),   
+            ("farid_rounds", [1]),   
         ]
 
         comparisons = ["coloring-v5", "coloring-v7", "RO"]
