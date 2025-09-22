@@ -10,6 +10,7 @@ from collections import defaultdict
 import sys 
 import hashlib
 import math
+import networkx as nx
 
 
 
@@ -117,6 +118,36 @@ def find_value_in_range_v7(entries, value, pattern_hash):
     return None
 
 
+def plot_rack_dependencies(hash_to_time_ranges, 
+                           traffic_pattern_to_src_racks, 
+                           traffic_pattern_to_dst_racks, 
+                           plot_path):
+    import matplotlib.pyplot as plt
+
+    G = nx.Graph()
+    hashes = list(hash_to_time_ranges.keys())
+
+    # Add nodes
+    for h in hashes:
+        G.add_node(h)
+
+    # Add edges if two patterns share any src or dst racks
+    for i in range(len(hashes)):
+        for j in range(i + 1, len(hashes)):
+            h1, h2 = hashes[i], hashes[j]
+            src_overlap = traffic_pattern_to_src_racks[h1] & traffic_pattern_to_src_racks[h2]
+            dst_overlap = traffic_pattern_to_dst_racks[h1] & traffic_pattern_to_dst_racks[h2]
+            if src_overlap or dst_overlap:
+                G.add_edge(h1, h2)
+
+    pos = nx.spring_layout(G)
+    plt.figure(figsize=(10, 8))
+    nx.draw(G, pos, with_labels=True, node_color='lightblue', edge_color='gray', font_size=8)
+    plt.title("Rack Dependency Graph (Traffic Pattern Hashes)")
+    plt.tight_layout()
+    plt.savefig(plot_path)
+    plt.close()
+
 
 def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines, 
                                   lb_decisions, run_context, max_subflow_count, link_bandwidth, 
@@ -188,8 +219,14 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     # unique hash values.   
     for key in hash_to_time_ranges.keys():
         hash_to_time_ranges[key].sort()
-        
-    # print(hash_to_time_ranges, file=sys.stderr) 
+    
+    
+    plot_rack_dependencies(hash_to_time_ranges, 
+                           traffic_pattern_to_src_racks, 
+                           traffic_pattern_to_dst_racks, 
+                            "{}/routing/rack_dependency_{}.png".format(run_context["routings-dir"], suffix))
+    
+    
     merged_ranges = merge_overlapping_ranges_v7(hash_to_time_ranges, 
                                                 traffic_pattern_to_src_racks, 
                                                 traffic_pattern_to_dst_racks)
