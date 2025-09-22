@@ -38,7 +38,7 @@ if __name__ == "__main__":
             "subplot_y_params": "cmmcmp_range",
             "subplot_x_params": "job_sizes",
             "subplot_hue_params": "comparison",
-            "plot_x_params": "machine_count",
+            "plot_x_params": "inflate",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -82,8 +82,8 @@ if __name__ == "__main__":
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
-            ("inflate", [1, 1.1, 1.2, 1.3]), 
-            ("farid_rounds", [10]),   
+            ("inflate", [1, 1.1, 1.2, 1.3, 1.4, 1.5]), 
+            ("farid_rounds", [20]),   
         ]
 
         comparisons = ["coloring-v5", "coloring-v7"]    
