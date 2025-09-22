@@ -216,8 +216,10 @@ def do_experiment(seed_range=1,
         profiled_throttle_factors = [1.0, 0.5]
         subflow_count = 2 
     else:
-        profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
-        subflow_count = 4        
+        # profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
+        # subflow_count = 4        
+        profiled_throttle_factors = [1.0]
+        subflow_count = 1
 
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
