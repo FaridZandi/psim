@@ -345,6 +345,16 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
         
+    if "TEMP" in added_comparisons or add_all:   
+        comparisons.append(("TEMP", {
+                                "timing-scheme": "zero",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "farid-rounds": farid_rounds,   
+                                "routing-fit-strategy": "graph-coloring-v7",
+                                "lb-scheme": "readprotocol"
+                            }))
+        
     if "rounds" in added_comparisons or add_all:
         for rounds in range(0, 101, 10):
             comparisons.append(("foresight-{}".format(rounds), {

@@ -83,10 +83,10 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]), 
-            ("farid_rounds", [1]),   
+            ("farid_rounds", [0]),   
         ]
 
-        comparisons = ["coloring-v5", "coloring-v7", "RO"]
+        comparisons = ["coloring-v5", "coloring-v7", "RO", "TEMP"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
