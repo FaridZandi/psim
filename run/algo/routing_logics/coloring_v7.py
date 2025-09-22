@@ -158,9 +158,9 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
 
 
     # open a file to log the decisions.
-    log_path = "{}/routing/routing_log_{}.txt".format(run_context["routings-dir"], suffix)  
-    log_file = open(log_path, "w")
-    log_file.write("job_id, flow_id, iteration, selected_spines\n")
+    # log_path = "{}/routing/routing_log_{}.txt".format(run_context["routings-dir"], suffix)  
+    # log_file = open(log_path, "w")
+    # log_file.write("job_id, flow_id, iteration, selected_spines\n")
     
     available_colors_max = num_spines * max_subflow_count
 
@@ -215,10 +215,10 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
             flow["traffic_pattern_hash"] = traffic_pattern_hash 
             traffic_pattern_to_src_racks[traffic_pattern_hash].add(flow["srcrack"])
             traffic_pattern_to_dst_racks[traffic_pattern_hash].add(flow["dstrack"])
-            log_file.write(f"{flow['job_id']}, {flow['flow_id']}, {flow['iteration']}, {flow['srcrack']}-{flow['dstrack']}\n")
+            # log_file.write(f"{flow['job_id']}, {flow['flow_id']}, {flow['iteration']}, {flow['srcrack']}-{flow['dstrack']}\n")
         # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
 
-    log_file.close()
+    # log_file.close()
     
     for hash in hash_to_traffic_id.keys():
         traffic_pattern_rep = hash_to_traffic_id[hash]
