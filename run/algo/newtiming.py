@@ -517,6 +517,8 @@ class TimingSolver():
         self.cross_rack_jobs = cross_rack_job           
      
     def plot_empty_ranges(self, sol, plot_path=None):
+        return
+    
         if plot_path is None:
             return 
            
