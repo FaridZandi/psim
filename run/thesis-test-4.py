@@ -86,7 +86,7 @@ if __name__ == "__main__":
             ("farid_rounds", [20]),   
         ]
 
-        comparisons = ["coloring-v5", "coloring-v7"]    
+        comparisons = ["coloring-v5", "coloring-v7", "RO"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
