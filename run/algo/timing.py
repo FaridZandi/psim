@@ -561,12 +561,12 @@ def visualize_link_loads_runtime(link_loads, run_context,
     import os
 
     num_racks = len(link_loads)
-    num_directions = 2  # "up" and "down"
+    num_directions = 1  # "up" and "down"
 
 
     if not separate_plots: 
         # Create a figure and subplots
-        fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), 
+        fig, axes = plt.subplots(num_racks, num_directions, figsize=(7, 3 * num_racks), 
                                 squeeze=False, sharex=True)
 
     global job_color_index
@@ -575,7 +575,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
     min_over_capacity_time = 1e9 
     
     for rack in range(num_racks):
-        for i, direction in enumerate(["up", "down"]):
+        for i, direction in enumerate(["up"]):#, "down"
             if not separate_plots:
                 ax = axes[rack][i]
             else: 
@@ -676,7 +676,7 @@ def visualize_link_loads_runtime(link_loads, run_context,
     
     if min_over_capacity_time < 1e9:
         for rack in range(num_racks):
-            for i, direction in enumerate(["up", "down"]):
+            for i, direction in enumerate(["up"]):#, "down"
                 ax = axes[rack][i]
                 ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
             
@@ -704,11 +704,11 @@ def visualize_link_loads(link_loads, run_context,
     import os
 
     num_racks = len(link_loads)
-    num_directions = 2  # "up" and "down"
+    num_directions = 1  # "up" and "down"
 
     # Create a figure and subplots
     if not separate_plots:
-        fig, axes = plt.subplots(num_racks, num_directions, figsize=(10, 3 * num_racks), squeeze=False, sharex=True)
+        fig, axes = plt.subplots(num_racks, num_directions, figsize=(7, 3 * num_racks), squeeze=False, sharex=True)
 
     global job_color_index
     job_color_index = 0
@@ -717,7 +717,7 @@ def visualize_link_loads(link_loads, run_context,
     min_over_capacity_time = 1e9 
     
     for rack in range(num_racks):
-        for i, direction in enumerate(["up", "down"]):
+        for i, direction in enumerate(["up"]): #, "down"
             if not separate_plots:
                 ax = axes[rack][i]
             else: 
@@ -795,12 +795,12 @@ def visualize_link_loads(link_loads, run_context,
         handles = [plt.Line2D([0], [0], marker='o', color='w', markerfacecolor=get_job_color(job_id), label=f"Job: {job_id}") for job_id in assigned_job_colors]
         fig.legend(handles=handles, loc='upper right')
     
-    if not separate_plots: 
-        if min_over_capacity_time < 1e9:
-            for rack in range(num_racks):
-                for i, direction in enumerate(["up", "down"]):
-                    ax = axes[rack][i]
-                    ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
+    # if not separate_plots: 
+    #     if min_over_capacity_time < 1e9:
+    #         for rack in range(num_racks):
+    #             for i, direction in enumerate(["up"]):#, "down"
+    #                 ax = axes[rack][i]
+    #                 ax.axvline(x=min_over_capacity_time, color='black', linestyle=':', linewidth=3)     
         
     if not separate_plots:
         plt.tight_layout()

@@ -15,7 +15,7 @@ import time
 # pd.set_option('display.max_columns', 500)
 
 DEFAULT_WORKER_THREAD_COUNT = 40
-MEMORY_LIMIT = 40
+MEMORY_LIMIT = 80
 
 class ConfigSweeper: 
     def __init__(self, 

@@ -314,6 +314,16 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "perfect"
                         }))
 
+    if "coloring-v5" in added_comparisons or add_all:
+        comparisons.append(("coloring-v5", {
+                                "timing-scheme": "faridv5",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "farid-rounds": 100,   
+                                "routing-fit-strategy": "graph-coloring-v5",  
+                                "lb-scheme": "readprotocol"
+                            })) 
+        
     if "coloring-v6" in added_comparisons or add_all:
         comparisons.append(("coloring-v6", {
                                 "timing-scheme": "faridv4",
@@ -325,9 +335,10 @@ def do_experiment(seed_range=1,
         
     if "coloring-v7" in added_comparisons or add_all:   
         comparisons.append(("coloring-v7", {
-                                "timing-scheme": "faridv4",
+                                "timing-scheme": "faridv5",
                                 "throttle-search": True if subflow_count > 1 else False,
                                 "subflows": subflow_count, 
+                                "farid-rounds": 100,   
                                 "routing-fit-strategy": "graph-coloring-v7",  
                                 "lb-scheme": "readprotocol"
                             }))
@@ -343,6 +354,17 @@ def do_experiment(seed_range=1,
                                 "farid-rounds": rounds, 
                             }))
 
+    if "rounds-v7" in added_comparisons or add_all:
+        for rounds in range(0, 101, 10):
+            comparisons.append(("foresight-{}".format(rounds), {
+                                "timing-scheme": "faridv5",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "routing-fit-strategy": "graph-coloring-v7",  
+                                "lb-scheme": "readprotocol", 
+                                "farid-rounds": rounds, 
+                            }))
+            
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.

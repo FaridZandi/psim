@@ -1,7 +1,7 @@
 from algo.routing_logics.routing_util import update_time_range
 from algo.routing_logics.coloring_util import color_bipartite_multigraph
-from algo.routing_logics.routing_util import merge_overlapping_ranges
-from algo.routing_logics.routing_util import find_value_in_range
+# from algo.routing_logics.routing_util import merge_overlapping_ranges
+# from algo.routing_logics.routing_util import find_value_in_range
 from algo.routing_logics.routing_plot_util import plot_time_ranges  
 
 from pprint import pprint 
@@ -10,6 +10,113 @@ from collections import defaultdict
 import sys 
 import hashlib
 import math
+
+
+
+def merge_overlapping_ranges_v7(ranges_dict, 
+                                traffic_pattern_to_src_racks, 
+                                traffic_pattern_to_dst_racks):
+
+    def racks_overlap(src_a, dst_a, src_b, dst_b):
+        if src_a & src_b:
+            return True
+        if dst_a & dst_b:
+            return True
+        return False
+
+    # Flatten all intervals with their corresponding key and rack sets
+    intervals = []
+    for key, ranges in ranges_dict.items():
+        src_racks = set(traffic_pattern_to_src_racks.get(key, set()))
+        dst_racks = set(traffic_pattern_to_dst_racks.get(key, set()))
+        for start, end in ranges:
+            intervals.append([start, end, key, src_racks, dst_racks])
+
+    # Sort by start time
+    intervals.sort(key=lambda x: x[0])
+
+    interval_count = len(intervals)
+    if interval_count == 0:
+        return defaultdict(list)
+
+    parent = list(range(interval_count))
+    rank = [0] * interval_count
+
+    def find(x):
+        while parent[x] != x:
+            parent[x] = parent[parent[x]]
+            x = parent[x]
+        return x
+
+    def union(x, y):
+        root_x = find(x)
+        root_y = find(y)
+        if root_x == root_y:
+            return
+        if rank[root_x] < rank[root_y]:
+            parent[root_x] = root_y
+        elif rank[root_x] > rank[root_y]:
+            parent[root_y] = root_x
+        else:
+            parent[root_y] = root_x
+            rank[root_x] += 1
+
+    active = []
+
+    for idx, (start, end, _, src_racks, dst_racks) in enumerate(intervals):
+        active = [i for i in active if intervals[i][1] >= start]
+
+        for active_idx in active:
+            active_start, active_end, _, active_src, active_dst = intervals[active_idx]
+            if active_end >= start and racks_overlap(active_src, active_dst, src_racks, dst_racks):
+                union(idx, active_idx)
+
+        active.append(idx)
+
+    component_ranges = defaultdict(list)
+    component_keys = defaultdict(set)
+
+    for idx, (start, end, key, _, _) in enumerate(intervals):
+        root = find(idx)
+        component_ranges[root].append((start, end))
+        component_keys[root].add(key)
+
+    new_ranges = defaultdict(list)
+
+    for root, ranges in component_ranges.items():
+        keys = component_keys[root]
+        ranges.sort()
+
+        summarized_ranges = []
+        last_range = None
+        for start, end in ranges:
+            if last_range is None:
+                last_range = (start, end)
+            elif start > last_range[1] + 1:
+                summarized_ranges.append(last_range)
+                last_range = (start, end)
+            else:
+                last_range = (last_range[0], max(last_range[1], end))
+        if last_range is not None:
+            summarized_ranges.append(last_range)
+
+        comb_key = tuple(sorted(keys))
+        new_ranges[comb_key].extend(summarized_ranges)
+
+    for comb_key in new_ranges:
+        new_ranges[comb_key].sort()
+
+    return new_ranges 
+
+
+def find_value_in_range_v7(entries, value, pattern_hash):
+    for entry in entries:
+        start, end = entry["time_range"]
+        if start <= value <= end and pattern_hash in entry["patterns"]:
+            return entry["coloring"]
+    return None
+
+
 
 def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines, 
                                   lb_decisions, run_context, max_subflow_count, link_bandwidth, 
@@ -20,6 +127,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     min_affected_time = 1e9   
     max_affected_time = 0 
     
+    signature_length = 16
     all_flows.sort(key=lambda x: x["eff_start_time"])
 
     for f in all_flows: 
@@ -41,6 +149,8 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     traffic_id_to_hash = {} 
     hash_to_traffic_id = {} 
     hash_to_time_ranges = defaultdict(list)
+    traffic_pattern_to_src_racks = defaultdict(set)
+    traffic_pattern_to_dst_racks = defaultdict(set)
     
     for traffic_id in all_traffic_ids:
         flows = traffic_id_to_flows[traffic_id]
@@ -50,7 +160,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         
         traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
         traffic_pattern_hash = hashlib.md5(traffic_pattern.encode()).hexdigest()
-        traffic_pattern_hash = traffic_pattern_hash[:8]
+        traffic_pattern_hash = traffic_pattern_hash[:signature_length]
         
         max_end_time = max([flow["eff_end_time"] for flow in flows])    
         min_start_time = min([flow["eff_start_time"] for flow in flows]) 
@@ -64,6 +174,8 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         
         for flow in flows:
             flow["traffic_pattern_hash"] = traffic_pattern_hash 
+            traffic_pattern_to_src_racks[traffic_pattern_hash].add(flow["srcrack"])
+            traffic_pattern_to_dst_racks[traffic_pattern_hash].add(flow["dstrack"])
         
         # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
 
@@ -78,13 +190,16 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         hash_to_time_ranges[key].sort()
         
     # print(hash_to_time_ranges, file=sys.stderr) 
-    merged_ranges = merge_overlapping_ranges(hash_to_time_ranges)  
+    merged_ranges = merge_overlapping_ranges_v7(hash_to_time_ranges, 
+                                                traffic_pattern_to_src_racks, 
+                                                traffic_pattern_to_dst_racks)
 
+        
     needed_color_count = {} 
     max_degrees = {} 
-    solutions = {} 
+    solutions = [] 
     bad_ranges = []
-    
+
     for overlapping_keys, overlapping_ranges in merged_ranges.items():
         current_flows = []
         # for all the hashes that are overlapping, get the traffic patterns, put them all together
@@ -143,20 +258,30 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         # pprint(color_id_to_color, stream=sys.stderr)
                     
         for time_range in overlapping_ranges:
-            solutions[time_range] = color_id_to_color   
+            color_map_snapshot = {key: list(colors) for key, colors in color_id_to_color.items()}
+            solutions.append({
+                "time_range": time_range,
+                "patterns": set(overlapping_keys),
+                "coloring": color_map_snapshot,
+            })
             
             used_spines = colors_used_count / max_subflow_count
             if used_spines > num_spines:
                 bad_ranges.append(time_range)
             
-            needed_color_count[time_range] = used_spines
+            if time_range in needed_color_count:
+                needed_color_count[time_range] = max(needed_color_count[time_range], used_spines)
+            else: 
+                needed_color_count[time_range] = used_spines
             max_degrees[time_range] = max_degree / max_subflow_count
 
+    print("solutions:", solutions, file=sys.stderr)
+    
     if run_context["plot-merged-ranges"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), 
                          needed_color_count, max_degrees, num_spines,
-                         highlighted_ranges, hash_to_traffic_id, plot_path)
+                         highlighted_ranges, None, plot_path)
     
     # use pprint to stderr 
     # pprint(solutions, stream=sys.stderr)
@@ -175,7 +300,8 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         
         color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
         
-        time_range_coloring = find_value_in_range(solutions, start_time)
+        pattern_hash = flow["traffic_pattern_hash"]
+        time_range_coloring = find_value_in_range_v7(solutions, start_time, pattern_hash)
         if time_range_coloring is None:
             print(f"Time range not found for flow: {flow}")
             exit(f"Time range not found for flow: {flow}")

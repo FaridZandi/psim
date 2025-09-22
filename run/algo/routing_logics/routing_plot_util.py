@@ -124,12 +124,12 @@ def plot_ranged_keys_line(d, val_max, ax, label):
     
     for time_range, value in d.items():    
         for i in range(time_range[0], time_range[1] + 1):
-            values[i] = value           
+            values[i] = max(values[i], value)           
     
     ax.plot(range(max_time + 1), values, label=label)
     
     # draw a horizontal line at y=available_colors_max
-    ax.axhline(y=val_max, color='r', linestyle='--')
+    ax.axhline(y=val_max, color='r', linestyle='--', label='Spine Count')
     
 def overlap_count(start, end, ranges):
     overlap_count = 0 
@@ -148,15 +148,25 @@ def plot_ranges(ax, ranges):
     ax.set_xlabel("Time")
     ax.set_title("Time Ranges by Key")
 
-
+def highlight_ranges(ax, ranges):   
+    for start, end in ranges:
+        ax.axvspan(start, end, color='orange', alpha=0.5)
+        
 def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_degrees, 
                      available_colors_max, highlighted_ranges, hash_to_traffic_id, plot_path):
     # two plots on top of each other
-    fig, axes = plt.subplots(4, 1, figsize=(10, 10), sharex=True)   
+    fig, axes = plt.subplots(3, 1, figsize=(7, 10), sharex=True)   
+    
+    # make the texts bigger 
+    for ax in axes:
+        ax.tick_params(axis='both', which='major', labelsize=12)
+        ax.title.set_size(14)
+        ax.xaxis.label.set_size(12)
+        
     # adjust hspace
     fig.subplots_adjust(hspace=0.5)
     
-    def plot_stuff(ax, data, other_ax=None):
+    def plot_stuff(ax, data, title, other_ax=None):
         y = 0
         for key, ranges in data.items():
             for i, (start, end) in enumerate(ranges):
@@ -173,31 +183,47 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_de
         translated_labels = [] 
         for ytick_label in ytick_labels:    
             if not isinstance(ytick_label, tuple):
-                translated_labels.append(hash_to_traffic_id[ytick_label])
+                if hash_to_traffic_id: 
+                    translated_labels.append(hash_to_traffic_id[ytick_label])
+                else:
+                    translated_labels.append("#" + ytick_label)
                 continue
             else:
                 translated_label = [] 
                 for hash in ytick_label:
-                    translated_label.append(hash_to_traffic_id[hash])
+                    if hash_to_traffic_id:
+                        translated_label.append(hash_to_traffic_id[hash])
+                    else: 
+                        translated_label.append("#" + hash)
                 translated_labels.append(tuple(translated_label))   
             
         ax.set_yticklabels(translated_labels)
         ax.set_xlabel("Time")
-        ax.set_title("Time Ranges by Key")
-        
-    plot_stuff(axes[0], ranges_dict)    
-    plot_stuff(axes[1], merged_ranges_dict, axes[0])
-    
+        ax.set_title(title)
+
+    plot_stuff(axes[0], ranges_dict, "Time Ranges by Signature")
+    plot_stuff(axes[1], merged_ranges_dict, "Merged Time Ranges by Signature", axes[0])
+
     # plot the needed color count
-    plot_ranged_keys_line(max_degrees, available_colors_max, axes[2], "Max Degrees")
-    plot_ranged_keys_line(needed_color_count, available_colors_max, axes[2], "Needed Color Count")
-        
-    axes[2].set_title("Color Count, Max Degree")
+    # plot_ranged_keys_line(max_degrees, available_colors_max, axes[2], "Max Degrees")
+    if needed_color_count:
+        plot_ranged_keys_line(needed_color_count, available_colors_max, axes[2], "Min Color")
+
+    axes[2].set_title("Minimum Needed Colors vs. Max Degrees")
     axes[2].set_xlabel("Time")
-    axes[2].legend() 
+    axes[2].legend(
+        loc='center right',     # anchor relative to the right side
+        bbox_to_anchor=(-0.05, 0.5)  # push to the left, adjust -0.1 as needed
+    )    
+    # plot_ranges(axes[3], highlighted_ranges)
+    # axes[3].set_title("Highlighted Ranges")
     
-    plot_ranges(axes[3], highlighted_ranges)
-    axes[3].set_title("Highlighted Ranges")
+    highlight_ranges(axes[2], highlighted_ranges)
+    
+    # draw the plot as if there is something with y val 3. 
+    axes[2].plot([0, 1], [0, 3], alpha=0)
+    
+    
     
     plt.savefig(plot_path, bbox_inches='tight', dpi=300)
 
