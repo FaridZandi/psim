@@ -13,7 +13,7 @@ if __name__ == "__main__":
     g = get_global_config()
     
     seed_range = 5
-    m = 100
+    m = 10
     
     clean_up_sweep_files = False
 
@@ -73,7 +73,7 @@ if __name__ == "__main__":
             ("job_sizes", [(8, 12)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3]),
+            ("desired_entropy", [0.5]),
             ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
@@ -82,7 +82,8 @@ if __name__ == "__main__":
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
-            ("inflate", [1]),    
+            ("inflate", [1, 1.1, 1.2, 1.3]), 
+            ("farid_rounds", [10]),   
         ]
 
         comparisons = ["coloring-v5", "coloring-v7"]    
