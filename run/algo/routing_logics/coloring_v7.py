@@ -161,7 +161,6 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     log_path = "{}/routing/routing_log_{}.txt".format(run_context["routings-dir"], suffix)  
     log_file = open(log_path, "w")
     log_file.write("job_id, flow_id, iteration, selected_spines\n")
-    log_file.close()
     
     available_colors_max = num_spines * max_subflow_count
 
