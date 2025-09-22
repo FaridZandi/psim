@@ -86,7 +86,7 @@ def merge_overlapping_ranges_v7(ranges_dict,
 
     for root, ranges in component_ranges.items():
         keys = component_keys[root]
-        ranges.sort()
+        ranges.sort(key=lambda x: x[0])
 
         # Merge overlapping and back-to-back ranges
         summarized_ranges = []
@@ -105,8 +105,16 @@ def merge_overlapping_ranges_v7(ranges_dict,
         comb_key = tuple(sorted(keys))
         new_ranges[comb_key].extend(summarized_ranges)
 
-    for comb_key in new_ranges:
-        new_ranges[comb_key].sort()
+    for comb_key in list(new_ranges.keys()):
+        ranges = sorted(new_ranges[comb_key])
+        merged_ranges = []
+        for start, end in ranges:
+            if merged_ranges and start <= merged_ranges[-1][1] + 1:
+                prev_start, prev_end = merged_ranges[-1]
+                merged_ranges[-1] = (prev_start, max(prev_end, end))
+            else:
+                merged_ranges.append((start, end))
+        new_ranges[comb_key] = merged_ranges
 
     return new_ranges 
 
