@@ -129,7 +129,8 @@ def plot_rack_dependencies(hash_to_time_ranges,
 
     # Add nodes
     for h in hashes:
-        G.add_node(h)
+        text = f"{h}\nS:{len(traffic_pattern_to_src_racks[h])} D:{len(traffic_pattern_to_dst_racks[h])}"
+        G.add_node(h, label=text)
 
     # Add edges if two patterns share any src or dst racks
     for i in range(len(hashes)):
