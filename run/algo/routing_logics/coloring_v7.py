@@ -128,9 +128,11 @@ def plot_rack_dependencies(hash_to_time_ranges,
     hashes = list(hash_to_time_ranges.keys())
 
     # Add nodes
+    hash_to_text = {}   
     for h in hashes:
-        text = f"{h}\nS:{len(traffic_pattern_to_src_racks[h])} D:{len(traffic_pattern_to_dst_racks[h])}"
-        G.add_node(h, label=text)
+        text = f"{h} S:{list(traffic_pattern_to_src_racks[h])} D:{list(traffic_pattern_to_dst_racks[h])}"
+        hash_to_text[h] = text
+        G.add_node(text) 
 
     # Add edges if two patterns share any src or dst racks
     for i in range(len(hashes)):
@@ -139,7 +141,7 @@ def plot_rack_dependencies(hash_to_time_ranges,
             src_overlap = traffic_pattern_to_src_racks[h1] & traffic_pattern_to_src_racks[h2]
             dst_overlap = traffic_pattern_to_dst_racks[h1] & traffic_pattern_to_dst_racks[h2]
             if src_overlap or dst_overlap:
-                G.add_edge(h1, h2)
+                G.add_edge(hash_to_text[h1], hash_to_text[h2])
 
     pos = nx.spring_layout(G)
     plt.figure(figsize=(10, 8))
