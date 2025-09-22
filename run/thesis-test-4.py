@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [200 * m]),
-            ("machine_count", [120]),
+            ("machine_count", [240]),
             ("rack_size", [8]),
             # ("job_sizes", [(4, 16)]),
             ("job_sizes", [(8, 12)]),
@@ -82,7 +82,7 @@ if __name__ == "__main__":
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
-            ("inflate", [1, 1.1, 1.2, 1.3, 1.4, 1.5]), 
+            ("inflate", [1.2]), 
             ("farid_rounds", [20]),   
         ]
 
