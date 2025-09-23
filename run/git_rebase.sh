@@ -46,7 +46,7 @@ echo "Commits to merge:"
 echo "$COMMITS" 
 
 # Confirm the merge
-echo "About to merge $CURRENT_BRANCH into master.
+echo "About to merge $CURRENT_BRANCH into master."
 
 # ask for confirmation
 read -p "Continue? (y/n) " -n 1 -r
