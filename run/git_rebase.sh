@@ -14,10 +14,24 @@ if [ -z "$MESSAGE" ]; then
   exit 1
 fi
 
-# Get the current branch name (should be something like backup-42)
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-echo "Merging $CURRENT_BRANCH into master..."
+
+# if there's a second argument, it's the branch to merge into. default is defined below
+# Get the current branch name (should be something like backup-42)
+if [ -n "$2" ]; then
+  PARENT_BRANCH="$2"
+else
+  PARENT_BRANCH=$(git reflog | grep "$CURRENT_BRANCH" | grep 'checkout:' | head -n 1 | sed -E 's/.*checkout: moving from ([^ ]+) to .*/\1/')
+fi
+
+# Find the parent branch (the branch from which the backup branch was created)
+if [ -z "$PARENT_BRANCH" ]; then
+  echo "ERROR: Could not determine the parent branch."
+  exit 1
+fi
+
+echo "Merging $CURRENT_BRANCH into $PARENT_BRANCH..."
 
 
 # Check if the current branch name starts with "backup-"
@@ -44,6 +58,8 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
   echo "Aborted."
   exit 1
 fi
+
+
 
 # Switch to master branch
 git checkout master
