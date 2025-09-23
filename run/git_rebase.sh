@@ -69,8 +69,9 @@ git checkout master
 git merge --squash "$CURRENT_BRANCH"
 
 
-# print a complete diff of what will be committed 
-git diff --staged
+# print a complete diff of what will be committed. print it all out. don't paginate
+echo "The following changes will be committed:" 
+git --no-pager diff --staged 
 
 # ask for the message now 
 # read the commit message from the user 
