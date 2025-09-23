@@ -4,23 +4,14 @@
 # with a single commit, including a summary of all commits from the backup branch.
 
 # Usage:
-#   ./merge-backup.sh "Your descriptive commit message"
-
-MESSAGE="$1"
-
-# Make sure a commit message was provided
-if [ -z "$MESSAGE" ]; then
-  echo "Usage: $0 \"Commit message\""
-  exit 1
-fi
+#   ./merge-backup.sh base-branch
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-
 # if there's a second argument, it's the branch to merge into. default is defined below
 # Get the current branch name (should be something like backup-42)
-if [ -n "$2" ]; then
-  PARENT_BRANCH="$2"
+if [ -n "$1" ]; then
+  PARENT_BRANCH="$1"
 else
   PARENT_BRANCH=$(git reflog | grep "$CURRENT_BRANCH" | grep 'checkout:' | head -n 1 | sed -E 's/.*checkout: moving from ([^ ]+) to .*/\1/')
 fi
@@ -32,6 +23,13 @@ if [ -z "$PARENT_BRANCH" ]; then
 fi
 
 echo "Merging $CURRENT_BRANCH into $PARENT_BRANCH..."
+
+# verify with the user that this is correct
+read -p "Is this correct? (y/n) " -n 1 -r
+if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+  echo "Aborted."
+  exit 1
+fi
 
 
 # Check if the current branch name starts with "backup-"
@@ -69,6 +67,14 @@ git checkout master
 
 # Merge the backup branch into master as a single commit (squash merge)
 git merge --squash "$CURRENT_BRANCH"
+
+
+# print a complete diff of what will be committed 
+git diff --staged
+
+# ask for the message now 
+# read the commit message from the user 
+read -p "Enter a commit message: " MESSAGE
 
 # Commit using the provided message, plus a summary of all commits from the backup branch
 git commit -m "Merging $CURRENT_BRANCH: $MESSAGE"
