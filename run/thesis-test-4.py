@@ -87,7 +87,7 @@ if __name__ == "__main__":
         ]
 
         # comparisons = ["coloring-v5", "coloring-v7", "RO", "TEMP"]
-        comparisons = ["rounds", "rounds-v7"]
+        comparisons = ["rounds-v7"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
