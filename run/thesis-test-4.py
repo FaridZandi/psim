@@ -82,11 +82,12 @@ if __name__ == "__main__":
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
-            ("inflate", [1, 1.1, 1.2, 1.3]), 
+            ("inflate", [1]), 
             ("farid_rounds", [5]),   
         ]
 
-        comparisons = ["coloring-v5", "coloring-v7", "RO", "TEMP"]
+        # comparisons = ["coloring-v5", "coloring-v7", "RO", "TEMP"]
+        comparisons = ["rounds", "rounds-v7"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
