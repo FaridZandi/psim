@@ -16,7 +16,7 @@ from utils.util import rage_quit
 import matplotlib.pyplot as plt
 from datetime import datetime
 
-from algo.newtiming import LegoSolver, LegoV2Solver   
+from algo.newtiming import LegoSolver, LegoV2Solver, LegoV3Solver
 
 
 ####################################################################################
@@ -1474,7 +1474,7 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     timing_scheme = run_context["timing-scheme"]
     assert timing_scheme == "faridv5" 
 
-    solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
+    solver = LegoV3Solver(jobs, run_context, options, job_profiles, timing_scheme)
     current_round = 0
     add_to_context = {
         "fixing_rounds": 0

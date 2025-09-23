@@ -661,7 +661,7 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
         elif metric == "job_slowdown_fairness":
             jobs = run_context["jobs"]
             iter_lengths = get_all_rep_iter_lengths(output, options["rep-count"], 
-                                                   all_jobs_running=True)
+                                                    all_jobs_running=True)
         
             iter_lengths = iter_lengths[0]  
             slowdown_rates = []
