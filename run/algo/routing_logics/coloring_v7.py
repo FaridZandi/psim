@@ -16,7 +16,15 @@ import networkx as nx
 
 def merge_overlapping_ranges_v7(ranges_dict, 
                                 traffic_pattern_to_src_racks, 
-                                traffic_pattern_to_dst_racks):
+                                traffic_pattern_to_dst_racks, 
+                                log_path=None):
+    if log_path is not None:
+        log_file = open(log_path, "w")
+        log_file.write("Merging overlapping ranges with rack dependencies\n")
+        log_file.write(f"Input ranges_dict: {ranges_dict}\n")
+        log_file.write(f"traffic_pattern_to_src_racks: {traffic_pattern_to_src_racks}\n")
+        log_file.write(f"traffic_pattern_to_dst_racks: {traffic_pattern_to_dst_racks}\n")
+        log_file.flush()    
 
     def racks_overlap(src_a, dst_a, src_b, dst_b):
         if src_a & src_b:
@@ -85,6 +93,14 @@ def merge_overlapping_ranges_v7(ranges_dict,
     new_ranges = defaultdict(list)
 
     for root, ranges in component_ranges.items():
+        
+        if log_path is not None:    
+            log_file.write(" ------------------------------    \n")
+            log_file.write("Processing component root: {}\n".format(root))
+            log_file.write("     Original ranges: {}\n".format(ranges))
+            log_file.write("     Component keys: {}\n".format(component_keys[root]))
+            log_file.write(" ------------------------------    \n")
+            log_file.flush()
         keys = component_keys[root]
         ranges.sort(key=lambda x: x[0])
 
@@ -116,6 +132,10 @@ def merge_overlapping_ranges_v7(ranges_dict,
                 merged_ranges.append((start, end))
         new_ranges[comb_key] = merged_ranges
 
+    
+    if log_path is not None:    
+        log_file.write(f"Merged ranges: {new_ranges}\n")
+        log_file.close()
     return new_ranges 
 
 
@@ -248,7 +268,8 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     
     merged_ranges = merge_overlapping_ranges_v7(hash_to_time_ranges, 
                                                 traffic_pattern_to_src_racks, 
-                                                traffic_pattern_to_dst_racks)
+                                                traffic_pattern_to_dst_racks, 
+                                                log_path="{}/routing/merge_log_{}.txt".format(run_context["routings-dir"], suffix))
 
     # pprint(merged_ranges, stream=log_file)
     # log_file.close()
@@ -258,7 +279,10 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     solutions = [] 
     bad_ranges = []
 
+    solution_id = 0 
+    
     for overlapping_keys, overlapping_ranges in merged_ranges.items():
+        solution_id += 1
         current_flows = []
         # for all the hashes that are overlapping, get the traffic patterns, put them all together
         
@@ -332,6 +356,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
             else: 
                 needed_color_count[time_range] = used_spines
             max_degrees[time_range] = max_degree / max_subflow_count
+        
 
     print("solutions:", solutions, file=sys.stderr)
     

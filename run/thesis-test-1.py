@@ -85,7 +85,7 @@ if __name__ == "__main__":
             ("inflate", [1]),    
         ]
 
-        comparisons = ["rounds"]
+        comparisons = ["rounds_v7"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         
