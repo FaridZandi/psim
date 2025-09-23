@@ -217,7 +217,9 @@ def do_experiment(seed_range=1,
         subflow_count = 2 
     else:
         profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
-        subflow_count = 4        
+        subflow_count = 4       
+        # profiled_throttle_factors = [1.0]
+        # subflow_count = 1
 
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
@@ -319,7 +321,7 @@ def do_experiment(seed_range=1,
                                 "timing-scheme": "faridv5",
                                 "throttle-search": True if subflow_count > 1 else False,
                                 "subflows": subflow_count, 
-                                "farid-rounds": 100,   
+                                "farid-rounds": farid_rounds,   
                                 "routing-fit-strategy": "graph-coloring-v5",  
                                 "lb-scheme": "readprotocol"
                             })) 
@@ -338,8 +340,18 @@ def do_experiment(seed_range=1,
                                 "timing-scheme": "faridv5",
                                 "throttle-search": True if subflow_count > 1 else False,
                                 "subflows": subflow_count, 
-                                "farid-rounds": 100,   
+                                "farid-rounds": farid_rounds,   
                                 "routing-fit-strategy": "graph-coloring-v7",  
+                                "lb-scheme": "readprotocol"
+                            }))
+        
+    if "TEMP" in added_comparisons or add_all:   
+        comparisons.append(("TEMP", {
+                                "timing-scheme": "zero",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "farid-rounds": farid_rounds,   
+                                "routing-fit-strategy": "graph-coloring-v7",
                                 "lb-scheme": "readprotocol"
                             }))
         

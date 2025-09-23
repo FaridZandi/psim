@@ -12,10 +12,10 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 20
+    seed_range = 5
     m = 10
     
-    clean_up_sweep_files = True
+    clean_up_sweep_files = False
 
     original_exp_number = None
     if original_exp_number is not None: 
@@ -36,9 +36,9 @@ if __name__ == "__main__":
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "cmmcmp_range",
-            "subplot_x_params": "job_sizes",
+            "subplot_x_params": "desired_entropy",
             "subplot_hue_params": "comparison",
-            "plot_x_params": "machine_count",
+            "plot_x_params": "inflate",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -48,7 +48,7 @@ if __name__ == "__main__":
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
-            "legend_side": "right",
+            "legend_side": "bottom",
             "temp-summarize-comp": True,
             "legend_cols": 5,
         }
@@ -67,13 +67,13 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [200 * m]),
-            ("machine_count", [120]),
+            ("machine_count", [240]),
             ("rack_size", [8]),
             # ("job_sizes", [(4, 16)]),
             ("job_sizes", [(8, 12)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.5]),
+            ("desired_entropy", [0.4, 0.45, 0.5]),
             ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
@@ -82,10 +82,11 @@ if __name__ == "__main__":
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
-            ("inflate", [1]),    
+            ("inflate", [1, 1.1, 1.2, 1.3]), 
+            ("farid_rounds", [5]),   
         ]
 
-        comparisons = ["coloring-v5", "coloring-v7"]    
+        comparisons = ["coloring-v5", "coloring-v7", "RO", "TEMP"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 

@@ -10,6 +10,7 @@ from collections import defaultdict
 import sys 
 import hashlib
 import math
+import networkx as nx
 
 
 
@@ -85,26 +86,35 @@ def merge_overlapping_ranges_v7(ranges_dict,
 
     for root, ranges in component_ranges.items():
         keys = component_keys[root]
-        ranges.sort()
+        ranges.sort(key=lambda x: x[0])
 
+        # Merge overlapping and back-to-back ranges
         summarized_ranges = []
         last_range = None
         for start, end in ranges:
             if last_range is None:
                 last_range = (start, end)
-            elif start > last_range[1] + 1:
+            elif start <= last_range[1] + 1:  # Merge if overlapping or back-to-back
+                last_range = (last_range[0], max(last_range[1], end))
+            else:
                 summarized_ranges.append(last_range)
                 last_range = (start, end)
-            else:
-                last_range = (last_range[0], max(last_range[1], end))
         if last_range is not None:
             summarized_ranges.append(last_range)
 
         comb_key = tuple(sorted(keys))
         new_ranges[comb_key].extend(summarized_ranges)
 
-    for comb_key in new_ranges:
-        new_ranges[comb_key].sort()
+    for comb_key in list(new_ranges.keys()):
+        ranges = sorted(new_ranges[comb_key])
+        merged_ranges = []
+        for start, end in ranges:
+            if merged_ranges and start <= merged_ranges[-1][1] + 1:
+                prev_start, prev_end = merged_ranges[-1]
+                merged_ranges[-1] = (prev_start, max(prev_end, end))
+            else:
+                merged_ranges.append((start, end))
+        new_ranges[comb_key] = merged_ranges
 
     return new_ranges 
 
@@ -117,11 +127,50 @@ def find_value_in_range_v7(entries, value, pattern_hash):
     return None
 
 
+def plot_rack_dependencies(hash_to_time_ranges, 
+                           traffic_pattern_to_src_racks, 
+                           traffic_pattern_to_dst_racks, 
+                           plot_path):
+    import matplotlib.pyplot as plt
+
+    G = nx.Graph()
+    hashes = list(hash_to_time_ranges.keys())
+
+    # Add nodes
+    hash_to_text = {}   
+    for h in hashes:
+        text = f"{h} S:{list(traffic_pattern_to_src_racks[h])} D:{list(traffic_pattern_to_dst_racks[h])}"
+        hash_to_text[h] = text
+        G.add_node(text) 
+
+    # Add edges if two patterns share any src or dst racks
+    for i in range(len(hashes)):
+        for j in range(i + 1, len(hashes)):
+            h1, h2 = hashes[i], hashes[j]
+            src_overlap = traffic_pattern_to_src_racks[h1] & traffic_pattern_to_src_racks[h2]
+            dst_overlap = traffic_pattern_to_dst_racks[h1] & traffic_pattern_to_dst_racks[h2]
+            if src_overlap or dst_overlap:
+                G.add_edge(hash_to_text[h1], hash_to_text[h2])
+
+    pos = nx.spring_layout(G)
+    plt.figure(figsize=(10, 8))
+    nx.draw(G, pos, with_labels=True, node_color='lightblue', edge_color='gray', font_size=8)
+    plt.title("Rack Dependency Graph (Traffic Pattern Hashes)")
+    plt.tight_layout()
+    plt.savefig(plot_path)
+    plt.close()
+
 
 def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines, 
                                   lb_decisions, run_context, max_subflow_count, link_bandwidth, 
                                   suffix=1, highlighted_ranges=[], early_return=False): 
 
+
+    # open a file to log the decisions.
+    # log_path = "{}/routing/routing_log_{}.txt".format(run_context["routings-dir"], suffix)  
+    # log_file = open(log_path, "w")
+    # log_file.write("job_id, flow_id, iteration, selected_spines\n")
+    
     available_colors_max = num_spines * max_subflow_count
 
     min_affected_time = 1e9   
@@ -137,7 +186,6 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         f["needed_subflows"] = int(math.ceil(f["max_load"] / subflow_capacity))    
 
         f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}_{f['needed_subflows']}"
-
     
     # group the flows by the traffic_id.        
     all_traffic_ids = set([flow["traffic_id"] for flow in all_flows])    
@@ -176,9 +224,11 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
             flow["traffic_pattern_hash"] = traffic_pattern_hash 
             traffic_pattern_to_src_racks[traffic_pattern_hash].add(flow["srcrack"])
             traffic_pattern_to_dst_racks[traffic_pattern_hash].add(flow["dstrack"])
-        
+            # log_file.write(f"{flow['job_id']}, {flow['flow_id']}, {flow['iteration']}, {flow['srcrack']}-{flow['dstrack']}\n")
         # print(f"traffic_id: {traffic_id}, hash: {traffic_pattern_hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr)
 
+    # log_file.close()
+    
     for hash in hash_to_traffic_id.keys():
         traffic_pattern_rep = hash_to_traffic_id[hash]
         flows = traffic_id_to_flows[traffic_pattern_rep]
@@ -188,12 +238,20 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     # unique hash values.   
     for key in hash_to_time_ranges.keys():
         hash_to_time_ranges[key].sort()
-        
-    # print(hash_to_time_ranges, file=sys.stderr) 
+    
+    if run_context["plot-merged-ranges"]:   
+        plot_rack_dependencies(hash_to_time_ranges, 
+                            traffic_pattern_to_src_racks, 
+                            traffic_pattern_to_dst_racks, 
+                                "{}/routing/rack_dependency_{}.png".format(run_context["routings-dir"], suffix))
+    
+    
     merged_ranges = merge_overlapping_ranges_v7(hash_to_time_ranges, 
                                                 traffic_pattern_to_src_racks, 
                                                 traffic_pattern_to_dst_racks)
 
+    # pprint(merged_ranges, stream=log_file)
+    # log_file.close()
         
     needed_color_count = {} 
     max_degrees = {} 

@@ -419,6 +419,10 @@ class LinkLevelProblem():
             all_signals.append(job_signal)
                 
         # pad all signals to the same length
+        
+        if len(all_signals) == 0:
+            return np.zeros(self.max_length)
+        
         max_signal_length = max(len(signal) for signal in all_signals)
         padded_signals = [
             np.pad(signal, (0, max_signal_length - len(signal)), mode='constant')
@@ -513,6 +517,8 @@ class TimingSolver():
         self.cross_rack_jobs = cross_rack_job           
      
     def plot_empty_ranges(self, sol, plot_path=None):
+        return
+    
         if plot_path is None:
             return 
            
