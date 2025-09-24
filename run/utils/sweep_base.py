@@ -340,12 +340,15 @@ class ConfigSweeper:
         options.update(exp)
         options["workers-dir"] = self.workers_dir
 
+        def get_time_string():
+            return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")    
+        
         # a final chance for the user to modify the options before making the command. 
-        print("{}: before command modification".format(this_exp_uuid), flush=True)
+        print("[{}] {}: before command modification".format(get_time_string(), this_exp_uuid), flush=True)
         if self.run_command_options_modifier is not None:
             self.run_command_options_modifier(options, self, run_context)
-        print("{}: after command modification".format(this_exp_uuid), flush=True)
-        
+        print("[{}] {}: after command modification".format(get_time_string(), this_exp_uuid), flush=True)
+
         options["worker-id"] = worker_id
         self.thread_states[worker_id] = "exp-{}-running-{}".format(this_exp_uuid, run_context["runtime-dir"])     
                 
@@ -358,9 +361,11 @@ class ConfigSweeper:
             with open(self.commands_log_path, "a+") as f:
                 f.write(cmd + "\n")
                 f.write("-"*50 + "\n")
-                
+            
+            print("[{}] {}: running the command ...".format(get_time_string(), this_exp_uuid), flush=True)
             output = subprocess.check_output(cmd, shell=True)
             output = output.decode("utf-8").splitlines()
+            print("[{}] {}: done running the command ...".format(get_time_string(), this_exp_uuid), flush=True)
             
             if self.do_store_outputs:
                 # store the output in a file.
@@ -381,6 +386,7 @@ class ConfigSweeper:
             
             printed_metrics = [] 
             
+            print("[{}] {}: extracting the results ...".format(get_time_string(), this_exp_uuid), flush=True)
             if self.result_extractor_function is not None:
                 try: 
                     printed_metrics = self.result_extractor_function(output, options, 
@@ -394,7 +400,9 @@ class ConfigSweeper:
                     traceback.print_exc()  
                     
                     rage_quit("error in result_extractor_function") 
-                    
+            
+            print("[{}] {}: done extracting the results ...".format(get_time_string(), this_exp_uuid), flush=True)
+            
         except subprocess.CalledProcessError as e:
             print("error in running the command")
             print("I don't know what to do here")
@@ -402,8 +410,11 @@ class ConfigSweeper:
             traceback.print_exc()   
             
             rage_quit("error in running the command")   
-                
-        self.thread_states[worker_id] = "exp-{}-saving results".format(this_exp_uuid)  
+
+
+        print("[{}] {}: starting to wrap up the experiment ...".format(get_time_string(), this_exp_uuid), flush=True)
+        
+        self.thread_states[worker_id] = "exp-{}-saving results".format(this_exp_uuid)
         results = self.combine_results(this_exp_results, run_context, options)
 
         self.log_for_thread(run_context, "Going to acquire the lock to save the results")
@@ -436,8 +447,11 @@ class ConfigSweeper:
         print("duration: {}".format(duration), flush=True)
         print("worker id: {}".format(worker_id), flush=True)
         print("--------------------------------------------", flush=True)
+        
         sys.stdout.flush()
-            
+        
+        print("[{}] {}: really really done with the experiment ...".format(get_time_string(), this_exp_uuid), flush=True)
+
         self.thread_states[worker_id] = "exp-{}-done with the experiment".format(this_exp_uuid)  
         self.log_for_thread(run_context, "Done with the lock to save the results")
 
