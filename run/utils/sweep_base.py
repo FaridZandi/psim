@@ -423,7 +423,7 @@ class ConfigSweeper:
             relevent_metrics = {key: results[key] for key in printed_metrics}
             relevent_results.update(relevent_metrics)
             
-            pprint(relevent_results, stream=sys.stdout)
+            print(relevent_results, flush=True)
             sys.stdout.flush()
             
             if "runtime-dir" in run_context:    

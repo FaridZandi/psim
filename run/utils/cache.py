@@ -1,3 +1,4 @@
+import sys
 import time 
 
 # this is a cache that is used to store stuff that takes a long time to compute. 
@@ -70,9 +71,12 @@ class NonBlockingCache:
             
             value = self.cache[key]
 
-        print ("{} -> {} \n Hits: {}, Misses: {}, Waiting: {}, My state: {}, Time: {}".format(
+        print("-----------------------------------------------------------------", flush=True)
+        print("{} -> {} \n Hits: {}, Misses: {}, Waiting: {}, My state: {}, Time: {}".format(
                self.name, key, self.hits, self.misses, self.waiting, 
-               cache_status, time.time() - start_time))
+               cache_status, time.time() - start_time), flush=True)
+        print("-----------------------------------------------------------------", flush=True)
+        sys.stdout.flush()
         
         return value
      
