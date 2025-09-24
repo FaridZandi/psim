@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 1
+    seed_range = 10
     m = 10
     
     clean_up_sweep_files = False
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [20 * m]),
+            ("sim_length", [200 * m]),
             ("machine_count", [240]),
             ("rack_size", [12]),
             # ("job_sizes", [(4, 16)]),
@@ -83,7 +83,7 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]), 
-            ("farid_rounds", [5]),   
+            ("farid_rounds", [1]),   
         ]
 
         comparisons = ["coloring-v5", "coloring-v7", "RO", "TEMP"]
