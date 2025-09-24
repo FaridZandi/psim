@@ -13,7 +13,7 @@ if __name__ == "__main__":
     g = get_global_config()
     
     seed_range = 10
-    m = 100
+    m = 10
     
     clean_up_sweep_files = False
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=40,
-                                                 plot_stuff=False,
+                                                 plot_stuff=True,
                                                  throttle_search=False,
                                                  farid_rounds=0,
                                                 #  placement_seeds=[8],

@@ -179,6 +179,42 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     signature_length = 16
     all_flows.sort(key=lambda x: x["eff_start_time"])
 
+
+    ##############################    
+    flows_max_time = max([f["eff_end_time"] for f in all_flows])
+    edge_count = []
+    for f in all_flows:
+        start_time = f["eff_start_time"]
+        end_time = f["eff_end_time"]
+        
+        src_rack = f["srcrack"]
+        dst_rack = f["dstrack"]
+        
+        while src_rack >= len(edge_count) or dst_rack >= len(edge_count):
+            edge_count.append([0] * (flows_max_time + 1))
+
+        for t in range(start_time, end_time + 1):
+            edge_count[src_rack][t] += 1
+            edge_count[dst_rack][t] += 1  
+
+    max_edge_count = [0] * len(edge_count)
+    for r in range(len(edge_count)):
+        for t in range(flows_max_time + 1):
+            max_edge_count[r] = max(max_edge_count[r], edge_count[r][t])
+            
+    # plot that a line graph
+    import matplotlib.pyplot as plt
+    plt.figure(figsize=(10, 6))
+    plt.plot(range(len(max_edge_count)), max_edge_count, marker='o')
+    plt.title("Max Concurrent Flows per Rack")
+    plt.xlabel("Rack ID")
+    plt.ylabel("Max Concurrent Flows")
+    plt.grid(True)
+    plt.savefig("{}/routing/max_concurrent_flows_per_rack_{}.png".format(run_context["routings-dir"], suffix))
+    plt.close()
+    ##############################    
+        
+    
     for f in all_flows: 
         f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}_{f['throttle_rate']}"
         
