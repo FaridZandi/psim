@@ -261,7 +261,9 @@ class ConfigSweeper:
             
     def log_for_thread(self, run_context, message, data=None):
         with open(run_context["output-file"], "a+") as f:
-            f.write(message + "\n")
+            # f.write(message + "\n")
+            f.write("[{}] {}\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), message))
+            
             if data is not None:
                 pprint(data, stream=f)
                 f.write("\n")

@@ -438,7 +438,7 @@ def do_experiment(seed_range=1,
                                                             experiment_seed),
         worker_thread_count=worker_thread_count, 
         plot_cdfs=False,
-        store_outputs=True,
+        store_outputs=False,
     )
     
     summary = cs.sweep()
