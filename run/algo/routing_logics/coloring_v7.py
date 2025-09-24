@@ -197,20 +197,21 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
             edge_count[src_rack][t] += 1
             edge_count[dst_rack][t] += 1  
 
-    max_edge_count = [0] * len(edge_count)
+    max_edge_count = [0] * flows_max_time
     for r in range(len(edge_count)):
-        for t in range(flows_max_time + 1):
-            max_edge_count[r] = max(max_edge_count[r], edge_count[r][t])
+        for t in range(flows_max_time):
+            max_edge_count[t] = max(max_edge_count[t], edge_count[r][t])
             
     # plot that a line graph
     import matplotlib.pyplot as plt
     plt.figure(figsize=(10, 6))
-    plt.plot(range(len(max_edge_count)), max_edge_count, marker='o')
-    plt.title("Max Concurrent Flows per Rack")
-    plt.xlabel("Rack ID")
-    plt.ylabel("Max Concurrent Flows")
+    plt.plot(range(flows_max_time), max_edge_count, label="Max Edge Count")
+    plt.xlabel("Time")  
+    plt.ylabel("Max Edge Count")
+    plt.title("Max Edge Count Over Time")
+    plt.legend()
     plt.grid(True)
-    plt.savefig("{}/routing/max_concurrent_flows_per_rack_{}.png".format(run_context["routings-dir"], suffix))
+    plt.savefig("{}/routing/max_edge_count_{}.png".format(run_context["routings-dir"], suffix))
     plt.close()
     ##############################    
         
