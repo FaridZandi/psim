@@ -103,7 +103,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=50,
-                                                 plot_stuff=True,
+                                                 plot_stuff=False,
                                                  throttle_search=False,
                                                  **perm) 
             
