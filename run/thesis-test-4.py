@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [200 * m]),
-            ("machine_count", [240]),
+            ("machine_count", [480]),
             ("rack_size", [12]),
             # ("job_sizes", [(4, 16)]),
             ("job_sizes", [(8, 48)]),
