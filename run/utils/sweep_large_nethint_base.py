@@ -442,12 +442,14 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                       placement_seed, jobs, options, 
                       run_context, run_cassini_timing_in_subprocess)
     
-    job_timings, lb_decisions, add_to_context = timing_cache.get(key=timing_file_path, 
-                                                 lock=config_sweeper.timing_lock, 
-                                                 logger_func=config_sweeper.log_for_thread, 
-                                                 run_context=run_context, 
-                                                 calc_func=calc_timing, 
-                                                 calc_func_args=calc_func_args)
+    # job_timings, lb_decisions, add_to_context = timing_cache.get(key=timing_file_path, 
+    #                                              lock=config_sweeper.timing_lock, 
+    #                                              logger_func=config_sweeper.log_for_thread, 
+    #                                              run_context=run_context, 
+    #                                              calc_func=calc_timing, 
+    #                                              calc_func_args=calc_func_args)
+    
+    job_timings, lb_decisions, add_to_context = calc_timing(*calc_func_args)
     
     
     run_context.update(add_to_context)  
