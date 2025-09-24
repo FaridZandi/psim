@@ -13,7 +13,7 @@ if __name__ == "__main__":
     g = get_global_config()
     
     seed_range = 20
-    m = 10
+    m = 50
     
     clean_up_sweep_files = True
 
@@ -101,7 +101,7 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=50,
+                                                 worker_thread_count=20,
                                                  **perm) 
             
             for summary_item in summary:    
