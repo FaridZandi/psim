@@ -216,7 +216,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     # plot that a line graph
     import matplotlib.pyplot as plt
     plt.figure(figsize=(10, 6))
-    plt.plot(range(flows_max_time), max_edge_count, label="Max Edge Count")
+    plt.plot(range(flows_max_time + 1), max_edge_count, label="Max Edge Count")
     plt.xlabel("Time")  
     plt.ylabel("Max Edge Count")
     plt.title("Max Edge Count Over Time")
