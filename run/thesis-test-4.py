@@ -103,7 +103,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=40,
-                                                 plot_stuff=True,
+                                                 plot_stuff=False,
                                                  throttle_search=False,
                                                  farid_rounds=0,
                                                 #  placement_seeds=[8],
