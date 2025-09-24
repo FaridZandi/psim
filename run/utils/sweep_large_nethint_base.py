@@ -1088,6 +1088,9 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         
         merge_on = ["protocol-file-name", "machines", "cores", "placement-seed"]
 
+        # sort the exp_results_df by the merge_on columns to make sure that the order is correct.
+        exp_results_df = exp_results_df.sort_values(by=merge_on)
+        
         base_setting = global_context["comparison-base"]
         comparisons = global_context["comparisons"]
         
@@ -1135,6 +1138,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 compared_df = compared_df[compared_df[key] == value]
             
             merged_df = pd.merge(base_df, compared_df, on=merge_on, 
+                                 sort=True,
                                  suffixes=('_base', '_compared'))
             
             base_key = "{}_base".format(avg_metric_key)
