@@ -312,6 +312,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     bad_ranges = []
 
     for overlapping_keys, overlapping_ranges in merged_ranges.items():
+        
+        assert len(overlapping_ranges) == 1, "Overlapping ranges should have been merged by now."
+        
         current_flows = []
         # for all the hashes that are overlapping, get the traffic patterns, put them all together
         
