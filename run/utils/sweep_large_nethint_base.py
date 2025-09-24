@@ -402,7 +402,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     placement_file_path = "{}/placement.txt".format(placements_dir)
         
     jobs, add_to_context = placement_cache.get(key=placement_file_path, 
-                               lock=config_sweeper.thread_lock, 
+                               lock=config_sweeper.placement_lock, 
                                logger_func=config_sweeper.log_for_thread, 
                                run_context=run_context, 
                                calc_func=calc_placement, 
@@ -443,7 +443,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                       run_context, run_cassini_timing_in_subprocess)
     
     job_timings, lb_decisions, add_to_context = timing_cache.get(key=timing_file_path, 
-                                                 lock=config_sweeper.thread_lock, 
+                                                 lock=config_sweeper.timing_lock, 
                                                  logger_func=config_sweeper.log_for_thread, 
                                                  run_context=run_context, 
                                                  calc_func=calc_timing, 

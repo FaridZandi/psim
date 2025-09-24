@@ -45,6 +45,9 @@ class ConfigSweeper:
 
         self.exp_q = queue.Queue()
         self.thread_lock = threading.Lock()  
+        self.exp_id_lock = threading.Lock() 
+        self.placement_lock = threading.Lock()  
+        self.timing_lock = threading.Lock() 
         self.plot_lock = threading.Lock()  
         
         # constants
@@ -227,7 +230,7 @@ class ConfigSweeper:
             
             
     def worker_function(self):
-        with self.thread_lock:
+        with self.exp_id_lock:
             worker_id = self.worker_id_counter
             self.worker_id_counter += 1
 
@@ -309,7 +312,7 @@ class ConfigSweeper:
         
         
     def run_experiment(self, exp, worker_id, add_to_results=True):
-        with self.thread_lock:
+        with self.exp_id_lock:
             self.global_exp_id += 1 
             this_exp_uuid = self.global_exp_id
             
