@@ -212,18 +212,6 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         for t in range(flows_max_time):
             max_edge_count[t] = max(max_edge_count[t], edge_count_in[r][t])
             max_edge_count[t] = max(max_edge_count[t], edge_count_out[r][t])
-            
-    # plot that a line graph
-    import matplotlib.pyplot as plt
-    plt.figure(figsize=(10, 6))
-    plt.plot(range(flows_max_time + 1), max_edge_count, label="Max Edge Count")
-    plt.xlabel("Time")  
-    plt.ylabel("Max Edge Count")
-    plt.title("Max Edge Count Over Time")
-    plt.legend()
-    plt.grid(True)
-    plt.savefig("{}/routing/max_edge_count_{}.png".format(run_context["routings-dir"], suffix))
-    plt.close()
     ##############################    
         
     
@@ -387,7 +375,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), 
                          needed_color_count, max_degrees, num_spines,
-                         highlighted_ranges, None, plot_path)
+                         highlighted_ranges, None, plot_path, max_edge_count)
     
     # use pprint to stderr 
     # pprint(solutions, stream=sys.stderr)
