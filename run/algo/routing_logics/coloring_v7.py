@@ -328,28 +328,19 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         for hash in overlapping_keys:
             traffic_pattern_rep = hash_to_traffic_id[hash]
             flows = traffic_id_to_flows[traffic_pattern_rep]
-            # print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
-            
-            # append the flows of a representative traffic pattern to the current mix
             current_flows.extend(flows)
             
-        # print("Current flows count: ", len(current_flows), file=sys.stderr)
         
         edges = [] 
         subflow_counter = 0 
 
         for flow in current_flows:  
-            # print(f"flow max load: {flow['max_load']}, needed subflows: {flow['needed_subflows']}", file=sys.stderr)
-            
             for subflow in range(flow["needed_subflows"]):
                 subflow_counter += 1
-
                 src_leaf = flow["srcrack"]
                 dst_leaf = flow["dstrack"]
-                
                 edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", subflow_counter))    
             
-        # print(f"Edges count: {len(edges)}", file=sys.stderr)    
         
         edge_color_map, max_degree = color_bipartite_multigraph(edges)
         color_id_to_color = defaultdict(list)

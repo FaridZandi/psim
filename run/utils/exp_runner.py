@@ -395,6 +395,17 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol", 
                                 "farid-rounds": rounds, 
                             }))
+
+    if "rounds-v8" in added_comparisons or add_all:
+        for rounds in range(0, 101, 10):
+            comparisons.append(("foresight-v8-{}".format(rounds), {
+                                "timing-scheme": "faridv5",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "routing-fit-strategy": "graph-coloring-v8",  
+                                "lb-scheme": "readprotocol", 
+                                "farid-rounds": rounds, 
+                            }))
             
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 

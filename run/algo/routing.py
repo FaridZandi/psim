@@ -27,6 +27,7 @@ from algo.routing_logics.coloring_v4 import route_flows_graph_coloring_v4
 from algo.routing_logics.coloring_v5 import route_flows_graph_coloring_v5
 from algo.routing_logics.coloring_v6 import route_flows_graph_coloring_v6
 from algo.routing_logics.coloring_v7 import route_flows_graph_coloring_v7
+from algo.routing_logics.coloring_v8 import route_flows_graph_coloring_v8
 from algo.routing_logics.simple_routing import route_flows_one_by_one
     
 ############################################################################################################
@@ -128,7 +129,12 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
         times_range = route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines, 
                                                     lb_decisions, run_context, 
                                                     max_subflow_count, link_bandwidth, suffix, 
-                                                    highlighted_ranges, early_return)    
+                                                    highlighted_ranges, early_return) 
+    elif fit_strategy == "graph-coloring-v8":   
+        times_range = route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines, 
+                                                    lb_decisions, run_context, 
+                                                    max_subflow_count, link_bandwidth, suffix, 
+                                                    highlighted_ranges, early_return)   
     else: # regular execution path 
         times_range = route_flows_one_by_one(all_flows, rem, usage, num_spines,   
                                              lb_decisions, run_context, max_subflow_count)
