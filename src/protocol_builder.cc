@@ -1113,9 +1113,9 @@ psim::build_nethint_test() {
             flow_spines[spec] = routing_spec;   
             
             // print all this info in one line 
-            spdlog::critical("job_id: {}, per_job_task_id: {}, iteration: {}, spine_count: {}", job_id, per_job_task_id, iteration, spine_count);
+            spdlog::info("job_id: {}, per_job_task_id: {}, iteration: {}, spine_count: {}", job_id, per_job_task_id, iteration, spine_count);
             for (auto& spine_rate : spine_rates) {
-                spdlog::critical("spine_id: {}, rate: {}", spine_rate.first, spine_rate.second);
+                spdlog::info("spine_id: {}, rate: {}", spine_rate.first, spine_rate.second);
             } 
         }
     }
