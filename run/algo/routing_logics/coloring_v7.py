@@ -206,10 +206,13 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
             edge_count_in[dst_rack][t] += 1
             edge_count_out[src_rack][t] += 1
 
+    max_edge_count = [0] * (flows_max_time + 1)
+
     for r in range(len(edge_count_in)):
         for t in range(flows_max_time):
             max_edge_count[t] = max(max_edge_count[t], edge_count_in[r][t])
             max_edge_count[t] = max(max_edge_count[t], edge_count_out[r][t])
+            
     # plot that a line graph
     import matplotlib.pyplot as plt
     plt.figure(figsize=(10, 6))
