@@ -28,6 +28,8 @@ run_cassini_timing_in_subprocess = True
 timing_cache = NonBlockingCache("timing-cache")
 placement_cache = NonBlockingCache("placement-cache")    
 
+calculated_timings = set()
+
 nethint_settings = [
     { #0 big settings
         "machine-count": 256,
@@ -448,6 +450,13 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     #                                              run_context=run_context, 
     #                                              calc_func=calc_timing, 
     #                                              calc_func_args=calc_func_args)
+    
+    if timing_file_path in calculated_timings:  
+        print("We have already calculated this timing: ", timing_file_path)
+        rage_quit("Exiting to avoid recalculation. Turn on the ")   
+    else:
+        calculated_timings.add(timing_file_path)
+    
     
     job_timings, lb_decisions, add_to_context = calc_timing(*calc_func_args)
     
