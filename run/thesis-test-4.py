@@ -12,8 +12,8 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 5
-    m = 10
+    seed_range = 10
+    m = 100
     
     clean_up_sweep_files = False
 
@@ -49,7 +49,7 @@ if __name__ == "__main__":
             "values_name": "Speedup", 
             "exclude_base": True,   
             "legend_side": "bottom",
-            "temp-summarize-comp": True,
+            # "temp-summarize-comp": True,
             "legend_cols": 5,
         }
         create_command(plot_args, plot_commands_path)
@@ -68,12 +68,12 @@ if __name__ == "__main__":
         exp_config = [
             ("sim_length", [200 * m]),
             ("machine_count", [240]),
-            ("rack_size", [8]),
+            ("rack_size", [12]),
             # ("job_sizes", [(4, 16)]),
-            ("job_sizes", [(8, 12)]),
+            ("job_sizes", [(8, 48)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.4, 0.45, 0.5]),
+            ("desired_entropy", [0.5]),
             ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
@@ -82,11 +82,11 @@ if __name__ == "__main__":
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
-            ("inflate", [1, 1.1, 1.2, 1.3]), 
-            ("farid_rounds", [5]),   
+            ("inflate", [1]), 
         ]
 
-        comparisons = ["coloring-v5", "coloring-v7", "RO", "TEMP"]
+        comparisons = ["coloring-v5", "coloring-v7", "RO", "zero-v7"]
+        # comparisons = ["rounds-v7"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -102,8 +102,11 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=50,
+                                                 worker_thread_count=40,
                                                  plot_stuff=False,
+                                                 throttle_search=False,
+                                                 farid_rounds=0,
+                                                #  placement_seeds=[8],
                                                  **perm) 
             
             for summary_item in summary:    

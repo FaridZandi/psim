@@ -172,6 +172,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     # log_file.write("job_id, flow_id, iteration, selected_spines\n")
     
     available_colors_max = num_spines * max_subflow_count
+    subflow_capacity = link_bandwidth / max_subflow_count 
 
     min_affected_time = 1e9   
     max_affected_time = 0 
@@ -179,10 +180,69 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     signature_length = 16
     all_flows.sort(key=lambda x: x["eff_start_time"])
 
+    ##############################    
+    # The edge count on the ingress and egress of each rack at each time point. 
+    # The edge count gives a lower bound on the number of colors needed.
+    # if the edge count exceeds the available colors, that means that we cannot
+    # possibly color the graph with the available colors. 
+    # So if early_return is set, we can return the bad ranges right away. 
+    # This is an optimization to avoid doing unnecessary work.
+    # Note: There's another early return later, after the coloring is done (which is more accurate).    
+    ##############################    
+    
+    flows_max_time = max([f["eff_end_time"] for f in all_flows])
+    edge_count_in = []
+    edge_count_out = []
+    for f in all_flows:
+        start_time = f["eff_start_time"]
+        end_time = f["eff_end_time"]
+        
+        src_rack = f["srcrack"]
+        dst_rack = f["dstrack"]
+        
+        needed_subflows = int(math.ceil(f["max_load"] / subflow_capacity))    
+
+        min_affected_time = min(min_affected_time, start_time)  
+        max_affected_time = max(max_affected_time, end_time)
+
+        while src_rack >= len(edge_count_in) or dst_rack >= len(edge_count_out):
+            edge_count_in.append([0] * (flows_max_time + 1))
+            edge_count_out.append([0] * (flows_max_time + 1))   
+        
+        for t in range(start_time, end_time + 1):
+            edge_count_in[dst_rack][t] += needed_subflows   
+            edge_count_out[src_rack][t] += needed_subflows  
+
+    max_edge_count = [0] * (flows_max_time + 1)
+    for r in range(len(edge_count_in)):
+        for t in range(flows_max_time):
+            max_edge_count[t] = max(max_edge_count[t], edge_count_in[r][t])
+            max_edge_count[t] = max(max_edge_count[t], edge_count_out[r][t])
+            
+    if early_return:
+        # find all the ranges where the max_edge_count exceeds available_colors_max
+        bad_ranges = []
+        in_bad_range = False
+        range_start = None
+        for t in range(len(max_edge_count)):
+            if max_edge_count[t] > available_colors_max:
+                if not in_bad_range:
+                    in_bad_range = True
+                    range_start = t
+            else:
+                if in_bad_range:
+                    in_bad_range = False
+                    bad_ranges.append((range_start, t - 1)) 
+        if in_bad_range:
+            bad_ranges.append((range_start, len(max_edge_count) - 1))
+        
+        if len(bad_ranges) > 0: 
+            return min_affected_time, max_affected_time, bad_ranges
+    ##############################    
+    
     for f in all_flows: 
         f["traffic_id"] = f"{f['eff_start_time']}_{f['job_id']}_{f['throttle_rate']}"
         
-        subflow_capacity = link_bandwidth / max_subflow_count 
         f["needed_subflows"] = int(math.ceil(f["max_load"] / subflow_capacity))    
 
         f["traffic_member_id"] = f"{f['job_id']}_{f['srcrack']}_{f['dstrack']}_{f['needed_subflows']}"
@@ -339,7 +399,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), 
                          needed_color_count, max_degrees, num_spines,
-                         highlighted_ranges, None, plot_path)
+                         highlighted_ranges, None, plot_path, max_edge_count)
     
     # use pprint to stderr 
     # pprint(solutions, stream=sys.stderr)

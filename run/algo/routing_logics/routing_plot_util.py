@@ -153,7 +153,7 @@ def highlight_ranges(ax, ranges):
         ax.axvspan(start, end, color='orange', alpha=0.5)
         
 def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_degrees, 
-                     available_colors_max, highlighted_ranges, hash_to_traffic_id, plot_path):
+                     available_colors_max, highlighted_ranges, hash_to_traffic_id, plot_path, max_edge_count=None):
     # two plots on top of each other
     fig, axes = plt.subplots(3, 1, figsize=(7, 10), sharex=True)   
     
@@ -209,6 +209,10 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_de
     if needed_color_count:
         plot_ranged_keys_line(needed_color_count, available_colors_max, axes[2], "Min Color")
 
+    if max_edge_count:
+        # this is a simple list with values. 
+        axes[2].plot(range(len(max_edge_count)), max_edge_count, label="Max Edges", color='green')
+        
     axes[2].set_title("Minimum Needed Colors vs. Max Degrees")
     axes[2].set_xlabel("Time")
     axes[2].legend(

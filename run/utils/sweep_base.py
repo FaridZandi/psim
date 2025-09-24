@@ -45,6 +45,9 @@ class ConfigSweeper:
 
         self.exp_q = queue.Queue()
         self.thread_lock = threading.Lock()  
+        self.exp_id_lock = threading.Lock() 
+        self.placement_lock = threading.Lock()  
+        self.timing_lock = threading.Lock() 
         self.plot_lock = threading.Lock()  
         
         # constants
@@ -209,15 +212,14 @@ class ConfigSweeper:
     
     def thread_state_function(self):
         while True:
-            with self.thread_lock:
-                with open(self.thread_state_path, "w+") as f:
-                    for i in range(self.worker_thread_count):
-                        thread_number = i 
-                        # pad with zeros to make the thread number 3 digits long.
-                        thread_number = str(thread_number).zfill(3)
-                        
-                        f.write("thread {} → {}\n".format(thread_number, self.thread_states[i]))
-                    f.write("\n")
+            with open(self.thread_state_path, "w+") as f:
+                for i in range(self.worker_thread_count):
+                    thread_number = i 
+                    # pad with zeros to make the thread number 3 digits long.
+                    thread_number = str(thread_number).zfill(3)
+                    
+                    f.write("thread {} → {}\n".format(thread_number, self.thread_states[i]))
+                f.write("\n")
                     
             if len(self.exp_results) == self.total_jobs:
                 return  
@@ -226,7 +228,7 @@ class ConfigSweeper:
             
             
     def worker_function(self):
-        with self.thread_lock:
+        with self.exp_id_lock:
             worker_id = self.worker_id_counter
             self.worker_id_counter += 1
 
@@ -259,7 +261,9 @@ class ConfigSweeper:
             
     def log_for_thread(self, run_context, message, data=None):
         with open(run_context["output-file"], "a+") as f:
-            f.write(message + "\n")
+            # f.write(message + "\n")
+            f.write("[{}] {}\n".format(datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), message))
+            
             if data is not None:
                 pprint(data, stream=f)
                 f.write("\n")
@@ -308,7 +312,7 @@ class ConfigSweeper:
         
         
     def run_experiment(self, exp, worker_id, add_to_results=True):
-        with self.thread_lock:
+        with self.exp_id_lock:
             self.global_exp_id += 1 
             this_exp_uuid = self.global_exp_id
             
@@ -336,10 +340,15 @@ class ConfigSweeper:
         options.update(exp)
         options["workers-dir"] = self.workers_dir
 
+        def get_time_string():
+            return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")    
+        
         # a final chance for the user to modify the options before making the command. 
+        print("[{}] {}: before command modification".format(get_time_string(), this_exp_uuid), flush=True)
         if self.run_command_options_modifier is not None:
             self.run_command_options_modifier(options, self, run_context)
-        
+        print("[{}] {}: after command modification".format(get_time_string(), this_exp_uuid), flush=True)
+
         options["worker-id"] = worker_id
         self.thread_states[worker_id] = "exp-{}-running-{}".format(this_exp_uuid, run_context["runtime-dir"])     
                 
@@ -352,9 +361,11 @@ class ConfigSweeper:
             with open(self.commands_log_path, "a+") as f:
                 f.write(cmd + "\n")
                 f.write("-"*50 + "\n")
-                
+            
+            print("[{}] {}: running the command ...".format(get_time_string(), this_exp_uuid), flush=True)
             output = subprocess.check_output(cmd, shell=True)
             output = output.decode("utf-8").splitlines()
+            print("[{}] {}: done running the command ...".format(get_time_string(), this_exp_uuid), flush=True)
             
             if self.do_store_outputs:
                 # store the output in a file.
@@ -375,6 +386,7 @@ class ConfigSweeper:
             
             printed_metrics = [] 
             
+            print("[{}] {}: extracting the results ...".format(get_time_string(), this_exp_uuid), flush=True)
             if self.result_extractor_function is not None:
                 try: 
                     printed_metrics = self.result_extractor_function(output, options, 
@@ -388,7 +400,9 @@ class ConfigSweeper:
                     traceback.print_exc()  
                     
                     rage_quit("error in result_extractor_function") 
-                    
+            
+            print("[{}] {}: done extracting the results ...".format(get_time_string(), this_exp_uuid), flush=True)
+            
         except subprocess.CalledProcessError as e:
             print("error in running the command")
             print("I don't know what to do here")
@@ -396,40 +410,48 @@ class ConfigSweeper:
             traceback.print_exc()   
             
             rage_quit("error in running the command")   
-                
-        self.thread_states[worker_id] = "exp-{}-saving results".format(this_exp_uuid)  
+
+
+        print("[{}] {}: starting to wrap up the experiment ...".format(get_time_string(), this_exp_uuid), flush=True)
+        
+        self.thread_states[worker_id] = "exp-{}-saving results".format(this_exp_uuid)
         results = self.combine_results(this_exp_results, run_context, options)
 
         self.log_for_thread(run_context, "Going to acquire the lock to save the results")
         
-        with self.thread_lock:
-            self.log_for_thread(run_context, "Acquired the lock to save the results")
+        # with self.thread_lock:
+        self.log_for_thread(run_context, "Acquired the lock to save the results")
+    
+        # a final chance for the user to modify the results before saving them.
+        if self.run_results_modifier is not None:
+            self.run_results_modifier(results)
         
-            # a final chance for the user to modify the results before saving them.
-            if self.run_results_modifier is not None:
-                self.run_results_modifier(results)
-            
-            if "runtime-dir" in run_context:    
-                with open(run_context["runtime-dir"] + "/results.txt", "w+") as f:
-                    pprint(results, stream=f, indent=4, width=100) 
-                                    
-            self.exp_results.append(results)
+        if "runtime-dir" in run_context:    
+            with open(run_context["runtime-dir"] + "/results.txt", "w+") as f:
+                pprint(results, stream=f, indent=4, width=100) 
+                                
+        self.exp_results.append(results)
 
-            relevent_results = {key: results[key] for key in self.relevant_keys}   
-            relevent_metrics = {key: results[key] for key in printed_metrics}
-            relevent_results.update(relevent_metrics)
-            
-            pprint(relevent_results)
-            
-            if "runtime-dir" in run_context:    
-                with open(run_context["runtime-dir"] + "/summarized_results.txt", "w+") as f:
-                    pprint(relevent_results, stream=f, indent=4, width=100) 
-                    
-            print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs))
-            print("duration: {}".format(duration))
-            print("worker id: {}".format(worker_id))
-            print("--------------------------------------------")
+        relevent_results = {key: results[key] for key in self.relevant_keys}   
+        relevent_metrics = {key: results[key] for key in printed_metrics}
+        relevent_results.update(relevent_metrics)
+        
+        print(relevent_results, flush=True)
+        sys.stdout.flush()
+        
+        if "runtime-dir" in run_context:    
+            with open(run_context["runtime-dir"] + "/summarized_results.txt", "w+") as f:
+                pprint(relevent_results, stream=f, indent=4, width=100) 
                 
+        print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs), flush=True)
+        print("duration: {}".format(duration), flush=True)
+        print("worker id: {}".format(worker_id), flush=True)
+        print("--------------------------------------------", flush=True)
+        
+        sys.stdout.flush()
+        
+        print("[{}] {}: really really done with the experiment ...".format(get_time_string(), this_exp_uuid), flush=True)
+
         self.thread_states[worker_id] = "exp-{}-done with the experiment".format(this_exp_uuid)  
         self.log_for_thread(run_context, "Done with the lock to save the results")
 

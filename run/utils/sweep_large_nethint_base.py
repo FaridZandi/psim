@@ -28,6 +28,8 @@ run_cassini_timing_in_subprocess = True
 timing_cache = NonBlockingCache("timing-cache")
 placement_cache = NonBlockingCache("placement-cache")    
 
+calculated_timings = set()
+
 nethint_settings = [
     { #0 big settings
         "machine-count": 256,
@@ -402,7 +404,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     placement_file_path = "{}/placement.txt".format(placements_dir)
         
     jobs, add_to_context = placement_cache.get(key=placement_file_path, 
-                               lock=config_sweeper.thread_lock, 
+                               lock=config_sweeper.placement_lock, 
                                logger_func=config_sweeper.log_for_thread, 
                                run_context=run_context, 
                                calc_func=calc_placement, 
@@ -442,12 +444,21 @@ def run_command_options_modifier(options, config_sweeper, run_context):
                       placement_seed, jobs, options, 
                       run_context, run_cassini_timing_in_subprocess)
     
-    job_timings, lb_decisions, add_to_context = timing_cache.get(key=timing_file_path, 
-                                                 lock=config_sweeper.thread_lock, 
-                                                 logger_func=config_sweeper.log_for_thread, 
-                                                 run_context=run_context, 
-                                                 calc_func=calc_timing, 
-                                                 calc_func_args=calc_func_args)
+    # job_timings, lb_decisions, add_to_context = timing_cache.get(key=timing_file_path, 
+    #                                              lock=config_sweeper.timing_lock, 
+    #                                              logger_func=config_sweeper.log_for_thread, 
+    #                                              run_context=run_context, 
+    #                                              calc_func=calc_timing, 
+    #                                              calc_func_args=calc_func_args)
+    
+    if timing_file_path in calculated_timings:  
+        print("We have already calculated this timing: ", timing_file_path)
+        rage_quit("Exiting to avoid recalculation. Turn on the cache if you want to avoid this.")   
+    else:
+        calculated_timings.add(timing_file_path)
+    
+    
+    job_timings, lb_decisions, add_to_context = calc_timing(*calc_func_args)
     
     
     run_context.update(add_to_context)  
@@ -1088,6 +1099,9 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
         
         merge_on = ["protocol-file-name", "machines", "cores", "placement-seed"]
 
+        # sort the exp_results_df by the merge_on columns to make sure that the order is correct.
+        exp_results_df = exp_results_df.sort_values(by=merge_on)
+        
         base_setting = global_context["comparison-base"]
         comparisons = global_context["comparisons"]
         
@@ -1135,6 +1149,7 @@ def custom_save_results_func(exp_results_df, config_sweeper, global_context, plo
                 compared_df = compared_df[compared_df[key] == value]
             
             merged_df = pd.merge(base_df, compared_df, on=merge_on, 
+                                 sort=True,
                                  suffixes=('_base', '_compared'))
             
             base_key = "{}_base".format(avg_metric_key)
