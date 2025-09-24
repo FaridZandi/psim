@@ -182,7 +182,8 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
 
     ##############################    
     flows_max_time = max([f["eff_end_time"] for f in all_flows])
-    edge_count = []
+    edge_count_in = []
+    edge_count_out = []
     for f in all_flows:
         start_time = f["eff_start_time"]
         end_time = f["eff_end_time"]
@@ -190,18 +191,25 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         src_rack = f["srcrack"]
         dst_rack = f["dstrack"]
         
-        while src_rack >= len(edge_count) or dst_rack >= len(edge_count):
-            edge_count.append([0] * (flows_max_time + 1))
+        # while src_rack >= len(edge_count) or dst_rack >= len(edge_count):
+        #     edge_count.append([0] * (flows_max_time + 1))
 
+        # for t in range(start_time, end_time + 1):
+        #     edge_count[src_rack][t] += 1
+        #     edge_count[dst_rack][t] += 1  
+
+        while src_rack >= len(edge_count_in) or dst_rack >= len(edge_count_out):
+            edge_count_in.append([0] * (flows_max_time + 1))
+            edge_count_out.append([0] * (flows_max_time + 1))   
+        
         for t in range(start_time, end_time + 1):
-            edge_count[src_rack][t] += 1
-            edge_count[dst_rack][t] += 1  
+            edge_count_in[dst_rack][t] += 1
+            edge_count_out[src_rack][t] += 1
 
-    max_edge_count = [0] * flows_max_time
-    for r in range(len(edge_count)):
+    for r in range(len(edge_count_in)):
         for t in range(flows_max_time):
-            max_edge_count[t] = max(max_edge_count[t], edge_count[r][t])
-            
+            max_edge_count[t] = max(max_edge_count[t], edge_count_in[r][t])
+            max_edge_count[t] = max(max_edge_count[t], edge_count_out[r][t])
     # plot that a line graph
     import matplotlib.pyplot as plt
     plt.figure(figsize=(10, 6))
