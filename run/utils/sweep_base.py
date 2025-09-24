@@ -208,6 +208,7 @@ class ConfigSweeper:
             t.join()       
     
     def thread_state_function(self):
+        return
         while True:
             with self.thread_lock:
                 with open(self.thread_state_path, "w+") as f:
