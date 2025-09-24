@@ -665,6 +665,8 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = run_context["fixing_rounds"]
         elif metric == "cmmcmp_ratio":
             job_numbers = run_context["cmmcmp_ratio"]
+        elif metric == "final_entropy": 
+            job_numbers = run_context["final_entropy"]
         elif metric == "job_periods":
             job_numbers = [] 
             for job in run_context["jobs"]:

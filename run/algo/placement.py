@@ -26,7 +26,7 @@ def perturb_placement(jobs):
     job1["machines"][job1_machine_index] = job2_machine
     job2["machines"][job2_machine_index] = job1_machine
     
-def measure_entrorpy(jobs, rack_size):
+def measure_entropy(jobs, rack_size):
     cross_rack_flows = 0
     total_flows = 0   
     
@@ -191,7 +191,7 @@ def generate_entropy_placement_file(options, run_context):
     desired_entropy = run_context["placement-parameters"]["desired-entropy"]
     jobs, cmmcmp_ratio = generate_compact_placement_file(options, run_context)
 
-    current_entropy = measure_entrorpy(jobs, options["ft-server-per-rack"])
+    current_entropy = measure_entropy(jobs, options["ft-server-per-rack"])
     
     perturbation_count = 0 
     max_perturbation_count = 1000   
@@ -199,7 +199,7 @@ def generate_entropy_placement_file(options, run_context):
     while current_entropy < desired_entropy and perturbation_count < max_perturbation_count:    
         perturb_placement(jobs)
         perturbation_count += 1
-        current_entropy = measure_entrorpy(jobs, options["ft-server-per-rack"])
+        current_entropy = measure_entropy(jobs, options["ft-server-per-rack"])
 
     return jobs, cmmcmp_ratio
 
@@ -624,6 +624,7 @@ def generate_placement_file(placement_path, placement_seed,
     
     add_to_context = {  
         "cmmcmp_ratio": cmmcmp_ratio,
+        "final_entropy": measure_entropy(jobs, options["ft-server-per-rack"]),
     }
     return jobs, add_to_context
 
@@ -664,7 +665,7 @@ if __name__ == "__main__":
         entropies = [] 
         
         for i in range(1000): 
-            entropy = measure_entrorpy(jobs, options["ft-server-per-rack"])
+            entropy = measure_entropy(jobs, options["ft-server-per-rack"])
             perturb_placement(jobs)    
             entropies.append(entropy)
             
