@@ -89,32 +89,22 @@ def merge_overlapping_ranges_v8(ranges_dict,
         ranges.sort(key=lambda x: x[0])
 
         # Merge overlapping and back-to-back ranges
-        summarized_ranges = []
-        last_range = None
-        for start, end in ranges:
-            if last_range is None:
-                last_range = (start, end)
-            elif start <= last_range[1] + 1:  # Merge if overlapping or back-to-back
-                last_range = (last_range[0], max(last_range[1], end))
-            else:
-                summarized_ranges.append(last_range)
-                last_range = (start, end)
-        if last_range is not None:
-            summarized_ranges.append(last_range)
-
+        # summarized_ranges = []
+        # last_range = None
+        # for start, end in ranges:
+        #     if last_range is None:
+        #         last_range = (start, end)
+        #     elif start <= last_range[1] + 1:  # Merge if overlapping or back-to-back
+        #         last_range = (last_range[0], max(last_range[1], end))
+        #     else:
+        #         summarized_ranges.append(last_range)
+        #         last_range = (start, end)
+        # if last_range is not None:
+        #     summarized_ranges.append(last_range)
+        summarized_range = (min(r[0] for r in ranges), max(r[1] for r in ranges))
+        
         comb_key = tuple(sorted(keys))
-        new_ranges[comb_key].extend(summarized_ranges)
-
-    for comb_key in list(new_ranges.keys()):
-        ranges = sorted(new_ranges[comb_key])
-        merged_ranges = []
-        for start, end in ranges:
-            if merged_ranges and start <= merged_ranges[-1][1] + 1:
-                prev_start, prev_end = merged_ranges[-1]
-                merged_ranges[-1] = (prev_start, max(prev_end, end))
-            else:
-                merged_ranges.append((start, end))
-        new_ranges[comb_key] = merged_ranges
+        new_ranges[comb_key].append(summarized_range)
 
     return new_ranges 
 
