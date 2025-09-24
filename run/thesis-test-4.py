@@ -105,6 +105,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=False,
+                                                 placement_seeds=[8],
                                                  **perm) 
             
             for summary_item in summary:    

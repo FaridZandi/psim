@@ -142,6 +142,7 @@ def do_experiment(seed_range=1,
                   experiment_seed=77, 
                   recorded_metrics=[], 
                   added_comparisons=[], 
+                  placement_seeds=None, 
                   plot_stuff=False, 
                   farid_rounds=12,  
                   worker_thread_count=40,
@@ -224,7 +225,8 @@ def do_experiment(seed_range=1,
             profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
             subflow_count = 4       
 
-    placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
+    if placement_seeds is None:
+        placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
     exp_sweep_config = {
         "placement-seed": placement_seeds,
