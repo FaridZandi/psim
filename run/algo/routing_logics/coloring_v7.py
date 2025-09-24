@@ -191,6 +191,8 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         src_rack = f["srcrack"]
         dst_rack = f["dstrack"]
         
+        min_affected_time = min(min_affected_time, start_time)  
+        max_affected_time = max(max_affected_time, end_time)
         # while src_rack >= len(edge_count) or dst_rack >= len(edge_count):
         #     edge_count.append([0] * (flows_max_time + 1))
 
@@ -212,6 +214,26 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         for t in range(flows_max_time):
             max_edge_count[t] = max(max_edge_count[t], edge_count_in[r][t])
             max_edge_count[t] = max(max_edge_count[t], edge_count_out[r][t])
+            
+    if early_return:
+        # find all the ranges where the max_edge_count exceeds num_spines
+        bad_ranges = []
+        in_bad_range = False
+        range_start = None
+        for t in range(len(max_edge_count)):
+            if max_edge_count[t] > num_spines:
+                if not in_bad_range:
+                    in_bad_range = True
+                    range_start = t
+            else:
+                if in_bad_range:
+                    in_bad_range = False
+                    bad_ranges.append((range_start, t - 1)) 
+        if in_bad_range:
+            bad_ranges.append((range_start, len(max_edge_count) - 1))
+        
+        if len(bad_ranges) > 0: 
+            return min_affected_time, max_affected_time, bad_ranges
     ##############################    
         
     

@@ -1473,12 +1473,15 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     # the only supported mode for now 
     timing_scheme = run_context["timing-scheme"]
     assert timing_scheme == "faridv5" 
-
-    solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
+    
+    max_attempts = run_context["farid-rounds"]
     current_round = 0
     add_to_context = {
         "fixing_rounds": 0
     }
+
+
+    solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
 
     # step 1: do the vanilla timing first.
     log_progress(run_context, "starting vanilla timing")    
@@ -1486,12 +1489,18 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     SEED_MAGIC = 23423
     random.seed(run_context["experiment-seed"] + SEED_MAGIC)
     
+    if max_attempts > 0: 
+        early_return = True 
+    else: 
+        early_return = False
+        
     job_timings, solution = solver.solve()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                job_profiles, job_timings, 
                                                suffix=current_round, 
-                                               highlighted_ranges=[])
-    
+                                               highlighted_ranges=[], 
+                                               early_return=early_return)
+
     log_bad_ranges(run_context, "1.0_vanilla", new_bad_ranges, [])
 
     # step 1.5: if the routing is good, return the results.
@@ -1499,12 +1508,10 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
         add_to_context["fixing_rounds"] = 0
         return job_timings, lb_decisions, add_to_context
 
-
     ################################################################################
     # step 2: if the routing is bad, then trying patching it up a little bit. 
     ################################################################################
 
-    max_attempts = run_context["farid-rounds"]
     current_round = 1
     prev_bad_ranges = [] 
 
@@ -1518,6 +1525,12 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
         
         job_timings, solution = solver.solve_with_bad_ranges_and_inflation(prev_bad_ranges, 1)
         # step 2.2: do the routing again.
+        
+        if current_round < max_attempts - 1: 
+            early_return = True 
+        else: 
+            early_return = False
+            
         lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                     job_profiles, job_timings, 
                                                     suffix=f"1_{current_round}", 
