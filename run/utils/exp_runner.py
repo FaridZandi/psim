@@ -121,10 +121,17 @@ all_metrics = {
         "compare_mode": "self",
         "better": "higher",
         "type": "single_number",
-    }
-} 
-    
-    
+    },
+    "bad_range_ratio": {  
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_number",
+    },
+}
+
+
 # this is an experiment that has one base setting, and then a bunch of comparisons.
 # I'm attempting to keep the things that should be kept constant, constant.
 # then compute the speedup of the other things with respect to the base setting.
