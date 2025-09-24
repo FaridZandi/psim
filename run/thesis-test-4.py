@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 10
+    seed_range = 9
     m = 10
     
     clean_up_sweep_files = False
