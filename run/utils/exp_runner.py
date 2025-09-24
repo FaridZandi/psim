@@ -145,6 +145,7 @@ def do_experiment(seed_range=1,
                   plot_stuff=False, 
                   farid_rounds=12,  
                   worker_thread_count=40,
+                  throttle_search=False,
                   ): 
     
     
@@ -209,17 +210,19 @@ def do_experiment(seed_range=1,
 
     core_count = int(base_options["ft-server-per-rack"] // oversub)
 
-    if core_count == 1:
+    if not throttle_search:
         profiled_throttle_factors = [1.0]
-        subflow_count = 1
-    if core_count == 2 or core_count == 3: 
-        profiled_throttle_factors = [1.0, 0.5]
-        subflow_count = 2 
-    else:
-        profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
-        subflow_count = 4       
-        # profiled_throttle_factors = [1.0]
-        # subflow_count = 1
+        subflow_count = 1   
+    else: 
+        if core_count == 1:
+            profiled_throttle_factors = [1.0]
+            subflow_count = 1
+        if core_count == 2 or core_count == 3: 
+            profiled_throttle_factors = [1.0, 0.5]
+            subflow_count = 2 
+        else:
+            profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
+            subflow_count = 4       
 
     placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
     
