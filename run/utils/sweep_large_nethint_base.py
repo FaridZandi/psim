@@ -453,7 +453,7 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     
     if timing_file_path in calculated_timings:  
         print("We have already calculated this timing: ", timing_file_path)
-        rage_quit("Exiting to avoid recalculation. Turn on the ")   
+        rage_quit("Exiting to avoid recalculation. Turn on the cache if you want to avoid this.")   
     else:
         calculated_timings.add(timing_file_path)
     

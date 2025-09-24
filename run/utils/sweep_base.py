@@ -341,8 +341,10 @@ class ConfigSweeper:
         options["workers-dir"] = self.workers_dir
 
         # a final chance for the user to modify the options before making the command. 
+        print("{}: before command modification".format(this_exp_uuid), flush=True)
         if self.run_command_options_modifier is not None:
             self.run_command_options_modifier(options, self, run_context)
+        print("{}: after command modification".format(this_exp_uuid), flush=True)
         
         options["worker-id"] = worker_id
         self.thread_states[worker_id] = "exp-{}-running-{}".format(this_exp_uuid, run_context["runtime-dir"])     
