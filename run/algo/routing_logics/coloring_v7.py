@@ -187,7 +187,10 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     # possibly color the graph with the available colors. 
     # So if early_return is set, we can return the bad ranges right away. 
     # This is an optimization to avoid doing unnecessary work.
-    # Note: There's another early return later, after the coloring is done (which is more accurate).    
+    # Note: There's another early return later, after the coloring is done (which is more accurate). 
+    
+    # Further notes: the usual case where this happens should normally be taken care of 
+    # by the timing solver. Is this really needed?   
     ##############################    
     
     flows_max_time = max([f["eff_end_time"] for f in all_flows])

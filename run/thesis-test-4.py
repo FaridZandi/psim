@@ -66,7 +66,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [200 * m]),
+            ("sim_length", [20 * m]),
             ("machine_count", [240]),
             ("rack_size", [12]),
             # ("job_sizes", [(4, 16)]),
@@ -103,7 +103,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=40,
-                                                 plot_stuff=False,
+                                                 plot_stuff=True,
                                                  throttle_search=False,
                                                  farid_rounds=0,
                                                 #  placement_seeds=[8],
