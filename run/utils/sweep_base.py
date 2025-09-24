@@ -211,17 +211,15 @@ class ConfigSweeper:
             t.join()       
     
     def thread_state_function(self):
-        return
         while True:
-            with self.thread_lock:
-                with open(self.thread_state_path, "w+") as f:
-                    for i in range(self.worker_thread_count):
-                        thread_number = i 
-                        # pad with zeros to make the thread number 3 digits long.
-                        thread_number = str(thread_number).zfill(3)
-                        
-                        f.write("thread {} → {}\n".format(thread_number, self.thread_states[i]))
-                    f.write("\n")
+            with open(self.thread_state_path, "w+") as f:
+                for i in range(self.worker_thread_count):
+                    thread_number = i 
+                    # pad with zeros to make the thread number 3 digits long.
+                    thread_number = str(thread_number).zfill(3)
+                    
+                    f.write("thread {} → {}\n".format(thread_number, self.thread_states[i]))
+                f.write("\n")
                     
             if len(self.exp_results) == self.total_jobs:
                 return  
