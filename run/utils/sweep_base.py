@@ -341,8 +341,10 @@ class ConfigSweeper:
         options["workers-dir"] = self.workers_dir
 
         def get_time_string():
-            return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")    
-        
+            # return datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S:%f")
+            # to the microsecond
+            return datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+
         # a final chance for the user to modify the options before making the command. 
         print("[{}] {}: before command modification".format(get_time_string(), this_exp_uuid), flush=True)
         if self.run_command_options_modifier is not None:
