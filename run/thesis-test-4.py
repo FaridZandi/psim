@@ -13,7 +13,7 @@ if __name__ == "__main__":
     g = get_global_config()
     
     seed_range = 10
-    m = 10
+    m = 100
     
     clean_up_sweep_files = False
 
@@ -49,7 +49,7 @@ if __name__ == "__main__":
             "values_name": "Speedup", 
             "exclude_base": True,   
             "legend_side": "bottom",
-            "temp-summarize-comp": True,
+            # "temp-summarize-comp": True,
             "legend_cols": 5,
         }
         create_command(plot_args, plot_commands_path)
