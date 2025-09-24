@@ -350,8 +350,8 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
         
-    if "TEMP" in added_comparisons or add_all:   
-        comparisons.append(("TEMP", {
+    if "zero-v7" in added_comparisons or add_all:   
+        comparisons.append(("zero-v7", {
                                 "timing-scheme": "zero",
                                 "throttle-search": True if subflow_count > 1 else False,
                                 "subflows": subflow_count, 

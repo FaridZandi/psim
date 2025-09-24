@@ -83,10 +83,9 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]), 
-            ("farid_rounds", [1]),   
         ]
 
-        comparisons = ["coloring-v5", "coloring-v7", "RO", "TEMP"]
+        comparisons = ["coloring-v5", "coloring-v7", "RO", "zero-v7"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -105,6 +104,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=False,
+                                                 farid_rounds=0
                                                 #  placement_seeds=[8],
                                                  **perm) 
             
