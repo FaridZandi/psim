@@ -406,35 +406,35 @@ class ConfigSweeper:
 
         self.log_for_thread(run_context, "Going to acquire the lock to save the results")
         
-        with self.thread_lock:
-            self.log_for_thread(run_context, "Acquired the lock to save the results")
+        # with self.thread_lock:
+        self.log_for_thread(run_context, "Acquired the lock to save the results")
+    
+        # a final chance for the user to modify the results before saving them.
+        if self.run_results_modifier is not None:
+            self.run_results_modifier(results)
         
-            # a final chance for the user to modify the results before saving them.
-            if self.run_results_modifier is not None:
-                self.run_results_modifier(results)
-            
-            if "runtime-dir" in run_context:    
-                with open(run_context["runtime-dir"] + "/results.txt", "w+") as f:
-                    pprint(results, stream=f, indent=4, width=100) 
-                                    
-            self.exp_results.append(results)
+        if "runtime-dir" in run_context:    
+            with open(run_context["runtime-dir"] + "/results.txt", "w+") as f:
+                pprint(results, stream=f, indent=4, width=100) 
+                                
+        self.exp_results.append(results)
 
-            relevent_results = {key: results[key] for key in self.relevant_keys}   
-            relevent_metrics = {key: results[key] for key in printed_metrics}
-            relevent_results.update(relevent_metrics)
-            
-            print(relevent_results, flush=True)
-            sys.stdout.flush()
-            
-            if "runtime-dir" in run_context:    
-                with open(run_context["runtime-dir"] + "/summarized_results.txt", "w+") as f:
-                    pprint(relevent_results, stream=f, indent=4, width=100) 
-                    
-            print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs), flush=True)
-            print("duration: {}".format(duration), flush=True)
-            print("worker id: {}".format(worker_id), flush=True)
-            print("--------------------------------------------", flush=True)
-            sys.stdout.flush()
+        relevent_results = {key: results[key] for key in self.relevant_keys}   
+        relevent_metrics = {key: results[key] for key in printed_metrics}
+        relevent_results.update(relevent_metrics)
+        
+        print(relevent_results, flush=True)
+        sys.stdout.flush()
+        
+        if "runtime-dir" in run_context:    
+            with open(run_context["runtime-dir"] + "/summarized_results.txt", "w+") as f:
+                pprint(relevent_results, stream=f, indent=4, width=100) 
+                
+        print("jobs completed: {}/{}".format(len(self.exp_results), self.total_jobs), flush=True)
+        print("duration: {}".format(duration), flush=True)
+        print("worker id: {}".format(worker_id), flush=True)
+        print("--------------------------------------------", flush=True)
+        sys.stdout.flush()
             
         self.thread_states[worker_id] = "exp-{}-done with the experiment".format(this_exp_uuid)  
         self.log_for_thread(run_context, "Done with the lock to save the results")
