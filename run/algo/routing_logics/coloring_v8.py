@@ -12,6 +12,9 @@ import hashlib
 import math
 import networkx as nx
 
+import time as timesleep 
+
+
 
 
 def merge_overlapping_ranges_v8(ranges_dict, 
@@ -368,7 +371,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             change_points.sort()
             
             # summarize the change points. all events that happen at the same time
-            # should be processed together.
+            # should be processed together. it should be tuples of time, list of (event, key)
             
             summarized_change_points = []   
             
@@ -380,20 +383,13 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                     if time == current_time:
                         current_events.append((event, key))
                     else:
-                        # process the current events
-                        # 'exit' events should be processed before 'enter' events
-                        current_events.sort(key=lambda x: 0 if x[0] == 'exit' else 1)
-                        for ev, k in current_events:
-                            summarized_change_points.append((current_time, ev, k))
-                        
+                        summarized_change_points.append((current_time, current_events))
                         current_time = time
                         current_events = [(event, key)]
                 
-                # process the last batch of events
                 if len(current_events) > 0:
-                    current_events.sort(key=lambda x: 0 if x[0] == 'exit' else 1)
-                    for ev, k in current_events:
-                        summarized_change_points.append((current_time, ev, k))
+                    summarized_change_points.append((current_time, current_events))
+            
 
             print("change_points:", change_points, file=sys.stderr)
             
@@ -409,23 +405,21 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
 
             last_time = None
 
-            for idx, (time, event, key) in enumerate(change_points):
-                if event == 'enter':
-                    
-                    print(f"Time {time}: Pattern {key} enters", file=sys.stderr)
-                    
-                    active_patterns.add(key)
+            # for idx, (time, event, key) in enumerate(change_points):
+            
+            for time, events in change_points:
+                for event, key in events: 
+                    print(f"time: {time}, event: {event}, key: {key}", file=sys.stderr)
 
+                    if event == 'enter':
+                        active_patterns.add(key)
+                    elif event == 'exit':
+                        active_patterns.discard(key)
+                    
                     current_solution = color_for_key_set(active_patterns)
-                    
                     pprint(current_solution, stream=sys.stderr)
-                    
                     timesleep.sleep(1)
-                    
-                    
-                elif event == 'exit':
-                    active_patterns.discard(key)
-                    
+                        
                     
                 
                 
