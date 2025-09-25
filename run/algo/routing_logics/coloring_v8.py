@@ -412,9 +412,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 r, c, i = coloring_edges[edge_index - 1][2]
                 entry = edges[r][c][i]
                 # print(f"assigning color {color} to edge {r}->{c} index {i}: {entry}", file=sys.stderr)
-                
-                higest_color_used = max(higest_color_used, color)   
-                
+
+                highest_color_used = max(highest_color_used, color)
+
                 for time_range, color_id in entry:
                     print(f"    color {color} to color_id {color_id} for time_range {time_range}", file=sys.stderr)
                     if (color_id, time_range) in solutions:
@@ -436,7 +436,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 
             
     print("Done with coloring.", file=sys.stderr)
-    print(f"Higest color used: {higest_color_used}", file=sys.stderr)
+    print(f"Highest color used: {highest_color_used}", file=sys.stderr)
     print("number of solution entries:", len(solutions), file=sys.stderr)
     input("above is the highest color used. press enter to continue...")
     
