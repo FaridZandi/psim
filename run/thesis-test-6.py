@@ -13,7 +13,7 @@ if __name__ == "__main__":
     g = get_global_config()
     
     seed_range = 10
-    m = 10
+    m = 100
     
     clean_up_sweep_files = False
 
@@ -66,17 +66,17 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [200 * m]),
-            ("machine_count", [48, 72, 120, 240]),
+            ("sim_length", [400 * m]),
+            ("machine_count", [48, 96, 144, 192, 240]),
             ("rack_size", [8]),
             # ("machine_count", [48]),
             # ("rack_size", [8]),
             # ("job_sizes", [(4, 16)]),
             # ("job_sizes", [(8, 12)]),
             ("job_sizes", [("10%", "25%")]),
-            ("placement_mode", ["semirandom_4"]), 
+            ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.4]),
+            ("desired_entropy", [0.2, 0.25, 0.3, 0.35, 0.4]),
             ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
