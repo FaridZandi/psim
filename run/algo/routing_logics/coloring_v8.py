@@ -425,10 +425,13 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                         # we need to translate the current solution to match the previous solution 
                         # where they the coloring the same things. 
                         
+                        pprint(previous_solution, stream=sys.stderr)
+                        pprint(current_solution, stream=sys.stderr)
+                        
                         # wait for user input to continue.
-                        input("Press Enter to continue...")
+                        input("We have a previous solution....")
                         
-                        
+
                         
                     previous_solution = current_solution
 
