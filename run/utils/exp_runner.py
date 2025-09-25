@@ -129,6 +129,13 @@ all_metrics = {
         "better": "lower",
         "type": "single_number",
     },
+    "bad_range_ratios": {   
+        "avg_cdf_plot": False,   
+        "iter_avg_plot": True,  
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_list",
+    },
 }
 
 

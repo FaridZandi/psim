@@ -1483,6 +1483,7 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     add_to_context = {
         "fixing_rounds": 0,
         "bad_range_ratio": 0,
+        "bad_range_ratios": []
     }
 
 
@@ -1506,7 +1507,7 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     log_bad_ranges(run_context, "1.0_vanilla", new_bad_ranges, [])
     bad_range_ratio = get_bad_range_ratio(new_bad_ranges, [], run_context["sim-length"])
     add_to_context["bad_range_ratio"] = bad_range_ratio
-    
+    add_to_context["bad_range_ratios"].append(bad_range_ratio)
 
     # step 1.5: if the routing is good, return the results.
     if len(new_bad_ranges) == 0:
@@ -1542,6 +1543,7 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
                         new_bad_ranges, prev_bad_ranges)
         bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
         add_to_context["bad_range_ratio"] = bad_range_ratio
+        add_to_context["bad_range_ratios"].append(bad_range_ratio)
         
         current_round += 1
         add_to_context["fixing_rounds"] += 1
