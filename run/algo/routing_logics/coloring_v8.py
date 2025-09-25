@@ -320,7 +320,10 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     highest_color_used = 0
 
     for keys, time_ranges_list in merged_ranges.items():
+        print(keys, file=sys.stderr)
+        pprint(time_ranges_list, stream=sys.stderr)
         
+        print("==================================================", file=sys.stderr)
         # all the joined patterns that share the same key set. 
         # each time_range in the time_ranges list is a list of (start, end, key) tuples.
         
@@ -363,7 +366,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                         src_rack = flow["srcrack"]
                         dst_rack = flow["dstrack"]
                         color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"] + f"_{subflow}"   
-                        
+                        flow_start = flow["eff_start_time"] 
+                        flow_end = flow["eff_end_time"]
                         # looking at the edges[src_rack][dst_rack] we see a list. 
                         # any of those entries could potentially be able to fit this new time range.
                         # if none of them can fit, we have to add a new entry.
@@ -373,16 +377,16 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                             is_good_entry = True
                             for entry_time_range, entry_color_ids in entry: 
                                 # does it overlap with start,end? 
-                                if not (end < entry_time_range[0] or start > entry_time_range[1]):
+                                if not (flow_end < entry_time_range[0] or flow_start > entry_time_range[1]):
                                     is_good_entry = False
                                     break
                             if is_good_entry:
-                                entry.append(((start, end), color_id))
+                                entry.append(((flow_start, flow_end), color_id))
                                 placed = True
                                 break
                         if not placed:
-                            edges[src_rack][dst_rack].append([((start, end), color_id)])
-                    
+                            edges[src_rack][dst_rack].append([((flow_start, flow_end), color_id)])
+
             # input("above are the edges. press enter to continue...")
             
             # so now we have the edges. Let's do the coloring: 
@@ -405,14 +409,12 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             edge_color_map, max_degree = color_bipartite_multigraph(coloring_edges)            
             
             # pprint(edge_color_map, stream=sys.stderr)
-            
             # input("above is the coloring. press enter to continue...")
             
             for edge_index, color in edge_color_map.items():
                 r, c, i = coloring_edges[edge_index - 1][2]
                 entry = edges[r][c][i]
                 # print(f"assigning color {color} to edge {r}->{c} index {i}: {entry}", file=sys.stderr)
-
                 highest_color_used = max(highest_color_used, color)
 
                 for time_range, color_id in entry:
@@ -454,7 +456,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges_for_plot), 
                          needed_color_count, max_degrees, num_spines,
-                         highlighted_ranges, None, plot_path, max_edge_count, plot_vertical_lines=False, height_multiplier=3)
+                         highlighted_ranges, None, plot_path, max_edge_count, 
+                         plot_vertical_lines=False, height_multiplier=2)
         
     input("above is the highest color used. press enter to continue...")
 
