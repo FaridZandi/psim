@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 1
+    seed_range = 10
     m = 100
     
     clean_up_sweep_files = False
@@ -67,10 +67,10 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [40 * m]),
-            # ("machine_count", [240]),
-            # ("rack_size", [12]),
-            ("machine_count", [48]),
-            ("rack_size", [8]),
+            ("machine_count", [240]),
+            ("rack_size", [12]),
+            # ("machine_count", [48]),
+            # ("rack_size", [8]),
             # ("job_sizes", [(4, 16)]),
             ("job_sizes", [(8, 12)]),
             ("placement_mode", ["semirandom_4"]), 
@@ -87,9 +87,9 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5"]
+        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
-        comparisons = ["coloring-v8"]
+        # comparisons = ["coloring-v8"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -106,10 +106,10 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=1,
-                                                 plot_stuff=True,
+                                                 plot_stuff=False,
                                                  throttle_search=False,
                                                  farid_rounds=10,
-                                                 run_cassini_timing_in_subprocess=False, 
+                                                 run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
             for summary_item in summary:    
