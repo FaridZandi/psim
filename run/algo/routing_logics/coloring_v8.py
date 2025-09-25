@@ -428,7 +428,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                     print(f"    color {color} to color_id {color_id} for time_range {time_range}", file=sys.stderr)
                     # if (color_id, time_range) in solutions:
                         # print(f"Duplicate solution for (color_id, time_range): {(color_id, time_range)}", file=sys.stderr)
-                    solutions[(color_id, time_range)].append(color)
+                    solutions[(color_id, time_range[0])].append(color)
 
             
             coloring_time_range = (time_ranges[0][0], time_ranges[-1][1])
@@ -502,7 +502,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             # time_range_coloring[color_id] = rotate(time_range_coloring[color_id])
             
             color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"] + f"_{i}"
-            solutions_key = (color_id, (start_time, end_time))
+            solutions_key = (color_id, start_time)
             if solutions_key not in solutions:
                 print(f"Solution not found for key: {solutions_key}")
                 exit(f"Solution not found for key: {solutions_key}")
