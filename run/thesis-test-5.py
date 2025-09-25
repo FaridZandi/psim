@@ -74,7 +74,7 @@ if __name__ == "__main__":
             # ("job_sizes", [(4, 16)]),
             # ("job_sizes", [(8, 12)]),
             ("job_sizes", [(8, 48)]),
-            ("placement_mode", ["semirandom_4"]), 
+            ("placement_mode", ["semirandom_2"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.5]),
             ("oversub", [2]),
@@ -109,7 +109,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=False,
-                                                 farid_rounds=1,
+                                                 farid_rounds=10,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
