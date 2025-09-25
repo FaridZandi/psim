@@ -455,6 +455,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges_for_plot), 
                          needed_color_count, max_degrees, num_spines,
                          highlighted_ranges, None, plot_path, max_edge_count)
+        
+    input("above is the highest color used. press enter to continue...")
+
     
     # use pprint to stderr 
     # pprint(solutions, stream=sys.stderr)
