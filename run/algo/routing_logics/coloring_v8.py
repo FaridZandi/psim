@@ -386,7 +386,6 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                         summarized_change_points.append((current_time, current_events))
                         current_time = time
                         current_events = [(event, key)]
-                
                 if len(current_events) > 0:
                     summarized_change_points.append((current_time, current_events))
             
@@ -402,7 +401,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             
             current_solution = None 
             previous_solution = None
-
+            previous_active_patterns = None
+            
             last_time = None
 
             # for idx, (time, event, key) in enumerate(change_points):
@@ -437,23 +437,24 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                         # wait for user input to continue.
                         input("We have a previous solution....")
                         
-                        mapping = {} 
+                        color_mapping = {} 
                         
-                        used_colors = set() 
-                        for key in previous_solution.keys():
-                            for color in previous_solution[key]:
-                                used_colors.add(color)
-                                
-                        print("colors used in previous solution:", used_colors, file=sys.stderr)
+                        for key in current_solution.keys():
+                            if key in previous_solution: 
+                                prev_solution_colors = previous_solution[key]
+                                curr_solution_colors = current_solution[key]   
+                                 
+                                for pc, cc in zip(prev_solution_colors, curr_solution_colors): 
+                                    color_mapping[cc] = pc
+                                    
+                        print("color_mapping:", color_mapping, file=sys.stderr)
+                        
+                        input("Press Enter to continue...")
 
-                        
+
                     previous_solution = current_solution
+                    previous_active_patterns = active_patterns
 
-
-            
-            
-            
-            
 
     print("solutions:", solutions, file=sys.stderr)
     
