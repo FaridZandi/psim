@@ -350,6 +350,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         # all the joined patterns that share the same key set. 
         # each time_range in the time_ranges list is a list of (start, end, key) tuples.
         
+        print("keys:", keys, file=sys.stderr)
+        print("time_ranges:", time_ranges, file=sys.stderr)
+        
         for time_range in time_ranges: 
             # time_range is a list of (start, end, key) tuples.
 
@@ -360,6 +363,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 change_points.append((end + 1, 'exit', key))
             change_points.sort()
 
+            print("change_points:", change_points, file=sys.stderr)
+            
             # Step 2: Sweep through the timeline, maintaining the active set.
             active_patterns = set()
             
@@ -370,11 +375,16 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
 
             for idx, (time, event, key) in enumerate(change_points):
                 if event == 'enter':
+                    
+                    print(f"Time {time}: Pattern {key} enters", file=sys.stderr)
+                    
                     active_patterns.add(key)
 
                     current_solution = color_for_key_set(active_patterns)
                     
                     pprint(current_solution, stream=sys.stderr)
+                    
+                    time.sleep(1)
                     
                     
                 elif event == 'exit':
