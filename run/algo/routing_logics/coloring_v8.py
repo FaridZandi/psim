@@ -306,6 +306,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                                 "{}/routing/rack_dependency_{}.png".format(run_context["routings-dir"], suffix))
     
     
+    pprint(hash_to_time_ranges, stream=sys.stderr)
+    print("==================================================", file=sys.stderr)
+    
     merged_ranges = merge_overlapping_ranges_v8(hash_to_time_ranges, 
                                                 traffic_pattern_to_src_racks, 
                                                 traffic_pattern_to_dst_racks)
