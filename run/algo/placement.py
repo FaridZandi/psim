@@ -101,7 +101,11 @@ def generate_job_basics_(options, run_context, job_machine_counts=None):
     if type(jobs_machine_count_high) == str and jobs_machine_count_high.endswith("%"):
         percent = float(jobs_machine_count_high[:-1]) / 100.0
         jobs_machine_count_high = max(2, int(machine_count * percent))
-        
+    
+    if type(jobs_machine_count_low) == str and jobs_machine_count_low.endswith("%"):
+        percent = float(jobs_machine_count_low[:-1]) / 100.0
+        jobs_machine_count_low = max(2, int(machine_count * percent))
+                
     jobs = [] 
     
     machines_left = machine_count 

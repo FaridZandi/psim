@@ -293,6 +293,13 @@ def do_experiment(seed_range=1,
                                 "routing-fit-strategy": "graph-coloring-v3",  
                                 "lb-scheme": "readprotocol"
                             }))
+        
+    if "conga" in added_comparisons or add_all:
+        comparisons.append(("conga", {
+                                "timing-scheme": "zero",
+                                "throttle-search": False,
+                                "lb-scheme": "leastloaded",
+                            }))
     
     if "TS+SUB" in added_comparisons or add_all:
         comparisons.append((f"TS+SUB", {

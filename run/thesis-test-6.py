@@ -38,7 +38,7 @@ if __name__ == "__main__":
             "subplot_y_params": "cmmcmp_range",
             "subplot_x_params": "desired_entropy",
             "subplot_hue_params": "comparison",
-            "plot_x_params": "inflate",
+            "plot_x_params": "machine_count",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -73,8 +73,8 @@ if __name__ == "__main__":
             # ("rack_size", [8]),
             # ("job_sizes", [(4, 16)]),
             # ("job_sizes", [(8, 12)]),
-            ("job_sizes", [(8, "25%")]),
-            ("placement_mode", ["entropy"]), 
+            ("job_sizes", [("10%", "25%")]),
+            ("placement_mode", ["semirandom_4"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.4]),
             ("oversub", [2]),
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7"]
+        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
         # comparisons = ["coloring-v8"]
 
