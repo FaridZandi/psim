@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 1
+    seed_range = 10
     m = 100
     
     clean_up_sweep_files = False
@@ -85,7 +85,7 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        comparisons = ["coloring-v8"]
+        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -104,7 +104,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=1,
                                                  plot_stuff=True,
                                                  throttle_search=False,
-                                                 farid_rounds=100,
+                                                 farid_rounds=10,
                                                  run_cassini_timing_in_subprocess=False, 
                                                  **perm) 
             
