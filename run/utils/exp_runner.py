@@ -130,8 +130,8 @@ all_metrics = {
         "type": "single_number",
     },
     "bad_range_ratios": {   
-        "avg_cdf_plot": False,   
-        "iter_avg_plot": True,  
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
         "compare_mode": "self",
         "better": "lower",
         "type": "single_list",
