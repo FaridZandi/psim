@@ -161,6 +161,7 @@ def do_experiment(seed_range=1,
                   farid_rounds=12,  
                   worker_thread_count=40,
                   throttle_search=False,
+                  run_cassini_timing_in_subprocess=True,
                   ): 
     
     
@@ -364,6 +365,16 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
         
+    if "coloring-v8" in added_comparisons or add_all:   
+        comparisons.append(("coloring-v8", {
+                                "timing-scheme": "faridv5",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "farid-rounds": farid_rounds,   
+                                "routing-fit-strategy": "graph-coloring-v8",  
+                                "lb-scheme": "readprotocol"
+                            }))
+        
     if "zero-v7" in added_comparisons or add_all:   
         comparisons.append(("zero-v7", {
                                 "timing-scheme": "zero",
@@ -464,6 +475,7 @@ def do_experiment(seed_range=1,
         worker_thread_count=worker_thread_count, 
         plot_cdfs=False,
         store_outputs=False,
+        run_cassini_timing_in_subprocess=run_cassini_timing_in_subprocess,
     )
     
     summary = cs.sweep()

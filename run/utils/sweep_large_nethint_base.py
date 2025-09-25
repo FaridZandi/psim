@@ -237,7 +237,8 @@ def calc_placement(placement_file_path, placement_seed, options, run_context, co
     
     return jobs, add_to_context
    
-def run_command_options_modifier(options, config_sweeper, run_context):
+def run_command_options_modifier(options, config_sweeper, run_context, 
+                                 run_cassini_timing_in_subprocess = True):
     
     original_options = copy.deepcopy(options)   
     
