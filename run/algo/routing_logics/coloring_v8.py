@@ -413,21 +413,34 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                                 break
                         if not placed:
                             edges[src_rack][dst_rack].append([((start, end), [color_id])])
-
-
+                            
+                            
+                        # let's assume this is correct for now. 
+                    
+            input("above are the edges. press enter to continue...")
+            
+            # so now we have the edges. Let's do the coloring: 
+            # we should make a list of edges to send to the coloring function: 
+            
+            coloring_edges = [] 
+            
             for r in range(rack_count):
                 for c in range(rack_count): 
                     if r == c: 
                         continue 
-                    
                     if len(edges[r][c]) == 0:
                         continue    
-                    
                     for i, entry in enumerate(edges[r][c]):
                         print(f"edge {i} between {r}->{c}:", file=sys.stderr) 
                         pprint(entry, stream=sys.stderr)    
-                                     
-            input("above are the edges. press enter to continue...")
+
+                        coloring_edges.append((f"{r}_l", f"{c}_r", (r, c, i)))
+            
+            edge_color_map, max_degree = color_bipartite_multigraph(coloring_edges)            
+            
+            pprint(edge_color_map, stream=sys.stderr)
+            
+            input("above is the coloring. press enter to continue...")
 
     print("solutions:", solutions, file=sys.stderr)
     
