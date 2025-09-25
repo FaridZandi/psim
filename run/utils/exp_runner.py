@@ -385,7 +385,7 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
         
-    if "rounds" in added_comparisons or add_all:
+    if "rounds" in added_comparisons or "rounds-v5" in added_comparisons or add_all:
         for rounds in range(0, 101, 10):
             comparisons.append(("foresight-v5-{}".format(rounds), {
                                 "timing-scheme": "faridv5",

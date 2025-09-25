@@ -66,7 +66,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [40 * m]),
+            ("sim_length", [200 * m]),
             ("machine_count", [240]),
             ("rack_size", [12]),
             # ("machine_count", [48]),
@@ -87,8 +87,8 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5"]
-        # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
+        # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5"]
+        comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
         # comparisons = ["coloring-v8"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
