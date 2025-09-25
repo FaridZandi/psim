@@ -3,6 +3,7 @@ from utils.sweep_large_nethint_base import *
 from utils.sweep_base import ConfigSweeper
 import itertools
 from utils.exp_runner import do_experiment, create_command, get_global_config
+import time as timesleep 
 
 # Here, we iterate over things that will have different baselines to compare against.   
 # the idea is that eventually, one plot should be generate for each of these setting combinations.   
@@ -102,7 +103,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=40,
-                                                 plot_stuff=True,
+                                                 plot_stuff=False,
                                                  throttle_search=False,
                                                  farid_rounds=0,
                                                  run_cassini_timing_in_subprocess=False, 

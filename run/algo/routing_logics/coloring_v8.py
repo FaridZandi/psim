@@ -351,19 +351,55 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         # each time_range in the time_ranges list is a list of (start, end, key) tuples.
         
         print("keys:", keys, file=sys.stderr)
-        print("time_ranges:", time_ranges, file=sys.stderr)
+        
+        print("time_ranges:", file=sys.stderr)
+        pprint(time_ranges, stream=sys.stderr)        
+        
         
         for time_range in time_ranges: 
             # time_range is a list of (start, end, key) tuples.
 
             # Step 1: Collect all change points (start/end) for this merged component.
             change_points = []
+            
             for start, end, key in time_range:
                 change_points.append((start, 'enter', key))
                 change_points.append((end + 1, 'exit', key))
             change_points.sort()
+            
+            # summarize the change points. all events that happen at the same time
+            # should be processed together.
+            
+            summarized_change_points = []   
+            
+            if len(change_points) > 0:
+                current_time = change_points[0][0]
+                current_events = []
+                
+                for time, event, key in change_points:
+                    if time == current_time:
+                        current_events.append((event, key))
+                    else:
+                        # process the current events
+                        # 'exit' events should be processed before 'enter' events
+                        current_events.sort(key=lambda x: 0 if x[0] == 'exit' else 1)
+                        for ev, k in current_events:
+                            summarized_change_points.append((current_time, ev, k))
+                        
+                        current_time = time
+                        current_events = [(event, key)]
+                
+                # process the last batch of events
+                if len(current_events) > 0:
+                    current_events.sort(key=lambda x: 0 if x[0] == 'exit' else 1)
+                    for ev, k in current_events:
+                        summarized_change_points.append((current_time, ev, k))
 
             print("change_points:", change_points, file=sys.stderr)
+            
+            change_points = summarized_change_points    
+            
+            print("summarized_change_points:", change_points, file=sys.stderr)
             
             # Step 2: Sweep through the timeline, maintaining the active set.
             active_patterns = set()
@@ -384,7 +420,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                     
                     pprint(current_solution, stream=sys.stderr)
                     
-                    time.sleep(1)
+                    timesleep.sleep(1)
                     
                     
                 elif event == 'exit':
