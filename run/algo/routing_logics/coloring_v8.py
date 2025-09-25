@@ -410,6 +410,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             for time, events in change_points:
                 print("We are at time:", time, file=sys.stderr)
                 
+                # sort the events such that all 'exit' events are processed before 'enter' events
+                events.sort(key=lambda x: 0 if x[0] == 'exit' else 1)
+                
                 any_enters = False
                 for event, key in events: 
                     print(f"time: {time}, event: {event}, key: {key}", file=sys.stderr)
