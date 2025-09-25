@@ -351,7 +351,7 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
         
-    if "Perfect" in added_comparisons or add_all:
+    if "perfect" in added_comparisons or add_all:
         comparisons.append(("Perfect", {
                                 "timing-scheme": "zero",
                                 "lb-scheme": "perfect"
