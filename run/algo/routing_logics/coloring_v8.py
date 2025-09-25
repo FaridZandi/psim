@@ -315,12 +315,10 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         
     needed_color_count = {} 
     max_degrees = {} 
-    solutions = [] 
     bad_ranges = []
-        
-    solutions = {} 
-    higest_color_used = 0
-    
+    solutions = {}
+    highest_color_used = 0
+
     for keys, time_ranges_list in merged_ranges.items():
         
         # all the joined patterns that share the same key set. 
@@ -333,6 +331,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         
         
         for time_ranges in time_ranges_list: 
+            print("--------------------------------------------------", file=sys.stderr)
+            print("starting new coloring for time_ranges:", time_ranges, file=sys.stderr)
             # time_ranges is a list of (start, end, key) tuples.
              
             # making a representative graph for this set of keys. 
@@ -416,6 +416,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 higest_color_used = max(higest_color_used, color)   
                 
                 for time_range, color_id in entry:
+                    print(f"    color {color} to color_id {color_id} for time_range {time_range}", file=sys.stderr)
                     if (color_id, time_range) in solutions:
                         print(f"Duplicate solution for (color_id, time_range): {(color_id, time_range)}", file=sys.stderr)
                     solutions[(color_id, time_range)] = color
