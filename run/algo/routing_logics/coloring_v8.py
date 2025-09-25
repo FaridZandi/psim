@@ -317,41 +317,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     max_degrees = {} 
     solutions = [] 
     bad_ranges = []
-
-
-    def color_for_key_set(key_set):
-        current_flows = [] 
-        for hash in key_set: 
-            traffic_pattern_rep = hash_to_traffic_id[hash]
-            flows = traffic_id_to_flows[traffic_pattern_rep]
-            current_flows.extend(flows)
-
-        edges = []
-        solution = defaultdict(list)
-
-        subflow_counter = 0
-        for flow in current_flows:
-            for _ in range(flow["needed_subflows"]):
-                subflow_counter += 1
-                src_leaf = flow["srcrack"]
-                dst_leaf = flow["dstrack"]
-                edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", subflow_counter))
-                
-        edge_color_map, _ = color_bipartite_multigraph(edges)
-
-        subflow_counter = 0
-        for flow in current_flows:
-            for _ in range(flow["needed_subflows"]):
-                subflow_counter += 1
-                
-                color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
-                chosen_color = edge_color_map[subflow_counter]
-                
-                solution[color_id].append(chosen_color)
-                
-        return solution
         
-        
+    solutions = {} 
+    
     for keys, time_ranges_list in merged_ranges.items():
         
         # all the joined patterns that share the same key set. 
@@ -390,10 +358,10 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 flows = traffic_id_to_flows[traffic_pattern_rep]
                 
                 for flow in flows:
-                    for _ in range(flow["needed_subflows"]):
+                    for subflow in range(flow["needed_subflows"]):
                         src_rack = flow["srcrack"]
                         dst_rack = flow["dstrack"]
-                        color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
+                        color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"] + f"_{subflow}"   
                         
                         # looking at the edges[src_rack][dst_rack] we see a list. 
                         # any of those entries could potentially be able to fit this new time range.
@@ -445,12 +413,22 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             for edge_index, color in edge_color_map.items():
                 r, c, i = coloring_edges[edge_index - 1][2]
                 entry = edges[r][c][i]
-                print(f"assigning color {color} to edge {r}->{c} index {i}", file=sys.stderr)
+                print(f"assigning color {color} to edge {r}->{c} index {i}: {entry}", file=sys.stderr)
                 
+                for time_range, color_ids in entry:
+                    solutions.append({
+                        "time_range": time_range,
+                        "patterns": color_ids,
+                        "coloring": color
+                    })
+                    
+            pprint(solutions, stream=sys.stderr)
+
             input("above are the color assignments. press enter to continue...")
-            # let's go through the coloring results:
             
-                        
+            # for this to be useful, we need to map the color_ids and time_ranges to the coloring 
+            
+                                    
     
     if run_context["plot-merged-ranges"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
