@@ -173,6 +173,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     signature_length = 16
     all_flows.sort(key=lambda x: x["eff_start_time"])
 
+    rack_count = 0 
+    
     ##############################    
     # The edge count on the ingress and egress of each rack at each time point. 
     # The edge count gives a lower bound on the number of colors needed.
@@ -201,6 +203,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         min_affected_time = min(min_affected_time, start_time)  
         max_affected_time = max(max_affected_time, end_time)
 
+        rack_count = max(rack_count, src_rack + 1, dst_rack + 1) 
+           
         while src_rack >= len(edge_count_in) or dst_rack >= len(edge_count_out):
             edge_count_in.append([0] * (flows_max_time + 1))
             edge_count_out.append([0] * (flows_max_time + 1))   
@@ -348,7 +352,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         return solution
         
         
-    for keys, time_ranges in merged_ranges.items():
+    for keys, time_ranges_list in merged_ranges.items():
         
         # all the joined patterns that share the same key set. 
         # each time_range in the time_ranges list is a list of (start, end, key) tuples.
@@ -356,109 +360,62 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         print("keys:", keys, file=sys.stderr)
         
         print("time_ranges:", file=sys.stderr)
-        pprint(time_ranges, stream=sys.stderr)        
+        pprint(time_ranges_list, stream=sys.stderr)        
         
         
-        for time_range in time_ranges: 
-            # time_range is a list of (start, end, key) tuples.
+        for time_ranges in time_ranges_list: 
+            # time_ranges is a list of (start, end, key) tuples.
+             
+            # making a representative graph for this set of keys. 
+            # we go through the first pattern and and add all its edges to the graph. 
+            # for each edge, we note that color_id = pattern_hash + "_" + traffic_member_id
+            # and the time in which this edge is active. 
+            # then we go through the second pattern, and so on.
+            # when we see an edge that is already in the graph, we add another color_id to it.
+            # but only if the time ranges don't overlap. 
+            # if they do overlap, then we have to add another edge to the graph. 
 
-            # Step 1: Collect all change points (start/end) for this merged component.
-            change_points = []
+            # therefore the data structure that we need while going through the patterns is: 
+            # for each source-destination pair, a list of (time_range, color_ids)
             
-            for start, end, key in time_range:
-                change_points.append((start, 'enter', key))
-                change_points.append((end + 1, 'exit', key))
-            change_points.sort()
-            
-            # summarize the change points. all events that happen at the same time
-            # should be processed together. it should be tuples of time, list of (event, key)
-            
-            summarized_change_points = []   
-            
-            if len(change_points) > 0:
-                current_time = change_points[0][0]
-                current_events = []
+            edges = [] 
+            for r in range(rack_count):
+                edges.append([])
+                for c in range(rack_count):
+                    edges[r].append([])
+                    
+            for time_range in time_ranges:
+                start, end, key = time_range
+                traffic_pattern_rep = hash_to_traffic_id[key]
+                flows = traffic_id_to_flows[traffic_pattern_rep]
                 
-                for time, event, key in change_points:
-                    if time == current_time:
-                        current_events.append((event, key))
-                    else:
-                        summarized_change_points.append((current_time, current_events))
-                        current_time = time
-                        current_events = [(event, key)]
-                if len(current_events) > 0:
-                    summarized_change_points.append((current_time, current_events))
-            
-
-            print("change_points:", change_points, file=sys.stderr)
-            
-            change_points = summarized_change_points    
-            
-            print("summarized_change_points:", change_points, file=sys.stderr)
-            
-            # Step 2: Sweep through the timeline, maintaining the active set.
-            active_patterns = set()
-            
-            current_solution = None 
-            previous_solution = None
-            previous_active_patterns = None
-            
-            last_time = None
-
-            # for idx, (time, event, key) in enumerate(change_points):
-            
-            for time, events in change_points:
-                print("We are at time:", time, file=sys.stderr)
+                for flow in flows:
+                    for _ in range(flow["needed_subflows"]):
+                        src_rack = flow["srcrack"]
+                        dst_rack = flow["dstrack"]
+                        color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
+                        
+                        # looking at the edges[src_rack][dst_rack] we see a list. 
+                        # any of those entries could potentially be able to fit this new time range.
+                        # if none of them can fit, we have to add a new entry.
+                        
+                        placed = False
+                        for entry in edges[src_rack][dst_rack]:
+                            is_good_entry = True
+                            for entry_time_range, entry_color_ids in entry: 
+                                # does it overlap with start,end? 
+                                if not (end < entry_time_range[0] or start > entry_time_range[1]):
+                                    is_good_entry = False
+                                    break
+                            if is_good_entry:
+                                entry.append(((start, end), [color_id]))
+                                placed = True
+                                break
+                        if not placed:
+                            edges[src_rack][dst_rack].append([((start, end), [color_id])])
                 
-                # sort the events such that all 'exit' events are processed before 'enter' events
-                events.sort(key=lambda x: 0 if x[0] == 'exit' else 1)
-                
-                any_enters = False
-                for event, key in events: 
-                    print(f"time: {time}, event: {event}, key: {key}", file=sys.stderr)
-                    if event == 'enter':
-                        active_patterns.add(key)
-                        any_enters = True   
-                    elif event == 'exit':
-                        active_patterns.discard(key)
-            
-                print("active_patterns:", active_patterns, file=sys.stderr)
-                
-                if any_enters: 
-                    current_solution = color_for_key_set(active_patterns)
-
-                    if previous_solution is not None: 
-                        # we need to translate the current solution to match the previous solution 
-                        # where they the coloring the same things. 
-                        
-                        pprint(previous_solution, stream=sys.stderr)
-                        pprint(current_solution, stream=sys.stderr)
-                        
-                        # wait for user input to continue.
-                        input("We have a previous solution....")
-                        
-                        color_mapping = {} 
-                        
-                        for key in current_solution.keys():
-                            if key in previous_solution: 
-                                prev_solution_colors = previous_solution[key]
-                                curr_solution_colors = current_solution[key]   
-                                 
-                                for pc, cc in zip(prev_solution_colors, curr_solution_colors):
-                                    if cc in color_mapping:
-                                        if color_mapping[cc] != pc:
-                                            print(f"Conflict in color mapping for color {cc}: {color_mapping[cc]} vs {pc}", file=sys.stderr)
-                                    else: 
-                                        color_mapping[cc] = pc
-                                    
-                        print("color_mapping:", color_mapping, file=sys.stderr)
-                        
-                        input("Press Enter to continue...")
-
-
-                    previous_solution = current_solution
-                    previous_active_patterns = active_patterns
-
+            pprint(edges, stream=sys.stderr)
+            input("above are the edges. press enter to continue...")
 
     print("solutions:", solutions, file=sys.stderr)
     
