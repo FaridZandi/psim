@@ -441,8 +441,16 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             pprint(edge_color_map, stream=sys.stderr)
             
             input("above is the coloring. press enter to continue...")
-
-    print("solutions:", solutions, file=sys.stderr)
+            
+            for edge_index, color in edge_color_map.items():
+                r, c, i = coloring_edges[edge_index][2]
+                entry = edges[r][c][i]
+                print(f"assigning color {color} to edge {r}->{c} index {i}", file=sys.stderr)
+                
+            input("above are the color assignments. press enter to continue...")
+            # let's go through the coloring results:
+            
+                        
     
     if run_context["plot-merged-ranges"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
