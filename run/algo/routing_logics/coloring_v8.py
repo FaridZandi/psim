@@ -376,14 +376,11 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                                     is_good_entry = False
                                     break
                             if is_good_entry:
-                                entry.append(((start, end), [color_id]))
+                                entry.append(((start, end), color_id))
                                 placed = True
                                 break
                         if not placed:
-                            edges[src_rack][dst_rack].append([((start, end), [color_id])])
-                            
-                            
-                        # let's assume this is correct for now. 
+                            edges[src_rack][dst_rack].append([((start, end), color_id)])
                     
             input("above are the edges. press enter to continue...")
             
@@ -415,13 +412,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 entry = edges[r][c][i]
                 print(f"assigning color {color} to edge {r}->{c} index {i}: {entry}", file=sys.stderr)
                 
-                for time_range, color_ids in entry:
-                    solutions.append({
-                        "time_range": time_range,
-                        "patterns": color_ids,
-                        "coloring": color
-                    })
-                    
+                for time_range, color_id in entry:
+                    solutions[(color_id, time_range)] = color
+
             pprint(solutions, stream=sys.stderr)
 
             input("above are the color assignments. press enter to continue...")
