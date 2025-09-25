@@ -66,7 +66,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [200 * m]),
+            ("sim_length", [40 * m]),
             # ("machine_count", [240]),
             # ("rack_size", [12]),
             ("machine_count", [48]),

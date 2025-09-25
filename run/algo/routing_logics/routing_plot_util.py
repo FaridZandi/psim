@@ -153,9 +153,12 @@ def highlight_ranges(ax, ranges):
         ax.axvspan(start, end, color='orange', alpha=0.5)
         
 def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_degrees, 
-                     available_colors_max, highlighted_ranges, hash_to_traffic_id, plot_path, max_edge_count=None):
-    # two plots on top of each other
-    fig, axes = plt.subplots(3, 1, figsize=(7, 10), sharex=True)   
+                     available_colors_max, highlighted_ranges, hash_to_traffic_id, plot_path, max_edge_count=None, 
+                     plot_vertical_lines=False, height_multiplier=1):
+    
+    
+    # two plots on top of each other with the height multiplier.
+    fig, axes = plt.subplots(3, 1, figsize=(7, 10 * height_multiplier), sharex=True)
     
     # make the texts bigger 
     for ax in axes:
@@ -171,7 +174,7 @@ def plot_time_ranges(ranges_dict, merged_ranges_dict, needed_color_count, max_de
         for key, ranges in data.items():
             for i, (start, end) in enumerate(ranges):
                 ax.plot([start, end], [y, y], marker='|', label=f"{key}" if y == 0 else "")
-                if other_ax is not None:
+                if other_ax is not None and plot_vertical_lines:
                     ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
                     other_ax.axvline(x=start, color='gray', linestyle='--', linewidth=0.5)
                     ax.axvline(x=end, color='gray', linestyle='--', linewidth=0.5)
