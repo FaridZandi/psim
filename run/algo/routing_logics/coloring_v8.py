@@ -419,15 +419,17 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                     solutions[(color_id, time_range)] = color
 
             
+            coloring_time_range = (time_ranges[0][0], time_ranges[-1][1])
             used_spines = max_degree / max_subflow_count
-            if used_spines > num_spines:
-                bad_ranges.append(time_range)
             
-            if time_range in needed_color_count:
-                needed_color_count[time_range] = max(needed_color_count[time_range], used_spines)
+            if used_spines > num_spines:
+                bad_ranges.append(coloring_time_range)
+            if coloring_time_range in needed_color_count:
+                needed_color_count[coloring_time_range] = max(needed_color_count[coloring_time_range], used_spines)
             else: 
-                needed_color_count[time_range] = used_spines
-            max_degrees[time_range] = max_degree / max_subflow_count
+                needed_color_count[coloring_time_range] = used_spines
+                
+            max_degrees[coloring_time_range] = max_degree / max_subflow_count
                 
             
     print("Done with coloring.", file=sys.stderr)
