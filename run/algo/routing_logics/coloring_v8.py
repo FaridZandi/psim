@@ -309,7 +309,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     merged_ranges = merge_overlapping_ranges_v8(hash_to_time_ranges, 
                                                 traffic_pattern_to_src_racks, 
                                                 traffic_pattern_to_dst_racks)
-
+    
+    pprint(merged_ranges, stream=sys.stderr)
+    print("==================================================", file=sys.stderr)
     # pprint(merged_ranges, stream=log_file)
     # log_file.close()
         
@@ -320,10 +322,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     highest_color_used = 0
 
     for keys, time_ranges_list in merged_ranges.items():
-        print(keys, file=sys.stderr)
-        pprint(time_ranges_list, stream=sys.stderr)
-        
-        print("==================================================", file=sys.stderr)
+
         # all the joined patterns that share the same key set. 
         # each time_range in the time_ranges list is a list of (start, end, key) tuples.
         
