@@ -438,6 +438,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     
     if run_context["plot-merged-ranges"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
+        merged_ranges = {k: [(r[0], r[1]) for r in v] for k, v in merged_ranges.items()}
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), 
                          needed_color_count, max_degrees, num_spines,
                          highlighted_ranges, None, plot_path, max_edge_count)

@@ -102,7 +102,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=1,
-                                                 plot_stuff=False,
+                                                 plot_stuff=True,
                                                  throttle_search=False,
                                                  farid_rounds=100,
                                                  run_cassini_timing_in_subprocess=False, 
