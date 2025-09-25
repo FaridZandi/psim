@@ -408,22 +408,31 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             # for idx, (time, event, key) in enumerate(change_points):
             
             for time, events in change_points:
+                
+                any_enters = False
                 for event, key in events: 
                     print(f"time: {time}, event: {event}, key: {key}", file=sys.stderr)
-
                     if event == 'enter':
                         active_patterns.add(key)
+                        any_enters = True   
                     elif event == 'exit':
                         active_patterns.discard(key)
-                    
+                
+                if any_enters: 
                     current_solution = color_for_key_set(active_patterns)
-                    pprint(current_solution, stream=sys.stderr)
-                    timesleep.sleep(1)
+
+                    if previous_solution is not None: 
+                        # we need to translate the current solution to match the previous solution 
+                        # where they the coloring the same things. 
                         
-                    
-                
-                
-                
+                        # wait for user input to continue.
+                        input("Press Enter to continue...")
+                        
+                        
+                        
+                    previous_solution = current_solution
+
+
             
             
             
