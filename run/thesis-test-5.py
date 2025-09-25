@@ -85,7 +85,7 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5"]
+        comparisons = ["coloring-v8"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -101,11 +101,11 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=3,
+                                                 worker_thread_count=1,
                                                  plot_stuff=False,
                                                  throttle_search=False,
                                                  farid_rounds=100,
-                                                 run_cassini_timing_in_subprocess=True, 
+                                                 run_cassini_timing_in_subprocess=False, 
                                                  **perm) 
             
             for summary_item in summary:    
