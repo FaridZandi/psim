@@ -321,7 +321,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     needed_color_count = {} 
     max_degrees = {} 
     bad_ranges = []
-    solutions = {}
+    solutions = defaultdict(list)
     highest_color_used = 0
 
     for keys, time_ranges_list in merged_ranges.items():
@@ -364,10 +364,10 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 flows = traffic_id_to_flows[traffic_pattern_rep]
                 
                 for flow in flows:
-                    for subflow in range(flow["needed_subflows"]):
+                    for _ in range(flow["needed_subflows"]):
                         src_rack = flow["srcrack"]
                         dst_rack = flow["dstrack"]
-                        color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"] + f"_{subflow}"   
+                        color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
                         # flow_start = flow["eff_start_time"] 
                         # flow_end = flow["eff_end_time"]
                         flow_start = start 
@@ -426,9 +426,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
 
                 for time_range, color_id in entry:
                     print(f"    color {color} to color_id {color_id} for time_range {time_range}", file=sys.stderr)
-                    if (color_id, time_range) in solutions:
-                        print(f"Duplicate solution for (color_id, time_range): {(color_id, time_range)}", file=sys.stderr)
-                    solutions[(color_id, time_range)] = color
+                    # if (color_id, time_range) in solutions:
+                        # print(f"Duplicate solution for (color_id, time_range): {(color_id, time_range)}", file=sys.stderr)
+                    solutions[(color_id, time_range)].append(color)
 
             
             coloring_time_range = (time_ranges[0][0], time_ranges[-1][1])
@@ -506,10 +506,10 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             if solutions_key not in solutions:
                 print(f"Solution not found for key: {solutions_key}")
                 exit(f"Solution not found for key: {solutions_key}")
-            color = solutions[solutions_key]
-            
-                        
-            chosen_spine = color - 1 
+            color = solutions[solutions_key][0]
+            solutions[solutions_key] = rotate(solutions[solutions_key])
+
+            chosen_spine = color - 1
             chosen_spine = chosen_spine // max_subflow_count
             chosen_spine = chosen_spine % num_spines # just in case.    
             
