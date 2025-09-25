@@ -445,7 +445,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     print("Done with coloring.", file=sys.stderr)
     print(f"Highest color used: {highest_color_used}", file=sys.stderr)
     print("number of solution entries:", len(solutions), file=sys.stderr)
-    input("above is the highest color used. press enter to continue...")
+    # input("above is the highest color used. press enter to continue...")
     
     if run_context["plot-merged-ranges"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix) 
@@ -464,7 +464,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                          highlighted_ranges, None, plot_path, max_edge_count, 
                          plot_vertical_lines=False, height_multiplier=2)
         
-    input("above is the highest color used. press enter to continue...")
+    # input("above is the highest color used. press enter to continue...")
 
     
     # use pprint to stderr 
@@ -528,7 +528,10 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             selected_spines.append((spine, ratio))
 
         lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
-        
+                
+        if run_context["plot-routing-assignment"]:
+            update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
+                              src_leaf, dst_leaf)
 
         
     
