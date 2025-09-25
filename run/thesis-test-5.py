@@ -101,11 +101,11 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=1,
+                                                 worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=False,
                                                  farid_rounds=10,
-                                                 run_cassini_timing_in_subprocess=False, 
+                                                 run_cassini_timing_in_subprocess=TRue, 
                                                  **perm) 
             
             for summary_item in summary:    
