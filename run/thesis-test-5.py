@@ -105,7 +105,7 @@ if __name__ == "__main__":
                                                  plot_stuff=False,
                                                  throttle_search=False,
                                                  farid_rounds=10,
-                                                 run_cassini_timing_in_subprocess=TRue, 
+                                                 run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
             for summary_item in summary:    
