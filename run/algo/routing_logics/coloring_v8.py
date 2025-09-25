@@ -418,11 +418,17 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 for time_range, color_id in entry:
                     solutions[(color_id, time_range)] = color
 
-            # pprint(solutions, stream=sys.stderr)
-
-            # input("above are the color assignments. press enter to continue...")
             
-            # for this to be useful, we need to map the color_ids and time_ranges to the coloring 
+            used_spines = max_degree / max_subflow_count
+            if used_spines > num_spines:
+                bad_ranges.append(time_range)
+            
+            if time_range in needed_color_count:
+                needed_color_count[time_range] = max(needed_color_count[time_range], used_spines)
+            else: 
+                needed_color_count[time_range] = used_spines
+            max_degrees[time_range] = max_degree / max_subflow_count
+                
             
     print("Done with coloring.", file=sys.stderr)
     print(f"Higest color used: {higest_color_used}", file=sys.stderr)
