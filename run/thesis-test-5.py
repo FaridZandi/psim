@@ -87,7 +87,7 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5"]
+        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
         # comparisons = ["coloring-v8"]
 
@@ -108,7 +108,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=False,
-                                                 farid_rounds=50,
+                                                 farid_rounds=0,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
