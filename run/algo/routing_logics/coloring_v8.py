@@ -444,8 +444,12 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                                 prev_solution_colors = previous_solution[key]
                                 curr_solution_colors = current_solution[key]   
                                  
-                                for pc, cc in zip(prev_solution_colors, curr_solution_colors): 
-                                    color_mapping[cc] = pc
+                                for pc, cc in zip(prev_solution_colors, curr_solution_colors):
+                                    if cc in color_mapping:
+                                        if color_mapping[cc] != pc:
+                                            print(f"Conflict in color mapping for color {cc}: {color_mapping[cc]} vs {pc}", file=sys.stderr)
+                                    else: 
+                                        color_mapping[cc] = pc
                                     
                         print("color_mapping:", color_mapping, file=sys.stderr)
                         
