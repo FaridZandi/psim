@@ -38,7 +38,7 @@ if __name__ == "__main__":
             "subplot_y_params": "cmmcmp_range",
             "subplot_x_params": "desired_entropy",
             "subplot_hue_params": "comparison",
-            "plot_x_params": "inflate",
+            "plot_x_params": "machine_count",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -66,17 +66,17 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [200 * m]),
-            ("machine_count", [240]),
-            ("rack_size", [12]),
+            ("sim_length", [400 * m]),
+            ("machine_count", [48, 96, 144, 192, 240]),
+            ("rack_size", [8]),
             # ("machine_count", [48]),
             # ("rack_size", [8]),
             # ("job_sizes", [(4, 16)]),
             # ("job_sizes", [(8, 12)]),
-            ("job_sizes", [(8, 48)]),
-            ("placement_mode", ["semirandom_4"]), 
+            ("job_sizes", [("10%", "25%")]),
+            ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.5]),
+            ("desired_entropy", [0.2, 0.25, 0.3, 0.35, 0.4]),
             ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
@@ -88,7 +88,7 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7"]
+        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
         # comparisons = ["coloring-v8"]
 

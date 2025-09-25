@@ -129,6 +129,13 @@ all_metrics = {
         "better": "lower",
         "type": "single_number",
     },
+    "bad_range_ratios": {   
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_list",
+    },
 }
 
 
@@ -286,6 +293,20 @@ def do_experiment(seed_range=1,
                                 "routing-fit-strategy": "graph-coloring-v3",  
                                 "lb-scheme": "readprotocol"
                             }))
+        
+    if "conga" in added_comparisons or add_all:
+        comparisons.append(("conga", {
+                                "timing-scheme": "zero",
+                                "throttle-search": False,
+                                "lb-scheme": "leastloaded",
+                            }))
+    
+    if "spray" in added_comparisons or add_all: 
+        comparisons.append(("spray", {
+                                "timing-scheme": "zero",
+                                "throttle-search": False,
+                                "lb-scheme": "perfect",
+                            }))
     
     if "TS+SUB" in added_comparisons or add_all:
         comparisons.append((f"TS+SUB", {
@@ -330,7 +351,7 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
         
-    if "Perfect" in added_comparisons or add_all:
+    if "perfect" in added_comparisons or add_all:
         comparisons.append(("Perfect", {
                                 "timing-scheme": "zero",
                                 "lb-scheme": "perfect"
