@@ -428,8 +428,6 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     print(f"Higest color used: {higest_color_used}", file=sys.stderr)
     print("number of solution entries:", len(solutions), file=sys.stderr)
     
-    input("above are the color assignments. press enter to continue...")
-    
     if run_context["plot-merged-ranges"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
         plot_time_ranges(hash_to_time_ranges, dict(merged_ranges), 
