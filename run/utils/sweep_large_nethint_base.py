@@ -468,6 +468,8 @@ def run_command_options_modifier(options, config_sweeper, run_context,
         run_context["fixing_rounds"] = 0    
     if "bad_range_ratio" not in add_to_context: 
         run_context["bad_range_ratio"] = 0 
+    if "bad_range_ratios" not in add_to_context:    
+        run_context["bad_range_ratios"] = []
     
     if lb_decisions is not None:
         total_subflows = 0
