@@ -372,12 +372,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 if event == 'enter':
                     active_patterns.add(key)
 
-                    color_for_key_set(active_patterns)
+                    current_solution = color_for_key_set(active_patterns)
                     
-                                        
-                    # if we have a previous color map, try to keep the same colors for the existing patterns.
-                    if len(previous_color_map) > 0:
-                        pass 
+                    pprint(current_solution, stream=sys.stderr)
                     
                     
                 elif event == 'exit':
