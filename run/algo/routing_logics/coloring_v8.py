@@ -416,6 +416,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 higest_color_used = max(higest_color_used, color)   
                 
                 for time_range, color_id in entry:
+                    if (color_id, time_range) in solutions:
+                        print(f"Duplicate solution for (color_id, time_range): {(color_id, time_range)}", file=sys.stderr)
                     solutions[(color_id, time_range)] = color
 
             
@@ -435,6 +437,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     print("Done with coloring.", file=sys.stderr)
     print(f"Higest color used: {higest_color_used}", file=sys.stderr)
     print("number of solution entries:", len(solutions), file=sys.stderr)
+    input("above is the highest color used. press enter to continue...")
     
     if run_context["plot-merged-ranges"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix) 
