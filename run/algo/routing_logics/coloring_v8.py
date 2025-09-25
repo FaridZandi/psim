@@ -443,7 +443,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             input("above is the coloring. press enter to continue...")
             
             for edge_index, color in edge_color_map.items():
-                r, c, i = coloring_edges[edge_index][2]
+                r, c, i = coloring_edges[edge_index - 1][2]
                 entry = edges[r][c][i]
                 print(f"assigning color {color} to edge {r}->{c} index {i}", file=sys.stderr)
                 
