@@ -12,8 +12,8 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 10
-    m = 10
+    seed_range = 1
+    m = 100
     
     clean_up_sweep_files = False
 
@@ -85,9 +85,7 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        # comparisons = ["coloring-v5", "coloring-v7", "RO", "zero-v7"]
-        comparisons = ["rounds-v7"]
-        
+        comparisons = ["coloring-v8"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -103,11 +101,11 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=40,
-                                                 plot_stuff=True,
+                                                 worker_thread_count=1,
+                                                 plot_stuff=False,
                                                  throttle_search=False,
                                                  farid_rounds=0,
-                                                #  placement_seeds=[8],
+                                                 run_cassini_timing_in_subprocess=False, 
                                                  **perm) 
             
             for summary_item in summary:    

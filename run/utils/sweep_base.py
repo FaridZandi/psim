@@ -28,7 +28,9 @@ class ConfigSweeper:
                  exp_name="exp",
                  worker_thread_count=DEFAULT_WORKER_THREAD_COUNT, 
                  plot_cdfs=False, 
-                 store_outputs=False):  
+                 store_outputs=False,
+                 run_cassini_timing_in_subprocess=True,
+                 ):  
         
         # arguments
         self.sweep_config = sweep_config
@@ -56,7 +58,8 @@ class ConfigSweeper:
         self.worker_thread_count = worker_thread_count
         self.custom_save_results_func = custom_save_results_func
         self.result_extractor_function = result_extractor_function
-        self.exp_filter_function = exp_filter_function  
+        self.exp_filter_function = exp_filter_function 
+        self.run_cassini_timing_in_subprocess = run_cassini_timing_in_subprocess 
         
         # paths
         self.run_id = str(get_incremented_number())
@@ -341,12 +344,15 @@ class ConfigSweeper:
         options["workers-dir"] = self.workers_dir
 
         def get_time_string():
-            return datetime.datetime.now().strftime("%Y%m%d-%H%M%S")    
-        
+            # return datetime.datetime.now().strftime("%Y-%m-%d-%H:%M:%S:%f")
+            # to the microsecond
+            return datetime.datetime.now().strftime("%H:%M:%S.%f")[:-3]
+
         # a final chance for the user to modify the options before making the command. 
         print("[{}] {}: before command modification".format(get_time_string(), this_exp_uuid), flush=True)
         if self.run_command_options_modifier is not None:
-            self.run_command_options_modifier(options, self, run_context)
+            self.run_command_options_modifier(options, self, run_context, 
+                                              run_cassini_timing_in_subprocess=self.run_cassini_timing_in_subprocess)
         print("[{}] {}: after command modification".format(get_time_string(), this_exp_uuid), flush=True)
 
         options["worker-id"] = worker_id

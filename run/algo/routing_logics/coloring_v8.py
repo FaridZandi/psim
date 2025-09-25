@@ -12,9 +12,12 @@ import hashlib
 import math
 import networkx as nx
 
+import time as timesleep 
 
 
-def merge_overlapping_ranges_v7(ranges_dict, 
+
+
+def merge_overlapping_ranges_v8(ranges_dict, 
                                 traffic_pattern_to_src_racks, 
                                 traffic_pattern_to_dst_racks):
 
@@ -79,7 +82,7 @@ def merge_overlapping_ranges_v7(ranges_dict,
 
     for idx, (start, end, key, _, _) in enumerate(intervals):
         root = find(idx)
-        component_ranges[root].append((start, end))
+        component_ranges[root].append((start, end, key))
         component_keys[root].add(key)
 
     new_ranges = defaultdict(list)
@@ -89,37 +92,27 @@ def merge_overlapping_ranges_v7(ranges_dict,
         ranges.sort(key=lambda x: x[0])
 
         # Merge overlapping and back-to-back ranges
-        summarized_ranges = []
-        last_range = None
-        for start, end in ranges:
-            if last_range is None:
-                last_range = (start, end)
-            elif start <= last_range[1] + 1:  # Merge if overlapping or back-to-back
-                last_range = (last_range[0], max(last_range[1], end))
-            else:
-                summarized_ranges.append(last_range)
-                last_range = (start, end)
-        if last_range is not None:
-            summarized_ranges.append(last_range)
-
+        # summarized_ranges = []
+        # last_range = None
+        # for start, end in ranges:
+        #     if last_range is None:
+        #         last_range = (start, end)
+        #     elif start <= last_range[1] + 1:  # Merge if overlapping or back-to-back
+        #         last_range = (last_range[0], max(last_range[1], end))
+        #     else:
+        #         summarized_ranges.append(last_range)
+        #         last_range = (start, end)
+        # if last_range is not None:
+        #     summarized_ranges.append(last_range)
+        # summarized_range = (min(r[0] for r in ranges), max(r[1] for r in ranges))
+        
         comb_key = tuple(sorted(keys))
-        new_ranges[comb_key].extend(summarized_ranges)
-
-    for comb_key in list(new_ranges.keys()):
-        ranges = sorted(new_ranges[comb_key])
-        merged_ranges = []
-        for start, end in ranges:
-            if merged_ranges and start <= merged_ranges[-1][1] + 1:
-                prev_start, prev_end = merged_ranges[-1]
-                merged_ranges[-1] = (prev_start, max(prev_end, end))
-            else:
-                merged_ranges.append((start, end))
-        new_ranges[comb_key] = merged_ranges
+        new_ranges[comb_key].append(ranges)
 
     return new_ranges 
 
 
-def find_value_in_range_v7(entries, value, pattern_hash):
+def find_value_in_range_v8(entries, value, pattern_hash):
     for entry in entries:
         start, end = entry["time_range"]
         if start <= value <= end and pattern_hash in entry["patterns"]:
@@ -161,7 +154,7 @@ def plot_rack_dependencies(hash_to_time_ranges,
     plt.close()
 
 
-def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines, 
+def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines, 
                                   lb_decisions, run_context, max_subflow_count, link_bandwidth, 
                                   suffix=1, highlighted_ranges=[], early_return=False): 
 
@@ -309,7 +302,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
                                 "{}/routing/rack_dependency_{}.png".format(run_context["routings-dir"], suffix))
     
     
-    merged_ranges = merge_overlapping_ranges_v7(hash_to_time_ranges, 
+    merged_ranges = merge_overlapping_ranges_v8(hash_to_time_ranges, 
                                                 traffic_pattern_to_src_racks, 
                                                 traffic_pattern_to_dst_racks)
 
@@ -321,71 +314,151 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     solutions = [] 
     bad_ranges = []
 
-    for overlapping_keys, overlapping_ranges in merged_ranges.items():
-        current_flows = []
-        # for all the hashes that are overlapping, get the traffic patterns, put them all together
-        
-        for hash in overlapping_keys:
+
+    def color_for_key_set(key_set):
+        current_flows = [] 
+        for hash in key_set: 
             traffic_pattern_rep = hash_to_traffic_id[hash]
             flows = traffic_id_to_flows[traffic_pattern_rep]
             current_flows.extend(flows)
-            
-        
-        edges = [] 
-        subflow_counter = 0 
 
-        for flow in current_flows:  
-            for subflow in range(flow["needed_subflows"]):
+        edges = []
+        solution = defaultdict(list)
+
+        subflow_counter = 0
+        for flow in current_flows:
+            for _ in range(flow["needed_subflows"]):
                 subflow_counter += 1
                 src_leaf = flow["srcrack"]
                 dst_leaf = flow["dstrack"]
-                edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", subflow_counter))    
-            
-        
-        edge_color_map, max_degree = color_bipartite_multigraph(edges)
-        color_id_to_color = defaultdict(list)
-            
-        all_colors_used = set(edge_color_map.values()) 
-        colors_used_count = len(all_colors_used) 
-        
-        if colors_used_count > max_degree: 
-            # there's something wrong about this. 
-            print("edges:", edges, file=sys.stderr)
-            print("edge_color_map:", edge_color_map, file=sys.stderr)
-            print("max_degree:", max_degree, file=sys.stderr)
-            print("all_colors_used:", all_colors_used, file=sys.stderr)
-            
-        # print(f"Colors used count: {colors_used_count}", file=sys.stderr)
-        
+                edges.append((f"{src_leaf}_l", f"{dst_leaf}_r", subflow_counter))
+                
+        edge_color_map, _ = color_bipartite_multigraph(edges)
+
         subflow_counter = 0
-        
         for flow in current_flows:
-            for subflow in range(flow["needed_subflows"]):
+            for _ in range(flow["needed_subflows"]):
                 subflow_counter += 1
-                traffic_pattern_hash = flow["traffic_pattern_hash"]
+                
                 color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]   
-                color = edge_color_map[subflow_counter]
-                color_id_to_color[color_id].append(color)
+                chosen_color = edge_color_map[subflow_counter]
+                
+                solution[color_id].append(chosen_color)
+                
+        return solution
         
-        # pprint(color_id_to_color, stream=sys.stderr)
-                    
-        for time_range in overlapping_ranges:
-            color_map_snapshot = {key: list(colors) for key, colors in color_id_to_color.items()}
-            solutions.append({
-                "time_range": time_range,
-                "patterns": set(overlapping_keys),
-                "coloring": color_map_snapshot,
-            })
+        
+    for keys, time_ranges in merged_ranges.items():
+        
+        # all the joined patterns that share the same key set. 
+        # each time_range in the time_ranges list is a list of (start, end, key) tuples.
+        
+        print("keys:", keys, file=sys.stderr)
+        
+        print("time_ranges:", file=sys.stderr)
+        pprint(time_ranges, stream=sys.stderr)        
+        
+        
+        for time_range in time_ranges: 
+            # time_range is a list of (start, end, key) tuples.
+
+            # Step 1: Collect all change points (start/end) for this merged component.
+            change_points = []
             
-            used_spines = colors_used_count / max_subflow_count
-            if used_spines > num_spines:
-                bad_ranges.append(time_range)
+            for start, end, key in time_range:
+                change_points.append((start, 'enter', key))
+                change_points.append((end + 1, 'exit', key))
+            change_points.sort()
             
-            if time_range in needed_color_count:
-                needed_color_count[time_range] = max(needed_color_count[time_range], used_spines)
-            else: 
-                needed_color_count[time_range] = used_spines
-            max_degrees[time_range] = max_degree / max_subflow_count
+            # summarize the change points. all events that happen at the same time
+            # should be processed together. it should be tuples of time, list of (event, key)
+            
+            summarized_change_points = []   
+            
+            if len(change_points) > 0:
+                current_time = change_points[0][0]
+                current_events = []
+                
+                for time, event, key in change_points:
+                    if time == current_time:
+                        current_events.append((event, key))
+                    else:
+                        summarized_change_points.append((current_time, current_events))
+                        current_time = time
+                        current_events = [(event, key)]
+                if len(current_events) > 0:
+                    summarized_change_points.append((current_time, current_events))
+            
+
+            print("change_points:", change_points, file=sys.stderr)
+            
+            change_points = summarized_change_points    
+            
+            print("summarized_change_points:", change_points, file=sys.stderr)
+            
+            # Step 2: Sweep through the timeline, maintaining the active set.
+            active_patterns = set()
+            
+            current_solution = None 
+            previous_solution = None
+            previous_active_patterns = None
+            
+            last_time = None
+
+            # for idx, (time, event, key) in enumerate(change_points):
+            
+            for time, events in change_points:
+                print("We are at time:", time, file=sys.stderr)
+                
+                # sort the events such that all 'exit' events are processed before 'enter' events
+                events.sort(key=lambda x: 0 if x[0] == 'exit' else 1)
+                
+                any_enters = False
+                for event, key in events: 
+                    print(f"time: {time}, event: {event}, key: {key}", file=sys.stderr)
+                    if event == 'enter':
+                        active_patterns.add(key)
+                        any_enters = True   
+                    elif event == 'exit':
+                        active_patterns.discard(key)
+            
+                print("active_patterns:", active_patterns, file=sys.stderr)
+                
+                if any_enters: 
+                    current_solution = color_for_key_set(active_patterns)
+
+                    if previous_solution is not None: 
+                        # we need to translate the current solution to match the previous solution 
+                        # where they the coloring the same things. 
+                        
+                        pprint(previous_solution, stream=sys.stderr)
+                        pprint(current_solution, stream=sys.stderr)
+                        
+                        # wait for user input to continue.
+                        input("We have a previous solution....")
+                        
+                        color_mapping = {} 
+                        
+                        for key in current_solution.keys():
+                            if key in previous_solution: 
+                                prev_solution_colors = previous_solution[key]
+                                curr_solution_colors = current_solution[key]   
+                                 
+                                for pc, cc in zip(prev_solution_colors, curr_solution_colors):
+                                    if cc in color_mapping:
+                                        if color_mapping[cc] != pc:
+                                            print(f"Conflict in color mapping for color {cc}: {color_mapping[cc]} vs {pc}", file=sys.stderr)
+                                    else: 
+                                        color_mapping[cc] = pc
+                                    
+                        print("color_mapping:", color_mapping, file=sys.stderr)
+                        
+                        input("Press Enter to continue...")
+
+
+                    previous_solution = current_solution
+                    previous_active_patterns = active_patterns
+
 
     print("solutions:", solutions, file=sys.stderr)
     
@@ -413,7 +486,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
         
         pattern_hash = flow["traffic_pattern_hash"]
-        time_range_coloring = find_value_in_range_v7(solutions, start_time, pattern_hash)
+        time_range_coloring = find_value_in_range_v8(solutions, start_time, pattern_hash)
         if time_range_coloring is None:
             print(f"Time range not found for flow: {flow}")
             exit(f"Time range not found for flow: {flow}")
@@ -450,13 +523,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
 
         lb_decisions[(job_id, flow_id, iteration)] = selected_spines 
         
-        min_affected_time = min(min_affected_time, start_time)  
-        max_affected_time = max(max_affected_time, end_time)
+
         
-        if run_context["plot-routing-assignment"]:
-            update_time_range(start_time, end_time, flow, selected_spines, rem, usage, 
-                              src_leaf, dst_leaf)
-        
-    bad_ranges.sort()
     
     return min_affected_time, max_affected_time, bad_ranges

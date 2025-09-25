@@ -1467,7 +1467,11 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
     return job_timings, lb_decisions, add_to_context
 
         
-        
+def should_early_return(current_round, max_attempts):
+    if current_round < max_attempts: 
+        return True 
+    else: 
+        return False        
 
 def faridv5_scheduling(jobs, options, run_context, job_profiles):
     # the only supported mode for now 
@@ -1477,7 +1481,8 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     max_attempts = run_context["farid-rounds"]
     current_round = 0
     add_to_context = {
-        "fixing_rounds": 0
+        "fixing_rounds": 0,
+        "bad_range_ratio": 0,
     }
 
 
@@ -1489,10 +1494,7 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     SEED_MAGIC = 23423
     random.seed(run_context["experiment-seed"] + SEED_MAGIC)
     
-    if max_attempts > 0: 
-        early_return = True 
-    else: 
-        early_return = False
+    early_return = should_early_return(current_round, max_attempts)
         
     job_timings, solution = solver.solve()
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
@@ -1502,6 +1504,9 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
                                                early_return=early_return)
 
     log_bad_ranges(run_context, "1.0_vanilla", new_bad_ranges, [])
+    bad_range_ratio = get_bad_range_ratio(new_bad_ranges, [], run_context["sim-length"])
+    add_to_context["bad_range_ratio"] = bad_range_ratio
+    
 
     # step 1.5: if the routing is good, return the results.
     if len(new_bad_ranges) == 0:
@@ -1515,7 +1520,7 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     current_round = 1
     prev_bad_ranges = [] 
 
-    while len(new_bad_ranges) > 0 and current_round < max_attempts:
+    while len(new_bad_ranges) > 0 and current_round <= max_attempts:
         random.seed(run_context["experiment-seed"] + SEED_MAGIC + current_round)
 
         append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
@@ -1526,10 +1531,7 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
         job_timings, solution = solver.solve_with_bad_ranges_and_inflation(prev_bad_ranges, 1)
         # step 2.2: do the routing again.
         
-        if current_round < max_attempts - 1: 
-            early_return = True 
-        else: 
-            early_return = False
+        early_return = should_early_return(current_round, max_attempts)
             
         lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                     job_profiles, job_timings, 
@@ -1538,6 +1540,8 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
 
         log_bad_ranges(run_context, f"inflation_1_round_{current_round}", 
                         new_bad_ranges, prev_bad_ranges)
+        bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
+        add_to_context["bad_range_ratio"] = bad_range_ratio
         
         current_round += 1
         add_to_context["fixing_rounds"] += 1

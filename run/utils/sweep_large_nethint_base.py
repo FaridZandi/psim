@@ -237,7 +237,8 @@ def calc_placement(placement_file_path, placement_seed, options, run_context, co
     
     return jobs, add_to_context
    
-def run_command_options_modifier(options, config_sweeper, run_context):
+def run_command_options_modifier(options, config_sweeper, run_context, 
+                                 run_cassini_timing_in_subprocess = True):
     
     original_options = copy.deepcopy(options)   
     
@@ -464,7 +465,9 @@ def run_command_options_modifier(options, config_sweeper, run_context):
     run_context.update(add_to_context)  
     
     if "fixing_rounds" not in add_to_context:
-        run_context["fixing_rounds"] = 0        
+        run_context["fixing_rounds"] = 0    
+    if "bad_range_ratio" not in add_to_context: 
+        run_context["bad_range_ratio"] = 0 
     
     if lb_decisions is not None:
         total_subflows = 0
@@ -665,6 +668,10 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = run_context["fixing_rounds"]
         elif metric == "cmmcmp_ratio":
             job_numbers = run_context["cmmcmp_ratio"]
+        elif metric == "final_entropy": 
+            job_numbers = run_context["final_entropy"]
+        elif metric == "bad_range_ratio":
+            job_numbers = run_context["bad_range_ratio"]
         elif metric == "job_periods":
             job_numbers = [] 
             for job in run_context["jobs"]:

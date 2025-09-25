@@ -115,9 +115,23 @@ all_metrics = {
         "better": "lower",
         "type": "single_number",
     },  
-} 
-    
-    
+    "final_entropy": {  
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "higher",
+        "type": "single_number",
+    },
+    "bad_range_ratio": {  
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_number",
+    },
+}
+
+
 # this is an experiment that has one base setting, and then a bunch of comparisons.
 # I'm attempting to keep the things that should be kept constant, constant.
 # then compute the speedup of the other things with respect to the base setting.
@@ -147,6 +161,7 @@ def do_experiment(seed_range=1,
                   farid_rounds=12,  
                   worker_thread_count=40,
                   throttle_search=False,
+                  run_cassini_timing_in_subprocess=True,
                   ): 
     
     
@@ -350,6 +365,16 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "readprotocol"
                             }))
         
+    if "coloring-v8" in added_comparisons or add_all:   
+        comparisons.append(("coloring-v8", {
+                                "timing-scheme": "faridv5",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "farid-rounds": farid_rounds,   
+                                "routing-fit-strategy": "graph-coloring-v8",  
+                                "lb-scheme": "readprotocol"
+                            }))
+        
     if "zero-v7" in added_comparisons or add_all:   
         comparisons.append(("zero-v7", {
                                 "timing-scheme": "zero",
@@ -362,7 +387,7 @@ def do_experiment(seed_range=1,
         
     if "rounds" in added_comparisons or add_all:
         for rounds in range(0, 101, 10):
-            comparisons.append(("foresight-{}".format(rounds), {
+            comparisons.append(("foresight-v5-{}".format(rounds), {
                                 "timing-scheme": "faridv5",
                                 "throttle-search": True if subflow_count > 1 else False,
                                 "subflows": subflow_count, 
@@ -373,11 +398,22 @@ def do_experiment(seed_range=1,
 
     if "rounds-v7" in added_comparisons or add_all:
         for rounds in range(0, 101, 10):
-            comparisons.append(("foresight-{}".format(rounds), {
+            comparisons.append(("foresight-v7-{}".format(rounds), {
                                 "timing-scheme": "faridv5",
                                 "throttle-search": True if subflow_count > 1 else False,
                                 "subflows": subflow_count, 
                                 "routing-fit-strategy": "graph-coloring-v7",  
+                                "lb-scheme": "readprotocol", 
+                                "farid-rounds": rounds, 
+                            }))
+
+    if "rounds-v8" in added_comparisons or add_all:
+        for rounds in range(0, 101, 10):
+            comparisons.append(("foresight-v8-{}".format(rounds), {
+                                "timing-scheme": "faridv5",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "routing-fit-strategy": "graph-coloring-v8",  
                                 "lb-scheme": "readprotocol", 
                                 "farid-rounds": rounds, 
                             }))
@@ -439,6 +475,7 @@ def do_experiment(seed_range=1,
         worker_thread_count=worker_thread_count, 
         plot_cdfs=False,
         store_outputs=False,
+        run_cassini_timing_in_subprocess=run_cassini_timing_in_subprocess,
     )
     
     summary = cs.sweep()
