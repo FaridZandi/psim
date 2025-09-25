@@ -413,8 +413,20 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                                 break
                         if not placed:
                             edges[src_rack][dst_rack].append([((start, end), [color_id])])
-                
-            pprint(edges, stream=sys.stderr)
+
+
+            for r in range(rack_count):
+                for c in range(rack_count): 
+                    if r == c: 
+                        continue 
+                    
+                    if len(edges[r][c]) == 0:
+                        continue    
+                    
+                    for i, entry in enumerate(edges[r][c]):
+                        print(f"edge {i} between {r}->{c}:", file=sys.stderr) 
+                        pprint(entry, stream=sys.stderr)    
+                                     
             input("above are the edges. press enter to continue...")
 
     print("solutions:", solutions, file=sys.stderr)
