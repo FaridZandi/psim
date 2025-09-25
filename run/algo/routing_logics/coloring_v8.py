@@ -390,6 +390,9 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                                 break
                         if not placed:
                             edges[src_rack][dst_rack].append([((flow_start, flow_end), color_id)])
+                            
+            pprint("edges:", file=sys.stderr)
+            pprint(edges, stream=sys.stderr)
 
             # input("above are the edges. press enter to continue...")
             
