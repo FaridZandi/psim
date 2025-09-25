@@ -408,6 +408,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
             # for idx, (time, event, key) in enumerate(change_points):
             
             for time, events in change_points:
+                print("We are at time:", time, file=sys.stderr)
                 
                 any_enters = False
                 for event, key in events: 
@@ -417,6 +418,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                         any_enters = True   
                     elif event == 'exit':
                         active_patterns.discard(key)
+            
+                print("active_patterns:", active_patterns, file=sys.stderr)
                 
                 if any_enters: 
                     current_solution = color_for_key_set(active_patterns)
@@ -431,6 +434,14 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                         # wait for user input to continue.
                         input("We have a previous solution....")
                         
+                        mapping = {} 
+                        
+                        used_colors = set() 
+                        for key in previous_solution.keys():
+                            for color in previous_solution[key]:
+                                used_colors.add(color)
+                                
+                        print("colors used in previous solution:", used_colors, file=sys.stderr)
 
                         
                     previous_solution = current_solution
