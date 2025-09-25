@@ -88,7 +88,7 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga"]
+        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
         # comparisons = ["coloring-v8"]
 

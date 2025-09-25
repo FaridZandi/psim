@@ -301,6 +301,13 @@ def do_experiment(seed_range=1,
                                 "lb-scheme": "leastloaded",
                             }))
     
+    if "spray" in added_comparisons or add_all: 
+        comparisons.append(("spray", {
+                                "timing-scheme": "zero",
+                                "throttle-search": False,
+                                "lb-scheme": "perfect",
+                            }))
+    
     if "TS+SUB" in added_comparisons or add_all:
         comparisons.append((f"TS+SUB", {
                                 "timing-scheme": "faridv2",
