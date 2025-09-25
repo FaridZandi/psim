@@ -85,7 +85,7 @@ if __name__ == "__main__":
             ("inflate", [1]), 
         ]
 
-        comparisons = ["coloring-v8"]
+        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -105,7 +105,7 @@ if __name__ == "__main__":
                                                  plot_stuff=False,
                                                  throttle_search=False,
                                                  farid_rounds=0,
-                                                 run_cassini_timing_in_subprocess=False, 
+                                                 run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
             for summary_item in summary:    
