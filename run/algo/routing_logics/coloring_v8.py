@@ -319,16 +319,17 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     bad_ranges = []
         
     solutions = {} 
+    higest_color_used = 0
     
     for keys, time_ranges_list in merged_ranges.items():
         
         # all the joined patterns that share the same key set. 
         # each time_range in the time_ranges list is a list of (start, end, key) tuples.
         
-        print("keys:", keys, file=sys.stderr)
+        # print("keys:", keys, file=sys.stderr)
         
-        print("time_ranges:", file=sys.stderr)
-        pprint(time_ranges_list, stream=sys.stderr)        
+        # print("time_ranges:", file=sys.stderr)
+        # pprint(time_ranges_list, stream=sys.stderr)        
         
         
         for time_ranges in time_ranges_list: 
@@ -382,7 +383,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                         if not placed:
                             edges[src_rack][dst_rack].append([((start, end), color_id)])
                     
-            input("above are the edges. press enter to continue...")
+            # input("above are the edges. press enter to continue...")
             
             # so now we have the edges. Let's do the coloring: 
             # we should make a list of edges to send to the coloring function: 
@@ -396,32 +397,38 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                     if len(edges[r][c]) == 0:
                         continue    
                     for i, entry in enumerate(edges[r][c]):
-                        print(f"edge {i} between {r}->{c}:", file=sys.stderr) 
-                        pprint(entry, stream=sys.stderr)    
+                        # print(f"edge {i} between {r}->{c}:", file=sys.stderr) 
+                        # pprint(entry, stream=sys.stderr)    
 
                         coloring_edges.append((f"{r}_l", f"{c}_r", (r, c, i)))
             
             edge_color_map, max_degree = color_bipartite_multigraph(coloring_edges)            
             
-            pprint(edge_color_map, stream=sys.stderr)
+            # pprint(edge_color_map, stream=sys.stderr)
             
-            input("above is the coloring. press enter to continue...")
+            # input("above is the coloring. press enter to continue...")
             
             for edge_index, color in edge_color_map.items():
                 r, c, i = coloring_edges[edge_index - 1][2]
                 entry = edges[r][c][i]
-                print(f"assigning color {color} to edge {r}->{c} index {i}: {entry}", file=sys.stderr)
+                # print(f"assigning color {color} to edge {r}->{c} index {i}: {entry}", file=sys.stderr)
+                
+                higest_color_used = max(higest_color_used, color)   
                 
                 for time_range, color_id in entry:
                     solutions[(color_id, time_range)] = color
 
-            pprint(solutions, stream=sys.stderr)
+            # pprint(solutions, stream=sys.stderr)
 
-            input("above are the color assignments. press enter to continue...")
+            # input("above are the color assignments. press enter to continue...")
             
             # for this to be useful, we need to map the color_ids and time_ranges to the coloring 
             
-                                    
+    print("Done with coloring.", file=sys.stderr)
+    print(f"Higest color used: {higest_color_used}", file=sys.stderr)
+    print("number of solution entries:", len(solutions), file=sys.stderr)
+    
+    input("above are the color assignments. press enter to continue...")
     
     if run_context["plot-merged-ranges"]:   
         plot_path = "{}/routing/merged_ranges_{}.png".format(run_context["routings-dir"], suffix)  
@@ -444,13 +451,12 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         flow_id = flow["flow_id"]
         iteration = flow["iteration"]
         
-        color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
-        
-        pattern_hash = flow["traffic_pattern_hash"]
-        time_range_coloring = find_value_in_range_v8(solutions, start_time, pattern_hash)
-        if time_range_coloring is None:
-            print(f"Time range not found for flow: {flow}")
-            exit(f"Time range not found for flow: {flow}")
+        # color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"]
+        # pattern_hash = flow["traffic_pattern_hash"]
+        # time_range_coloring = find_value_in_range_v8(solutions, start_time, pattern_hash)
+        # if time_range_coloring is None:
+        #     print(f"Time range not found for flow: {flow}")
+        #     exit(f"Time range not found for flow: {flow}")
         
         def rotate(somelist):
             return somelist[1:] + [somelist[0]] 
@@ -459,9 +465,17 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         
         for i in range(flow["needed_subflows"]):
             # draw max_flow_count colors from the list. 
-            color = time_range_coloring[color_id][0]
-            time_range_coloring[color_id] = rotate(time_range_coloring[color_id])
+            # color = time_range_coloring[color_id][0]
+            # time_range_coloring[color_id] = rotate(time_range_coloring[color_id])
             
+            color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"] + f"_{i}"
+            solutions_key = (color_id, (start_time, end_time))
+            if solutions_key not in solutions:
+                print(f"Solution not found for key: {solutions_key}")
+                exit(f"Solution not found for key: {solutions_key}")
+            color = solutions[solutions_key]
+            
+                        
             chosen_spine = color - 1 
             chosen_spine = chosen_spine // max_subflow_count
             chosen_spine = chosen_spine % num_spines # just in case.    
