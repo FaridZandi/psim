@@ -366,8 +366,10 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                         src_rack = flow["srcrack"]
                         dst_rack = flow["dstrack"]
                         color_id = flow["traffic_pattern_hash"] + "_" + flow["traffic_member_id"] + f"_{subflow}"   
-                        flow_start = flow["eff_start_time"] 
-                        flow_end = flow["eff_end_time"]
+                        # flow_start = flow["eff_start_time"] 
+                        # flow_end = flow["eff_end_time"]
+                        flow_start = start 
+                        flow_end = end  
                         # looking at the edges[src_rack][dst_rack] we see a list. 
                         # any of those entries could potentially be able to fit this new time range.
                         # if none of them can fit, we have to add a new entry.
