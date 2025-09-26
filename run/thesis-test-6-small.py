@@ -67,7 +67,7 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
+            ("machine_count", [144]),
             ("rack_size", [8]),
             # ("machine_count", [48]),
             # ("rack_size", [8]),
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]), 
-            ("use_inflation", [True, False]), 
+            ("use_inflation", [True]), 
         ]
 
         # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
