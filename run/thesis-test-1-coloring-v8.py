@@ -13,7 +13,7 @@ if __name__ == "__main__":
     g = get_global_config()
     
     seed_range = 20
-    m = 10
+    m = 100
     
     clean_up_sweep_files = True
 
@@ -69,13 +69,13 @@ if __name__ == "__main__":
             ("sim_length", [400 * m]),
             ("machine_count", [48]),
             ("rack_size", [8]),
-            ("job_sizes", [(4, 16), (16, 24), (24, 24)]),
+            ("job_sizes", [(24, 24),  (16, 24), (4, 16)]),
             # ("job_sizes", [(24, 24)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
+            ("desired_entropy", [0.7, 0.6, 0.5, 0.4, 0.3]),
             ("oversub", [2]),
-            ("cmmcmp_range", [(0, 1), (1, 2)]),
+            ("cmmcmp_range", [(1, 2), (0, 1)]), 
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
@@ -101,7 +101,7 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=50,
+                                                 worker_thread_count=20,
                                                  **perm) 
             
             for summary_item in summary:    
