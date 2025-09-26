@@ -169,6 +169,7 @@ def do_experiment(seed_range=1,
                   worker_thread_count=40,
                   throttle_search=True,
                   run_cassini_timing_in_subprocess=True,
+                  use_inflation=False,
                   ): 
     
     
@@ -272,6 +273,7 @@ def do_experiment(seed_range=1,
         "inflate": inflate,   
         "protocol-file-name": "nethint-test",
         "ft-core-count": core_count,
+        "use-inflation": use_inflation, 
     }
 
     comparisons = []
