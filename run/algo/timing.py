@@ -1307,6 +1307,7 @@ def log_progress(run_context, message):
 def append_to_bad_ranges(bad_ranges, new_bad_ranges):
     # we just do it one at a time.
     new_bad_ranges.sort() 
+    
     bad_range_to_add = new_bad_ranges[0]
     
     # reset the bad_ranges, and we will rebuild it. 
@@ -1552,6 +1553,28 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     return job_timings, lb_decisions, add_to_context
 
 
+def summarize_bad_ranges(bad_ranges):   
+    if len(bad_ranges) == 0:
+        return bad_ranges
+    
+    bad_ranges.sort() 
+    summarized_bad_ranges = []
+    
+    current_start, current_end = bad_ranges[0]
+    
+    for i in range(1, len(bad_ranges)):
+        start, end = bad_ranges[i]
+        
+        if start <= current_end:
+            current_end = max(current_end, end)
+        else:
+            summarized_bad_ranges.append((current_start, current_end))
+            current_start, current_end = start, end
+            
+    summarized_bad_ranges.append((current_start, current_end))
+    
+    return summarized_bad_ranges
+
 def faridv6_scheduling(jobs, options, run_context, job_profiles):
     # the only supported mode for now 
     timing_scheme = run_context["timing-scheme"]
@@ -1582,6 +1605,8 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
                                                suffix=current_round, 
                                                highlighted_ranges=[], 
                                                early_return=early_return)
+    
+    new_bad_ranges = summarize_bad_ranges(new_bad_ranges)
 
     log_bad_ranges(run_context, "1.0_vanilla", new_bad_ranges, [])
     bad_range_ratio = get_bad_range_ratio(new_bad_ranges, [], run_context["sim-length"])
@@ -1618,6 +1643,8 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
                                                     suffix=f"1_{current_round}", 
                                                     highlighted_ranges=prev_bad_ranges)   
 
+        new_bad_ranges = summarize_bad_ranges(new_bad_ranges)
+        
         log_bad_ranges(run_context, f"inflation_1_round_{current_round}", 
                         new_bad_ranges, prev_bad_ranges)
         bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
