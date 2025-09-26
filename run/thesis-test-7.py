@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 50
+    seed_range = 10
     m = 100
     
     clean_up_sweep_files = False
@@ -36,9 +36,9 @@ if __name__ == "__main__":
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "cmmcmp_range",
-            "subplot_x_params": "machine_count",
+            "subplot_x_params": "desired_entropy",
             "subplot_hue_params": "comparison",
-            "plot_x_params": "desired_entropy",
+            "plot_x_params": "machine_count",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -67,17 +67,17 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
+            ("machine_count", [48, 96, 144, 192, 240]),
             ("rack_size", [8]),
             # ("machine_count", [48]),
             # ("rack_size", [8]),
             # ("job_sizes", [(4, 16)]),
-            ("job_sizes", [(8, 12)]),
-            # ("job_sizes", [("10%", "25%")]),
+            # ("job_sizes", [(8, 12)]),
+            ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3]),
-            ("oversub", [8]),
+            ("desired_entropy", [0.2, 0.25, 0.3, 0.35, 0.4]),
+            ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
@@ -106,10 +106,10 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=30,
+                                                 worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=30,
+                                                 farid_rounds=10,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
