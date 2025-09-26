@@ -388,7 +388,7 @@ def do_experiment(seed_range=1,
         
     if "coloring-v8" in added_comparisons or add_all:   
         comparisons.append(("coloring-v8", {
-                                "timing-scheme": "faridv5",
+                                "timing-scheme": "faridv6",
                                 "throttle-search": True if subflow_count > 1 else False,
                                 "subflows": subflow_count, 
                                 "farid-rounds": farid_rounds,   

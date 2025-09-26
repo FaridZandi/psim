@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 5
+    seed_range = 10
     m = 100
     
     clean_up_sweep_files = False
@@ -36,9 +36,9 @@ if __name__ == "__main__":
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "cmmcmp_range",
-            "subplot_x_params": "job_sizes",
-            "subplot_hue_params": "desired_entropy",
-            "plot_x_params": "comparison",
+            "subplot_x_params": "desired_entropy",
+            "subplot_hue_params": "comparison",
+            "plot_x_params": "machine_count",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -48,8 +48,8 @@ if __name__ == "__main__":
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
-            "legend_side": "right",
-            "temp-summarize-comp": True,
+            "legend_side": "bottom",
+            # "temp-summarize-comp": True,
             "legend_cols": 5,
         }
         create_command(plot_args, plot_commands_path)
@@ -67,30 +67,35 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
+            ("machine_count", [240]),
             ("rack_size", [8]),
-            ("job_sizes", [(24, 24)]),#, (16, 24), (4, 16)]),
-            # ("job_sizes", [(24, 24)]),
+            # ("machine_count", [48]),
+            # ("rack_size", [8]),
+            # ("job_sizes", [(4, 16)]),
+            ("job_sizes", [(8, 12)]),
+            # ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.6]), #[0.7, 0.6, 0.5, 0.4, 0.3]),
+            ("desired_entropy", [0.4]),
             ("oversub", [2]),
-            ("cmmcmp_range", [(1, 2)]),#, (0, 1)]),
+            ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
-            ("inflate", [1]),    
+            ("inflate", [1]), 
         ]
 
-        comparisons = ["rounds-fb-v8"]
-        
-        relevant_keys = [key for key, options in exp_config if len(options) > 1]    
-        
-        all_results = [] 
-        
+        comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
+        # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
+        # comparisons = ["coloring-v8"]
+
+        relevant_keys = [key for key, options in exp_config if len(options) > 1]
+
+        all_results = []
+
         # go through all the possible combinations.
         keys, values = zip(*(dict(exp_config)).items())
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
@@ -102,6 +107,10 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=50,
+                                                 plot_stuff=False,
+                                                 throttle_search=True,
+                                                 farid_rounds=10,
+                                                 run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
             for summary_item in summary:    
