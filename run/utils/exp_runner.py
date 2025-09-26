@@ -273,7 +273,7 @@ def do_experiment(seed_range=1,
         "inflate": inflate,   
         "protocol-file-name": "nethint-test",
         "ft-core-count": core_count,
-        "use-inflation": use_inflation, 
+        "use_inflation": use_inflation, 
     }
 
     comparisons = []

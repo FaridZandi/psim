@@ -298,7 +298,7 @@ def run_command_options_modifier(options, config_sweeper, run_context,
                            "farid-rounds", "routing-fit-strategy", 
                            "placement-mode", "ring-mode", "placement-seed",
                            "timing-scheme", "inflate", "fallback-threshold", 
-                           "comparison", "use-inflation"]
+                           "comparison", "use_inflation"]
     
     for key in move_from_op_to_cxt: 
         if key in options:

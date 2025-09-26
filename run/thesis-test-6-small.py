@@ -36,7 +36,7 @@ if __name__ == "__main__":
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "cmmcmp_range",
-            "subplot_x_params": "use-inflation",
+            "subplot_x_params": "use_inflation",
             "subplot_hue_params": "comparison",
             "plot_x_params": "desired_entropy",
             "plot_y_param": "values",
@@ -86,7 +86,7 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]), 
-            ("use-inflation", [True, False]), 
+            ("use_inflation", [True, False]), 
         ]
 
         comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]

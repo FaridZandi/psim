@@ -1588,7 +1588,7 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         "bad_range_ratios": []
     }
 
-    is_inflation_enabled = run_context.get("use-inflation", False)
+    is_inflation_enabled = run_context.get("use_inflation", False)
     
     solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
 
