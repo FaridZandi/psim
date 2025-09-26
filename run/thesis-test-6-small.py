@@ -109,7 +109,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=30,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=10,
+                                                 farid_rounds=50,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
