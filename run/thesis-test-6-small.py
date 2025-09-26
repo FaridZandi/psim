@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
         # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
-        comparisons = ["coloring-v8"]
+        comparisons = ["coloring-v8-temp"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 

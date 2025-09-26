@@ -453,6 +453,17 @@ def do_experiment(seed_range=1,
                                 "fallback-threshold": fallback_threshold, 
                             }))
             
+    if "coloring-v8-temp" in added_comparisons or add_all:   
+        for i in range(20):  
+            comparisons.append((f"coloring-v8-temp-{i}", {
+                                    "timing-scheme": "faridv6",
+                                    "throttle-search": True if subflow_count > 1 else False,
+                                    "subflows": subflow_count, 
+                                    "farid-rounds": i,   
+                                    "routing-fit-strategy": "graph-coloring-v8",  
+                                    "lb-scheme": "readprotocol",
+                                }))
+            
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
