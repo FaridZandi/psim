@@ -1550,6 +1550,84 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
 
     return job_timings, lb_decisions, add_to_context
 
+
+def faridv6_scheduling(jobs, options, run_context, job_profiles):
+    # the only supported mode for now 
+    timing_scheme = run_context["timing-scheme"]
+    assert timing_scheme == "faridv5" 
+    
+    max_attempts = run_context["farid-rounds"]
+    current_round = 0
+    add_to_context = {
+        "fixing_rounds": 0,
+        "bad_range_ratio": 0,
+        "bad_range_ratios": []
+    }
+
+
+    solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
+
+    # step 1: do the vanilla timing first.
+    log_progress(run_context, "starting vanilla timing")    
+    
+    SEED_MAGIC = 23423
+    random.seed(run_context["experiment-seed"] + SEED_MAGIC)
+    
+    early_return = should_early_return(current_round, max_attempts)
+        
+    job_timings, solution = solver.solve()
+    lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                               job_profiles, job_timings, 
+                                               suffix=current_round, 
+                                               highlighted_ranges=[], 
+                                               early_return=early_return)
+
+    log_bad_ranges(run_context, "1.0_vanilla", new_bad_ranges, [])
+    bad_range_ratio = get_bad_range_ratio(new_bad_ranges, [], run_context["sim-length"])
+    add_to_context["bad_range_ratio"] = bad_range_ratio
+    add_to_context["bad_range_ratios"].append(bad_range_ratio)
+
+    # step 1.5: if the routing is good, return the results.
+    if len(new_bad_ranges) == 0:
+        add_to_context["fixing_rounds"] = 0
+        return job_timings, lb_decisions, add_to_context
+
+    ################################################################################
+    # step 2: if the routing is bad, then trying patching it up a little bit. 
+    ################################################################################
+
+    current_round = 1
+    prev_bad_ranges = [] 
+
+    while len(new_bad_ranges) > 0 and current_round <= max_attempts:
+        random.seed(run_context["experiment-seed"] + SEED_MAGIC + current_round)
+
+        append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
+
+        # step 2.1: fix the timing.
+        log_progress(run_context, "starting timing fix, round {}".format(current_round))    
+        
+        job_timings, solution = solver.solve_with_bad_ranges_and_inflation(prev_bad_ranges, 1)
+        # step 2.2: do the routing again.
+        
+        early_return = should_early_return(current_round, max_attempts)
+            
+        lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                                    job_profiles, job_timings, 
+                                                    suffix=f"1_{current_round}", 
+                                                    highlighted_ranges=prev_bad_ranges)   
+
+        log_bad_ranges(run_context, f"inflation_1_round_{current_round}", 
+                        new_bad_ranges, prev_bad_ranges)
+        bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
+        add_to_context["bad_range_ratio"] = bad_range_ratio
+        add_to_context["bad_range_ratios"].append(bad_range_ratio)
+        
+        current_round += 1
+        add_to_context["fixing_rounds"] += 1
+
+    return job_timings, lb_decisions, add_to_context
+
     
 ############################################################################
 ################ MAIN FUCTION  #############################################
@@ -1632,7 +1710,10 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
         job_timings, lb_decisions, add_to_context = faridv4_scheduling(jobs, options, 
                                                        run_context, job_profiles)   
     elif timing_scheme == "faridv5":
-        job_timings , lb_decisions, add_to_context = faridv5_scheduling(jobs, options, 
+        job_timings, lb_decisions, add_to_context = faridv5_scheduling(jobs, options, 
+                                                       run_context, job_profiles)
+    elif timing_scheme == "faridv6":
+        job_timings, lb_decisions, add_to_context = faridv6_scheduling(jobs, options, 
                                                        run_context, job_profiles)
     else:
         # do the timing first.
