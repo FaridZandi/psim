@@ -1271,9 +1271,9 @@ def farid_timing_v2(jobs, options, run_context, timing_scheme, job_profiles):
 def get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, sim_length):   
     sum_bad_ranges = 0
     for bad_range in new_bad_ranges:
-        sum_bad_ranges += (bad_range[1] - bad_range[0])
+        sum_bad_ranges += (bad_range[1] - bad_range[0] + 1)
     for bad_range in prev_bad_ranges:
-        sum_bad_ranges += (bad_range[1] - bad_range[0])
+        sum_bad_ranges += (bad_range[1] - bad_range[0] + 1)
         
     bad_range_ratio = sum_bad_ranges / sim_length
     
@@ -1565,7 +1565,7 @@ def summarize_bad_ranges(bad_ranges):
     for i in range(1, len(bad_ranges)):
         start, end = bad_ranges[i]
         
-        if start <= current_end:
+        if start <= current_end + 1:
             current_end = max(current_end, end)
         else:
             summarized_bad_ranges.append((current_start, current_end))
