@@ -1468,6 +1468,7 @@ def faridv4_scheduling(jobs, options, run_context, job_profiles):
 
         
 def should_early_return(current_round, max_attempts):
+    # are we going to have more rounds? 
     if current_round < max_attempts: 
         return True 
     else: 
