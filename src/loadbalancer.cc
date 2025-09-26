@@ -295,13 +295,13 @@ int LeastLoadedLoadBalancer::get_upper_item(int src, int dst, Flow* flow, int ti
 
     for (int c = 0; c < item_count; c++){
         // only consider the local link 
-        double up_load = uplink(src, c)->get_load();        
-        double load = up_load;  
+        // double up_load = uplink(src, c)->get_load();        
+        // double load = up_load;  
 
         // consider both uplink and downlink
-        // double up_load = uplink(src, c)->get_load();
-        // double down_load = downlink(dst, c)->get_load();
-        // double load = up_load + down_load;
+        double up_load = uplink(src, c)->get_load();
+        double down_load = downlink(dst, c)->get_load();
+        double load = up_load + down_load;
         
 
         if (load < least_load){
