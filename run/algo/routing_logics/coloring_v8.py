@@ -216,8 +216,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
     max_edge_count = [0] * (flows_max_time + 1)
     for r in range(len(edge_count_in)):
         for t in range(flows_max_time):
-            max_edge_count[t] = max(max_edge_count[t], edge_count_in[r][t])
-            max_edge_count[t] = max(max_edge_count[t], edge_count_out[r][t])
+            max_edge_count[t] = max(max_edge_count[t], edge_count_in[r][t] / max_subflow_count)
+            max_edge_count[t] = max(max_edge_count[t], edge_count_out[r][t] / max_subflow_count)
             
     if early_return:
         # find all the ranges where the max_edge_count exceeds available_colors_max
