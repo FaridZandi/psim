@@ -15,7 +15,7 @@ if __name__ == "__main__":
     seed_range = 10
     m = 100
     
-    clean_up_sweep_files = False
+    clean_up_sweep_files = True
 
     original_exp_number = None
     if original_exp_number is not None: 
