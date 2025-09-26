@@ -610,9 +610,9 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
     plot_runtime(output, options, this_exp_results, run_context, config_sweeper)
     
     # copy the output_file to the runtime dir.
-    if "output-file" in run_context:
-        shutil.copy(run_context["output-file"],  
-                    run_context["runtime-dir"] + "/output.txt")
+    # if "output-file" in run_context:
+    #     shutil.copy(run_context["output-file"],  
+    #                 run_context["runtime-dir"] + "/output.txt")
                         
     printed_metrics = [] 
     run_context["job_numbers"] = {}    
