@@ -1554,7 +1554,7 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
 def faridv6_scheduling(jobs, options, run_context, job_profiles):
     # the only supported mode for now 
     timing_scheme = run_context["timing-scheme"]
-    assert timing_scheme == "faridv5" 
+    assert timing_scheme == "faridv6" 
     
     max_attempts = run_context["farid-rounds"]
     current_round = 0
