@@ -306,15 +306,15 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                                 "{}/routing/rack_dependency_{}.png".format(run_context["routings-dir"], suffix))
     
     
-    pprint(hash_to_time_ranges, stream=sys.stderr)
-    print("==================================================", file=sys.stderr)
+    # pprint(hash_to_time_ranges, stream=sys.stderr)
+    # print("==================================================", file=sys.stderr)
     
     merged_ranges = merge_overlapping_ranges_v8(hash_to_time_ranges, 
                                                 traffic_pattern_to_src_racks, 
                                                 traffic_pattern_to_dst_racks)
     
-    pprint(merged_ranges, stream=sys.stderr)
-    print("==================================================", file=sys.stderr)
+    # pprint(merged_ranges, stream=sys.stderr)
+    # print("==================================================", file=sys.stderr)
     # pprint(merged_ranges, stream=log_file)
     # log_file.close()
         
@@ -336,8 +336,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
         
         
         for time_ranges in time_ranges_list: 
-            print("--------------------------------------------------", file=sys.stderr)
-            print("starting new coloring for time_ranges:", time_ranges, file=sys.stderr)
+            # print("--------------------------------------------------", file=sys.stderr)
+            # print("starting new coloring for time_ranges:", time_ranges, file=sys.stderr)
             # time_ranges is a list of (start, end, key) tuples.
              
             # making a representative graph for this set of keys. 
@@ -391,8 +391,8 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                         if not placed:
                             edges[src_rack][dst_rack].append([((flow_start, flow_end), color_id)])
                             
-            print("edges:", file=sys.stderr)
-            pprint(edges, stream=sys.stderr)
+            # print("edges:", file=sys.stderr)
+            # pprint(edges, stream=sys.stderr)
 
             # input("above are the edges. press enter to continue...")
             
@@ -425,7 +425,7 @@ def route_flows_graph_coloring_v8(all_flows, rem, usage, num_spines,
                 highest_color_used = max(highest_color_used, color)
 
                 for time_range, color_id in entry:
-                    print(f"    color {color} to color_id {color_id} for time_range {time_range}", file=sys.stderr)
+                    # print(f"    color {color} to color_id {color_id} for time_range {time_range}", file=sys.stderr)
                     solutions[(color_id, time_range[0])].append(color)
 
             
