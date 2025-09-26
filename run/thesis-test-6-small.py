@@ -12,8 +12,8 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 10
-    m = 100
+    seed_range = 5
+    m = 50
     
     clean_up_sweep_files = False
 
@@ -109,7 +109,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=30,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=50,
+                                                 farid_rounds=30,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
