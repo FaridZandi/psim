@@ -12,10 +12,10 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 10
+    seed_range = 20
     m = 100
     
-    clean_up_sweep_files = False
+    clean_up_sweep_files = True
 
     original_exp_number = None
     if original_exp_number is not None: 
@@ -106,7 +106,7 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=50,
+                                                 worker_thread_count=20,
                                                  plot_stuff=False,
                                                  throttle_search=True,
                                                  farid_rounds=10,
