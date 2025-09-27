@@ -502,7 +502,7 @@ def do_experiment(seed_range=1,
         comparisons.append((f"TS+SUB-new", {
                                 "timing-scheme": "faridv2",
                                 "subflows": subflow_count, 
-                                "throttle-search": True if subflow_count > 1 else False,    
+                                "throttle-search": True,
                                 "farid-rounds": 0,
                                 "lb-scheme": "random"
                             }))
