@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 3
+    seed_range = 10
     m = 100
     
     clean_up_sweep_files = False
@@ -36,9 +36,9 @@ if __name__ == "__main__":
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "cmmcmp_range",
-            "subplot_x_params": "use_inflation",
+            "subplot_x_params": "desired_entropy",
             "subplot_hue_params": "comparison",
-            "plot_x_params": "desired_entropy",
+            "plot_x_params": "machine_count",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -67,13 +67,13 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [144]),
+            ("machine_count", [96]),
             ("rack_size", [8]),
             # ("machine_count", [48]),
             # ("rack_size", [8]),
             # ("job_sizes", [(4, 16)]),
-            ("job_sizes", [(8, 12)]),
-            # ("job_sizes", [("10%", "25%")]),
+            # ("job_sizes", [(8, 12)]),
+            ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.5]),
@@ -86,12 +86,12 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]), 
-            ("use_inflation", [True]), 
+            ("throttle_levels", [1, 2, 4]),
         ]
 
         # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
-        comparisons = ["coloring-v8-temp"]
+        comparisons = ["coloring-v8"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -107,11 +107,11 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=30,
+                                                 worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=0,
-                                                 run_cassini_timing_in_subprocess=True,  
+                                                 farid_rounds=10,
+                                                 run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
             for summary_item in summary:    

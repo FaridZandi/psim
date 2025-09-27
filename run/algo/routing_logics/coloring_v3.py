@@ -59,12 +59,12 @@ def route_flows_graph_coloring_v3(all_flows, rem, usage, num_spines,
     for hash in unique_hashes:
         traffic_pattern_rep = hash_to_traffic_id[hash]
         flows = traffic_id_to_flows[traffic_pattern_rep]
-        print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
+        # print(f"Processing flows for hash: {hash}, len flows: {len(flows)}", file=sys.stderr)
         
         # append the flows of a representative traffic pattern to the current mix
         current_flows.extend(flows)
         
-    print("Current flows count: ", len(current_flows), file=sys.stderr)
+    # print("Current flows count: ", len(current_flows), file=sys.stderr)
     
     edges = [] 
     flow_counter = 0 
@@ -90,7 +90,7 @@ def route_flows_graph_coloring_v3(all_flows, rem, usage, num_spines,
         color_id_to_color[color_id].append(color)
     
     # use pprint to stderr 
-    pprint(dict(color_id_to_color), stream=sys.stderr)
+    # pprint(dict(color_id_to_color), stream=sys.stderr)
     
     for flow in all_flows:
         src_leaf = flow["srcrack"]
