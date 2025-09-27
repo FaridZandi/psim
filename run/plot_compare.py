@@ -572,9 +572,9 @@ if __name__ == "__main__":
     parser.add_argument("--temp-summarize-comp", type=bool, required=False)
     parser.add_argument("--filter", type=str, required=False)
     parser.add_argument("--suffix", type=str, required=False)
-    parser.add_argument("--draw_line_at_one", type=bool, required=False)
     parser.add_argument("--custom_ylim", type=str, required=False)
     parser.add_argument("--sort_hue", type=str2bool, nargs='?', const=True, default=False)
+    parser.add_argument("--draw_line_at_one", type=str2bool, nargs='?', const=True, default=True)
 
     args = parser.parse_args()
         
