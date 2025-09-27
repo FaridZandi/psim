@@ -6,6 +6,7 @@ import argparse
 from pprint import pprint 
 import numpy as np 
 import itertools
+import matplotlib.patches as mpatches
 
 # Define hatches per hue category
 file_name = None 
@@ -257,8 +258,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
                     data=df, ax=ax, errorbar=None, alpha=0.3, legend=False) 
-        
-        
+    
+
         g = sns.boxplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, 
                     hue_order=hue_order, 
@@ -451,7 +452,7 @@ def draw_plot(df, value, hue_order):
                 
                 if legend_side == "bottom":
                     fig.legend(handles, labels, loc="upper center", 
-                               bbox_to_anchor=(0.5, -0.1), ncol=legend_cols, 
+                               bbox_to_anchor=(0.5, -0.01), ncol=legend_cols, 
                                title=legend_title)
 
                 elif legend_side == "right":   
@@ -462,6 +463,7 @@ def draw_plot(df, value, hue_order):
     
     file_dir = "/".join(file_name.split("/")[:-1]) 
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}_{suffix}.{ext}", bbox_inches='tight', dpi=200)        
+    plt.close()
 
 def make_plots(): 
     # read the csv file into pd dataframe
@@ -470,12 +472,23 @@ def make_plots():
     # filter the dataframe based on the filter argument
     if filter is not None:
         # filter would be like colummn_name=value
-        col_name, value = filter.split("=")
-        df = df[
-            (df[col_name] == value) |
-            (df[col_name] == int(value)) |
-            (df[col_name] == float(value))
-        ]
+        if "=" in filter:
+            col_name, value = filter.split("=")
+            df = df[
+                (df[col_name] == value) |
+                (df[col_name] == int(value)) |
+                (df[col_name] == float(value))
+            ]
+        elif ">" in filter:
+            col_name, value = filter.split(">")
+            df = df[
+                (df[col_name] > float(value))
+            ]
+        elif "<" in filter:
+            col_name, value = filter.split("<")
+            df = df[
+                (df[col_name] < float(value))
+            ]
     
     
     # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"

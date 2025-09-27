@@ -35,14 +35,14 @@ if __name__ == "__main__":
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "cmmcmp_range",
+            "subplot_y_params": "machine_count",
             "subplot_x_params": "desired_entropy",
             "subplot_hue_params": "comparison",
             "plot_x_params": "oversub",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 4,
+            "subplot_width": 6,
             "subplot_height": 4,
             "plot_type": plot_type, 
             "ext": "png", 
@@ -50,7 +50,7 @@ if __name__ == "__main__":
             "exclude_base": True,   
             "legend_side": "bottom",
             # "temp-summarize-comp": True,
-            "legend_cols": 5,
+            "legend_cols": 3,
         }
         create_command(plot_args, plot_commands_path)
         
@@ -67,14 +67,14 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
+            ("machine_count", [144, 48]),
             ("rack_size", [8]),
-            ("job_sizes", [(4, 16)]),
+            ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.4, 0.5]),
-            ("oversub", [8, 4, 2, 1]),
-            ("cmmcmp_range", [(0, 1), (1, 2)]),
+            ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
+            ("oversub", [4, 2, 1]),
+            ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
