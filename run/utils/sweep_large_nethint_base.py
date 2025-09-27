@@ -162,7 +162,7 @@ placement_related_keys = ["placement-mode", "ring-mode",
 # things that would affect the scheduling, the timing and the routing.
 scheduling_related_keys = ["timing-scheme", "subflows", "throttle-search", 
                            "routing-fit-strategy", "compat-score-mode", "farid-rounds", 
-                           "lb-scheme", "inflate", "fallback-threshold", "exp-uuid"]
+                           "lb-scheme", "inflate", "fallback-threshold"] 
 
 def summarize_key_ids(key): 
     s = key.split("-")
@@ -445,21 +445,21 @@ def run_command_options_modifier(options, config_sweeper, run_context,
                       placement_seed, jobs, options, 
                       run_context, run_cassini_timing_in_subprocess)
     
-    # job_timings, lb_decisions, add_to_context = timing_cache.get(key=timing_file_path, 
-    #                                              lock=config_sweeper.timing_lock, 
-    #                                              logger_func=config_sweeper.log_for_thread, 
-    #                                              run_context=run_context, 
-    #                                              calc_func=calc_timing, 
-    #                                              calc_func_args=calc_func_args)
+    job_timings, lb_decisions, add_to_context = timing_cache.get(key=timing_file_path, 
+                                                 lock=config_sweeper.timing_lock, 
+                                                 logger_func=config_sweeper.log_for_thread, 
+                                                 run_context=run_context, 
+                                                 calc_func=calc_timing, 
+                                                 calc_func_args=calc_func_args)
     
-    if timing_file_path in calculated_timings:  
-        print("We have already calculated this timing: ", timing_file_path)
-        rage_quit("Exiting to avoid recalculation. Turn on the cache if you want to avoid this.")   
-    else:
-        calculated_timings.add(timing_file_path)
+    # if timing_file_path in calculated_timings:  
+    #     print("We have already calculated this timing: ", timing_file_path)
+    #     rage_quit("Exiting to avoid recalculation. Turn on the cache if you want to avoid this.")   
+    # else:
+    #     calculated_timings.add(timing_file_path)
     
     
-    job_timings, lb_decisions, add_to_context = calc_timing(*calc_func_args)
+    # job_timings, lb_decisions, add_to_context = calc_timing(*calc_func_args)
     
     
     run_context.update(add_to_context)  
