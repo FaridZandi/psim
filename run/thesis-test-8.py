@@ -67,12 +67,12 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48, 144]),
+            ("machine_count", [144]),
             ("rack_size", [8]),
             ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["semirandom_4"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
+            ("desired_entropy", [0.5]),
             ("oversub", [4, 2, 1]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
