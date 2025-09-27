@@ -176,6 +176,10 @@ def do_experiment(seed_range=1,
     
     random.seed(experiment_seed)
 
+    if isinstance(rack_size, str) and rack_size.startswith("/"):
+        rack_size = machine_count // int(rack_size[1:])
+        assert rack_size > 0
+        
     # choose one of the settings to run the experiments with.     
     selected_setting = { 
         "machine-count": machine_count,
