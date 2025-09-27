@@ -67,32 +67,29 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [96]),
+            ("machine_count", [48]),
             ("rack_size", [8]),
-            # ("machine_count", [48]),
-            # ("rack_size", [8]),
-            # ("job_sizes", [(4, 16)]),
-            # ("job_sizes", [(8, 12)]),
-            ("job_sizes", [("10%", "25%")]),
+            ("job_sizes", [(4, 16)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.5]),
-            ("oversub", [2]),
-            ("cmmcmp_range", [(0, 2)]),
+            ("desired_entropy", [0.3, 0.4, 0.5]),
+            ("oversub", [1, 2, 4, 8]),
+            ("cmmcmp_range", [(0, 1), (1, 2)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
-            ("inflate", [1]), 
-            ("throttle_levels", [1, 2, 4]),
+            ("inflate", [1]),    
         ]
 
         # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
-        comparisons = ["coloring-v8"]
-
+        # comparisons = ["TS-new", "TS+RO-new", "TS+RO+SUB-new", "TS+RO+SUB+REP-new"]
+        
+        comparisons = ["TS-new", "RO-new", "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", "TS+RO+REP-new", "TS+RO+SUB+REP-new"]
+        
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
         all_results = []
@@ -110,7 +107,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=10,
+                                                 farid_rounds=30,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             

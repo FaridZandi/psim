@@ -170,6 +170,7 @@ def do_experiment(seed_range=1,
                   throttle_search=True,
                   run_cassini_timing_in_subprocess=True,
                   use_inflation=False,
+                  throttle_levels=None,
                   ): 
     
     
@@ -234,19 +235,30 @@ def do_experiment(seed_range=1,
 
     core_count = int(base_options["ft-server-per-rack"] // oversub)
 
-    if not throttle_search:
-        profiled_throttle_factors = [1.0]
-        subflow_count = 1   
-    else: 
-        if core_count == 1:
+    if throttle_levels is not None: 
+        if throttle_levels == 1:
             profiled_throttle_factors = [1.0]
             subflow_count = 1
-        if core_count == 2 or core_count == 3: 
+        elif throttle_levels == 2:
             profiled_throttle_factors = [1.0, 0.5]
-            subflow_count = 2 
-        else:
+            subflow_count = 2   
+        elif throttle_levels == 4:
             profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
-            subflow_count = 4       
+            subflow_count = 4  
+    else: 
+        if not throttle_search:
+            profiled_throttle_factors = [1.0]
+            subflow_count = 1   
+        else: 
+            if core_count == 1:
+                profiled_throttle_factors = [1.0]
+                subflow_count = 1
+            if core_count == 2 or core_count == 3:
+                profiled_throttle_factors = [1.0, 0.5]
+                subflow_count = 2 
+            elif core_count >= 4:
+                profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
+                subflow_count = 4
 
     if placement_seeds is None:
         placement_seeds = list(range(1, selected_setting["placement-seed-range"] + 1))
@@ -454,7 +466,7 @@ def do_experiment(seed_range=1,
                             }))
             
     if "coloring-v8-temp" in added_comparisons or add_all:   
-        for i in range(20):  
+        for i in range(10):  
             comparisons.append((f"coloring-v8-temp-{i}", {
                                     "timing-scheme": "faridv6",
                                     "throttle-search": True if subflow_count > 1 else False,
@@ -464,6 +476,79 @@ def do_experiment(seed_range=1,
                                     "lb-scheme": "readprotocol",
                                 }))
             
+            
+    ###################
+    
+    if "TS-new" in added_comparisons or add_all:
+        comparisons.append(("TS-new", {
+                                "timing-scheme": "faridv2",
+                                "subflows": 1,
+                                "throttle-search": False,
+                                "lb-scheme": "random"
+                            }))
+        
+    if "RO-new" in added_comparisons or add_all:
+        comparisons.append(("RO-new", {
+                                "timing-scheme": "zero",
+                                "routing-fit-strategy": "graph-coloring-v3",
+                                "subflows": 1,
+                                "throttle-search": False, 
+                                "lb-scheme": "readprotocol"
+                            }))
+        
+    if "TS+SUB-new" in added_comparisons or add_all:
+        comparisons.append((f"TS+SUB-new", {
+                                "timing-scheme": "faridv2",
+                                "subflows": subflow_count, 
+                                "throttle-search": True if subflow_count > 1 else False,    
+                                "lb-scheme": "random"
+                            }))
+    
+    if "TS+RO-new" in added_comparisons or add_all:
+        comparisons.append(("TS+RO-new", {
+                                "timing-scheme": "faridv2",
+                                "throttle-search": False,
+                                "subflows": 1,
+                                "routing-fit-strategy": "graph-coloring-v5",  
+                                "lb-scheme": "readprotocol"
+                            }))
+        
+    
+    if "TS+RO+SUB-new" in added_comparisons or add_all:   
+        comparisons.append(("TS+RO+SUB-new", {
+                                "timing-scheme": "faridv6",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "routing-fit-strategy": "graph-coloring-v8",
+                                "farid-rounds": 0,  
+                                "lb-scheme": "readprotocol"
+                            }))
+        
+    if "TS+RO+REP-new" in added_comparisons or add_all:
+        comparisons.append(("TS+RO+REP-new", {
+                                "timing-scheme": "faridv6",
+                                "throttle-search": False,
+                                "subflows": 1,
+                                "routing-fit-strategy": "graph-coloring-v8",
+                                "farid-rounds": farid_rounds, 
+                                "lb-scheme": "readprotocol"
+                            }))
+
+    if "TS+RO+SUB+REP-new" in added_comparisons or add_all:
+        comparisons.append(("TS+RO+SUB+REP-new", {
+                                "timing-scheme": "faridv6",
+                                "throttle-search": True if subflow_count > 1 else False,
+                                "subflows": subflow_count, 
+                                "routing-fit-strategy": "graph-coloring-v8", 
+                                "farid-rounds": farid_rounds,
+                                "lb-scheme": "readprotocol"
+                            }))
+        
+    
+        
+    ######################
+    
+    
     # to be give to the CS, which will be used to populate the run_context.
     # the run_context will be then handed back to the custom functions. 
     # am I making this too complicated? I think I am.
