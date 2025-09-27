@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 10
+    seed_range = 40
     m = 100
     
     clean_up_sweep_files = True
@@ -67,12 +67,12 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [144]),
+            ("machine_count", [48, 96, 144]),
             ("rack_size", ["/6"]),
             ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.2, 0.25, 0.3]),
+            ("desired_entropy", [0.3, 0.35, 0.4, 0.45, 0.5]),
             ("oversub", [4, 2, 1]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
