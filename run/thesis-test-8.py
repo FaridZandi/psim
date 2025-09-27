@@ -70,7 +70,7 @@ if __name__ == "__main__":
             ("machine_count", [144]),
             ("rack_size", ["/6"]),
             ("job_sizes", [("10%", "25%")]),
-            ("placement_mode", ["desired_entropy"]), 
+            ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.2, 0.25, 0.3]),
             ("oversub", [4, 2, 1]),
