@@ -484,6 +484,7 @@ def do_experiment(seed_range=1,
                                 "timing-scheme": "faridv2",
                                 "subflows": 1,
                                 "throttle-search": False,
+                                "farid-rounds": 0,
                                 "lb-scheme": "random"
                             }))
         
@@ -493,6 +494,7 @@ def do_experiment(seed_range=1,
                                 "routing-fit-strategy": "graph-coloring-v3",
                                 "subflows": 1,
                                 "throttle-search": False, 
+                                "farid-rounds": 0,
                                 "lb-scheme": "readprotocol"
                             }))
         
@@ -501,6 +503,7 @@ def do_experiment(seed_range=1,
                                 "timing-scheme": "faridv2",
                                 "subflows": subflow_count, 
                                 "throttle-search": True if subflow_count > 1 else False,    
+                                "farid-rounds": 0,
                                 "lb-scheme": "random"
                             }))
     
@@ -510,6 +513,7 @@ def do_experiment(seed_range=1,
                                 "throttle-search": False,
                                 "subflows": 1,
                                 "routing-fit-strategy": "graph-coloring-v5",  
+                                "farid-rounds": 0,   
                                 "lb-scheme": "readprotocol"
                             }))
         

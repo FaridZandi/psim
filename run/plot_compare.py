@@ -43,6 +43,8 @@ suffix = ""
 
 draw_line_at_one = True
 
+sort_hue = True
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -66,8 +68,15 @@ def translate(param):
 def value_formatter(val):   
     if isinstance(val, tuple):
         return float(val[0])  # Sort by the first element of the tuple
-    elif isinstance(val, str) and val.startswith('(') and val.endswith(')'):
-        return float(val[1:-1].split(',')[0])  # Extract number from string tuple representation
+    elif isinstance(val, str): 
+        if val.startswith('(') and val.endswith(')'):
+            try:
+                formatted = float(val[1:-1].split(',')[0])  # Extract number from string tuple representation
+                return formatted
+            except ValueError:
+                return val  # If conversion fails
+        else: 
+            return val  # Non-numeric strings
     else:
         return float(val)  # Regular numeric values
     
@@ -419,8 +428,9 @@ def draw_plot(df, value, hue_order):
     plt.subplots_adjust(hspace=0.3)
     # plt.subplots_adjust(wspace=0.35)
     
-    for i, x_value in enumerate(subplot_x_values):
-        for j, y_value in enumerate(subplot_y_values):
+    for j, y_value in enumerate(subplot_y_values):
+        for i, x_value in enumerate(subplot_x_values):
+            print("*", end="", flush=True)
             ax = axes[j, i]
             legend = False
             
@@ -433,6 +443,7 @@ def draw_plot(df, value, hue_order):
                     if i == len(subplot_x_values) - 1:
                         legend = True
             
+            print("#" * len(hue_order) + " ", end="") 
             draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range)  
             
             if legend:
@@ -447,6 +458,7 @@ def draw_plot(df, value, hue_order):
                     fig.legend(handles, labels, loc="center left", 
                                bbox_to_anchor=(0.95, 0.5), ncol=legend_cols,
                                title=legend_title)
+        print("")
     
     file_dir = "/".join(file_name.split("/")[:-1]) 
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}_{suffix}.{ext}", bbox_inches='tight', dpi=200)        
@@ -494,7 +506,8 @@ def make_plots():
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
         # sort the hue_order
-        hue_order = sorted(hue_order, key=value_formatter)
+        if sort_hue:
+            hue_order = sorted(hue_order, key=value_formatter)
     else:
         hue_order = None
         
@@ -507,7 +520,18 @@ def make_plots():
             
         print(f"value: {value}, plot_type: {plot_type}")    
         draw_plot(df, value, hue_order)    
-        
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', '1', 'y'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', '0', 'n'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+            
 
 if __name__ == "__main__":
     
@@ -536,7 +560,9 @@ if __name__ == "__main__":
     parser.add_argument("--filter", type=str, required=False)
     parser.add_argument("--suffix", type=str, required=False)
     parser.add_argument("--draw_line_at_one", type=bool, required=False)
-    
+    parser.add_argument("--custom_ylim", type=str, required=False)
+    parser.add_argument("--sort_hue", type=str2bool, nargs='?', const=True, default=False)
+
     args = parser.parse_args()
         
     for arg in vars(args):
