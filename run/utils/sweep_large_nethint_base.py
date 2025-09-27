@@ -162,7 +162,7 @@ placement_related_keys = ["placement-mode", "ring-mode",
 # things that would affect the scheduling, the timing and the routing.
 scheduling_related_keys = ["timing-scheme", "subflows", "throttle-search", 
                            "routing-fit-strategy", "compat-score-mode", "farid-rounds", 
-                           "lb-scheme", "inflate", "fallback-threshold"] 
+                           "lb-scheme", "inflate", "fallback-threshold", "exp-uuid"]
 
 def summarize_key_ids(key): 
     s = key.split("-")
