@@ -521,7 +521,7 @@ def do_experiment(seed_range=1,
     if "TS+RO+SUB-new" in added_comparisons or add_all:   
         comparisons.append(("TS+RO+SUB-new", {
                                 "timing-scheme": "faridv6",
-                                "throttle-search": True if subflow_count > 1 else False,
+                                "throttle-search": True, 
                                 "subflows": subflow_count, 
                                 "routing-fit-strategy": "graph-coloring-v8",
                                 "farid-rounds": 0,  
@@ -541,9 +541,9 @@ def do_experiment(seed_range=1,
     if "TS+RO+SUB+REP-new" in added_comparisons or add_all:
         comparisons.append(("TS+RO+SUB+REP-new", {
                                 "timing-scheme": "faridv6",
-                                "throttle-search": True if subflow_count > 1 else False,
-                                "subflows": subflow_count, 
-                                "routing-fit-strategy": "graph-coloring-v8", 
+                                "throttle-search": True,
+                                "subflows": subflow_count,
+                                "routing-fit-strategy": "graph-coloring-v8",
                                 "farid-rounds": farid_rounds,
                                 "lb-scheme": "readprotocol"
                             }))
