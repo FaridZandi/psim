@@ -104,7 +104,7 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=50,
+                                                 worker_thread_count=20,
                                                  plot_stuff=False,
                                                  throttle_search=True,
                                                  farid_rounds=30,
