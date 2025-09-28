@@ -568,7 +568,7 @@ def do_experiment(seed_range=1,
                             }))
         
     if "TS+RO+SUB+REP-inf-new" in added_comparisons or add_all:
-        comparisons.append(("TS+RO+SUB+REP-new", {
+        comparisons.append(("TS+RO+SUB+REP-inf-new", {
                                 "timing-scheme": "faridv6",
                                 "throttle-search": True,
                                 "subflows": subflow_count,
