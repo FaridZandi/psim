@@ -472,7 +472,7 @@ def run_command_options_modifier(options, config_sweeper, run_context,
     if "remaining_bad_range_ratios" not in add_to_context:
         run_context["remaining_bad_range_ratios"] = []
     if "fixed_bad_range_ratio" not in add_to_context:  
-        run_context["fixed_bad_range_ratio"] = []
+        run_context["fixed_bad_range_ratio"] = 0
     if "fixed_bad_range_ratios" not in add_to_context:  
         run_context["fixed_bad_range_ratios"] = []
     
