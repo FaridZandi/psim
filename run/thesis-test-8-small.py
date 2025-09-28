@@ -67,9 +67,9 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
-            ("rack_size", ["/6"]),
-            ("job_sizes", [("10%", "25%")]),
+            ("machine_count", [96]),
+            ("rack_size", [8]),
+            ("job_sizes", [(4, 16)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.6]),
