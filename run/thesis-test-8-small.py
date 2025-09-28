@@ -72,7 +72,7 @@ if __name__ == "__main__":
             ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.45]),
+            ("desired_entropy", [0.6]),
             ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
