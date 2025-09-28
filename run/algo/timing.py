@@ -1279,6 +1279,20 @@ def get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, sim_length):
     
     return bad_range_ratio
 
+def get_bad_range_ratio_v6(new_bad_ranges, prev_bad_ranges, sim_length):   
+    new_bad_ranges_ratio = 0 
+    prev_bad_ranges_ratio = 0
+    
+    for bad_range in new_bad_ranges:
+        new_bad_ranges_ratio += (bad_range[1] - bad_range[0] + 1)
+    for bad_range in prev_bad_ranges:
+        prev_bad_ranges_ratio += (bad_range[1] - bad_range[0] + 1)
+
+    new_bad_ranges_ratio = new_bad_ranges_ratio / sim_length
+    prev_bad_ranges_ratio = prev_bad_ranges_ratio / sim_length
+
+    return new_bad_ranges_ratio, prev_bad_ranges_ratio
+
 def log_bad_ranges(run_context, current_round, new_bad_ranges, prev_bad_ranges):   
     bad_ranges_dir = f"{run_context['timings-dir']}/bad_ranges/"
     os.makedirs(bad_ranges_dir, exist_ok=True)
@@ -1584,13 +1598,18 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
     current_round = 0
     add_to_context = {
         "fixing_rounds": 0,
-        "bad_range_ratio": 0,
-        "bad_range_ratios": []
+        "fixed_bad_range_ratio": 0,
+        "fixed_bad_range_ratios": [],
+        "remaining_bad_range_ratio": 0,
+        "remaining_bad_range_ratios": [],
     }
 
     is_inflation_enabled = run_context.get("use_inflation", False)
     
     solver = LegoV2Solver(jobs, run_context, options, job_profiles, timing_scheme)
+
+
+
 
     # step 1: do the vanilla timing first.
     log_progress(run_context, "starting vanilla timing")    
@@ -1601,21 +1620,25 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
     early_return = should_early_return(current_round, max_attempts)
         
     job_timings, solution = solver.solve()
-    lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
-                                               job_profiles, job_timings, 
-                                               suffix=current_round, 
-                                               highlighted_ranges=[], 
-                                               early_return=early_return)
-    
-    new_bad_ranges = summarize_bad_ranges(new_bad_ranges)
+    lb_decisions, remaining_bad_ranges = route_flows(jobs, options, run_context, 
+                                                     job_profiles, job_timings, 
+                                                     suffix=current_round, 
+                                                     highlighted_ranges=[], 
+                                                     early_return=early_return)
 
-    log_bad_ranges(run_context, "1.0_vanilla", new_bad_ranges, [])
-    bad_range_ratio = get_bad_range_ratio(new_bad_ranges, [], run_context["sim-length"])
-    add_to_context["bad_range_ratio"] = bad_range_ratio
-    add_to_context["bad_range_ratios"].append(bad_range_ratio)
+    remaining_bad_ranges = summarize_bad_ranges(remaining_bad_ranges)
+
+    log_bad_ranges(run_context, "1.0_vanilla", remaining_bad_ranges, [])
+    remaining_bad_range_ratio, fixed_bad_range_ratio = get_bad_range_ratio(remaining_bad_ranges, [], 
+                                                                           run_context["sim-length"])
+
+    add_to_context["fixed_bad_range_ratio"] = fixed_bad_range_ratio
+    add_to_context["fixed_bad_range_ratios"].append(fixed_bad_range_ratio)
+    add_to_context["remaining_bad_range_ratio"] = remaining_bad_range_ratio
+    add_to_context["remaining_bad_range_ratios"].append(remaining_bad_range_ratio)
 
     # step 1.5: if the routing is good, return the results.
-    if len(new_bad_ranges) == 0:
+    if len(remaining_bad_ranges) == 0:
         add_to_context["fixing_rounds"] = 0
         return job_timings, lb_decisions, add_to_context
 
@@ -1624,39 +1647,44 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
     ################################################################################
 
     current_round = 1
-    prev_bad_ranges = [] 
+    fixed_bad_ranges = [] 
     inflate_factor = 1.0
     
-    while len(new_bad_ranges) > 0 and current_round <= max_attempts:
+    while len(remaining_bad_ranges) > 0 and current_round <= max_attempts:
         random.seed(run_context["experiment-seed"] + SEED_MAGIC + current_round)
 
-        if bad_range_ratio > 0.3 and is_inflation_enabled:
+        if is_inflation_enabled and remaining_bad_range_ratio > 0.5:
             inflate_factor += 0.1
-            prev_bad_ranges.clear()
+            fixed_bad_ranges.clear()
         else: 
-            append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
+            append_to_bad_ranges(fixed_bad_ranges, remaining_bad_ranges)
 
         # step 2.1: fix the timing.
         log_progress(run_context, "starting timing fix, round {}".format(current_round))    
-        
-        job_timings, solution = solver.solve_with_bad_ranges_and_inflation(prev_bad_ranges, inflate_factor)
+
+        job_timings, solution = solver.solve_with_bad_ranges_and_inflation(fixed_bad_ranges, inflate_factor)
         # step 2.2: do the routing again.
         
         early_return = should_early_return(current_round, max_attempts)
-            
-        lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
-                                                    job_profiles, job_timings, 
-                                                    suffix=f"{inflate_factor}_{current_round}", 
-                                                    highlighted_ranges=prev_bad_ranges)   
 
-        new_bad_ranges = summarize_bad_ranges(new_bad_ranges)
+        lb_decisions, remaining_bad_ranges = route_flows(jobs, options, run_context,
+                                                         job_profiles, job_timings,
+                                                         suffix=f"{inflate_factor}_{current_round}",
+                                                         highlighted_ranges=fixed_bad_ranges)
 
-        log_bad_ranges(run_context, f"inflation_{inflate_factor}_round_{current_round}", 
-                       new_bad_ranges, prev_bad_ranges)
-        
-        bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
-        add_to_context["bad_range_ratio"] = bad_range_ratio
-        add_to_context["bad_range_ratios"].append(bad_range_ratio)
+        remaining_bad_ranges = summarize_bad_ranges(remaining_bad_ranges)
+
+        log_bad_ranges(run_context, f"inflation_{inflate_factor}_round_{current_round}",
+                       remaining_bad_ranges, fixed_bad_ranges)
+
+
+        remaining_bad_range_ratio, fixed_bad_range_ratio = get_bad_range_ratio_v6(remaining_bad_ranges,
+                                                                                fixed_bad_ranges,
+                                                                                run_context["sim-length"])
+        add_to_context["fixed_bad_range_ratio"] = fixed_bad_range_ratio 
+        add_to_context["fixed_bad_range_ratios"].append(fixed_bad_range_ratio)
+        add_to_context["remaining_bad_range_ratio"] = remaining_bad_range_ratio
+        add_to_context["remaining_bad_range_ratios"].append(remaining_bad_range_ratio)
         
         current_round += 1
         add_to_context["fixing_rounds"] += 1

@@ -122,20 +122,35 @@ all_metrics = {
         "better": "higher",
         "type": "single_number",
     },
-    "bad_range_ratio": {  
+    "remaining_bad_range_ratio": {  
         "avg_cdf_plot": True,   
         "iter_avg_plot": False,  
         "compare_mode": "self",
         "better": "lower",
         "type": "single_number",
     },
-    "bad_range_ratios": {   
+    "remaining_bad_range_ratios": { 
         "avg_cdf_plot": True,   
         "iter_avg_plot": False,  
         "compare_mode": "self",
         "better": "lower",
         "type": "single_list",
     },
+    "fixed_bad_range_ratio": {  
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "higher",
+        "type": "single_number",
+    },
+    "fixed_bad_range_ratios": { 
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "lower",
+        "type": "single_list",
+    },
+    
 }
 
 

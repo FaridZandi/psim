@@ -466,10 +466,15 @@ def run_command_options_modifier(options, config_sweeper, run_context,
     
     if "fixing_rounds" not in add_to_context:
         run_context["fixing_rounds"] = 0    
-    if "bad_range_ratio" not in add_to_context: 
-        run_context["bad_range_ratio"] = 0 
-    if "bad_range_ratios" not in add_to_context:    
-        run_context["bad_range_ratios"] = []
+
+    if "remaining_bad_range_ratio" not in add_to_context:
+        run_context["remaining_bad_range_ratio"] = 0
+    if "remaining_bad_range_ratios" not in add_to_context:
+        run_context["remaining_bad_range_ratios"] = []
+    if "fixed_bad_range_ratio" not in add_to_context:  
+        run_context["fixed_bad_range_ratio"] = []
+    if "fixed_bad_range_ratios" not in add_to_context:  
+        run_context["fixed_bad_range_ratios"] = []
     
     if lb_decisions is not None:
         total_subflows = 0
@@ -672,10 +677,14 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = run_context["cmmcmp_ratio"]
         elif metric == "final_entropy": 
             job_numbers = run_context["final_entropy"]
-        elif metric == "bad_range_ratio":
-            job_numbers = run_context["bad_range_ratio"]
-        elif metric == "bad_range_ratios":
-            job_numbers = run_context["bad_range_ratios"]
+        elif metric == "remaining_bad_range_ratio":
+            job_numbers = run_context["remaining_bad_range_ratio"]
+        elif metric == "fixed_bad_range_ratio":
+            job_numbers = run_context["fixed_bad_range_ratio"]
+        elif metric == "remaining_bad_range_ratios":
+            job_numbers = run_context["remaining_bad_range_ratios"]
+        elif metric == "fixed_bad_range_ratios":
+            job_numbers = run_context["fixed_bad_range_ratios"]
         elif metric == "job_periods":
             job_numbers = [] 
             for job in run_context["jobs"]:
