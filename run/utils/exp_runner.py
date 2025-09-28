@@ -556,6 +556,16 @@ def do_experiment(seed_range=1,
                                 "farid-rounds": farid_rounds, 
                                 "lb-scheme": "readprotocol"
                             }))
+    if "TS+RO+REP-inf-new" in added_comparisons or add_all:
+        comparisons.append(("TS+RO+REP-inf-new", {
+                                "timing-scheme": "faridv6",
+                                "throttle-search": False,
+                                "subflows": 1,
+                                "routing-fit-strategy": "graph-coloring-v8",
+                                "farid-rounds": farid_rounds, 
+                                "lb-scheme": "readprotocol", 
+                                "use_inflation": True,
+                            }))
 
     if "TS+RO+SUB+REP-new" in added_comparisons or add_all:
         comparisons.append(("TS+RO+SUB+REP-new", {
