@@ -68,7 +68,7 @@ if __name__ == "__main__":
         exp_config = [
             ("sim_length", [400 * m]),
             ("machine_count", [96]),
-            ("rack_size", [8]),
+            ("rack_size", [16]),
             ("job_sizes", [(4, 16)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
@@ -111,7 +111,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=100,
+                                                 farid_rounds=50,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
