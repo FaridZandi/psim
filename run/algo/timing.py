@@ -1651,10 +1651,11 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
     while len(remaining_bad_ranges) > 0 and current_round <= max_attempts:
         random.seed(run_context["experiment-seed"] + SEED_MAGIC + current_round)
 
-        total_bad_range_ratio = remaining_bad_range_ratio + fixed_bad_range_ratio
-        if is_inflation_enabled and total_bad_range_ratio > 1:
-            inflate_factor += 0.1
-            fixed_bad_ranges.clear()
+        if is_inflation_enabled:
+            total_bad_range_ratio = remaining_bad_range_ratio + fixed_bad_range_ratio
+            if total_bad_range_ratio > 1 or len(remaining_bad_ranges) > 10: 
+                inflate_factor += 0.1
+                fixed_bad_ranges.clear()
         else: 
             append_to_bad_ranges(fixed_bad_ranges, remaining_bad_ranges)
 
