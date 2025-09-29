@@ -48,7 +48,7 @@ if __name__ == "__main__":
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
-            "legend_side": "right",
+            "legend_side": "bottom",
             "temp-summarize-comp": True,
             "legend_cols": 5,
         }

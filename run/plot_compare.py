@@ -6,6 +6,7 @@ import argparse
 from pprint import pprint 
 import numpy as np 
 import itertools
+import matplotlib.patches as mpatches
 
 # Define hatches per hue category
 file_name = None 
@@ -41,6 +42,10 @@ temp_summarize_comp = False
 filter = None
 suffix = ""
 
+draw_line_at_one = True
+
+sort_hue = True
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
@@ -61,6 +66,21 @@ def translate(param):
     
     return param 
 
+def value_formatter(val):   
+    if isinstance(val, tuple):
+        return float(val[0])  # Sort by the first element of the tuple
+    elif isinstance(val, str): 
+        if val.startswith('(') and val.endswith(')'):
+            try:
+                formatted = float(val[1:-1].split(',')[0])  # Extract number from string tuple representation
+                return formatted
+            except ValueError:
+                return val  # If conversion fails
+        else: 
+            return val  # Non-numeric strings
+    else:
+        return float(val)  # Regular numeric values
+    
 hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
                      "pink", "gray", "olive", "cyan", "black", "yellow"] * 100
 
@@ -155,7 +175,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     
     
     if plot_type == "line": 
-        sns.lineplot(x=plot_x_params, y=plot_y_param, 
+        sns.lineplot(x=plot_x_params, y=plot_y_param, sort=True, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
                     data=df, ax=ax, legend=True, errorbar=('ci', 50),
@@ -163,7 +183,9 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         
         if not legend:
             ax.get_legend().remove()    
-        ax.axhline(y=1, color='black', linestyle='--')
+            
+        if draw_line_at_one:
+            ax.axhline(y=1, color='black', linestyle='--')
         
     elif plot_type == "heatmap":  
         # the rows will be the plot_x_params 
@@ -223,7 +245,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                     data=df, ax=ax, errorbar=None, legend=True)
         
         annotate(ax)
-        ax.axhline(y=1, color='black', linestyle='--')
+        if draw_line_at_one:
+            ax.axhline(y=1, color='black', linestyle='--')
         ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1)) 
         ax.set_ylabel(values_name)
         
@@ -235,8 +258,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
                     data=df, ax=ax, errorbar=None, alpha=0.3, legend=False) 
-        
-        
+    
+
         g = sns.boxplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, 
                     hue_order=hue_order, 
@@ -244,8 +267,10 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                     data=df, ax=ax, linewidth=0.5, 
                     showfliers=False, fliersize=0.5)
 
-        # vertical line at y=1
-        ax.axhline(y=1, color='black', linestyle=':', linewidth=0.5)
+        if draw_line_at_one:
+            # vertical line at y=1
+            ax.axhline(y=1, color='black', linestyle=':', linewidth=0.5)
+    
         ax.set_ylabel(values_name)
         ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1)) 
         
@@ -284,12 +309,12 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
 
         xlim_min = min(val_range[0] - 0.1, 0.9)
         xlim_max = max(val_range[1] + 0.1, 1.1)   
+
         ax.set_xlim(xlim_min, xlim_max) 
-
-            
         ax.set_xlabel(values_name)
-
-        ax.axvline(x=1, color='black', linestyle='--')  
+        
+        if draw_line_at_one:    
+            ax.axvline(x=1, color='black', linestyle='--')  
     
     elif plot_type == "cdf2":
         
@@ -310,7 +335,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         ax.set_xlim(xlim_min, xlim_max)
         ax.set_xlabel(values_name)
         
-        ax.axvline(x=1, color='black', linestyle='--')  
+        if draw_line_at_one:
+            ax.axvline(x=1, color='black', linestyle='--')  
 
     # draw a horizontal line at y=1
     if custom_ylim is not None:
@@ -331,6 +357,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     
     
 
+    
+    
 def draw_plot(df, value, hue_order):   
     if value is not None: 
         df = df[df[plot_params] == value]
@@ -351,14 +379,18 @@ def draw_plot(df, value, hue_order):
         subplot_x_values = [None]
     else:
         subplot_x_len = len(df[subplot_x_params].unique())  
-        subplot_x_values = df[subplot_x_params].unique() 
+        subplot_x_values = df[subplot_x_params].unique()
+        # sort the values
+        subplot_x_values = sorted(subplot_x_values, key=value_formatter) 
         
     if subplot_y_params is None:
         subplot_y_len = 1
         subplot_y_values = [None]   
     else:
         subplot_y_len = len(df[subplot_y_params].unique())
-        subplot_y_values = df[subplot_y_params].unique()    
+        subplot_y_values = df[subplot_y_params].unique()
+        # sort the values
+        subplot_y_values = sorted(subplot_y_values, key=value_formatter)    
     
     if plot_x_params is not None:
         plot_x_len = len(df[plot_x_params].unique()) 
@@ -397,8 +429,9 @@ def draw_plot(df, value, hue_order):
     plt.subplots_adjust(hspace=0.3)
     # plt.subplots_adjust(wspace=0.35)
     
-    for i, x_value in enumerate(subplot_x_values):
-        for j, y_value in enumerate(subplot_y_values):
+    for j, y_value in enumerate(subplot_y_values):
+        for i, x_value in enumerate(subplot_x_values):
+            print("*", end="", flush=True)
             ax = axes[j, i]
             legend = False
             
@@ -411,6 +444,7 @@ def draw_plot(df, value, hue_order):
                     if i == len(subplot_x_values) - 1:
                         legend = True
             
+            print("#" * len(hue_order) + " ", end="") 
             draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val_range)  
             
             if legend:
@@ -418,16 +452,18 @@ def draw_plot(df, value, hue_order):
                 
                 if legend_side == "bottom":
                     fig.legend(handles, labels, loc="upper center", 
-                               bbox_to_anchor=(0.5, -0.1), ncol=legend_cols, 
+                               bbox_to_anchor=(0.5, -0.01), ncol=legend_cols, 
                                title=legend_title)
 
                 elif legend_side == "right":   
                     fig.legend(handles, labels, loc="center left", 
                                bbox_to_anchor=(0.95, 0.5), ncol=legend_cols,
                                title=legend_title)
+        print("")
     
     file_dir = "/".join(file_name.split("/")[:-1]) 
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}_{suffix}.{ext}", bbox_inches='tight', dpi=200)        
+    plt.close()
 
 def make_plots(): 
     # read the csv file into pd dataframe
@@ -436,12 +472,23 @@ def make_plots():
     # filter the dataframe based on the filter argument
     if filter is not None:
         # filter would be like colummn_name=value
-        col_name, value = filter.split("=")
-        df = df[
-            (df[col_name] == value) |
-            (df[col_name] == int(value)) |
-            (df[col_name] == float(value))
-        ]
+        if "=" in filter:
+            col_name, value = filter.split("=")
+            df = df[
+                (df[col_name] == value) |
+                (df[col_name] == int(value)) |
+                (df[col_name] == float(value))
+            ]
+        elif ">" in filter:
+            col_name, value = filter.split(">")
+            df = df[
+                (df[col_name] > float(value))
+            ]
+        elif "<" in filter:
+            col_name, value = filter.split("<")
+            df = df[
+                (df[col_name] < float(value))
+            ]
     
     
     # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"
@@ -471,6 +518,9 @@ def make_plots():
         
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
+        # sort the hue_order
+        if sort_hue:
+            hue_order = sorted(hue_order, key=value_formatter)
     else:
         hue_order = None
         
@@ -483,7 +533,18 @@ def make_plots():
             
         print(f"value: {value}, plot_type: {plot_type}")    
         draw_plot(df, value, hue_order)    
-        
+
+
+def str2bool(v):
+    if isinstance(v, bool):
+        return v
+    if v.lower() in ('yes', 'true', 't', '1', 'y'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', '0', 'n'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+            
 
 if __name__ == "__main__":
     
@@ -511,7 +572,10 @@ if __name__ == "__main__":
     parser.add_argument("--temp-summarize-comp", type=bool, required=False)
     parser.add_argument("--filter", type=str, required=False)
     parser.add_argument("--suffix", type=str, required=False)
-    
+    parser.add_argument("--custom_ylim", type=str, required=False)
+    parser.add_argument("--sort_hue", type=str2bool, nargs='?', const=True, default=False)
+    parser.add_argument("--draw_line_at_one", type=str2bool, nargs='?', const=True, default=True)
+
     args = parser.parse_args()
         
     for arg in vars(args):
