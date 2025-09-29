@@ -256,10 +256,10 @@ def generate_entropy_placement_file(options, run_context):
         # exceed the capacity of the rack.
         change_info = perturb_placement(jobs)
 
-        # max_outflow = get_max_job_rack_outflow(jobs, options["ft-server-per-rack"])
-        # if max_outflow > rack_capacity:
-        #     # undo the perturbation.
-        #     undo_perturbation(jobs, change_info)
+        max_outflow = get_max_job_rack_outflow(jobs, options["ft-server-per-rack"])
+        if max_outflow > rack_capacity:
+            # undo the perturbation.
+            undo_perturbation(jobs, change_info)
 
         perturbation_count += 1
         current_entropy = measure_entropy(jobs, options["ft-server-per-rack"])
