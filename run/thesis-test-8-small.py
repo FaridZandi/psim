@@ -72,10 +72,10 @@ if __name__ == "__main__":
             ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.6]),
+            ("desired_entropy", [0.5]),
             ("oversub", [4]),
             ("cmmcmp_range", [(0, 2)]),
-            ("fallback_threshold", [0.5, 0.7, 0.9]),
+            ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
@@ -111,7 +111,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=20,
+                                                 farid_rounds=50,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
