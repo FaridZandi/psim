@@ -297,7 +297,7 @@ def run_command_options_modifier(options, config_sweeper, run_context,
     move_from_op_to_cxt = ["compat-score-mode", "throttle-search", 
                            "farid-rounds", "routing-fit-strategy", 
                            "placement-mode", "ring-mode", "placement-seed",
-                           "timing-scheme", "inflate", "fallback_threshold", 
+                           "timing-scheme", "inflate", "fallback-threshold", 
                            "comparison", "use_inflation"]
     
     for key in move_from_op_to_cxt: 
