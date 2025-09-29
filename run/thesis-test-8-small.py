@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 40
+    seed_range = 10
     m = 100
     
     clean_up_sweep_files = True
@@ -67,13 +67,13 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48, 96, 144]),
-            ("rack_size", ["/6"]),
-            ("job_sizes", [("10%", "25%")]),
+            ("machine_count", [96]),
+            ("rack_size", [8]),
+            ("job_sizes", [(16, 24)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.6, 0.5, 0.4]),
-            ("oversub", [4, 2, 1]),
+            ("desired_entropy", [0.6]),
+            ("oversub", [2]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
@@ -87,14 +87,13 @@ if __name__ == "__main__":
         # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
         # comparisons = ["TS-new", "TS+RO-new", "TS+RO+SUB-new", "TS+RO+SUB+REP-new"]
-        
-        comparisons = [
-            "TS-new", "RO-new", 
-            "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", 
-            "TS+RO+REP-new", "TS+RO+REP-inf-new", 
-            "TS+RO+SUB+REP-new", "TS+RO+SUB+REP-inf-new", 
-        ]
-        
+
+        comparisons = ["TS-new", "RO-new", 
+                       "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", 
+                       "TS+RO+REP-new", "TS+RO+REP-inf-new", 
+                       "TS+RO+SUB+REP-new", "TS+RO+SUB+REP-inf-new", 
+                       ]
+
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
         all_results = []
@@ -109,8 +108,8 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=20,
-                                                 plot_stuff=False,
+                                                 worker_thread_count=50,
+                                                 plot_stuff=True,
                                                  throttle_search=True,
                                                  farid_rounds=50,
                                                  run_cassini_timing_in_subprocess=True, 

@@ -242,7 +242,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         sns.barplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax, errorbar=None, legend=True)
+                    data=df, ax=ax, errorbar=None, legend=True, 
+                    estimator='mean')
         
         annotate(ax)
         if draw_line_at_one:
@@ -257,7 +258,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         sns.barplot(x=plot_x_params, y=plot_y_param, 
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax, errorbar=None, alpha=0.3, legend=False) 
+                    data=df, ax=ax, errorbar=None, alpha=0.3, legend=False, estimator='median')
     
 
         g = sns.boxplot(x=plot_x_params, y=plot_y_param, 
@@ -265,7 +266,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                     hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
                     data=df, ax=ax, linewidth=0.5, 
-                    showfliers=False, fliersize=0.5)
+                    showfliers=True, fliersize=0.5)
 
         if draw_line_at_one:
             # vertical line at y=1
@@ -530,9 +531,11 @@ def make_plots():
         unique_values = df[plot_params].unique()
 
     for value in unique_values: 
-            
-        print(f"value: {value}, plot_type: {plot_type}")    
-        draw_plot(df, value, hue_order)    
+        try:
+            print(f"value: {value}, plot_type: {plot_type}")    
+            draw_plot(df, value, hue_order)    
+        except Exception as e:
+            print(f"Error occurred while plotting {value}: {e}")
 
 
 def str2bool(v):
