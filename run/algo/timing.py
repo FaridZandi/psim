@@ -1698,7 +1698,21 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         current_round += 1
         add_to_context["fixing_rounds"] += 1
 
-    return job_timings, lb_decisions, add_to_context
+    if len(new_bad_ranges) == 0 or not is_inflation_enabled:
+        return job_timings, lb_decisions, add_to_context
+
+    else: 
+        job_timings, _ = solver.get_zero_solution()
+        
+        lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
+                                                    job_profiles, job_timings, 
+                                                    suffix=current_round, 
+                                                    highlighted_ranges=[], 
+                                                    early_return=False, 
+                                                    override_routing_strategy="graph-coloring-v3")
+        
+        add_to_context["fixing_rounds"] = 0
+        return job_timings, lb_decisions, add_to_context
 
 
 
