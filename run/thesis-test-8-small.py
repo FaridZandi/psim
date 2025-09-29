@@ -36,7 +36,7 @@ if __name__ == "__main__":
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "machine_count",
-            "subplot_x_params": "desired_entropy",
+            "subplot_x_params": "fallback_threshold",
             "subplot_hue_params": "comparison",
             "plot_x_params": "oversub",
             "plot_y_param": "values",
@@ -68,14 +68,15 @@ if __name__ == "__main__":
         exp_config = [
             ("sim_length", [400 * m]),
             ("machine_count", [96]),
-            ("rack_size", [8]),
-            ("job_sizes", [(16, 24)]),
+            ("rack_size", [16]),
+            ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.6]),
-            ("oversub", [2]),
+            ("oversub", [4]),
             ("cmmcmp_range", [(0, 2)]),
-            ("fallback_threshold", [0.5]),
+            # ("fallback_threshold", [0.1, 0.2, 0.3]),
+            ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
@@ -90,8 +91,10 @@ if __name__ == "__main__":
 
         comparisons = ["TS-new", "RO-new", 
                        "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", 
-                       "TS+RO+REP-new", "TS+RO+REP-inf-new", 
-                       "TS+RO+SUB+REP-new", "TS+RO+SUB+REP-inf-new", 
+                    #    "TS+RO+REP-new", 
+                       "TS+RO+REP-inf-new", 
+                    #    "TS+RO+SUB+REP-new", 
+                       "TS+RO+SUB+REP-inf-new", 
                        ]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
@@ -109,9 +112,9 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=50,
-                                                 plot_stuff=True,
+                                                 plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=50,
+                                                 farid_rounds=15,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             

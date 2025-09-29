@@ -113,7 +113,7 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
         
     elif fit_strategy == "graph-coloring-v3":
         times_range = route_flows_graph_coloring_v3(all_flows, rem, usage, num_spines, 
-                                                   lb_decisions, run_context)
+                                                    lb_decisions, run_context)
             
     elif fit_strategy == "graph-coloring-v4":
         times_range = route_flows_graph_coloring_v4(all_flows, rem, usage, num_spines, 
