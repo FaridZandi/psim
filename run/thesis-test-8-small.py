@@ -112,9 +112,10 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=50,
-                                                 plot_stuff=False,
+                                                 plot_stuff=True,
                                                  throttle_search=True,
                                                  farid_rounds=40,
+                                                 placement_seeds=[7],
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
