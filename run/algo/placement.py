@@ -250,7 +250,8 @@ def generate_entropy_placement_file(options, run_context):
         print("Warning: The initial placement has a job with a rack outflow greater than the rack capacity. max_outflow: {}, rack_capacity: {}".format(max_outflow, rack_capacity))
         print("This might lead to poor performance.")
         
-            
+    rejected_perturbations = 0
+    
     while current_entropy < desired_entropy and perturbation_count < max_perturbation_count:    
         # I don't like the scenarios where the flows that are generated for a certain job in a certain rack, 
         # exceed the capacity of the rack.
@@ -259,6 +260,7 @@ def generate_entropy_placement_file(options, run_context):
         max_outflow = get_max_job_rack_outflow(jobs, options["ft-server-per-rack"])
         if max_outflow > rack_capacity:
             # undo the perturbation.
+            rejected_perturbations += 1
             undo_perturbation(jobs, change_info)
 
         perturbation_count += 1
@@ -266,6 +268,7 @@ def generate_entropy_placement_file(options, run_context):
 
     max_outflow = get_max_job_rack_outflow(jobs, options["ft-server-per-rack"])
     print("created a with max_outflow: {}, rack_capacity: {}".format(max_outflow, rack_capacity))
+    print("in the process, rejected_perturbations: {} out of {} perturbations.".format(rejected_perturbations, perturbation_count))
     return jobs, cmmcmp_ratio
 
 
