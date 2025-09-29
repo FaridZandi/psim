@@ -72,7 +72,7 @@ if __name__ == "__main__":
             ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.35, 0.4, 0.45, 0.5]),
+            ("desired_entropy", [0.6, 0.5, 0.4]),
             ("oversub", [4, 2, 1]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.5]),
@@ -88,7 +88,12 @@ if __name__ == "__main__":
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
         # comparisons = ["TS-new", "TS+RO-new", "TS+RO+SUB-new", "TS+RO+SUB+REP-new"]
         
-        comparisons = ["TS-new", "RO-new", "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", "TS+RO+REP-new", "TS+RO+SUB+REP-new"]
+        comparisons = [
+            "TS-new", "RO-new", 
+            "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", 
+            "TS+RO+REP-new", "TS+RO+REP-inf-new", 
+            "TS+RO+SUB+REP-new", "TS+RO+SUB+REP-inf-new", 
+        ]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -104,10 +109,10 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=50,
+                                                 worker_thread_count=20,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=30,
+                                                 farid_rounds=50,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             
