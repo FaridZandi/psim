@@ -472,8 +472,8 @@ def do_experiment(seed_range=1,
                                 "farid-rounds": rounds, 
                             }))
             
-    if "rounds-v7-sub" in added_comparisons or add_all:
-        for rounds in range(0, 20, 2):
+    if "rounds-v7-new" in added_comparisons or add_all:
+        for rounds in range(0, 21, 2):
             comparisons.append(("foresight-v7-{}".format(rounds), {
                                 # "timing-scheme": "faridv6",
                                 # "throttle-search": True,
