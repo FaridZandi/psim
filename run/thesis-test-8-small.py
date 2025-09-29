@@ -67,12 +67,12 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
-            ("rack_size", [8]),
+            ("machine_count", [96]),
+            ("rack_size", [16]),
             ("job_sizes", [("10%", "25%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.5]),
+            ("desired_entropy", [0.6]),
             ("oversub", [4]),
             ("cmmcmp_range", [(0, 2)]),
             # ("fallback_threshold", [0.1, 0.2, 0.3]),
@@ -112,7 +112,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=20,
+                                                 farid_rounds=50,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             

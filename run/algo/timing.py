@@ -1661,7 +1661,12 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         else: 
             append_to_bad_ranges(fixed_bad_ranges, remaining_bad_ranges)
 
-        # step 2.1: fix the timing.
+
+
+
+
+        # Step 2.1: we have some bad ranges, we want to fix them. ######################
+        
         log_progress(run_context, "starting timing fix, round {}".format(current_round))    
 
         job_timings, solution = solver.solve_with_bad_ranges_and_inflation(fixed_bad_ranges, inflate_factor)
@@ -1679,10 +1684,12 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         log_bad_ranges(run_context, f"inflation_{inflate_factor}_round_{current_round}",
                        remaining_bad_ranges, fixed_bad_ranges)
 
+        ################################################################################
+
 
         remaining_bad_range_ratio, fixed_bad_range_ratio = get_bad_range_ratio_v6(remaining_bad_ranges,
-                                                                                fixed_bad_ranges,
-                                                                                run_context["sim-length"])
+                                                                                  fixed_bad_ranges,
+                                                                                  run_context["sim-length"])
         add_to_context["fixed_bad_range_ratio"] = fixed_bad_range_ratio 
         add_to_context["fixed_bad_range_ratios"].append(fixed_bad_range_ratio)
         add_to_context["remaining_bad_range_ratio"] = remaining_bad_range_ratio
