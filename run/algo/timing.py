@@ -1619,7 +1619,7 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         
     job_timings, solution = solver.solve()
     
-    if run_context["plot_intermediate-timing"]: 
+    if run_context["plot-intermediate-timing"]: 
         visualize_workload_timing(jobs, options, run_context, job_timings, 
                                   job_profiles, fixed_bad_ranges, 
                                   mode=f"inflation_{inflate_factor}_round_{current_round}")
@@ -1678,7 +1678,7 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         job_timings, solution = solver.solve_with_bad_ranges_and_inflation(fixed_bad_ranges, inflate_factor)
         # step 2.2: do the routing again.
         
-        if run_context["plot_intermediate-timing"]: 
+        if run_context["plot-intermediate-timing"]: 
             visualize_workload_timing(jobs, options, run_context, job_timings, 
                                       job_profiles, fixed_bad_ranges, 
                                       mode=f"inflation_{inflate_factor}_round_{current_round}")
