@@ -44,7 +44,11 @@ def visualize_workload_timing(jobs, options, run_context,
     suffix = ""
     
     if mode == "final" or mode == "intermediate":
-        suffix = intermediate_suffix
+        if mode == "final":
+            suffix = "_final"
+        elif mode == "intermediate":
+            suffix = intermediate_suffix
+            
         for job_timing in job_timings:
             deltas[job_timing["job_id"]] = job_timing["deltas"]
             throttle_rates[job_timing["job_id"]] = job_timing["throttle_rates"]
