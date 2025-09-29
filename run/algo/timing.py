@@ -1621,7 +1621,7 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
     
     if run_context["plot-intermediate-timing"]: 
         visualize_workload_timing(jobs, options, run_context, job_timings, job_profiles, 
-                                  mode="intermediate",
+                                  mode="intermediate", lb_decisions=None,
                                   intermediate_suffix=f"inflation_1.0_round_0")
         
     lb_decisions, remaining_bad_ranges = route_flows(jobs, options, run_context, 
@@ -1679,10 +1679,10 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         # step 2.2: do the routing again.
         
         if run_context["plot-intermediate-timing"]: 
-            visualize_workload_timing(jobs, options, run_context, job_timings, 
-                                      job_profiles, fixed_bad_ranges, 
-                                      mode=f"inflation_{inflate_factor}_round_{current_round}")
-            
+            visualize_workload_timing(jobs, options, run_context, job_timings, job_profiles, 
+                                  mode="intermediate", lb_decisions=None,
+                                  intermediate_suffix=f"inflation_{inflate_factor}_round_{current_round}")
+
         early_return = should_early_return(current_round, max_attempts)
 
         lb_decisions, remaining_bad_ranges = route_flows(jobs, options, run_context,
