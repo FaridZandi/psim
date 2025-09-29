@@ -25,7 +25,18 @@ def perturb_placement(jobs):
     
     job1["machines"][job1_machine_index] = job2_machine
     job2["machines"][job2_machine_index] = job1_machine
+
     
+    # return what has changed, so that it can be undone if needed.
+    change_info = (job1, job1_machine_index, job1_machine, job2, job2_machine_index, job2_machine)  
+    return change_info
+
+def undo_perturbation(jobs, change_info):
+    job1, job1_machine_index, job1_machine, job2, job2_machine_index, job2_machine = change_info
+
+    job1["machines"][job1_machine_index] = job1_machine
+    job2["machines"][job2_machine_index] = job2_machine
+
 def measure_entropy(jobs, rack_size):
     cross_rack_flows = 0
     total_flows = 0   
@@ -46,6 +57,35 @@ def measure_entropy(jobs, rack_size):
             total_flows += 1
             
     return cross_rack_flows / (total_flows)
+
+def get_max_job_rack_outflow(jobs, rack_size):
+    # this is kinda similar to entropy. 
+    # for each job, see how many flows are going out of each rack.
+    # get the maximum of that, across all jobs, and across all racks.
+    
+    max_outflow = 0
+    for job in jobs:
+        machines = job["machines"] 
+        rack_to_outflow = {}
+        
+        for i in range(len(machines)):
+            src_machine = machines[i] 
+            dest_machine = machines[(i + 1) % len(machines)]
+            
+            src_rack = src_machine // rack_size
+            dest_rack = dest_machine // rack_size
+
+            if src_rack != dest_rack:   
+                if src_rack not in rack_to_outflow:
+                    rack_to_outflow[src_rack] = 0 
+                rack_to_outflow[src_rack] += 1
+                
+        if len(rack_to_outflow) > 0:
+            job_max_outflow = max(rack_to_outflow.values())
+            if job_max_outflow > max_outflow:
+                max_outflow = job_max_outflow
+
+    return max_outflow
 
 def generate_job_basics(options, run_context, job_machine_counts=None): 
     attempts = 0 
@@ -204,11 +244,28 @@ def generate_entropy_placement_file(options, run_context):
     perturbation_count = 0 
     max_perturbation_count = 1000   
     
+    rack_capacity = options["ft-core-count"]
+    max_outflow = get_max_job_rack_outflow(jobs, options["ft-server-per-rack"])
+    if max_outflow > rack_capacity:
+        print("Warning: The initial placement has a job with a rack outflow greater than the rack capacity. max_outflow: {}, rack_capacity: {}".format(max_outflow, rack_capacity))
+        print("This might lead to poor performance.")
+        
+            
     while current_entropy < desired_entropy and perturbation_count < max_perturbation_count:    
-        perturb_placement(jobs)
+        # I don't like the scenarios where the flows that are generated for a certain job in a certain rack, 
+        # exceed the capacity of the rack.
+        change_info = perturb_placement(jobs)
+
+        max_outflow = get_max_job_rack_outflow(jobs, options["ft-server-per-rack"])
+        if max_outflow > rack_capacity:
+            # undo the perturbation.
+            undo_perturbation(jobs, change_info)
+
         perturbation_count += 1
         current_entropy = measure_entropy(jobs, options["ft-server-per-rack"])
 
+    max_outflow = get_max_job_rack_outflow(jobs, options["ft-server-per-rack"])
+    print("created a with max_outflow: {}, rack_capacity: {}".format(max_outflow, rack_capacity))
     return jobs, cmmcmp_ratio
 
 
