@@ -36,7 +36,7 @@ if __name__ == "__main__":
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "machine_count",
-            "subplot_x_params": "desired_entropy",
+            "subplot_x_params": "fallback_threshold",
             "subplot_hue_params": "comparison",
             "plot_x_params": "oversub",
             "plot_y_param": "values",
@@ -75,7 +75,7 @@ if __name__ == "__main__":
             ("desired_entropy", [0.5]),
             ("oversub", [4]),
             ("cmmcmp_range", [(0, 2)]),
-            ("fallback_threshold", [0.5]),
+            ("fallback_threshold", [0.5, 0.7, 0.9]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
@@ -111,7 +111,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=50,
                                                  plot_stuff=False,
                                                  throttle_search=True,
-                                                 farid_rounds=50,
+                                                 farid_rounds=20,
                                                  run_cassini_timing_in_subprocess=True, 
                                                  **perm) 
             

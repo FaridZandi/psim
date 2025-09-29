@@ -1652,9 +1652,8 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         random.seed(run_context["experiment-seed"] + SEED_MAGIC + current_round)
 
         if is_inflation_enabled:
-            total_bad_range_ratio = remaining_bad_range_ratio + fixed_bad_range_ratio
-            # if total_bad_range_ratio > 1 or len(remaining_bad_ranges) > 10: 
-            if total_bad_range_ratio > run_context.get("fallback-threshold", 1.0):
+            fallback_thresh = run_context.get("fallback_threshold", 1.0)
+            if remaining_bad_range_ratio > fallback_thresh:
                 inflate_factor += 0.05
                 fixed_bad_ranges.clear()
             else: 
