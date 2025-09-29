@@ -1707,11 +1707,11 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         job_timings, _ = solver.get_zero_solution()
         
         lb_decisions, remaining_bad_ranges = route_flows(jobs, options, run_context, 
-                                                    job_profiles, job_timings, 
-                                                    suffix=current_round, 
-                                                    highlighted_ranges=[], 
-                                                    early_return=False, 
-                                                    override_routing_strategy="graph-coloring-v3")
+                                                         job_profiles, job_timings, 
+                                                         suffix=current_round, 
+                                                         highlighted_ranges=[], 
+                                                         early_return=False, 
+                                                         override_routing_strategy="graph-coloring-v3")
         
         remaining_bad_range_ratio, fixed_bad_range_ratio = get_bad_range_ratio_v6(remaining_bad_ranges, [],
                                                                                   run_context["sim-length"])

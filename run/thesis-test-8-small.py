@@ -15,7 +15,7 @@ if __name__ == "__main__":
     seed_range = 10
     m = 100
     
-    clean_up_sweep_files = False
+    clean_up_sweep_files = True
 
     original_exp_number = None
     if original_exp_number is not None: 
@@ -76,7 +76,7 @@ if __name__ == "__main__":
             ("oversub", [4]),
             ("cmmcmp_range", [(0, 2)]),
             # ("fallback_threshold", [0.1, 0.2, 0.3]),
-            ("fallback_threshold", [0.4, 0.5, 0.6]),
+            ("fallback_threshold", [0.1, 0.2, 0.3]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
@@ -91,8 +91,10 @@ if __name__ == "__main__":
 
         comparisons = ["TS-new", "RO-new", 
                        "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", 
-                       "TS+RO+REP-new", "TS+RO+REP-inf-new", 
-                       "TS+RO+SUB+REP-new", "TS+RO+SUB+REP-inf-new", 
+                    #    "TS+RO+REP-new", 
+                       "TS+RO+REP-inf-new", 
+                    #    "TS+RO+SUB+REP-new", 
+                       "TS+RO+SUB+REP-inf-new", 
                        ]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
