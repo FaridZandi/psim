@@ -36,15 +36,15 @@ def log_results(run_context, key, value):
 
 def visualize_workload_timing(jobs, options, run_context, 
                               job_timings, job_profiles, lb_decisions, 
-                              mode):
+                              mode, intermediate_suffix=""):
     
     link_loads, cross_rack_jobs = get_link_loads(jobs, options, run_context, job_profiles)
     deltas = {}
     throttle_rates = {} 
     suffix = ""
     
-    if mode == "final":
-        suffix = "_final"
+    if mode == "final" or mode == "intermediate":
+        suffix = intermediate_suffix
         for job_timing in job_timings:
             deltas[job_timing["job_id"]] = job_timing["deltas"]
             throttle_rates[job_timing["job_id"]] = job_timing["throttle_rates"]
@@ -1620,9 +1620,9 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
     job_timings, solution = solver.solve()
     
     if run_context["plot-intermediate-timing"]: 
-        visualize_workload_timing(jobs, options, run_context, job_timings, 
-                                  job_profiles, fixed_bad_ranges, 
-                                  mode=f"inflation_{inflate_factor}_round_{current_round}")
+        visualize_workload_timing(jobs, options, run_context, job_timings, job_profiles, 
+                                  mode="intermediate",
+                                  intermediate_suffix=f"inflation_1.0_round_0")
         
     lb_decisions, remaining_bad_ranges = route_flows(jobs, options, run_context, 
                                                      job_profiles, job_timings, 
