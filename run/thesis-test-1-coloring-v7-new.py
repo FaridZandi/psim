@@ -12,8 +12,8 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 20
-    m = 10
+    seed_range = 50
+    m = 100
     
     clean_up_sweep_files = True
 
@@ -48,9 +48,10 @@ if __name__ == "__main__":
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
-            "legend_side": "right",
+            "legend_side": "bottom",
             "temp-summarize-comp": True,
             "legend_cols": 5,
+            "draw_line_at_one": False, 
         }
         create_command(plot_args, plot_commands_path)
         
