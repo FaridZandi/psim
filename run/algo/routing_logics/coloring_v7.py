@@ -165,11 +165,13 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
                                   lb_decisions, run_context, max_subflow_count, link_bandwidth, 
                                   suffix=1, highlighted_ranges=[], early_return=False): 
 
-
-    # open a file to log the decisions.
-    # log_path = "{}/routing/routing_log_{}.txt".format(run_context["routings-dir"], suffix)  
-    # log_file = open(log_path, "w")
-    # log_file.write("job_id, flow_id, iteration, selected_spines\n")
+    log_stuff = run_context["plot-merged-ranges"]
+    
+    if log_stuff:
+        # open a file to log the decisions.
+        log_path = "{}/routing/routing_log_{}.txt".format(run_context["routings-dir"], suffix)  
+        log_file = open(log_path, "w")
+        log_file.write("job_id, flow_id, iteration, selected_spines\n")
     
     available_colors_max = num_spines * max_subflow_count
     subflow_capacity = link_bandwidth / max_subflow_count 
@@ -295,6 +297,11 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     for hash in hash_to_traffic_id.keys():
         traffic_pattern_rep = hash_to_traffic_id[hash]
         flows = traffic_id_to_flows[traffic_pattern_rep]
+        
+        if log_stuff:
+            pprint(hash, stream=log_file)
+            pprint(flows, stream=log_file)
+        
         traffic_pattern = "#".join([flow["traffic_member_id"] for flow in flows])
         # print(f"hash: {hash}, traffic_pattern: {traffic_pattern}", file=sys.stderr) 
         
@@ -313,12 +320,12 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
                                                 traffic_pattern_to_src_racks, 
                                                 traffic_pattern_to_dst_racks)
 
-    # pprint(merged_ranges, stream=log_file)
-    # log_file.close()
-        
-    needed_color_count = {} 
-    max_degrees = {} 
-    solutions = [] 
+    if log_stuff:
+        log_file.close()
+
+    needed_color_count = {}
+    max_degrees = {}
+    solutions = []
     bad_ranges = []
 
     for overlapping_keys, overlapping_ranges in merged_ranges.items():
