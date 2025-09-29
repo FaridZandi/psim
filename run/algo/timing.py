@@ -1646,7 +1646,7 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
     add_to_context["remaining_bad_range_ratios"].append(remaining_bad_range_ratio)
 
     # step 1.5: if the routing is good, return the results.
-    if len(remaining_bad_ranges) == 0:
+    if len(remaining_bad_ranges) == 0 or max_attempts == 0: 
         add_to_context["fixing_rounds"] = 0
         return job_timings, lb_decisions, add_to_context
 

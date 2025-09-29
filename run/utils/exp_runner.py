@@ -528,10 +528,10 @@ def do_experiment(seed_range=1,
     
     if "TS+RO-new" in added_comparisons or add_all:
         comparisons.append(("TS+RO-new", {
-                                "timing-scheme": "faridv2",
+                                "timing-scheme": "faridv6",
                                 "throttle-search": False,
                                 "subflows": 1,
-                                "routing-fit-strategy": "graph-coloring-v5",  
+                                "routing-fit-strategy": "graph-coloring-v7",  
                                 "farid-rounds": 0,   
                                 "lb-scheme": "readprotocol"
                             }))
