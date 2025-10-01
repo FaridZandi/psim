@@ -13,7 +13,7 @@ if __name__ == "__main__":
     g = get_global_config()
     
     seed_range = 10
-    m = 100
+    m = 10
     
     clean_up_sweep_files = True
 
@@ -80,7 +80,7 @@ if __name__ == "__main__":
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             # ("layer_count", [(1, 2, 1), (2, 3, 1), (3, 4, 1)]),
-            ("layer_count", [(6, 7, 1)]),
+            ("layer_count", [(1, 5, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
