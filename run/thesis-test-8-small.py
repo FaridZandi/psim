@@ -36,7 +36,7 @@ if __name__ == "__main__":
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "machine_count",
-            "subplot_x_params": "fallback_threshold",
+            "subplot_x_params": "layer_count",
             "subplot_hue_params": "comparison",
             "plot_x_params": "oversub",
             "plot_y_param": "values",
@@ -66,7 +66,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [400 * m]),
+            ("sim_length", [100 * m]),
             ("machine_count", [48]),
             ("rack_size", [8]),
             ("job_sizes", [("10%", "25%")]),
@@ -79,7 +79,8 @@ if __name__ == "__main__":
             ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
-            ("layer_count", [(1, 3, 1)]),
+            # ("layer_count", [(1, 2, 1), (2, 3, 1), (3, 4, 1)]),
+            ("layer_count", [(2, 3, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
@@ -112,7 +113,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=50,
-                                                 plot_stuff=False,
+                                                 plot_stuff=True,
                                                  throttle_search=True,
                                                  farid_rounds=50,
                                                  run_cassini_timing_in_subprocess=True, 
