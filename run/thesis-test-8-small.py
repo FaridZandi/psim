@@ -79,7 +79,7 @@ if __name__ == "__main__":
             ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
-            ("layer_count", [(1, 2, 1)]),
+            ("layer_count", [(1, 3, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    

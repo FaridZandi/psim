@@ -458,9 +458,13 @@ def draw_plot(df, value, hue_order):
                 handles, labels = ax.get_legend_handles_labels()
                 
                 if legend_side == "bottom":
-                    fig.legend(handles, labels, loc="lower center", 
-                               bbox_to_anchor=(0.5, -0.01), ncol=legend_cols, 
-                               title=legend_title)
+                    # fig.legend(handles, labels, loc="lower center", 
+                    #            bbox_to_anchor=(0.5, -0.01), ncol=legend_cols, 
+                    #            title=legend_title)
+                    
+                    fig.legend(handles, labels, loc="upper center", 
+                               bbox_to_anchor=(0.5, -0.05), ncol=legend_cols,
+                               title=legend_title, fancybox=True, shadow=True)
 
                 elif legend_side == "right":   
                     fig.legend(handles, labels, loc="center left", 
