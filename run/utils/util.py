@@ -146,6 +146,10 @@ def get_base_dir():
 # [14:14:13.445] [critical] run number: 1
 # [14:14:13.445] [critical] psim time: 8020
 # [14:14:13.445] [critical] Total congested time: 1.375
+# [16:30:57.644] [critical] average_fct: 2.241228070175439
+# [16:30:57.644] [critical] average_flow_size: 295.1206140350877
+# [16:30:57.644] [critical] average_flow_bw: 90.45
+# [16:30:57.644] [critical] average_flow_path_length: 2.903691520467836
 
 def get_psim_time(output): 
     for line in output:
@@ -162,6 +166,17 @@ def get_psim_total_congested_time(output):
             return congested_time
 
     rage_quit("no congested times found, simulation probably failed")
+
+# make something more general?
+def get_psim_metric(output, metric):  
+    for line in output:
+        if "{}:".format(metric) in line:
+            value = float(line.split("{}:".format(metric))[1])
+            return value
+
+    rage_quit("no {} found, simulation probably failed".format(metric))
+    
+
 
 def get_random_string(length):
     letters = "abcdefghijklmnopqrstuvwxyz"

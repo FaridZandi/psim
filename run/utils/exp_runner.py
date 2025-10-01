@@ -150,7 +150,20 @@ all_metrics = {
         "better": "lower",
         "type": "single_list",
     },
-    
+    "average_fct": {
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "divide",
+        "better": "lower",
+        "type": "single_number",
+    },
+    "average_flow_bw": {
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "divide",
+        "better": "lower",
+        "type": "single_number",
+    },   
 }
 
 
