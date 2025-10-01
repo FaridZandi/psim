@@ -73,7 +73,7 @@ if __name__ == "__main__":
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.5]),
-            ("oversub", [2]),
+            ("oversub", [4]),
             ("cmmcmp_range", [(0, 2)]),
             # ("fallback_threshold", [0.1, 0.2, 0.3]),
             ("fallback_threshold", [0.1]),
