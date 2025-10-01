@@ -7,6 +7,7 @@ from pprint import pprint
 import numpy as np 
 import itertools
 import matplotlib.patches as mpatches
+from utils.filter_data import filter_df, filter_df_2
 
 # Define hatches per hue category
 file_name = None 
@@ -81,8 +82,11 @@ def value_formatter(val):
     else:
         return float(val)  # Regular numeric values
     
-hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
-                     "pink", "gray", "olive", "cyan", "black", "yellow"] * 100
+hue_color_options = ["blue", "red", "green", "black", "purple", "brown", 
+                     "pink", "gray", "olive", "cyan", "orange", "yellow"] * 100
+
+marker_options = ['o', 's', 'v', '^', '<', '>'] * 100  # Only filled markers, no 'x'
+
 
 def annotate(ax):
     for p in ax.patches:
@@ -179,8 +183,9 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                     hue=subplot_hue_params, hue_order=hue_order, 
                     palette=hue_color_options[:len(hue_order)],    
                     data=df, ax=ax, legend=True, errorbar=('ci', 50),
-                    estimator='mean', marker='o')
-        
+                    marker='o', 
+                    estimator='mean')
+
         if not legend:
             ax.get_legend().remove()    
             
@@ -426,6 +431,7 @@ def draw_plot(df, value, hue_order):
     fig.set_figwidth(width) 
     fig.set_figheight(height)
     
+    # sns.set_style("darkgrid")
       
     plt.subplots_adjust(hspace=0.3)
     # plt.subplots_adjust(wspace=0.35)
@@ -466,32 +472,14 @@ def draw_plot(df, value, hue_order):
     plt.savefig(f"{file_dir}/plot_{value}_{plot_type}_{suffix}.{ext}", bbox_inches='tight', dpi=200)        
     plt.close()
 
+
+
+
 def make_plots(): 
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
-    # filter the dataframe based on the filter argument
-    if filter is not None:
-        # filter would be like colummn_name=value
-        if "=" in filter:
-            col_name, value = filter.split("=")
-            df = df[
-                (df[col_name] == value) |
-                (df[col_name] == int(value)) |
-                (df[col_name] == float(value))
-            ]
-        elif ">" in filter:
-            col_name, value = filter.split(">")
-            df = df[
-                (df[col_name] > float(value))
-            ]
-        elif "<" in filter:
-            col_name, value = filter.split("<")
-            df = df[
-                (df[col_name] < float(value))
-            ]
-    
-    
+
     # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"
     df["comparison"] = df["comparison"].replace("TS+RO+SUB+REP", "Foresight")
     
@@ -506,6 +494,12 @@ def make_plots():
     df = df.explode("values")
     df["values"] = df["values"].astype(float)
     
+    # df = filter_df(df, filter)
+    if filter is not None:  
+        print(f"Filtering the dataframe with filter: {filter}")
+        print(f"Before filtering, the dataframe has {len(df)} rows.")
+        df = filter_df_2(df, filter)
+        print(f"After filtering with {filter}, the dataframe has {len(df)} rows.")  
     ##### temp ########
     # for job_size, convert the tuple into a number 
     # if plot_x_params == "job_sizes":
