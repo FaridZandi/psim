@@ -17,7 +17,6 @@ def update_time_range(start_time, end_time, flow, selected_spines, rem, usage, s
             usage[job_id][src_leaf][s]["up"][t] += time_req 
             usage[job_id][dst_leaf][s]["down"][t] += time_req
             
-            
 
 def get_spine_availablity(flow, rem, num_spines, start_time, end_time, src_leaf, dst_leaf):
     spine_availablity = []  
@@ -40,8 +39,6 @@ def get_spine_availablity(flow, rem, num_spines, start_time, end_time, src_leaf,
         spine_availablity.append((s, spine_min_max_availble_mult))
 
     return spine_availablity    
-
-
 
 
 def merge_overlapping_ranges(ranges_dict):

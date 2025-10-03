@@ -97,7 +97,7 @@ all_metrics = {
     "subflow_ratio": {
         "avg_cdf_plot": True,   
         "iter_avg_plot": False,  
-        "compare_mode": "divide",
+        "compare_mode": "self",
         "better": "lower",
         "type": "single_number", 
     },
@@ -164,6 +164,13 @@ all_metrics = {
         "better": "lower",
         "type": "single_number",
     },   
+    "accel_util_rate": {
+        "avg_cdf_plot": True,   
+        "iter_avg_plot": False,  
+        "compare_mode": "self",
+        "better": "higher",
+        "type": "single_number",
+    }
 }
 
 
@@ -175,6 +182,7 @@ def do_experiment(seed_range=1,
                   machine_count=8,
                   rack_size=4,
                   oversub=1, 
+                  force_core_count=None,
                   job_count=None,
                   job_sizes=(2, 2), 
                   sim_length=50000, 
@@ -265,16 +273,26 @@ def do_experiment(seed_range=1,
         for metric in recorded_metrics: 
             interesting_metrics[metric] = all_metrics[metric]
 
-    core_count = int(base_options["ft-server-per-rack"] // oversub)
+    if force_core_count is not None and oversub is not None: 
+        print("Warning: both force_core_count and oversub are set.")
+        print("exiting.")
+        sys.exit(1) 
+    if force_core_count is not None:
+        core_count = force_core_count   
+        oversub = base_options["ft-server-per-rack"] // core_count
+    else:
+        core_count = int(base_options["ft-server-per-rack"] // oversub)
+
+
 
     if throttle_levels is not None: 
-        if throttle_levels == 1:
+        if throttle_levels == 1 or core_count == 1:
             profiled_throttle_factors = [1.0]
             subflow_count = 1
-        elif throttle_levels == 2:
+        elif throttle_levels == 2 or core_count <= 3:
             profiled_throttle_factors = [1.0, 0.5]
             subflow_count = 2   
-        elif throttle_levels == 4:
+        elif throttle_levels == 4 or core_count >= 4:
             profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
             subflow_count = 4  
     else: 

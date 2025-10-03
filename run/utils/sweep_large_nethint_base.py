@@ -197,9 +197,10 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         
         env = os.environ.copy()
         env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
-
+        # exe = "algo.timing"
+        exe = "cppsch.timing"
         # create a python subprocess, feed the json dump of the args to the subprocess.
-        process = subprocess.Popen([current_executable, "-m", "algo.timing"], 
+        process = subprocess.Popen([current_executable, "-m", exe], 
                                     stdin=subprocess.PIPE, 
                                     stdout=subprocess.PIPE, 
                                     stderr=subprocess.PIPE, 
@@ -415,7 +416,7 @@ def run_command_options_modifier(options, config_sweeper, run_context,
     run_context["jobs"] = jobs  
     run_context.update(add_to_context)
 
-    print("cmmcmp ratio: ", add_to_context.get("cmmcmp_ratio", None))
+    # print("cmmcmp ratio: ", add_to_context.get("cmmcmp_ratio", None))
 
     jobs_str = json.dumps(jobs, sort_keys=True).encode("utf-8")
     run_context["placement-hash"] = md5(jobs_str).hexdigest()
@@ -677,6 +678,8 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = float(get_psim_metric(output, "average_fct"))
         elif metric == "average_flow_bw":   
             job_numbers = float(get_psim_metric(output, "average_flow_bw"))
+        elif metric == "accel_util_rate":
+            job_numbers = float(get_psim_metric(output, "total machine utilization rate"))
         elif metric == "job_costs":
             job_numbers = run_context["job_costs"]
         elif metric == "fixing_rounds":
