@@ -677,6 +677,8 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = float(get_psim_metric(output, "average_fct"))
         elif metric == "average_flow_bw":   
             job_numbers = float(get_psim_metric(output, "average_flow_bw"))
+        elif metric == "accel_util_rate":
+            job_numbers = float(get_psim_metric(output, "total machine utilization rate"))
         elif metric == "job_costs":
             job_numbers = run_context["job_costs"]
         elif metric == "fixing_rounds":
