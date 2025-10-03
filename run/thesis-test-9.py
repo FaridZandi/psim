@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 100
+    seed_range = 200
     m = 100
     
     clean_up_sweep_files = True
@@ -28,7 +28,7 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["cdf"]:
+    for plot_type in ["cdf", "cdf2"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
@@ -39,12 +39,14 @@ if __name__ == "__main__":
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 3,
-            "subplot_height": 2,
+            "subplot_width": 6,
+            "subplot_height": 4,
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
-            "exclude_base": True,   
+            "exclude_base": True,  
+            "legend_side": "bottom", 
+            "legend_cols": 5,
         }
         create_command(plot_args, plot_commands_path)
         
@@ -60,13 +62,13 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
+            ("machine_count", [48, 96]),
             ("rack_size", [8]),
             ("job_sizes", [(4, 48)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
-            ("oversub", [1, 2]),
+            ("oversub", [1, 2, 4]),
             ("cmmcmp_range", [(0, 2)]), 
             ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),

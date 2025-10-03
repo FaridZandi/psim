@@ -82,8 +82,8 @@ def value_formatter(val):
     else:
         return float(val)  # Regular numeric values
     
-hue_color_options = ["blue", "red", "green", "black", "purple", "brown", 
-                     "pink", "gray", "olive", "cyan", "orange", "yellow"] * 100
+hue_color_options = ["blue", "red", "green", "orange", "purple", "brown", 
+                     "pink", "gray", "olive", "cyan", "black", "yellow"] * 100
 
 marker_options = ['o', 's', 'v', '^', '<', '>'] * 100  # Only filled markers, no 'x'
 
