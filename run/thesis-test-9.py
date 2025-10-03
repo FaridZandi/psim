@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 10
+    seed_range = 100
     m = 100
     
     clean_up_sweep_files = True
@@ -23,85 +23,67 @@ if __name__ == "__main__":
     else:
         exp_number = get_incremented_number() 
     
-    hostname = os.uname()[1]    
-    results_dir = "results-{}".format(hostname) 
-
-    exp_dir = f"{results_dir}/exps/{exp_number}"
+    exp_dir = f"results/exps/{exp_number}"
     os.makedirs(exp_dir, exist_ok=True)
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["bar", "box", "line"]:
+    for plot_type in ["cdf"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "machine_count",
-            "subplot_x_params": "layer_count",
-            "subplot_hue_params": "comparison",
-            "plot_x_params": "oversub",
+            "subplot_x_params": "oversub",
+            "subplot_hue_params": "desired_entropy",
+            "plot_x_params": "job_sizes",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 6,
-            "subplot_height": 4,
+            "subplot_width": 3,
+            "subplot_height": 2,
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
-            "legend_side": "bottom",
-            # "temp-summarize-comp": True,
-            "legend_cols": 3,
         }
         create_command(plot_args, plot_commands_path)
         
     os.system(f"chmod +x {plot_commands_path}")
-            
+    
     if original_exp_number is None:
-
-        exp_dir = f"{results_dir}/exps/{exp_number}"
-        path = f"{results_dir}/exps/{exp_number}/results.csv"
-        os.makedirs(f"{results_dir}/exps/{exp_number}", exist_ok=True)
+        exp_dir = f"results/exps/{exp_number}"
+        path = f"results/exps/{exp_number}/results.csv" 
+        os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
 
         os.system("rm -f last-exp-results-link-*") 
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [800 * m]),
+            ("sim_length", [400 * m]),
             ("machine_count", [48]),
             ("rack_size", [8]),
-            ("job_sizes", [("10%", "25%")]),
+            ("job_sizes", [(4, 48)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.5]),
-            ("oversub", [2]),
-            ("cmmcmp_range", [(0, 2)]),
-            # ("fallback_threshold", [0.1, 0.2, 0.3]),
+            ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
+            ("oversub", [1, 2]),
+            ("cmmcmp_range", [(0, 2)]), 
             ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
-            # ("layer_count", [(1, 2, 1), (2, 3, 1), (3, 4, 1)]),
-            ("layer_count", [(1, 5, 1)]),
+            ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
         ]
 
-        # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
-        # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
-        # comparisons = ["TS-new", "TS+RO-new", "TS+RO+SUB-new", "TS+RO+SUB+REP-new"]
-
-        comparisons = ["TS-new", "RO-new", 
-                       "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", 
-                    #    "TS+RO+REP-new", 
-                       "TS+RO+REP-inf-new", 
-                    #    "TS+RO+SUB+REP-new", 
-                       "TS+RO+SUB+REP-inf-new", 
-                       ]
-
-        relevant_keys = [key for key, options in exp_config if len(options) > 1]
-
-        all_results = []
-
+        # comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
+        comparisons = ["TS+RO+SUB+REP-inf-new"]
+        
+        relevant_keys = [key for key, options in exp_config if len(options) > 1]    
+        
+        all_results = [] 
+        
         # go through all the possible combinations.
         keys, values = zip(*(dict(exp_config)).items())
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
@@ -112,11 +94,8 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=50,
-                                                 plot_stuff=False,
-                                                 throttle_search=True,
                                                  farid_rounds=50,
-                                                 run_cassini_timing_in_subprocess=True, 
+                                                 worker_thread_count=20,
                                                  **perm) 
             
             for summary_item in summary:    

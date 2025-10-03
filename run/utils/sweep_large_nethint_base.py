@@ -663,12 +663,20 @@ def result_extractor_function(output, options, this_exp_results, run_context, co
             job_numbers = add_up_job_numbers(rollied_ar_times, job_costs)   
 
         elif metric == "subflow_ratio":
-            job_numbers = run_context["subflow_ratio"]   
+            job_numbers = run_context["subflow_ratio"]  
+            
+        # [16:30:57.644] [critical] average_fct: 2.241228070175439
+        # [16:30:57.644] [critical] average_flow_size: 295.1206140350877
+        # [16:30:57.644] [critical] average_flow_bw: 90.45
         
         elif metric == "total_time":
             job_numbers = int(get_psim_time(output))   
         elif metric == "total_congested_time":
             job_numbers = int(get_psim_total_congested_time(output))
+        elif metric == "average_fct":
+            job_numbers = float(get_psim_metric(output, "average_fct"))
+        elif metric == "average_flow_bw":   
+            job_numbers = float(get_psim_metric(output, "average_flow_bw"))
         elif metric == "job_costs":
             job_numbers = run_context["job_costs"]
         elif metric == "fixing_rounds":

@@ -12,10 +12,10 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 10
+    seed_range = 1
     m = 100
     
-    clean_up_sweep_files = True
+    clean_up_sweep_files = False
 
     original_exp_number = None
     if original_exp_number is not None: 
@@ -66,11 +66,11 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("sim_length", [800 * m]),
+            ("sim_length", [20 * m]),
             ("machine_count", [48]),
             ("rack_size", [8]),
-            ("job_sizes", [("10%", "25%")]),
-            ("placement_mode", ["entropy"]), 
+            ("job_sizes", [(16, 16)]),
+            ("placement_mode", ["random"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.5]),
             ("oversub", [2]),
@@ -90,13 +90,7 @@ if __name__ == "__main__":
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
         # comparisons = ["TS-new", "TS+RO-new", "TS+RO+SUB-new", "TS+RO+SUB+REP-new"]
 
-        comparisons = ["TS-new", "RO-new", 
-                       "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", 
-                    #    "TS+RO+REP-new", 
-                       "TS+RO+REP-inf-new", 
-                    #    "TS+RO+SUB+REP-new", 
-                       "TS+RO+SUB+REP-inf-new", 
-                       ]
+        comparisons = ["zero-v3"]
 
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
 
@@ -113,10 +107,11 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=50,
-                                                 plot_stuff=False,
+                                                 plot_stuff=True,
                                                  throttle_search=True,
                                                  farid_rounds=50,
                                                  run_cassini_timing_in_subprocess=True, 
+                                                 job_count=1,
                                                  **perm) 
             
             for summary_item in summary:    
