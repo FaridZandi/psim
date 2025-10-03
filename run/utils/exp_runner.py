@@ -97,7 +97,7 @@ all_metrics = {
     "subflow_ratio": {
         "avg_cdf_plot": True,   
         "iter_avg_plot": False,  
-        "compare_mode": "divide",
+        "compare_mode": "self",
         "better": "lower",
         "type": "single_number", 
     },

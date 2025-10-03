@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 200
+    seed_range = 50
     m = 100
     
     clean_up_sweep_files = True
@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [96, 48]),
+            ("machine_count", [96]),
             ("rack_size", [8]),
             ("job_sizes", [(4, 48)]),
             ("placement_mode", ["entropy"]), 
@@ -97,7 +97,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  farid_rounds=50,
-                                                 worker_thread_count=20,
+                                                 worker_thread_count=50,
                                                  **perm) 
             
             for summary_item in summary:    
