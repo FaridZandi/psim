@@ -1730,7 +1730,7 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         
         remaining_bad_range_ratio, fixed_bad_range_ratio = get_bad_range_ratio_v6(remaining_bad_ranges, [],
                                                                                   run_context["sim-length"])
-        add_to_context["fixing_rounds"] = 0
+        add_to_context["fixing_rounds"] = max_attempts + 1
         add_to_context["fixed_bad_range_ratio"] = fixed_bad_range_ratio
         add_to_context["fixed_bad_range_ratios"].append(fixed_bad_range_ratio)
         add_to_context["remaining_bad_range_ratio"] = remaining_bad_range_ratio
