@@ -415,7 +415,7 @@ def run_command_options_modifier(options, config_sweeper, run_context,
     run_context["jobs"] = jobs  
     run_context.update(add_to_context)
 
-    print("cmmcmp ratio: ", add_to_context.get("cmmcmp_ratio", None))
+    # print("cmmcmp ratio: ", add_to_context.get("cmmcmp_ratio", None))
 
     jobs_str = json.dumps(jobs, sort_keys=True).encode("utf-8")
     run_context["placement-hash"] = md5(jobs_str).hexdigest()

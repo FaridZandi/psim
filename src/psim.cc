@@ -298,6 +298,7 @@ double PSim::simulate() {
         h.total_network_bw = network->total_network_bw();
         h.total_core_bw = network->total_core_bw();
         h.total_accelerator_capacity = GConf::inst().machine_count * this_step_step_size;
+        h.total_accelerator_utilization_rate = (stop_comp / h.total_accelerator_capacity);
 
         for (int i = 0; i < 10; i++){
             h.job_progress[i] = job_progress[i];
@@ -436,6 +437,7 @@ void PSim::log_history_entry(history_entry& h){
     spdlog::info("Total Link Bandwidth: {}", h.total_network_bw);
     spdlog::info("Total Core Bandwidth: {}", h.total_core_bw);
     spdlog::info("Total Accelerator Capacity: {}", h.total_accelerator_capacity);
+    spdlog::info("Total Accelerator Utilization Rate: {}", h.total_accelerator_utilization_rate);
     spdlog::info("------------------------------------------------------------");
 }
 
@@ -611,6 +613,14 @@ void PSim::log_results() {
     spdlog::critical("critical path core choices: {}", cp_core_choices);
 
 
+    // print the total machine utilization rate during the simulation.
+    double total_machine_utilization = 0;
+    for (auto& h: history){
+        total_machine_utilization += h.total_accelerator_utilization_rate;
+    }
+    total_machine_utilization /= history.size();
+
+    spdlog::critical("total machine utilization rate: {}", total_machine_utilization);
 
 
     spdlog::critical("-------------------------------------------------------");
