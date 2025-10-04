@@ -71,8 +71,10 @@ class ConfigSweeper:
         self.build_path = self.base_dir + "/build"
         self.run_path = self.base_dir + "/run"
         self.base_executable = self.build_path + "/psim"
+        self.base_scheduler = self.build_path + "/scheduler"
         self.results_dir = "results-{}/sweep/{}-{}/".format(hostname, self.run_id, exp_name)
         self.run_executable = self.results_dir + "/psim-" + self.run_id
+        self.run_scheduler = self.results_dir + "/scheduler-" + self.run_id
         self.csv_dir = self.results_dir + "/csv/"
         self.raw_csv_path = self.csv_dir + "raw_results.csv"    
         self.plots_dir = self.results_dir + "/plots/" 
@@ -148,6 +150,7 @@ class ConfigSweeper:
 
         # run the experiments
         build_exec(self.run_executable, self.base_executable, 
+                    self.run_scheduler, self.base_scheduler,
                    self.build_path, self.run_path)
 
         try: 

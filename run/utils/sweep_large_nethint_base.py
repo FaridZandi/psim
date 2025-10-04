@@ -172,7 +172,7 @@ def summarize_key_ids(key):
 
 
 def calc_timing(timing_file_path, routing_file_path, placement_seed,
-                jobs, options, run_context, run_cassini_timing_in_subprocess): 
+                jobs, options, run_context, run_cassini_timing_in_subprocess, config_sweeper_run_scheduler): 
     import json 
     
     timing_scheme = run_context["timing-scheme"]
@@ -197,8 +197,11 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         
         env = os.environ.copy()
         env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
+        
         # exe = "algo.timing"
-        exe = "cppsch.timing"
+        # exe = "cppsch.timing"
+        exe = config_sweeper_run_scheduler
+        
         # create a python subprocess, feed the json dump of the args to the subprocess.
         process = subprocess.Popen([current_executable, "-m", exe], 
                                     stdin=subprocess.PIPE, 
@@ -444,7 +447,7 @@ def run_command_options_modifier(options, config_sweeper, run_context,
     
     calc_func_args = (timing_file_path, routing_file_path,
                       placement_seed, jobs, options, 
-                      run_context, run_cassini_timing_in_subprocess)
+                      run_context, run_cassini_timing_in_subprocess, config_sweeper.run_scheduler)
     
     # job_timings, lb_decisions, add_to_context = timing_cache.get(key=timing_file_path, 
     #                                              lock=config_sweeper.timing_lock, 

@@ -118,7 +118,9 @@ def make_cmd(executable, options, use_gdb=False, print_cmd=False):
     return cmd
 
 
-def build_exec(executable, base_executable, build_path, run_dir):
+def build_exec(executable, base_executable, 
+               scheduler, base_scheduler,
+               build_path, run_dir):
     # build the executable, exit if build fails
     os.chdir(build_path)
     
@@ -131,6 +133,7 @@ def build_exec(executable, base_executable, build_path, run_dir):
         
     os.chdir(run_dir)
     os.system("cp {} {}".format(base_executable, executable))
+    os.system("cp {} {}".format(base_scheduler, scheduler))
     
     
 def get_base_dir():
