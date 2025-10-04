@@ -77,7 +77,7 @@ if __name__ == "__main__":
             ("desired_entropy", [0.2, 0.3, 0.4, 0.5]),
             ("oversub", [2]),
             ("cmmcmp_range", [(0, 1), (1, 2)]),
-            ("fallback_threshold", [0.1]),
+            ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
