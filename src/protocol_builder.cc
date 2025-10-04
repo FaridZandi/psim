@@ -1081,6 +1081,9 @@ psim::build_nethint_test() {
             
             job_timings_data[job_id] = deltas;
             rate_throttling_data[job_id] = throttle_rates;
+
+            spdlog::info("loading timing for job_id: {}", job_id);
+
         }
         spdlog::critical("Timing data extracted for all jobs.");
     }
@@ -1147,13 +1150,15 @@ psim::build_nethint_test() {
         std::vector<double> iter_throttle_rates(job_iter_count, 1.0);   
 
         if (timing_file_exists) {
-            auto& job_timing = timings[job_index];
+            // auto& job_timing = timings[job_index];
             
             spdlog::critical("Timing data found for job index: {}", job_index);
 
             for (int i = 0; i < job_iter_count; i++) {
-                iteration_deltas[i] = job_timing["deltas"][i];
-                iter_throttle_rates[i] = job_timing["throttle_rates"][i];   
+                // iteration_deltas[i] = job_timing["deltas"][i];
+                // iter_throttle_rates[i] = job_timing["throttle_rates"][i];
+                iteration_deltas[i] = job_timings_data[job_id][i];
+                iter_throttle_rates[i] = rate_throttling_data[job_id][i];   
             }
 
             spdlog::critical("Timing data extracted for job index: {}", job_index);
