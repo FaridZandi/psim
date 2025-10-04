@@ -217,7 +217,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         with open ("temp_input.json", "wb") as f:
             f.write(input_data)
             
-        stdout, stderr = process.communicate(input=input_data)
+        stdout, stderr = process.communicate(input=input_data + b"\n")
 
         try:
             output = json.loads(stdout.decode("utf-8")) 
