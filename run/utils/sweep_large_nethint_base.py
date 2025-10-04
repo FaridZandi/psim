@@ -210,8 +210,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         process = subprocess.Popen(exe,
                                    stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE,
-                                   env=env)
+                                   stderr=subprocess.PIPE)
         
         input_data = json.dumps(args).encode("utf-8")
         print("input_data:", json.dumps(args))
