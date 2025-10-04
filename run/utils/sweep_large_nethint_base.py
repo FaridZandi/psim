@@ -222,6 +222,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
 
         try:
             print("I'm here")
+            print("stdout: ", stdout.decode("utf-8"))
             output = json.loads(stdout.decode("utf-8")) 
             err_output = stderr.decode("utf-8") 
             with open(run_context["output-file"], "a") as f:
