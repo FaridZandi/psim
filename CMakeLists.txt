@@ -50,4 +50,13 @@ if (Boost_FOUND)
   target_link_libraries(psim ${Boost_LIBRARIES})
 endif()
 
+add_executable(scheduler
+               src/scheduler/main.cc
+               src/scheduler/scheduler.cc)
+
+target_link_libraries(scheduler nlohmann_json::nlohmann_json)
+
+if (Boost_FOUND)
+  target_link_libraries(scheduler ${Boost_LIBRARIES})
+endif()
 
