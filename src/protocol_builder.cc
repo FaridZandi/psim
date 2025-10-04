@@ -1155,6 +1155,8 @@ psim::build_nethint_test() {
                 iteration_deltas[i] = job_timing["deltas"][i];
                 iter_throttle_rates[i] = job_timing["throttle_rates"][i];   
             }
+
+            spdlog::critical("Timing data extracted for job index: {}", job_index);
         }
 
         if (isolated_execution) {
