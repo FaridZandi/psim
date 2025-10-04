@@ -205,7 +205,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         else:
             exe = [current_executable, "-m", "cppsch.timing"]
 
-        print(f"Running cassini timing in a subprocess: {exe} with args: {args}")
+        print(f"Running cassini timing in a subprocess: {exe}.")
 
         process = subprocess.Popen(exe,
                                    stdin=subprocess.PIPE,
@@ -214,6 +214,8 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
                                    env=env)
         
         input_data = json.dumps(args).encode("utf-8")
+        print("input_data:", json.dumps(args))
+
         stdout, stderr = process.communicate(input=input_data)
 
         try:
