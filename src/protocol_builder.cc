@@ -1038,6 +1038,7 @@ int get_config_or_default(int value, int default_value) {
 
 Protocol* 
 psim::build_nethint_test() {
+    spdlog::critical("Starting build_nethint_test()");
     Protocol *protocol = new Protocol();
     std::map<ProtocolFlowSpec, RoutingSpec> flow_spines; 
     std::map<int, std::vector<int>> job_timings_data; 
@@ -1055,7 +1056,9 @@ psim::build_nethint_test() {
     spdlog::critical("placement file: {}", placement_file);
     std::ifstream placement_stream(placement_file);
     placement_stream >> jobs;
+    spdlog::critical("Placement file loaded and parsed.");
 
+    
     // read the timing file and populate the timings map.
     nlohmann::json timings;
     std::string timing_file = GConf::inst().timing_file; 
@@ -1069,6 +1072,7 @@ psim::build_nethint_test() {
         spdlog::critical("timing file: {}", timing_file);
         std::ifstream timing_stream(timing_file);
         timing_stream >> timings;
+        spdlog::critical("Timing file loaded and parsed.");
 
         for (const auto& item : timings) {
             int job_id = item["job_id"];
@@ -1078,6 +1082,7 @@ psim::build_nethint_test() {
             job_timings_data[job_id] = deltas;
             rate_throttling_data[job_id] = throttle_rates;
         }
+        spdlog::critical("Timing data extracted for all jobs.");
     }
 
     // std::cout << "press any key to continue" << std::endl;  
@@ -1096,6 +1101,7 @@ psim::build_nethint_test() {
         spdlog::critical("routing file: {}", routing_file);
         std::ifstream routing_stream(routing_file);
         routing_stream >> routings;
+        spdlog::critical("Routing file loaded and parsed.");
 
         for (auto& routing : routings) {
             int job_id = routing["job_id"];  
@@ -1118,10 +1124,12 @@ psim::build_nethint_test() {
                 spdlog::info("spine_id: {}, rate: {}", spine_rate.first, spine_rate.second);
             } 
         }
+        spdlog::critical("Routing data extracted for all flows.");
     }
 
     int job_index = 0; 
     for (auto& job : jobs) {
+        spdlog::critical("Processing job index: {}", job_index);
         int job_id = job["job_id"];
         int machine_count = job["machine_count"];
         int job_comm_size = job["comm_size"];
@@ -1181,6 +1189,7 @@ psim::build_nethint_test() {
         job_comm_size = (int)(job_comm_size / (job_machines.size())); 
 
         if (iso == -1 or iso == job_id) {
+            spdlog::critical("Inserting data parallelism for job_id: {}", job_id);
             insert_simple_data_parallelism(protocol, 
                                            job_id, 
                                            job_machines, 
@@ -1192,9 +1201,11 @@ psim::build_nethint_test() {
                                            iter_throttle_rates, 
                                            reverse_ring, 
                                            flow_spines); 
+            spdlog::critical("Data parallelism inserted for job_id: {}", job_id);
         }
 
         job_index += 1;
     }
+    spdlog::critical("Finished build_nethint_test()");
     return protocol; 
 }
