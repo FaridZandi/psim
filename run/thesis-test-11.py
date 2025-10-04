@@ -31,19 +31,19 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["bar", "box", "line"]:
+    for plot_type in ["heatmap"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "cmmcmp_range",
-            "subplot_x_params": "job_sizes",
-            "subplot_hue_params": "desired_entropy",
-            "plot_x_params": "comparison",
+            "subplot_y_params": "machine_count",
+            "subplot_x_params": "oversub",
+            "subplot_hue_params": "cmmcmp_range",
+            "plot_x_params": "desired_entropy",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 4,
-            "subplot_height": 4,
+            "subplot_width": 3,
+            "subplot_height": 2,
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
@@ -74,10 +74,10 @@ if __name__ == "__main__":
             # ("job_sizes", [(24, 24)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.2, 0.3, 0.4, 0.5]),
-            ("oversub", [2]),
-            ("cmmcmp_range", [(0, 1), (1, 2)]),
-            ("fallback_threshold", [0.5]),
+            ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
+            ("oversub", [1, 2]),
+            ("cmmcmp_range", [(0, 0.4), (0.4, 0.8), (0.8, 1.2), (1.2, 1.6), (1.6, 2)]),
+            ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
@@ -87,7 +87,7 @@ if __name__ == "__main__":
             ("useless_param", [1, 2, 3, 4, 5])
         ]
 
-        comparisons = ["rounds-v7-new"]
+        comparisons = ["TS+RO+SUB+REP-inf-new"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         
@@ -104,6 +104,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=20,
+                                                 farid_rounds=50,
                                                  **perm) 
             
             for summary_item in summary:    
