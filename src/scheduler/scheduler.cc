@@ -1794,6 +1794,9 @@ std::optional<JobProfile> LoadJobProfile(const std::string &path) {
             flow.core = flow_json.value("core", 0);
             flow.label = flow_json.value("label", "");
             flow.flow_size = flow_json.value("flow_size", 0.0);
+            
+            std::cerr << "Loading profile for flow " << flow.flow_id << " of job " << flow.job_id
+                      << " with size " << flow.flow_size << " bytes." << std::endl;
 
             if (flow_json.contains("progress_history") && flow_json["progress_history"].is_array()) {
                 for (const auto &value : flow_json["progress_history"]) {
@@ -1802,6 +1805,8 @@ std::optional<JobProfile> LoadJobProfile(const std::string &path) {
                     }
                 }
             }
+
+            std::cerr << "  Progress history has " << flow.progress_history.size() << " entries." << std::endl; 
 
             if (flow_json.contains("progress_history_summarized") &&
                 flow_json["progress_history_summarized"].is_array()) {
