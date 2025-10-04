@@ -198,14 +198,14 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         env = os.environ.copy()
         env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
         
-        # exe = "algo.timing"
-        # exe = "cppsch.timing"
-        exe = config_sweeper_run_scheduler
+        exe = [current_executable, "-m", "algo.timing"]
+        exe = [current_executable, "-m", "cppsch.timing"]
+        exe = [config_sweeper_run_scheduler]
         
         print (f"Running cassini timing in a subprocess: {exe} with args: {args}")
         
         # create a python subprocess, feed the json dump of the args to the subprocess.
-        process = subprocess.Popen([current_executable, "-m", exe], 
+        process = subprocess.Popen(exe,
                                     stdin=subprocess.PIPE, 
                                     stdout=subprocess.PIPE, 
                                     stderr=subprocess.PIPE, 
