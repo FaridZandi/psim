@@ -201,12 +201,12 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
 
         if config_sweeper_run_scheduler is not None:
-            # exe = [str(config_sweeper_run_scheduler)]
-            exe = ["cppsch/scheduler"]
+            exe = [str(config_sweeper_run_scheduler)]
         else:
             exe = [current_executable, "-m", "cppsch.timing"]
 
-
+        print(exe) 
+        
         process = subprocess.Popen(exe,
                                    stdin=subprocess.PIPE,
                                    stdout=subprocess.PIPE,
