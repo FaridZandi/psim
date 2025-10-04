@@ -201,7 +201,8 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
 
         if config_sweeper_run_scheduler is not None:
-            exe = [str(config_sweeper_run_scheduler)]
+            # exe = [str(config_sweeper_run_scheduler)]
+            exe = ["cppsch/scheduler"]
         else:
             exe = [current_executable, "-m", "cppsch.timing"]
 
@@ -217,7 +218,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         with open ("temp_input.json", "wb") as f:
             f.write(input_data)
             
-        stdout, stderr = process.communicate(input=input_data + b"\n")
+        stdout, stderr = process.communicate(input=input_data)
 
         try:
             output = json.loads(stdout.decode("utf-8")) 
