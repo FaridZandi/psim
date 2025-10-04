@@ -6,6 +6,8 @@ from processing.itertimes_multirep import get_all_rep_iter_lengths, get_all_rep_
 from pprint import pprint 
 import copy
 import json
+import os
+from pathlib import Path
 from processing.flowprogress import get_job_profiles    
 from hashlib import md5
 
@@ -172,7 +174,7 @@ def summarize_key_ids(key):
 
 
 def calc_timing(timing_file_path, routing_file_path, placement_seed,
-                jobs, options, run_context, run_cassini_timing_in_subprocess, config_sweeper_run_scheduler): 
+                jobs, options, run_context, run_cassini_timing_in_subprocess, config_sweeper_run_scheduler=None): 
     import json 
     
     timing_scheme = run_context["timing-scheme"]
@@ -197,19 +199,19 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         
         env = os.environ.copy()
         env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
-        
-        exe = [current_executable, "-m", "algo.timing"]
-        exe = [current_executable, "-m", "cppsch.timing"]
-        exe = [config_sweeper_run_scheduler]
-        
-        print (f"Running cassini timing in a subprocess: {exe} with args: {args}")
-        
-        # create a python subprocess, feed the json dump of the args to the subprocess.
+
+        if config_sweeper_run_scheduler is not None:
+            exe = [str(config_sweeper_run_scheduler)]
+        else:
+            exe = [current_executable, "-m", "cppsch.timing"]
+
+        print(f"Running cassini timing in a subprocess: {exe} with args: {args}")
+
         process = subprocess.Popen(exe,
-                                    stdin=subprocess.PIPE, 
-                                    stdout=subprocess.PIPE, 
-                                    stderr=subprocess.PIPE, 
-                                    env=env)
+                                   stdin=subprocess.PIPE,
+                                   stdout=subprocess.PIPE,
+                                   stderr=subprocess.PIPE,
+                                   env=env)
         
         input_data = json.dumps(args).encode("utf-8")
         stdout, stderr = process.communicate(input=input_data)
