@@ -59,8 +59,3 @@ target_link_libraries(scheduler nlohmann_json::nlohmann_json)
 if (Boost_FOUND)
   target_link_libraries(scheduler ${Boost_LIBRARIES})
 endif()
-
-target_compile_options(scheduler PRIVATE
-  $<$<AND:$<CONFIG:Debug>,$<CXX_COMPILER_ID:GNU,Clang>>:
-    -g3 -Og -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-inline>
-)
