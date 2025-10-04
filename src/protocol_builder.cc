@@ -1148,6 +1148,9 @@ psim::build_nethint_test() {
 
         if (timing_file_exists) {
             auto& job_timing = timings[job_index];
+            
+            spdlog::critical("Timing data found for job index: {}", job_index);
+
             for (int i = 0; i < job_iter_count; i++) {
                 iteration_deltas[i] = job_timing["deltas"][i];
                 iter_throttle_rates[i] = job_timing["throttle_rates"][i];   
