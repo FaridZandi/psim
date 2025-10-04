@@ -221,10 +221,12 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         stdout, stderr = process.communicate(input=input_data)
 
         try:
-            output = json.loads(stdout.decode("utf-8")) 
-            err_output = stderr.decode("utf-8") 
-            with open(run_context["output-file"], "a") as f:
-                f.write(err_output) 
+            # output = json.loads(stdout.decode("utf-8")) 
+            # err_output = stderr.decode("utf-8") 
+            # with open(run_context["output-file"], "a") as f:
+            #     f.write(err_output) 
+            
+            output = "" 
                 
         except json.JSONDecodeError as e:
             print("Error in the subprocess: ", e)
