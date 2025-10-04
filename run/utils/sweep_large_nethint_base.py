@@ -200,7 +200,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         env = os.environ.copy()
         env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
 
-        config_sweeper_run_scheduler = None 
+        # config_sweeper_run_scheduler = None 
         if config_sweeper_run_scheduler is not None:
             exe = [str(config_sweeper_run_scheduler)]
         else:
@@ -216,17 +216,19 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         
         input_data = json.dumps(args).encode("utf-8")
 
+        with open("temp_input.json", "w") as f:
+            f.write(json.dumps(args, indent=4))
+
         stdout, stderr = process.communicate(input=input_data)
 
         try:
             output = json.loads(stdout.decode("utf-8")) 
             err_output = stderr.decode("utf-8") 
             
-            print("subprocess error output: ", err_output)
-            print("subprocess standard output: ", stdout.decode("utf-8"))
+            # print("subprocess error output: ", err_output)
+            # print("subprocess standard output: ", stdout.decode("utf-8"))
             
-            input("Press Enter to continue..."  
-                  )
+            # input("Press Enter to continue...")
             with open(run_context["output-file"], "a") as f:
                 f.write(err_output) 
                 
