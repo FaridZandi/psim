@@ -200,6 +200,7 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         env = os.environ.copy()
         env["PYTHONHASHSEED"] = "12345"  # any fixed int as a string (0..4294967295)
 
+        config_sweeper_run_scheduler = None 
         if config_sweeper_run_scheduler is not None:
             exe = [str(config_sweeper_run_scheduler)]
         else:
@@ -224,6 +225,8 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
             print("subprocess error output: ", err_output)
             print("subprocess standard output: ", stdout.decode("utf-8"))
             
+            input("Press Enter to continue..."  
+                  )
             with open(run_context["output-file"], "a") as f:
                 f.write(err_output) 
                 
