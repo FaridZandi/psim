@@ -97,7 +97,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  farid_rounds=50,
-                                                 worker_thread_count=50,
+                                                 worker_thread_count=1,
                                                  **perm) 
             
             for summary_item in summary:    

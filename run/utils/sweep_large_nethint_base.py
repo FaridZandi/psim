@@ -202,6 +202,8 @@ def calc_timing(timing_file_path, routing_file_path, placement_seed,
         # exe = "cppsch.timing"
         exe = config_sweeper_run_scheduler
         
+        print (f"Running cassini timing in a subprocess: {exe} with args: {args}")
+        
         # create a python subprocess, feed the json dump of the args to the subprocess.
         process = subprocess.Popen([current_executable, "-m", exe], 
                                     stdin=subprocess.PIPE, 
