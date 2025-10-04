@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 50
+    seed_range = 10
     m = 100
     
     clean_up_sweep_files = True
@@ -62,14 +62,14 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
-            ("rack_size", [8]),
-            ("job_sizes", [(4, 48)]),
+            ("machine_count", [256]),
+            ("rack_size", [32]),
+            ("job_sizes", [("10%", "20%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
-            ("oversub", [2, 4]),
-            ("cmmcmp_range", [(0, 2)]), 
+            ("desired_entropy", [0.2, 0.3, 0.4, 0.5]),
+            ("oversub", [4, 2, 8]),
+            ("cmmcmp_range", [(0.5, 1.5)]),
             ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
@@ -77,6 +77,7 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
+            ("useless_param", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10])
         ]
 
         # comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
@@ -97,7 +98,7 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  farid_rounds=50,
-                                                 worker_thread_count=50,
+                                                 worker_thread_count=20,
                                                  **perm) 
             
             for summary_item in summary:    

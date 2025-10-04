@@ -12,7 +12,7 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 40
+    seed_range = 10
     m = 100
     
     clean_up_sweep_files = True
@@ -54,6 +54,30 @@ if __name__ == "__main__":
         }
         create_command(plot_args, plot_commands_path)
         
+    # python3 plot_compare.py --file_name results-cpunode11/exps/1323/results.csv --plot_params metric --subplot_y_params machine_count --subplot_x_params desired_entropy --subplot_hue_params comparison --plot_y_param values --sharex True --sharey True --subplot_width 6 --subplot_height 4 --plot_type scatter --scatter_y avg_iter_time --ext png --values_name Speedup --exclude_base False --legend_side bottom --legend_cols 3
+
+    for plot_type in ["scatter"]:
+        plot_args = {
+            "file_name": path,
+            "plot_params": "metric",
+            "subplot_y_params": "machine_count",
+            "subplot_x_params": "desired_entropy",
+            "subplot_hue_params": "comparison",
+            "scatter_y": "avg_iter_time",
+            "plot_y_param": "values",
+            "sharex": True, 
+            "sharey": True,
+            "subplot_width": 6,
+            "subplot_height": 4,
+            "plot_type": plot_type, 
+            "ext": "png", 
+            "values_name": "Speedup", 
+            "exclude_base": False,  
+            "legend_side": "bottom", 
+            "legend_cols": 3,
+        }
+        create_command(plot_args, plot_commands_path)
+        
     os.system(f"chmod +x {plot_commands_path}")
             
     if original_exp_number is None:
@@ -67,14 +91,14 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48, 96, 144]),
-            ("rack_size", ["/6"]),
-            ("job_sizes", [("10%", "25%")]),
+            ("machine_count", [48, 256]),
+            ("rack_size", ["x"]),
+            ("job_sizes", [("10%", "20%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.6, 0.5, 0.4]),
-            ("oversub", [4, 2, 1]),
-            ("cmmcmp_range", [(0, 2)]),
+            ("desired_entropy", [0.2, 0.3, 0.4, 0.5]),
+            ("oversub", [4, 2, 8]),
+            ("cmmcmp_range", [(0.5, 1.5)]),
             ("fallback_threshold", [0.5]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
@@ -82,18 +106,18 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
+            ("useless_param", [1, 2, 3, 4, 5])
         ]
 
         # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
         # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
         # comparisons = ["TS-new", "TS+RO-new", "TS+RO+SUB-new", "TS+RO+SUB+REP-new"]
-        
-        comparisons = ["TS-new", "RO-new", 
-                       "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new", 
-                    #    "TS+RO+REP-new", 
-                       "TS+RO+REP-inf-new", 
-                    #    "TS+RO+SUB+REP-new", 
-                       "TS+RO+SUB+REP-inf-new", 
+
+        comparisons = ["powerof2", "conga", "roundrobin",
+                       "TS-new", "RO-new",
+                       "TS+SUB-new", "TS+RO-new", "TS+RO+SUB-new",
+                       "TS+RO+REP-inf-new",
+                       "TS+RO+SUB+REP-inf-new",
                        ]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]
@@ -107,6 +131,11 @@ if __name__ == "__main__":
         for perm in permutations_dicts:
             print("Running experiment with settings: ", perm)
             
+            if perm["machine_count"] == 48:
+                perm["rack_size"] = 8
+            elif perm["machine_count"] == 256:
+                perm["rack_size"] = 32        
+                        
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 

@@ -23,6 +23,8 @@ plot_type = None
 subplot_width = 3 
 subplot_height = 3 
 
+scatter_y=None 
+
 sharex = False
 sharey = False
 
@@ -178,6 +180,47 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         return  
     
     
+    if plot_type == "scatter":
+        # the df has some rows plot_param column equal to scatter_y
+        # and some rows that are the other value 
+        df_scatter = df[df[plot_params] == scatter_y]
+        df_other = df[df[plot_params] != scatter_y]
+        # print("df_scatter:")
+        # print(df_scatter)
+        # print("df_other:")
+        # print(df_other)
+        
+        y_values = df_scatter["values"]
+        x_values = df_other["values"]
+        
+        # make sure they have the same length
+        if len(x_values) != len(y_values):
+            return
+        
+        # ax.scatter(y_values, x_values, marker='o', color='blue', s=50, alpha=0.7)
+        # plot a scatter for each hue category
+        if subplot_hue_params is not None:
+            for i, hue in enumerate(hue_order):
+                x_hue = df_other[df_other[subplot_hue_params] == hue]["values"]
+                y_hue = df_scatter[df_scatter[subplot_hue_params] == hue]["values"]
+                
+                if len(x_hue) == 0 or len(y_hue) == 0:
+                    continue
+                
+                # for xv, yv in zip(x_hue, y_hue):
+                #     print(f"({xv}, {yv})")
+                    
+                ax.scatter(x_hue, y_hue, marker=marker_options[i], 
+                           color=hue_color_options[i], s=50, alpha=0.7, label=hue)
+                
+                # plott a smoothed boundary around the scatter points with kde 
+                
+                sns.kdeplot(x=np.array(x_hue), y=np.array(y_hue), ax=ax, 
+                            color=hue_color_options[i], 
+                            alpha=0.1, fill=True, 
+                            levels=[0.1, 1], 
+                            label=hue+" density", warn_singular=False)
+                        
     if plot_type == "line": 
         sns.lineplot(x=plot_x_params, y=plot_y_param, sort=True, 
                     hue=subplot_hue_params, hue_order=hue_order, 
@@ -367,13 +410,17 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     
 def draw_plot(df, value, hue_order):   
     if value is not None: 
-        df = df[df[plot_params] == value]
+        if plot_type == "scatter": 
+            # keep the rows whose plot_params is either the value or the scatter_y
+            df = df[(df[plot_params] == value) | (df[plot_params] == scatter_y)]  
+        else:
+            df = df[df[plot_params] == value]
     
     # get all the types of values, it's in the type column  
-    types = df["type"].unique()
-    if len(types) > 1: 
-        exit(f"Error: more than one type of values in the dataframe: {types}")
-    data_type = types[0]    
+    # types = df["type"].unique()
+    # if len(types) > 1: 
+        # exit(f"Error: more than one type of values in the dataframe: {types}")
+    # data_type = types[0]    
 
     
     min_value = df["values"].min()
@@ -511,6 +558,9 @@ def make_plots():
     #     df["job_sizes"] = df["job_sizes"].astype(int)
     ###################
     
+    if scatter_y is not None:
+        if plot_type != "scatter":
+            exit("Error: scatter_y can only be used with plot_type=scatter")
     
     if exclude_base:
         df = df[df["comparison"] != "base"] 
@@ -568,15 +618,16 @@ if __name__ == "__main__":
     parser.add_argument("--legend_side", type=str, required=False)  
     parser.add_argument("--values_name", type=str, required=False)  
     parser.add_argument("--legend_cols", type=int, required=False)
-    parser.add_argument("--exclude_base", type=bool, required=False)    
+    parser.add_argument("--exclude_base", type=str2bool, nargs='?', const=True, default=True)  
     parser.add_argument("--legend_title", type=str, required=False) 
-    parser.add_argument("--temp-summarize-comp", type=bool, required=False)
+    parser.add_argument("--temp-summarize-comp", type=str2bool, nargs='?', const=True, default=False)
     parser.add_argument("--filter", type=str, required=False)
     parser.add_argument("--suffix", type=str, required=False)
     parser.add_argument("--custom_ylim", type=str, required=False)
     parser.add_argument("--sort_hue", type=str2bool, nargs='?', const=True, default=False)
     parser.add_argument("--draw_line_at_one", type=str2bool, nargs='?', const=True, default=True)
-
+    parser.add_argument("--scatter_y", type=str, required=False)    
+    
     args = parser.parse_args()
         
     for arg in vars(args):

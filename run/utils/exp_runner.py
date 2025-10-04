@@ -207,6 +207,7 @@ def do_experiment(seed_range=1,
                   run_cassini_timing_in_subprocess=True,
                   use_inflation=False,
                   throttle_levels=None,
+                  useless_param=None,
                   ): 
     
     
@@ -363,6 +364,20 @@ def do_experiment(seed_range=1,
                                 "timing-scheme": "zero",
                                 "throttle-search": False,
                                 "lb-scheme": "leastloaded",
+                            }))
+        
+    if "roundrobin" in added_comparisons or add_all:    
+        comparisons.append(("roundrobin", {
+                                "timing-scheme": "zero",
+                                "throttle-search": False,
+                                "lb-scheme": "roundrobin",
+                            }))
+    
+    if "powerof2" in added_comparisons or add_all:  
+        comparisons.append(("powerof2", {
+                                "timing-scheme": "zero",
+                                "throttle-search": False,
+                                "lb-scheme": "powerof2",
                             }))
     
     if "spray" in added_comparisons or add_all: 

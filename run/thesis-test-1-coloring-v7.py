@@ -12,8 +12,8 @@ if __name__ == "__main__":
     
     g = get_global_config()
     
-    seed_range = 20
-    m = 10
+    seed_range = 10
+    m = 100
     
     clean_up_sweep_files = True
 
@@ -67,22 +67,23 @@ if __name__ == "__main__":
 
         exp_config = [
             ("sim_length", [400 * m]),
-            ("machine_count", [48]),
-            ("rack_size", [8]),
-            ("job_sizes", [(4, 16), (16, 24), (24, 24)]),
+            ("machine_count", [256]),
+            ("rack_size", [32]),
+            ("job_sizes", [("10%", "15%"), ("15%", "20%"), ("20%", "25%")]),
             # ("job_sizes", [(24, 24)]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
+            ("desired_entropy", [0.2, 0.3, 0.4, 0.5]),
             ("oversub", [2]),
             ("cmmcmp_range", [(0, 1), (1, 2)]),
-            ("fallback_threshold", [0.5]),
+            ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
+            ("useless_param", [1, 2, 3, 4, 5])
         ]
 
         comparisons = ["rounds-v7"]
