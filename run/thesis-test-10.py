@@ -31,7 +31,7 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["bar", "box", "line"]:
+    for plot_type in ["line", "bar", "box"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
@@ -67,6 +67,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
+            ("useless_param", [1, 2, 3, 4, 5]),
             ("sim_length", [400 * m]),
             ("machine_count", [256]),
             ("rack_size", [32]),
@@ -84,7 +85,6 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
-            ("useless_param", [1, 2, 3, 4, 5])
         ]
 
         comparisons = ["rounds-v7-new"]

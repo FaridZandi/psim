@@ -8,6 +8,7 @@ import numpy as np
 import itertools
 import matplotlib.patches as mpatches
 from utils.filter_data import filter_df, filter_df_2
+import traceback
 
 # Define hatches per hue category
 file_name = None 
@@ -53,7 +54,19 @@ sort_hue = True
 ###############################################################################
 ###############################################################################
 
-
+def translate_df(df):   
+    # replace the following values wherever they appear in the dataframe    
+    translate_map = {
+        "average_fct": "Avg. FCT Speedup",
+        "TS-new": "Timing"
+    }
+    
+    for col in df.columns:
+        df[col] = df[col].replace(translate_map)
+    
+    return df
+    
+    
 def translate(param):
     if param == "job_sizes":
         return "Job size range"
@@ -249,9 +262,15 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         
         def extract_sort_key(x):
             if isinstance(x, tuple):
-                return float(x[0])  # Sort by the first element of the tuple
+                try:
+                    return float(x[0]), float(x[1])  # Sort by the first element of the tuple
+                except:
+                    return x[0], x[1]  # If conversion fails, push to end
             elif isinstance(x, str) and x.startswith('(') and x.endswith(')'):
-                return float(x[1:-1].split(',')[0])  # Extract number from string tuple representation
+                try:
+                    return float(x[1:-1].split(',')[0]), float(x[1:-1].split(',')[1])  # Extract number from string tuple representation
+                except:
+                    return x[1:-1].split(',')[0], x[1:-1].split(',')[1]  # If conversion fails, push to end
             else:
                 return float(x)  # Regular numeric values
 
@@ -296,7 +315,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         annotate(ax)
         if draw_line_at_one:
             ax.axhline(y=1, color='black', linestyle='--')
-        ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1)) 
+        if sharey:
+            ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1)) 
         ax.set_ylabel(values_name)
         
         if not legend:
@@ -321,7 +341,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
             ax.axhline(y=1, color='black', linestyle=':', linewidth=0.5)
     
         ax.set_ylabel(values_name)
-        ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1)) 
+        if sharey:
+            ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1)) 
         
         if not legend:
             ax.get_legend().remove()
@@ -336,7 +357,8 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         if not legend:
             ax.get_legend().remove()
             
-        ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1))       
+        if sharey:
+            ax.set_ylim((val_range[0] - 0.1, val_range[1] + 0.1))       
         ax.set_ylabel(values_name)
 
 
@@ -391,7 +413,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     if custom_ylim is not None:
             ax.set_ylim(custom_ylim)
     
-    if y_value is not None and subplot_y_params is not None:
+    if y_value is not None and subplot_y_params is not None and x_value is not None and subplot_x_params is not None:   
         ax.set_title(f"{subplot_x_params}={x_value}\n {subplot_y_params}={y_value}")
     elif x_value is not None and subplot_x_params is not None:
         ax.set_title(f"{subplot_x_params}={x_value}")
@@ -459,6 +481,8 @@ def draw_plot(df, value, hue_order):
     height = subplot_y_len * subplot_height 
     
     # print(f"width: {width}, height: {height}")
+    print("sharex:", sharex)
+    print("sharey:", sharey)
     
     fig, axes = plt.subplots(subplot_y_len, subplot_x_len,
                              sharey=sharey,
@@ -530,6 +554,7 @@ def make_plots():
     # read the csv file into pd dataframe
     df = pd.read_csv(file_name)
     
+    
 
     # in the comparison column, replace the "TS+RO+SUB+REP" with "Foresight"
     df["comparison"] = df["comparison"].replace("TS+RO+SUB+REP", "Foresight")
@@ -564,6 +589,9 @@ def make_plots():
     
     if exclude_base:
         df = df[df["comparison"] != "base"] 
+
+    # translate everything 
+    df = translate_df(df)
         
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
@@ -578,12 +606,14 @@ def make_plots():
     else:   
         unique_values = df[plot_params].unique()
 
+
     for value in unique_values: 
         try:
             print(f"value: {value}, plot_type: {plot_type}")    
             draw_plot(df, value, hue_order)    
         except Exception as e:
             print(f"Error occurred while plotting {value}: {e}")
+            traceback.print_exc()
 
 
 def str2bool(v):
@@ -613,8 +643,8 @@ if __name__ == "__main__":
     parser.add_argument("--ext", type=str, required=False)  
     parser.add_argument("--subplot_width", type=float, required=False)    
     parser.add_argument("--subplot_height", type=float, required=False)
-    parser.add_argument("--sharex", type=bool, required=False)  
-    parser.add_argument("--sharey", type=bool, required=False)
+    parser.add_argument("--sharex", type=str2bool, nargs='?', const=True, default=False) 
+    parser.add_argument("--sharey", type=str2bool, nargs='?', const=True, default=False)
     parser.add_argument("--legend_side", type=str, required=False)  
     parser.add_argument("--values_name", type=str, required=False)  
     parser.add_argument("--legend_cols", type=int, required=False)
@@ -632,7 +662,7 @@ if __name__ == "__main__":
         
     for arg in vars(args):
         if getattr(args, arg) is not None:
-            globals()[arg] = getattr(args, arg)
-
+            globals()[arg] = getattr(args, arg)  
+    
     make_plots()   
 
