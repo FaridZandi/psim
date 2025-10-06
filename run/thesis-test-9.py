@@ -28,7 +28,7 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["cdf", "cdf2"]:
+    for plot_type in ["cdf2", "cdf"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
