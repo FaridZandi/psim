@@ -23,19 +23,22 @@ if __name__ == "__main__":
     else:
         exp_number = get_incremented_number() 
     
-    exp_dir = f"results/exps/{exp_number}"
+    hostname = os.uname()[1]    
+    results_dir = "results-{}".format(hostname) 
+
+    exp_dir = f"{results_dir}/exps/{exp_number}"
     os.makedirs(exp_dir, exist_ok=True)
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["cdf2", "cdf"]:
+    for plot_type in ["bar", "box", "line"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "machine_count",
-            "subplot_x_params": "oversub",
-            "subplot_hue_params": "desired_entropy",
-            "plot_x_params": "job_sizes",
+            "subplot_x_params": "desired_entropy",
+            "subplot_hue_params": "comparison",
+            "plot_x_params": "oversub",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -44,28 +47,54 @@ if __name__ == "__main__":
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
-            "exclude_base": True,  
+            "exclude_base": True,   
+            "legend_side": "bottom",
+            # "temp-summarize-comp": True,
+            "legend_cols": 3,
+        }
+        create_command(plot_args, plot_commands_path)
+        
+    # python3 plot_compare.py --file_name results-cpunode11/exps/1323/results.csv --plot_params metric --subplot_y_params machine_count --subplot_x_params desired_entropy --subplot_hue_params comparison --plot_y_param values --sharex True --sharey True --subplot_width 6 --subplot_height 4 --plot_type scatter --scatter_y avg_iter_time --ext png --values_name Speedup --exclude_base False --legend_side bottom --legend_cols 3
+
+    for plot_type in ["scatter"]:
+        plot_args = {
+            "file_name": path,
+            "plot_params": "metric",
+            "subplot_y_params": "machine_count",
+            "subplot_x_params": "desired_entropy",
+            "subplot_hue_params": "comparison",
+            "scatter_y": "avg_iter_time",
+            "plot_y_param": "values",
+            "sharex": True, 
+            "sharey": True,
+            "subplot_width": 6,
+            "subplot_height": 4,
+            "plot_type": plot_type, 
+            "ext": "png", 
+            "values_name": "Speedup", 
+            "exclude_base": False,  
             "legend_side": "bottom", 
-            "legend_cols": 5,
+            "legend_cols": 3,
         }
         create_command(plot_args, plot_commands_path)
         
     os.system(f"chmod +x {plot_commands_path}")
-    
+            
     if original_exp_number is None:
-        exp_dir = f"results/exps/{exp_number}"
-        path = f"results/exps/{exp_number}/results.csv" 
-        os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
+
+        exp_dir = f"{results_dir}/exps/{exp_number}"
+        path = f"{results_dir}/exps/{exp_number}/results.csv"
+        os.makedirs(f"{results_dir}/exps/{exp_number}", exist_ok=True)
 
         os.system("rm -f last-exp-results-link-*") 
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("useless_param", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
+            ("useless_param", [1, 2, 3, 4, 5]), 
             ("sim_length", [400 * m]),
-            ("machine_count", [256]),
-            ("rack_size", [32]),
-            ("job_sizes", [("10%", "20%")]),
+            ("machine_count", [48, 256]),
+            ("rack_size", ["x"]),
+            ("job_sizes", [("15%", "20%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.2, 0.3, 0.4, 0.5]),
@@ -80,13 +109,23 @@ if __name__ == "__main__":
             ("inflate", [1]),    
         ]
 
-        # comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
-        comparisons = ["TS+RO+SUB+REP-inf-new"]
+        # comparisons = ["coloring-v8", "coloring-v7", "coloring-v5", "RO", "zero-v7", "conga", "perfect"]
+        # comparisons = ["rounds-v8", "rounds-v7", "rounds-v5"]
+        # comparisons = ["TS-new", "TS+RO-new", "TS+RO+SUB-new", "TS+RO+SUB+REP-new"]
+
+        comparisons = ["powerof2", "conga", "roundrobin",
+                       "TS-new", "RO-new",
+                       "TS+SUB-new", 
+                       "TS+RO-new", 
+                       "TS+RO+SUB-new",
+                       "TS+RO+REP-inf-new",
+                       "TS+RO+SUB+REP-inf-new",
+                       ]
         
-        relevant_keys = [key for key, options in exp_config if len(options) > 1]    
-        
-        all_results = [] 
-        
+        relevant_keys = [key for key, options in exp_config if len(options) > 1]
+
+        all_results = []
+
         # go through all the possible combinations.
         keys, values = zip(*(dict(exp_config)).items())
         permutations_dicts = [dict(zip(keys, v)) for v in itertools.product(*values)]
@@ -94,11 +133,21 @@ if __name__ == "__main__":
         for perm in permutations_dicts:
             print("Running experiment with settings: ", perm)
             
+            if perm["machine_count"] == 48:
+                perm["rack_size"] = 8
+            elif perm["machine_count"] == 256:
+                perm["rack_size"] = 32        
+                        
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 farid_rounds=50,
                                                  worker_thread_count=20,
+                                                 plot_stuff=False,
+                                                 throttle_search=True,
+                                                 farid_rounds=50,
+                                                 run_cassini_timing_in_subprocess=True, 
+                                                 throttle_levels=2,
+                                                 memory_limit=40,
                                                  **perm) 
             
             for summary_item in summary:    

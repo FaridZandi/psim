@@ -11,12 +11,6 @@ import copy
 import traceback
 import time 
 
-# pd.set_option('display.max_rows', 500)
-# pd.set_option('display.max_columns', 500)
-
-DEFAULT_WORKER_THREAD_COUNT = 40
-MEMORY_LIMIT = 80
-
 class ConfigSweeper: 
     def __init__(self, 
                  base_options, sweep_config, global_context,
@@ -26,10 +20,11 @@ class ConfigSweeper:
                  result_extractor_function=None,
                  exp_filter_function=None,
                  exp_name="exp",
-                 worker_thread_count=DEFAULT_WORKER_THREAD_COUNT, 
+                 worker_thread_count=40, 
                  plot_cdfs=False, 
                  store_outputs=False,
                  run_cassini_timing_in_subprocess=True,
+                 memory_limit=40,
                  ):  
         
         # arguments
@@ -113,7 +108,7 @@ class ConfigSweeper:
         # run the ram_controller.sh in the background.
         self.watchdog_pid = subprocess.Popen([
                                 "./ram_controller.sh", 
-                                str(MEMORY_LIMIT), 
+                                str(memory_limit), 
                                 self.run_executable
                             ]).pid
         

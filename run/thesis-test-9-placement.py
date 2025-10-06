@@ -23,61 +23,54 @@ if __name__ == "__main__":
     else:
         exp_number = get_incremented_number() 
     
-    hostname = os.uname()[1]    
-    results_dir = "results-{}".format(hostname) 
-
-    exp_dir = f"{results_dir}/exps/{exp_number}"
+    exp_dir = f"results/exps/{exp_number}"
     os.makedirs(exp_dir, exist_ok=True)
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["heatmap"]:
+    for plot_type in ["cdf2", "cdf"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
             "subplot_y_params": "machine_count",
             "subplot_x_params": "oversub",
-            "subplot_hue_params": "cmmcmp_range",
-            "plot_x_params": "desired_entropy",
+            "subplot_hue_params": "desired_entropy",
+            "plot_x_params": "job_sizes",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 3,
-            "subplot_height": 2,
+            "subplot_width": 6,
+            "subplot_height": 4,
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
-            "exclude_base": True,   
-            "legend_side": "bottom",
-            "temp-summarize-comp": True,
+            "exclude_base": True,  
+            "legend_side": "bottom", 
             "legend_cols": 5,
-            "draw_line_at_one": False, 
         }
         create_command(plot_args, plot_commands_path)
         
     os.system(f"chmod +x {plot_commands_path}")
-            
+    
     if original_exp_number is None:
-
-        exp_dir = f"{results_dir}/exps/{exp_number}"
-        path = f"{results_dir}/exps/{exp_number}/results.csv"
-        os.makedirs(f"{results_dir}/exps/{exp_number}", exist_ok=True)
+        exp_dir = f"results/exps/{exp_number}"
+        path = f"results/exps/{exp_number}/results.csv" 
+        os.makedirs(f"results/exps/{exp_number}", exist_ok=True)
 
         os.system("rm -f last-exp-results-link-*") 
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("useless_param", [1, 2, 3, 4, 5]), 
+            ("useless_param", [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]),
             ("sim_length", [400 * m]),
             ("machine_count", [256]),
             ("rack_size", [32]),
-            ("job_sizes", [("10%", "15%"), ("15%", "20%"), ("20%", "25%")]),
-            # ("job_sizes", [(24, 24)]),
+            ("job_sizes", [("15%", "20%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.3, 0.4, 0.5, 0.6, 0.7]),
-            ("oversub", [1, 2]),
-            ("cmmcmp_range", [(0, 0.4), (0.4, 0.8), (0.8, 1.2), (1.2, 1.6), (1.6, 2)]),
+            ("desired_entropy", [0.2, 0.3, 0.4, 0.5]),
+            ("oversub", [4, 2, 8]),
+            ("cmmcmp_range", [(0.5, 1.5)]),
             ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
@@ -87,6 +80,7 @@ if __name__ == "__main__":
             ("inflate", [1]),    
         ]
 
+        # comparisons = ["TS", "TS+SUB", "TS+RO", "TS+RO+SUB", "TS+RO+REP", "TS+RO+SUB+REP"]
         comparisons = ["TS+RO+SUB+REP-inf-new"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
@@ -103,8 +97,10 @@ if __name__ == "__main__":
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
-                                                 worker_thread_count=20,
                                                  farid_rounds=50,
+                                                 worker_thread_count=20,
+                                                 throttle_levels=2,
+                                                 memory_limit=40,
                                                  **perm) 
             
             for summary_item in summary:    

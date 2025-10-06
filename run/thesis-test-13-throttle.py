@@ -35,10 +35,10 @@ if __name__ == "__main__":
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "comparisons",
+            "subplot_y_params": "comparison",
             "subplot_x_params": "oversub",
             "subplot_hue_params": "rack_size",
-            "plot_x_params": "job_sizes",
+            "plot_x_params": "throttle_levels",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
@@ -70,13 +70,14 @@ if __name__ == "__main__":
             ("useless_param", [1, 2, 3, 4, 5]),
             ("sim_length", [400 * m]),
             ("machine_count", [256]),
-            ("rack_size", [16, 24, 32, 48]),
-            ("job_sizes", [("10%", "15%"), ("15%", "20%"), ("20%", "25%"), ("25%", "33%")]),
-            # ("job_sizes", [(24, 24)]),
+            ########################################################################################
+            ("oversub", [4]), #############################################################
+            ("rack_size", [32]), #######################################################
+            ("job_sizes", [("15%", "20%")]),########
+            ########################################################################################
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
             ("desired_entropy", [0.4]),
-            ("oversub", [2, 4, 1, 8]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
@@ -85,9 +86,10 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
+            ("throttle_levels", [1, 2, 4, 8]),
         ]
 
-        comparisons = ["TS+RO+SUB+REP-inf-new", "TS+RO+REP-inf-new"]
+        comparisons = ["TS+RO+SUB+REP-inf-new"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         
@@ -105,6 +107,7 @@ if __name__ == "__main__":
                                                  experiment_seed=777, 
                                                  worker_thread_count=20,
                                                  farid_rounds=50,
+                                                 memory_limit=40,
                                                  **perm) 
             
             for summary_item in summary:    

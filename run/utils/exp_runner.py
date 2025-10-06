@@ -208,6 +208,7 @@ def do_experiment(seed_range=1,
                   use_inflation=False,
                   throttle_levels=None,
                   useless_param=None,
+                  memory_limit=40, 
                   ): 
     
     
@@ -293,9 +294,12 @@ def do_experiment(seed_range=1,
         elif throttle_levels == 2 or core_count <= 3:
             profiled_throttle_factors = [1.0, 0.5]
             subflow_count = 2   
-        elif throttle_levels == 4 or core_count >= 4:
+        elif throttle_levels == 4 or core_count <= 7:
             profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
             subflow_count = 4  
+        elif throttle_levels == 8 or core_count >= 8:
+            profiled_throttle_factors = [1.0, 0.875, 0.75, 0.625, 0.5, 0.375, 0.25, 0.125]
+            subflow_count = 8
     else: 
         if not throttle_search:
             profiled_throttle_factors = [1.0]
@@ -529,7 +533,7 @@ def do_experiment(seed_range=1,
                             }))
             
     if "rounds-v7-new" in added_comparisons or add_all:
-        for rounds in range(0, 21, 2):
+        for rounds in [0, 1, 2, 4, 8, 12, 16, 20, 30, 50]:
             comparisons.append(("foresight-v7-{}".format(rounds), {
                                 # "timing-scheme": "faridv6",
                                 # "throttle-search": True,
@@ -726,6 +730,7 @@ def do_experiment(seed_range=1,
         plot_cdfs=False,
         store_outputs=False,
         run_cassini_timing_in_subprocess=run_cassini_timing_in_subprocess,
+        memory_limit=memory_limit,
     )
     
     summary = cs.sweep()

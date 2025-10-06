@@ -287,13 +287,14 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         
         cbar_min = int((val_range[0] - 1) * 100)
         cbar_max = int((val_range[1] - 1) * 100)
+
         
         sns.heatmap(df_pivoted, ax=ax,
                     fmt=".0f", 
                     cmap="YlGnBu", annot=True, 
                     annot_kws={"size": 15},
                     linewidths=0.5, 
-                    # vmin=cbar_min, vmax=cbar_max
+                    vmin=cbar_min, vmax=cbar_max
                     )        
         
         ylabel = translate(plot_x_params)
@@ -481,9 +482,6 @@ def draw_plot(df, value, hue_order):
     height = subplot_y_len * subplot_height 
     
     # print(f"width: {width}, height: {height}")
-    print("sharex:", sharex)
-    print("sharey:", sharey)
-    
     fig, axes = plt.subplots(subplot_y_len, subplot_x_len,
                              sharey=sharey,
                              sharex=sharex,
