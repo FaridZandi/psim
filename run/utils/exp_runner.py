@@ -293,9 +293,12 @@ def do_experiment(seed_range=1,
         elif throttle_levels == 2 or core_count <= 3:
             profiled_throttle_factors = [1.0, 0.5]
             subflow_count = 2   
-        elif throttle_levels == 4 or core_count >= 4:
+        elif throttle_levels == 4 or core_count <= 7:
             profiled_throttle_factors = [1.0, 0.75, 0.5, 0.25]
             subflow_count = 4  
+        elif throttle_levels == 8 or core_count >= 8:
+            profiled_throttle_factors = [1.0, 0.875, 0.75, 0.625, 0.5, 0.375, 0.25, 0.125]
+            subflow_count = 8
     else: 
         if not throttle_search:
             profiled_throttle_factors = [1.0]
