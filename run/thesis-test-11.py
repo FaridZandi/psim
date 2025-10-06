@@ -67,6 +67,7 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
+            ("useless_param", [1, 2, 3, 4, 5]), 
             ("sim_length", [400 * m]),
             ("machine_count", [256]),
             ("rack_size", [32]),
@@ -84,7 +85,6 @@ if __name__ == "__main__":
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
-            ("useless_param", [1, 2, 3, 4, 5])
         ]
 
         comparisons = ["TS+RO+SUB+REP-inf-new"]
