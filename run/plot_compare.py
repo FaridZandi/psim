@@ -482,9 +482,6 @@ def draw_plot(df, value, hue_order):
     height = subplot_y_len * subplot_height 
     
     # print(f"width: {width}, height: {height}")
-    print("sharex:", sharex)
-    print("sharey:", sharey)
-    
     fig, axes = plt.subplots(subplot_y_len, subplot_x_len,
                              sharey=sharey,
                              sharex=sharex,
