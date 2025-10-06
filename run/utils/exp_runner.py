@@ -208,6 +208,7 @@ def do_experiment(seed_range=1,
                   use_inflation=False,
                   throttle_levels=None,
                   useless_param=None,
+                  memory_limit=40, 
                   ): 
     
     
@@ -532,7 +533,7 @@ def do_experiment(seed_range=1,
                             }))
             
     if "rounds-v7-new" in added_comparisons or add_all:
-        for rounds in range(0, 21, 2):
+        for rounds in [0, 1, 2, 4, 8, 12, 16, 20, 30, 50]:
             comparisons.append(("foresight-v7-{}".format(rounds), {
                                 # "timing-scheme": "faridv6",
                                 # "throttle-search": True,
@@ -729,6 +730,7 @@ def do_experiment(seed_range=1,
         plot_cdfs=False,
         store_outputs=False,
         run_cassini_timing_in_subprocess=run_cassini_timing_in_subprocess,
+        memory_limit=memory_limit,
     )
     
     summary = cs.sweep()

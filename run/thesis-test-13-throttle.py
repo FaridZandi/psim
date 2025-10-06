@@ -31,25 +31,25 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["line", "bar", "box"]:
+    for plot_type in ["heatmap"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "cmmcmp_range",
-            "subplot_x_params": "job_sizes",
-            "subplot_hue_params": "desired_entropy",
-            "plot_x_params": "comparison",
+            "subplot_y_params": "comparison",
+            "subplot_x_params": "oversub",
+            "subplot_hue_params": "rack_size",
+            "plot_x_params": "throttle_levels",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 4,
-            "subplot_height": 4,
+            "subplot_width": 3,
+            "subplot_height": 2,
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
             "legend_side": "bottom",
-            "temp-summarize-comp": True,
+            # "temp-summarize-comp": True,
             "legend_cols": 5,
             "draw_line_at_one": False, 
         }
@@ -70,26 +70,26 @@ if __name__ == "__main__":
             ("useless_param", [1, 2, 3, 4, 5]),
             ("sim_length", [400 * m]),
             ("machine_count", [256]),
-            ("rack_size", [32]),
-            ("job_sizes", [("10%", "15%"), ("15%", "20%"), ("20%", "25%")]),
-            # ("job_sizes", [(24, 24)]),
+            ########################################################################################
+            ("oversub", [4]), #############################################################
+            ("rack_size", [32]), #######################################################
+            ("job_sizes", [("15%", "20%")]),########
+            ########################################################################################
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.2, 0.3, 0.4, 0.5]),
-            ("oversub", [2]),
-            ("cmmcmp_range", [(0, 1), (1, 2)]),
-            ################################################################################
-            ("fallback_threshold", [100]), #################################################
-            ################################################################################
+            ("desired_entropy", [0.4]),
+            ("cmmcmp_range", [(0, 2)]),
+            ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
             ("comp_size", [(2 * m, 10 * m, 1 * m)]),
             ("layer_count", [(1, 2, 1)]),
             ("punish_oversubscribed_min", [1]), 
             ("min_rate", [100]),
             ("inflate", [1]),    
+            ("throttle_levels", [1, 2, 4, 8]),
         ]
 
-        comparisons = ["rounds-v7-new"]
+        comparisons = ["TS+RO+SUB+REP-inf-new"]
         
         relevant_keys = [key for key, options in exp_config if len(options) > 1]    
         
@@ -106,6 +106,8 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=20,
+                                                 farid_rounds=50,
+                                                 memory_limit=40,
                                                  **perm) 
             
             for summary_item in summary:    
