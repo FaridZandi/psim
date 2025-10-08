@@ -31,19 +31,19 @@ if __name__ == "__main__":
     path = f"{exp_dir}/results.csv"     
     plot_commands_path = f"{exp_dir}/results_plot.sh"
                         
-    for plot_type in ["heatmap"]:
+    for plot_type in ["bar"]:
         plot_args = {
             "file_name": path,
             "plot_params": "metric",
-            "subplot_y_params": "comparison",
-            "subplot_x_params": "oversub",
-            "subplot_hue_params": "rack_size",
-            "plot_x_params": "throttle_levels",
+            "subplot_y_params": "machine_count",
+            "subplot_x_params": "desired_entropy",
+            "subplot_hue_params": "throttle_levels",
+            "plot_x_params": "oversub",
             "plot_y_param": "values",
             "sharex": True, 
             "sharey": True,
-            "subplot_width": 3,
-            "subplot_height": 2,
+            "subplot_width": 6,
+            "subplot_height": 4,
             "plot_type": plot_type, 
             "ext": "png", 
             "values_name": "Speedup", 
@@ -67,17 +67,15 @@ if __name__ == "__main__":
         os.system("ln -s {} {}".format(exp_dir, "last-exp-results-link-{}".format(exp_number)))
 
         exp_config = [
-            ("useless_param", [1, 2, 3, 4, 5]),
+            ("useless_param", [1, 2, 3, 4, 5]), 
             ("sim_length", [400 * m]),
             ("machine_count", [256]),
-            ########################################################################################
-            ("oversub", [4]), #############################################################
-            ("rack_size", [32]), #######################################################
-            ("job_sizes", [("15%", "20%")]),########
-            ########################################################################################
+            ("rack_size", [32]),
+            ("job_sizes", [("15%", "20%")]),
             ("placement_mode", ["entropy"]), 
             ("ring_mode", ["letitbe"]), 
-            ("desired_entropy", [0.4]),
+            ("desired_entropy", [0.2, 0.3, 0.4, 0.5]),
+            ("oversub", [4, 2, 8, 1]),
             ("cmmcmp_range", [(0, 2)]),
             ("fallback_threshold", [0.1]),
             ("comm_size", [(120 * m, 360 * m, 60 * m)]),
@@ -106,8 +104,8 @@ if __name__ == "__main__":
                                                  added_comparisons=comparisons,
                                                  experiment_seed=777, 
                                                  worker_thread_count=20,
-                                                 farid_rounds=50,
-                                                 memory_limit=40,
+                                                 farid_rounds=40,
+                                                 memory_limit=80,
                                                  **perm) 
             
             for summary_item in summary:    

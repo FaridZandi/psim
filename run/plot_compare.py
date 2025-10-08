@@ -50,37 +50,51 @@ draw_line_at_one = True
 
 sort_hue = True
 
+total_time=None 
+forced_x_label = None
+
 ###############################################################################
 ###############################################################################
 ###############################################################################
 
-def translate_df(df):   
-    # replace the following values wherever they appear in the dataframe    
-    translate_map = {
-        "average_fct": "Avg. FCT Speedup",
-        "TS-new": "Timing"
-    }
+# def translate_df(df):   
+#     # replace the following values wherever they appear in the dataframe    
+#     translate_map = {
+#         "average_fct": "Avg. FCT Speedup",
+#         "TS-new": "Timing"
+#     }
     
-    for col in df.columns:
-        df[col] = df[col].replace(translate_map)
+#     for col in df.columns:
+#         df[col] = df[col].replace(translate_map)
     
-    return df
+#     return df
     
     
 def translate(param):
-    if param == "job_sizes":
-        return "Job size range"
     
-    if param == "desired_entropy":
-        return "Fragmentation"
+    translate_map = {
+        "job_sizes": "Job Count",
+        "desired_entropy": "Fragmentation",
+        "rack_size": "Rack Size",
+        "cmmcmp_range": "Comm./Comp. Ratio",
+        "machine_count": "Machines",
+        "oversub": "Oversubscription",
 
-    if param == "rack_size":
-        return "Rack size"
+        "avg_ar_time": "Avg. AllReduce Time",
+        "total_congested_time": "Congestion Time",
+        "average_fct": "Avg. FCT",
+        "accel_util_rate": "GPU Utilization",
+        
+        "TS+RO+SUB+REP-inf-new": "Foresight",
+        "TS+RO+SUB-new": "TS+RO+SUB",
+        "TS+RO-new": "TS+RO",
+        "TS-new": "Timing",
+    }
     
-    if param == "cmmcmp_range":
-        return "Comm./Comp. ratio"
-    
-    return param 
+    if param in translate_map:
+        return translate_map[param]
+    else:
+        return param 
 
 def value_formatter(val):   
     if isinstance(val, tuple):
@@ -236,17 +250,24 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                         
     if plot_type == "line": 
         sns.lineplot(x=plot_x_params, y=plot_y_param, sort=True, 
-                    hue=subplot_hue_params, hue_order=hue_order, 
-                    palette=hue_color_options[:len(hue_order)],    
-                    data=df, ax=ax, legend=True, errorbar=('ci', 50),
-                    marker='o', 
-                    estimator='mean')
+                     hue=subplot_hue_params, hue_order=hue_order, 
+                     palette=hue_color_options[:len(hue_order)],    
+                     data=df, ax=ax, legend=True, errorbar=('ci', 50),
+                     marker='o', 
+                     estimator='mean')
 
         if not legend:
             ax.get_legend().remove()    
             
         if draw_line_at_one:
             ax.axhline(y=1, color='black', linestyle='--')
+            
+        ax.set_ylabel(values_name)
+                
+        if forced_x_label: 
+            ax.set_xlabel(forced_x_label)
+
+        
         
     elif plot_type == "heatmap":  
         # the rows will be the plot_x_params 
@@ -272,7 +293,10 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                 except:
                     return x[1:-1].split(',')[0], x[1:-1].split(',')[1]  # If conversion fails, push to end
             else:
-                return float(x)  # Regular numeric values
+                try:
+                    return float(x)
+                except:
+                    return x  # If conversion fails, push to end
 
         custom_index_order = sorted(df_pivoted.index, key=extract_sort_key)
         custom_column_order = sorted(df_pivoted.columns, key=extract_sort_key)
@@ -294,7 +318,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                     cmap="YlGnBu", annot=True, 
                     annot_kws={"size": 15},
                     linewidths=0.5, 
-                    vmin=cbar_min, vmax=cbar_max
+                    vmin=cbar_min, vmax=cbar_max,
                     )        
         
         ylabel = translate(plot_x_params)
@@ -302,6 +326,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
         
         ax.set_ylabel(ylabel)
         ax.set_xlabel(xlabel)
+
         
         legend = False
         
@@ -413,19 +438,32 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
     # draw a horizontal line at y=1
     if custom_ylim is not None:
             ax.set_ylim(custom_ylim)
-    
-    if y_value is not None and subplot_y_params is not None and x_value is not None and subplot_x_params is not None:   
-        ax.set_title(f"{subplot_x_params}={x_value}\n {subplot_y_params}={y_value}")
+
+    def get_title(param, value): 
+        if param == "metric":
+            return f"{translate(value)}"    
+        elif param == "job_sizes":
+            return f"{value} Jobs"
+        else: 
+            return f"{translate(param)}={translate(value)}"
+        
+    if (y_value is not None and subplot_y_params is not None and 
+        x_value is not None and subplot_x_params is not None):   
+        ax.set_title(f"{get_title(subplot_x_params, x_value)}\n {get_title(subplot_y_params, y_value)}")
+
     elif x_value is not None and subplot_x_params is not None:
-        ax.set_title(f"{subplot_x_params}={x_value}")
+        ax.set_title(f"{get_title(subplot_x_params, x_value)}")
+
     elif y_value is not None and subplot_y_params is not None:
-        ax.set_title(f"{subplot_y_params}={y_value}")   
+        ax.set_title(f"{get_title(subplot_y_params, y_value)}")
 
     ax.title.set_size(15)
 
     if plot_type != "heatmap" and plot_type != "cdf" and plot_type != "cdf2":
         title = translate(plot_x_params)
         ax.set_xlabel(title)
+        if forced_x_label: 
+            ax.set_xlabel(forced_x_label)
     
     
 
@@ -526,6 +564,9 @@ def draw_plot(df, value, hue_order):
             if legend:
                 handles, labels = ax.get_legend_handles_labels()
                 
+                # translate the labels
+                labels = [translate(label) for label in labels]
+                
                 if legend_side == "bottom":
                     # fig.legend(handles, labels, loc="lower center", 
                     #            bbox_to_anchor=(0.5, -0.01), ncol=legend_cols, 
@@ -559,8 +600,17 @@ def make_plots():
     
     if temp_summarize_comp:
         # replace the comparison with the number that comes after the last hyphen
-        df["comparison"] = df["comparison"].apply(lambda x: x.split("-")[-1] if "-" in x else x)
+        df["comparison"] = df["comparison"].apply(lambda x: int(x.split("-")[-1]) if "-" in x else x)
 
+    # replace the content of the job_sizes
+    translate_map = {   
+        "('10%', '15%')": "6 - 10",
+        "('15%', '20%')": "5 - 6",
+        "('20%', '25%')": "4 - 5",
+        "('25%', '33%')": "3 - 4",
+    }
+    df["job_sizes"] = df["job_sizes"].replace(translate_map) 
+    
     # keep the rows that have types of "single_number" or "per_iter"
     df = df[df["type"].isin(["single_number", "per_iter"])]
     
@@ -589,7 +639,15 @@ def make_plots():
         df = df[df["comparison"] != "base"] 
 
     # translate everything 
-    df = translate_df(df)
+    # df = translate_df(df)
+        
+    # rows with the metric equal to total_congested_time should be divided by total_time if total_time is not None
+    if "total_congested_time" in df["metric"].values and total_time is not None:
+        df.loc[df["metric"] == "total_congested_time", "values"] = df.loc[df["metric"] == "total_congested_time", "values"] / total_time
+        
+        
+        
+        
         
     if subplot_hue_params is not None:
         hue_order = df[subplot_hue_params].unique() 
@@ -603,6 +661,10 @@ def make_plots():
         unique_values = [None]
     else:   
         unique_values = df[plot_params].unique()
+
+
+
+
 
 
     for value in unique_values: 
@@ -655,7 +717,9 @@ if __name__ == "__main__":
     parser.add_argument("--sort_hue", type=str2bool, nargs='?', const=True, default=False)
     parser.add_argument("--draw_line_at_one", type=str2bool, nargs='?', const=True, default=True)
     parser.add_argument("--scatter_y", type=str, required=False)    
-    
+    parser.add_argument("--total_time", type=int, required=False)
+    parser.add_argument("--forced_x_label", type=str, required=False)
+            
     args = parser.parse_args()
         
     for arg in vars(args):

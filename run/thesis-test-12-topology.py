@@ -48,7 +48,7 @@ if __name__ == "__main__":
             "ext": "png", 
             "values_name": "Speedup", 
             "exclude_base": True,   
-            "legend_side": "bottom",
+            "legend_side": "none",
             # "temp-summarize-comp": True,
             "legend_cols": 5,
             "draw_line_at_one": False, 
@@ -72,7 +72,7 @@ if __name__ == "__main__":
             ("machine_count", [256]),
             ########################################################################################
             ("oversub", [2, 4, 1, 8]), #############################################################
-            ("rack_size", [16, 24, 32, 48]), #######################################################
+            ("rack_size", [16, 32, 64]), #######################################################
             ("job_sizes", [("10%", "15%"), ("15%", "20%"), ("20%", "25%"), ("25%", "33%")]),########
             ########################################################################################
             ("placement_mode", ["entropy"]), 
@@ -107,7 +107,7 @@ if __name__ == "__main__":
                                                  worker_thread_count=20,
                                                  farid_rounds=50,
                                                  throttle_levels=2,
-                                                 memory_limit=40,
+                                                 memory_limit=80,
                                                  **perm) 
             
             for summary_item in summary:    
