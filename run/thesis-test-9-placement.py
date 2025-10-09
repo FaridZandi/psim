@@ -96,7 +96,7 @@ if __name__ == "__main__":
             
             summary, results_dir = do_experiment(seed_range=seed_range, 
                                                  added_comparisons=comparisons,
-                                                 experiment_seed=777, 
+                                                 experiment_seed=perm["useless_param"] * 1000, 
                                                  farid_rounds=50,
                                                  worker_thread_count=20,
                                                  throttle_levels=2,

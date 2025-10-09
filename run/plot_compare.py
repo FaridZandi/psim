@@ -80,9 +80,9 @@ def translate(param):
         "machine_count": "Machines",
         "oversub": "Oversubscription",
 
-        "avg_ar_time": "Avg. AllReduce Time",
-        "total_congested_time": "Congestion Time",
-        "average_fct": "Avg. FCT",
+        "avg_ar_time": "Avg. AllReduce Speedup",
+        "total_congested_time": "Congested Time Ratio",
+        "average_fct": "Avg. FCT Speedup",
         "accel_util_rate": "GPU Utilization",
         
         "TS+RO+SUB+REP-inf-new": "Foresight",
@@ -238,7 +238,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                 #     print(f"({xv}, {yv})")
                     
                 ax.scatter(x_hue, y_hue, marker=marker_options[i], 
-                           color=hue_color_options[i], s=50, alpha=0.7, label=hue)
+                           color=hue_color_options[i], s=10, alpha=0.7, label=hue)
                 
                 # plott a smoothed boundary around the scatter points with kde 
                 
@@ -246,7 +246,7 @@ def draw_subplot(df, x_value, y_value, ax, hue_order, legend, subplot_y_len, val
                             color=hue_color_options[i], 
                             alpha=0.1, fill=True, 
                             levels=[0.1, 1], 
-                            label=hue+" density", warn_singular=False)
+                            label=str(hue)+" density", warn_singular=False)
                         
     if plot_type == "line": 
         sns.lineplot(x=plot_x_params, y=plot_y_param, sort=True, 
