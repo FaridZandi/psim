@@ -263,13 +263,7 @@ In practice, the Foresight path uses the Python code under `run/` to create `pla
 
 ### Scheduling Progress Plots
 
-The repository includes a small README-oriented run that generates internal scheduling/progress plots without running the full paper-scale sweep:
-
-```bash
-python3 run/readme-foresight-progress.py
-```
-
-The script uses a reduced version of `run/thesis-test-2.py`, runs one small placement, enables the internal plotting hooks, and copies selected figures to `docs/figures/foresight-progress/`.
+The plots below show the same workload before and after Foresight's scheduling decisions. The baseline produces burstier link demand, while Foresight spreads communication over time and routes flows to reduce sustained contention.
 
 <p align="center">
   <img src="docs/figures/foresight-progress/base-runtime-link-load.png" alt="Baseline runtime link load" width="48%">
@@ -280,11 +274,11 @@ The script uses a reduced version of `run/thesis-test-2.py`, runs one small plac
   <em>Baseline runtime link load (left) and Foresight runtime link load (right).</em>
 </p>
 
-Foresight final scheduled demand:
+<!-- Foresight final scheduled demand: -->
 
-![Foresight final scheduled demand](docs/figures/foresight-progress/foresight-final-demand.png)
+<!-- ![Foresight final scheduled demand](docs/figures/foresight-progress/foresight-final-demand.png) -->
 
-Additional routing diagnostics are also generated:
+Additional routing diagnostics:
 
 - [Merged routing ranges](docs/figures/foresight-progress/foresight-routing-merged-ranges.png)
 - [Rack dependency graph](docs/figures/foresight-progress/foresight-routing-rack-dependency.png)
