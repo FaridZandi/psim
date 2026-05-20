@@ -271,13 +271,14 @@ python3 run/readme-foresight-progress.py
 
 The script uses a reduced version of `run/thesis-test-2.py`, runs one small placement, enables the internal plotting hooks, and copies selected figures to `docs/figures/foresight-progress/`.
 
-Baseline runtime link load:
+<p align="center">
+  <img src="docs/figures/foresight-progress/base-runtime-link-load.png" alt="Baseline runtime link load" width="48%">
+  <img src="docs/figures/foresight-progress/foresight-runtime-link-load.png" alt="Foresight runtime link load" width="48%">
+</p>
 
-![Baseline runtime link load](docs/figures/foresight-progress/base-runtime-link-load.png)
-
-Foresight runtime link load:
-
-![Foresight runtime link load](docs/figures/foresight-progress/foresight-runtime-link-load.png)
+<p align="center">
+  <em>Baseline runtime link load (left) and Foresight runtime link load (right).</em>
+</p>
 
 Foresight final scheduled demand:
 
