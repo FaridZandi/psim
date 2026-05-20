@@ -20,12 +20,12 @@ During simulation, PSIM advances active compute tasks and flows in discrete time
 
 ## Main Features
 
-- Protocol graph simulation with compute and communication dependencies.
-- Fat-tree, leaf-spine, and big-switch network models.
-- Multiple core/path selection policies, including random, ECMP, round-robin, least-loaded, power-of-k, and replay-from-file modes.
-- Several bandwidth allocation policies, including fair-share, max-min fair-share, fixed-level priority, and priority queue allocation.
-- Multi-run experiments with per-run logs, flow information, load-balancing decisions, and regret measurements.
-- Python experiment orchestration and plotting scripts for reproducing paper figures.
+- **Protocol simulation:** models compute tasks, communication flows, and dependency-driven execution.
+- **Network modeling:** supports fat-tree, leaf-spine, and big-switch topologies with explicit bottlenecks.
+- **Routing and load balancing:** includes random, ECMP, round-robin, least-loaded, power-of-k, replay-from-file, and protocol-defined routing modes.
+- **Bandwidth allocation:** supports fair-share, max-min fair-share, fixed-level priority, and priority queue allocation.
+- **Experiment execution:** runs repeated simulations with per-run logs, flow information, load-balancing decisions, and regret measurements.
+- **Analysis workflow:** provides Python orchestration and plotting scripts for generating and processing paper-scale experiments.
 
 ## Repository Layout
 
