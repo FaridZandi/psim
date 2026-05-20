@@ -261,6 +261,33 @@ The main scheduling components are represented in the experiment scripts by comp
 
 In practice, the Foresight path uses the Python code under `run/` to create `placement-file`, `timing-file`, and `routing-file` artifacts, then invokes the C++ simulator to evaluate the resulting execution schedule. The simulator itself remains responsible for task execution, bottleneck bandwidth allocation, flow progress, and final metrics.
 
+### Scheduling Progress Plots
+
+The repository includes a small README-oriented run that generates internal scheduling/progress plots without running the full paper-scale sweep:
+
+```bash
+python3 run/readme-foresight-progress.py
+```
+
+The script uses a reduced version of `run/thesis-test-2.py`, runs one small placement, enables the internal plotting hooks, and copies selected figures to `docs/figures/foresight-progress/`.
+
+Baseline runtime link load:
+
+![Baseline runtime link load](docs/figures/foresight-progress/base-runtime-link-load.png)
+
+Foresight runtime link load:
+
+![Foresight runtime link load](docs/figures/foresight-progress/foresight-runtime-link-load.png)
+
+Foresight final scheduled demand:
+
+![Foresight final scheduled demand](docs/figures/foresight-progress/foresight-final-demand.png)
+
+Additional routing diagnostics are also generated:
+
+- [Merged routing ranges](docs/figures/foresight-progress/foresight-routing-merged-ranges.png)
+- [Rack dependency graph](docs/figures/foresight-progress/foresight-routing-rack-dependency.png)
+
 ## Running Paper Experiments
 
 The `run/` directory contains Python scripts for reproducing or extending the experiments.

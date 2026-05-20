@@ -1,7 +1,8 @@
 __pycache__/
 /build
 /playground/* 
-/run
+/run/*
+!/run/readme-foresight-progress.py
 /input
 /.vscode
 .DS_Store
