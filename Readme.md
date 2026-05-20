@@ -1,6 +1,6 @@
 ![banner](docs/banner1.png)
 
-# PSIM
+<!-- # PSIM -->
 
 PSIM is a C++ simulator for evaluating distributed machine learning execution protocols under different network topologies and load-balancing strategies.
 
