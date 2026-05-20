@@ -283,6 +283,14 @@ Additional routing diagnostics:
 - [Merged routing ranges](docs/figures/foresight-progress/foresight-routing-merged-ranges.png)
 - [Rack dependency graph](docs/figures/foresight-progress/foresight-routing-rack-dependency.png)
 
+The remaining-capacity view below shows the state after routing scheduling. The useful property is that the routed flows fit within the available link capacity, so no link remains overloaded.
+
+![Remaining link capacity after routing](docs/figures/foresight-progress/remaining_1_1_6.png)
+
+The final comparison summarizes the impact of these scheduling decisions against the other evaluated methods.
+
+![Final scheduling comparison](docs/figures/foresight-progress/final-results.png)
+
 ## Running Paper Experiments
 
 The `run/` directory contains Python scripts for reproducing or extending the experiments.
