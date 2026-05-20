@@ -240,6 +240,27 @@ There are also smaller built-in protocol builders useful for debugging:
 - `periodic-test`
 - `periodic-test-simple`
 
+## Foresight Scheduling
+
+The paper experiments evaluate Foresight as a coordinated scheduling pipeline rather than as a single load-balancing rule inside the simulator. The Python experiment layer generates a schedule, and the C++ simulator executes that schedule through runtime-built protocols.
+
+At a high level, the workflow is:
+
+1. Generate job placements and workload metadata.
+2. Compute timing decisions that control when job iterations begin.
+3. Compute routing decisions that assign generated flows to spines/cores.
+4. Optionally split communication into subflows and search over throttle rates.
+5. Run PSIM with `--protocol-file-name nethint-test` and `--lb-scheme readprotocol`.
+
+The main scheduling components are represented in the experiment scripts by comparison names:
+
+- **TS:** time scheduling. Generates per-job iteration offsets through the timing file.
+- **RO:** routing optimization. Generates protocol-defined routing decisions consumed by `readprotocol`.
+- **SUB:** subflow/throttle search. Splits communication and assigns throttle rates when multiple subflows are enabled.
+- **REP / rounds:** iterative refinement variants controlled by settings such as `farid-rounds`.
+
+In practice, the Foresight path uses the Python code under `run/` to create `placement-file`, `timing-file`, and `routing-file` artifacts, then invokes the C++ simulator to evaluate the resulting execution schedule. The simulator itself remains responsible for task execution, bottleneck bandwidth allocation, flow progress, and final metrics.
+
 ## Running Paper Experiments
 
 The `run/` directory contains Python scripts for reproducing or extending the experiments.
