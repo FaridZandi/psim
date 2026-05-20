@@ -29,30 +29,19 @@ During simulation, PSIM advances active compute tasks and flows in discrete time
 
 ## Repository Layout
 
-```text
-.
-├── CMakeLists.txt              # C++ build definition
-├── Readme.md                   # Original project notes
-├── Readme2.md                  # Professional README draft
-├── TODO                        # Development notes and open design tasks
-├── include/                    # Public C++ headers
-├── src/                        # Simulator implementation
-├── deps/                       # Git submodules: spdlog and nlohmann/json
-├── input/                      # Protocol inputs and placement/routing inputs
-├── run/                        # Experiment runners, plotting, and utilities
-├── playground/                 # Scratch analysis and development scripts
-└── setup-pycc.sh               # Python/C++ environment helper
-```
+The repository has two main parts:
 
-Important implementation entry points:
+- `src/` and `include/` contain the C++ simulator.
+- `run/` contains the Python experiment orchestration, placement/routing helpers, and plotting scripts used by the paper experiments.
 
-- `src/main.cc` sets up configuration, logging, repetitions, and output directories.
-- `src/psim.cc` owns the main simulation loop and result logging.
-- `src/network.cc` implements shared network, machine, and bottleneck behavior.
-- `src/core_network.cc` implements fat-tree and leaf-spine network behavior.
-- `src/loadbalancer.cc` implements path/core selection policies.
-- `src/protocol_builder.cc` loads or generates protocol graphs.
-- `include/gconfig.h` defines global runtime configuration.
+The most useful implementation entry points are:
+
+- `src/main.cc` sets up command-line configuration, logging, repetitions, and per-run output directories.
+- `src/psim.cc` owns the main simulation loop: starting tasks, advancing flows/compute, collecting history, and logging results.
+- `src/protocol_builder.cc` builds protocol graphs either from input files or from generated experiment metadata.
+- `src/network.cc` and `src/core_network.cc` implement the network models and bottlenecks.
+- `src/loadbalancer.cc` implements routing and load-balancing policies.
+- `include/gconfig.h` lists the runtime configuration fields populated by command-line options.
 
 ## Dependencies
 
@@ -119,14 +108,17 @@ From the build directory, run the simulator with a protocol input:
   --protocol-file-name vgg128-simtime.txt \
   --network-type leafspine \
   --lb-scheme roundrobin \
-  --rep-count 1
+  --rep-count 1 \
+  --console-log-level 5
 ```
 
 Output is written under the configured workers directory. By default, PSIM writes to:
 
 ```text
-workers/worker-<worker-id>/run-<rep>/
+build/workers/worker-<worker-id>/run-<rep>/
 ```
+
+The path above assumes the command is run from the `build/` directory.
 
 Typical generated files include:
 
@@ -140,36 +132,124 @@ Typical generated files include:
 
 PSIM is configured through command-line flags that populate the global configuration object in `include/gconfig.h`.
 
-Common options:
+The most important options are grouped below. For the complete list, run `./build/psim --help`.
+
+### Workload and Protocol Options
 
 | Option | Description |
 | --- | --- |
-| `--protocol-file-dir` | Directory containing protocol input files. |
-| `--protocol-file-name` | Protocol file name, or comma-separated protocol file names. |
-| `--network-type` | Network model: `fattree`, `leafspine`, or `bigswitch`. |
-| `--lb-scheme` | Load-balancing scheme, such as `random`, `roundrobin`, `ecmp`, `leastloaded`, or `powerof2`. |
 | `--machine-count` | Number of machines/devices in the simulated cluster. |
+| `--protocol-file-name` | Either an input file name or a built-in protocol builder name such as `nethint-test`. Multiple names can be comma-separated. |
+| `--protocol-file-dir` | Directory used when `--protocol-file-name` refers to input files. |
+| `--placement-file` | JSON placement file used by the runtime protocol builder. |
+| `--timing-file` | Optional JSON timing/throttling file used by the runtime protocol builder. |
+| `--routing-file` | JSON routing file used by generated protocols and `readprotocol` routing. |
+| `--subflows` | Number of subflows to create for generated communication. |
+| `--isolate-job-id` | Run only one job from a generated workload. |
+
+### Network Options
+
+| Option | Description |
+| --- | --- |
+| `--network-type` | Network model: `fattree`, `leafspine`, or `bigswitch`. |
 | `--link-bandwidth` | Base link bandwidth. |
+| `--ft-server-per-rack` | Number of servers per rack. |
+| `--ft-rack-per-pod` | Number of racks per pod. |
+| `--ft-agg-per-pod` | Number of aggregation switches per pod. |
+| `--ft-pod-count` | Number of pods. |
+| `--ft-core-count` | Number of core switches or spines. |
+| `--ft-server-tor-link-capacity-mult` | Multiplier for server-to-ToR link capacity. |
+| `--ft-tor-agg-link-capacity-mult` | Multiplier for ToR-to-aggregation link capacity. |
+| `--ft-agg-core-link-capacity-mult` | Multiplier for aggregation-to-core link capacity. |
+| `--gpu-per-machine` | Number of GPUs per machine in supported topologies. |
+| `--gpu-gpu-link-capacity-mult` | Multiplier for intra-machine GPU link capacity. |
+
+### Routing and Bandwidth Allocation
+
+| Option | Description |
+| --- | --- |
+| `--lb-scheme` | Load-balancing policy: `random`, `roundrobin`, `ecmp`, `zero`, `readfile`, `readprotocol`, `leastloaded`, `powerofK`, `futureload`, `robinhood`, or `sita-e`. |
+| `--lb-decisions-file` | File used by `readfile` load balancing. |
+| `--ecmp-entropy-options` | Number of entropy choices used by ECMP. |
+| `--load-metric` | Load signal used by load-aware policies: `flowsize`, `flowcount`, `utilization`, `allocated`, or `registered`. |
+| `--priority-allocator` | Bottleneck allocator: `priorityqueue`, `fixedlevels`, `fairshare`, or `maxmin`. |
+| `--bn-priority-levels` | Number of bottleneck priority levels. |
+| `--initial-rate` | Initial flow sending rate. |
+| `--min-rate` | Minimum flow sending rate. |
+| `--rate-increase` | Multiplicative rate increase factor. |
+| `--rate-decrease-factor` | Multiplicative rate decrease factor. |
+| `--drop-chance-multiplier` | Multiplier used by probabilistic drop/congestion behavior. |
+| `--punish-oversubscribed` | Enable oversubscription penalty behavior. |
+| `--punish-oversubscribed-min` | Lower bound used by oversubscription penalty behavior. |
+
+### Simulation and Output
+
+| Option | Description |
+| --- | --- |
 | `--rep-count` | Number of repeated simulation runs. |
 | `--step-size` | Fixed simulation time step. |
+| `--adaptive-step-size` | Enable adaptive step sizing. |
+| `--adaptive-step-size-min` | Minimum adaptive step size. |
+| `--adaptive-step-size-max` | Maximum adaptive step size. |
 | `--workers-dir` | Directory where per-run output is written. |
+| `--worker-id` | Worker identifier used in output paths. |
 | `--simulation-seed` | Base seed used for repeated runs. |
+| `--console-log-level` | Console log verbosity. Higher values are quieter. |
+| `--file-log-level` | File log verbosity. |
+| `--core-status-profiling-interval` | Interval for recording core link status. |
+| `--no-profile-core-status` | Disable core status profiling. |
+| `--record-bottleneck-history` | Record bottleneck allocation history. |
+| `--record-machine-history` | Record per-machine queue history. |
+| `--print-flow-progress-history` | Record per-flow progress history. |
+| `--export-dot` | Export protocol graph DOT files. |
 
-For the full option list:
-
-```bash
-./build/psim --help
-```
+The Python experiment scripts also maintain higher-level experiment settings such as placement mode, timing scheme, comparison name, and routing strategy. Those settings are used to generate the placement, timing, and routing files passed into the C++ simulator.
 
 ## Protocol Inputs
 
-Protocol files describe task graphs. The loader currently recognizes lines for:
+PSIM supports two ways to create protocol graphs.
+
+### File-Based Protocols
+
+The original path is to load a protocol file from `--protocol-file-dir`.
+
+The file loader recognizes lines for:
 
 - `Comm` communication tasks.
 - `Forw` and `Back` compute tasks.
 - `AllR` empty/synchronization tasks.
 
-The default protocol directory is configured as `../input`, and the default protocol file name is `vgg.txt`. Most experiment scripts pass explicit protocol paths and generated placement, timing, or routing files.
+For this mode, `--protocol-file-name` is the file name, for example:
+
+```bash
+--protocol-file-dir ../input/128search \
+--protocol-file-name vgg128-simtime.txt
+```
+
+### Runtime-Built Protocols
+
+Most current experiments use the protocol builder instead of static protocol files. In this mode, `--protocol-file-name` names a built-in builder, and the simulator constructs the protocol graph at runtime.
+
+The main experiment builder is:
+
+```bash
+--protocol-file-name nethint-test
+```
+
+`nethint-test` reads generated experiment metadata and creates the protocol graph inside `src/protocol_builder.cc`. The key inputs are:
+
+- `--placement-file`: JSON description of jobs, machine assignments, communication size, compute size, layer count, and iteration count.
+- `--timing-file`: optional JSON timing metadata with per-job iteration offsets and throttle rates.
+- `--routing-file`: JSON routing metadata that maps generated flows to spines/cores and rates.
+
+The Python scripts under `run/` generate these files before invoking `build/psim`. This is the path used by the paper sweeps: Python defines the experiment, produces placement/timing/routing artifacts, then launches the C++ simulator with `--protocol-file-name nethint-test`.
+
+There are also smaller built-in protocol builders useful for debugging:
+
+- `build-ring`
+- `build-all-to-all`
+- `periodic-test`
+- `periodic-test-simple`
 
 ## Running Paper Experiments
 
@@ -220,4 +300,3 @@ For new contributors, the best starting points are:
 2. Run a single small protocol input.
 3. Inspect the generated `results.txt` and `flow-info.txt`.
 4. Follow one sweep script under `run/` to understand how large experiment batches are configured.
-
