@@ -47,20 +47,9 @@ The most useful implementation entry points are:
 
 PSIM currently expects:
 
-- A C++17 compiler.
-- CMake.
-- Boost Program Options.
-- Python development headers/libraries.
-- Python packages used by plotting and experiment scripts:
-  - `matplotlib`
-  - `numpy`
-  - `pandas`
-  - `networkx`
-  - `seaborn`
-  - `scipy`
-- Git submodules:
-  - `deps/spdlog`
-  - `deps/json`
+- C++ build tools: a C++17 compiler, CMake, Boost Program Options, and Python development headers/libraries.
+- Python packages for experiments and plotting: `matplotlib`, `numpy`, `pandas`, `networkx`, `seaborn`, and `scipy`.
+- Git submodules: `deps/spdlog` and `deps/json`.
 
 On Ubuntu-like systems, the base system dependencies are typically:
 
