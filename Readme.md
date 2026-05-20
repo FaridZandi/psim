@@ -1,4 +1,4 @@
-[banner](docs/banner1.png)
+![banner](docs/banner1.png)
 
 # PSIM
 
