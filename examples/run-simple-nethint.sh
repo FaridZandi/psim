@@ -69,11 +69,12 @@ JSON
   --ft-core-count 4 \
   --link-bandwidth 10 \
   --priority-allocator maxmin \
-  --initial-rate 10 \
-  --min-rate 10 \
+  --initial-rate 3 \
+  --min-rate 3 \
   --step-size 0.1 \
   --trace-snapshots \
   --ft-agg-core-link-capacity-mult 1 \
+  --ft-tor-agg-link-capacity-mult 1 \
   --trace-snapshot-interval 500 \
   --trace-file "${TRACE_FILE}" \
   --rep-count 1 \

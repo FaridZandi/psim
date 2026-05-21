@@ -9,6 +9,7 @@
 #include <boost/algorithm/string.hpp>
 #include "gcontext.h"
 #include "nlohmann/json.hpp"
+#include <cctype>
 
 using namespace psim;
 using json = nlohmann::json;
@@ -16,6 +17,42 @@ using json = nlohmann::json;
 namespace plt = matplotlibcpp;
 
 static int simulation_counter = 0;
+
+static int parse_event_jobid(const std::string& message) {
+    std::string prefix = "job ";
+    size_t pos = message.find(prefix);
+    if (pos == std::string::npos) {
+        return -1;
+    }
+
+    pos += prefix.size();
+    size_t end = pos;
+    while (end < message.size() && std::isdigit(static_cast<unsigned char>(message[end]))) {
+        end += 1;
+    }
+
+    if (end == pos) {
+        return -1;
+    }
+
+    return std::stoi(message.substr(pos, end - pos));
+}
+
+static std::string classify_event_message(const std::string& message) {
+    if (message.find("all-reduce started") != std::string::npos) {
+        return "allreduce_started";
+    }
+    if (message.find("all-reduce finished") != std::string::npos) {
+        return "allreduce_finished";
+    }
+    if (message.find(" iter ") != std::string::npos && message.find(" finished") != std::string::npos) {
+        return "iteration_finished";
+    }
+    if (message.find(" started") != std::string::npos) {
+        return "job_started";
+    }
+    return "milestone";
+}
 
 PSim::PSim() {
     this->timer = 0;
@@ -173,6 +210,7 @@ void PSim::start_task(PTask *task, bool start_in_next_timestep) {
                 }
 
                 spdlog::critical("[{}]: {}", time_to_print, empty_task->print_message);
+                record_milestone_event(time_to_print, empty_task->print_message);
             }
 
             handle_task_completion(task);
@@ -185,6 +223,16 @@ void PSim::start_task(PTask *task, bool start_in_next_timestep) {
         }
     }
 
+}
+
+void PSim::record_milestone_event(double time, std::string message) {
+    milestone_event event;
+    event.id = milestone_events.size();
+    event.time = time;
+    event.jobid = parse_event_jobid(message);
+    event.kind = classify_event_message(message);
+    event.message = message;
+    milestone_events.push_back(event);
 }
 
 
@@ -373,6 +421,17 @@ void PSim::write_trace_snapshot(history_entry& h, int snapshot_index) {
     snapshot["total_core_bw_utilization"] = h.total_core_bw_utilization;
     snapshot["total_core_bw"] = h.total_core_bw;
     snapshot["accelerator_utilization"] = h.total_accelerator_utilization_rate;
+
+    snapshot["events"] = json::array();
+    for (auto& event : milestone_events) {
+        snapshot["events"].push_back({
+            {"id", event.id},
+            {"time", event.time},
+            {"jobid", event.jobid},
+            {"kind", event.kind},
+            {"message", event.message}
+        });
+    }
 
     snapshot["job_progress"] = json::array();
     for (int i = 0; i < 10; i++) {

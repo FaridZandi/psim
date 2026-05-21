@@ -27,6 +27,14 @@ class PTask;
 class PComp;
 class EmptyTask;
 
+struct milestone_event {
+    int id;
+    double time;
+    int jobid;
+    std::string kind;
+    std::string message;
+};
+
 struct history_entry {
     double time;
     int flow_count;
@@ -72,6 +80,7 @@ private:
     void handle_task_completion(PTask *task);
     void start_next_tasks(PTask *task, bool start_in_next_timestep);
     void start_task(PTask *task, bool start_in_next_timestep);
+    void record_milestone_event(double time, std::string message);
     void save_run_results();
     void mark_critical_path(); 
     void traverse_critical_path(PTask* task); 
@@ -80,6 +89,7 @@ private:
     std::vector<Protocol *> protocols;
     std::vector<Flow *> finished_flows;
     std::vector<PComp *> finished_compute_tasks;
+    std::vector<milestone_event> milestone_events;
 
     // maybe move this to the network later as well.
     std::vector<PComp *> compute_tasks;

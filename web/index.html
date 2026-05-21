@@ -81,7 +81,7 @@
 
     main {
       display: grid;
-      grid-template-columns: 1.3fr 0.9fr;
+      grid-template-columns: 0.62fr 0.9fr 1.48fr;
       gap: 14px;
       padding: 14px;
     }
@@ -151,6 +151,17 @@
       background: #fbfcfe;
     }
 
+    .progress-wrap { padding: 12px; }
+
+    #jobTimeline {
+      display: block;
+      width: 100%;
+      height: 260px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+
     .jobs, .links {
       display: grid;
       gap: 8px;
@@ -210,6 +221,9 @@
     }
 
     .wide { grid-column: 1 / -1; }
+    .jobs-panel { grid-column: 1; }
+    .links-panel { grid-column: 2; }
+    .flows-panel { grid-column: 3; }
 
     #status {
       min-width: 180px;
@@ -218,6 +232,7 @@
 
     @media (max-width: 900px) {
       main { grid-template-columns: 1fr; }
+      .jobs-panel, .links-panel, .flows-panel { grid-column: 1; }
       .metrics { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
       header { align-items: stretch; flex-direction: column; }
       .controls { justify-content: flex-start; }
@@ -262,7 +277,17 @@
       </div>
     </section>
 
-    <section>
+    <section class="wide">
+      <div class="section-head">
+        <h2>Progress</h2>
+        <span id="progressStatus" class="subtle">job milestones</span>
+      </div>
+      <div class="progress-wrap">
+        <canvas id="jobTimeline"></canvas>
+      </div>
+    </section>
+
+    <section class="jobs-panel">
       <div class="section-head">
         <h2>Jobs</h2>
         <span class="subtle">per-step communication</span>
@@ -270,7 +295,7 @@
       <div id="jobs" class="jobs"></div>
     </section>
 
-    <section>
+    <section class="links-panel">
       <div class="section-head">
         <h2>Links</h2>
         <span class="subtle">hottest bottlenecks</span>
@@ -278,7 +303,7 @@
       <div id="links" class="links"></div>
     </section>
 
-    <section>
+    <section class="flows-panel">
       <div class="section-head">
         <h2>Flows</h2>
         <span class="subtle">active transfers</span>
@@ -361,8 +386,20 @@
       const text = await response.text();
       state.frames = text.trim().split(/\n+/).filter(Boolean).map((line) => JSON.parse(line));
       if (state.frames.length === 0) throw new Error("trace is empty");
+      state.events = collectEvents(state.frames);
+      state.maxTime = Math.max(...state.frames.map((frame) => frame.time || 0), ...state.events.map((event) => event.time || 0), 1);
       $("scrub").max = String(state.frames.length - 1);
       render(0);
+    }
+
+    function collectEvents(frames) {
+      const byId = new Map();
+      for (const frame of frames) {
+        for (const event of frame.events || []) {
+          byId.set(event.id, event);
+        }
+      }
+      return [...byId.values()].sort((a, b) => (a.time - b.time) || (a.id - b.id));
     }
 
     function render(nextIndex) {
@@ -378,9 +415,124 @@
       setStatus(`${state.index + 1} / ${state.frames.length}`);
 
       renderTopology(frame);
+      renderProgress(frame);
       renderJobs(frame);
       renderLinks(frame);
       renderFlows(frame);
+    }
+
+    function renderProgress(frame) {
+      const canvas = $("jobTimeline");
+      const { ctx, width, height } = resizeCanvas(canvas);
+      ctx.clearRect(0, 0, width, height);
+
+      const events = state.events || [];
+      const currentTime = frame.time || 0;
+      const visibleEvents = events.filter((event) => event.time <= currentTime && Number(event.jobid) > 0);
+      const jobIds = [...new Set(events.map((event) => Number(event.jobid)).filter((jobid) => jobid > 0))].sort((a, b) => a - b);
+      const left = 78;
+      const right = width - 24;
+      const top = 30;
+      const rowGap = jobIds.length > 1 ? (height - 64) / (jobIds.length - 1) : 0;
+      const xForTime = (time) => left + Math.min(1, Math.max(0, time / Math.max(1, state.maxTime))) * (right - left);
+      const currentX = xForTime(currentTime);
+
+      ctx.strokeStyle = "#dce1e8";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#657080";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      for (let tick = 0; tick <= 4; tick++) {
+        const x = left + (right - left) * tick / 4;
+        const t = state.maxTime * tick / 4;
+        ctx.beginPath();
+        ctx.moveTo(x, top - 10);
+        ctx.lineTo(x, height - 24);
+        ctx.stroke();
+        ctx.fillText(fixed(t, 0), x, height - 20);
+      }
+
+      const openStarts = new Map();
+      for (const event of visibleEvents) {
+        const jobid = Number(event.jobid);
+        if (event.kind === "allreduce_started") {
+          openStarts.set(jobid, event);
+        } else if (event.kind === "allreduce_finished" && openStarts.has(jobid)) {
+          const start = openStarts.get(jobid);
+          const y = top + jobIds.indexOf(jobid) * rowGap;
+          ctx.strokeStyle = jobColor(jobid);
+          ctx.lineWidth = 9;
+          ctx.lineCap = "round";
+          ctx.beginPath();
+          ctx.moveTo(xForTime(start.time), y);
+          ctx.lineTo(xForTime(event.time), y);
+          ctx.stroke();
+          openStarts.delete(jobid);
+        }
+      }
+      for (const [jobid, start] of openStarts.entries()) {
+        const y = top + jobIds.indexOf(jobid) * rowGap;
+        ctx.strokeStyle = colorWithAlpha(jobColor(jobid), 0.62);
+        ctx.lineWidth = 9;
+        ctx.lineCap = "round";
+        ctx.beginPath();
+        ctx.moveTo(xForTime(start.time), y);
+        ctx.lineTo(currentX, y);
+        ctx.stroke();
+      }
+      ctx.lineCap = "butt";
+
+      for (const jobid of jobIds) {
+        const y = top + jobIds.indexOf(jobid) * rowGap;
+        ctx.strokeStyle = "#cfd6df";
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
+        ctx.stroke();
+
+        ctx.fillStyle = jobColor(jobid);
+        ctx.font = "12px system-ui, sans-serif";
+        ctx.textAlign = "right";
+        ctx.textBaseline = "middle";
+        ctx.fillText(`Job ${jobid}`, left - 12, y);
+      }
+
+      for (const event of visibleEvents) {
+        const jobid = Number(event.jobid);
+        const y = top + jobIds.indexOf(jobid) * rowGap;
+        const x = xForTime(event.time);
+        const color = jobColor(jobid);
+        if (event.kind === "allreduce_started" || event.kind === "allreduce_finished") {
+          ctx.beginPath();
+          ctx.arc(x, y, 4, 0, Math.PI * 2);
+          ctx.fillStyle = event.kind === "allreduce_started" ? "#ffffff" : color;
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 2;
+          ctx.fill();
+          ctx.stroke();
+        } else {
+          ctx.beginPath();
+          ctx.moveTo(x, y - 7);
+          ctx.lineTo(x + 5, y);
+          ctx.lineTo(x, y + 7);
+          ctx.lineTo(x - 5, y);
+          ctx.closePath();
+          ctx.fillStyle = colorWithAlpha(color, 0.85);
+          ctx.fill();
+        }
+      }
+
+      ctx.strokeStyle = "#18202a";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(currentX, 14);
+      ctx.lineTo(currentX, height - 28);
+      ctx.stroke();
+
+      const lastEvent = visibleEvents[visibleEvents.length - 1];
+      $("progressStatus").textContent = lastEvent ? `${fixed(lastEvent.time, 1)}: ${lastEvent.message}` : "job milestones";
     }
 
     function nodeKind(id) {
