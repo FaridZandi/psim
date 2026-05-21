@@ -398,7 +398,7 @@ void PSim::write_trace_snapshot(history_entry& h, int snapshot_index) {
     for (auto task : compute_tasks) {
         snapshot["compute_tasks"].push_back({
             {"id", task->id},
-            {"jobid", task->protocol ? task->protocol->finished_task_count : -1},
+            {"jobid", task->jobid},
             {"machine", task->dev_id},
             {"size", task->size},
             {"progress", task->progress}

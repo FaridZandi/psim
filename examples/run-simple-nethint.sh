@@ -51,10 +51,11 @@ JSON
   --ft-core-count 1 \
   --link-bandwidth 10 \
   --priority-allocator maxmin \
-  --initial-rate 5 \
-  --min-rate 5 \
+  --initial-rate 10 \
+  --min-rate 10 \
   --step-size 0.1 \
   --trace-snapshots \
+  --ft-agg-core-link-capacity-mult 1 \
   --trace-snapshot-interval 1000 \
   --trace-file "${TRACE_FILE}" \
   --rep-count 1 \

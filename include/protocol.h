@@ -181,6 +181,7 @@ public:
     virtual ~PComp();
 
     int dev_id;
+    int jobid;
     double size;
     double progress;
 

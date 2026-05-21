@@ -411,6 +411,7 @@ PComp::print_task_info(std::ostream& os){
 void PComp::reset(){
     progress = 0;
     dev_id = 0;
+    jobid = -1;
     size = 0;
     machine = nullptr;
 }
@@ -420,6 +421,7 @@ PTask* PComp::make_shallow_copy(){
     PComp *new_task = new PComp();
     new_task->size = this->size;
     new_task->dev_id = this->dev_id;
+    new_task->jobid = this->jobid;
 
     return new_task;
 }

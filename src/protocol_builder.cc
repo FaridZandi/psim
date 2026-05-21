@@ -653,6 +653,7 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
             PComp* wait = (PComp*)protocol->create_task(PTaskType::COMPUTE);
             wait->size = this_iter_delta;
             wait->dev_id = node_ids[0];
+            wait->jobid = jobid;
             last_iter_finisher->add_next_task_id(wait->id); 
             prev_dep = wait;
         }
@@ -666,6 +667,7 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
                 PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
                 pc->size = forward_size;
                 pc->dev_id = node_ids[node_index];
+                pc->jobid = jobid;
 
                 // if it's not the first iteration, I have to connect it somehow to the previous iteration. 
                 if (k == 0 and prev_dep != nullptr) {
@@ -699,6 +701,7 @@ insert_simple_data_parallelism(Protocol* protocol, int jobid,
                 PComp* pc = (PComp*)protocol->create_task(PTaskType::COMPUTE);
                 pc->size = backward_size;
                 pc->dev_id = node_ids[node_index];
+                pc->jobid = jobid;
 
                 // connect the last layer pc to this layer 
                 last_layer_pcs[node_index]->add_next_task_id(pc->id);
