@@ -62,7 +62,8 @@ JSON
   --protocol-file-name nethint-test \
   --placement-file "${PLACEMENT_FILE}" \
   --network-type leafspine \
-  --lb-scheme powerof2 \
+  --lb-scheme random \
+  --load-metric utilization \
   --machine-count 32 \
   --ft-server-per-rack 8 \
   --ft-rack-per-pod 1 \

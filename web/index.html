@@ -66,6 +66,17 @@
       min-width: 86px;
     }
 
+    input[type="text"] {
+      height: 34px;
+      min-width: min(44vw, 520px);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      padding: 0 10px;
+      color: var(--ink);
+      background: #fff;
+      font: inherit;
+    }
+
     input[type="range"] {
       width: min(42vw, 520px);
       accent-color: var(--blue);
@@ -236,6 +247,7 @@
       .metrics { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
       header { align-items: stretch; flex-direction: column; }
       .controls { justify-content: flex-start; }
+      input[type="text"] { min-width: 100%; }
       input[type="range"] { width: 100%; }
       #status { text-align: left; }
     }
@@ -245,6 +257,8 @@
   <header>
     <h1>PSIM Viewer</h1>
     <div class="controls">
+      <input id="traceInput" type="text" aria-label="Trace path">
+      <button id="loadTrace">Load</button>
       <button id="prev" title="Previous snapshot">◀</button>
       <button id="play" class="primary">Play</button>
       <button id="next" title="Next snapshot">▶</button>
@@ -328,8 +342,8 @@
 
   <script>
     const params = new URLSearchParams(location.search);
-    const traceUrl = params.get("trace") || "/workers/simple-nethint/worker-0/run-1/trace.jsonl";
-    const state = { frames: [], index: 0, playing: false, timer: null };
+    const defaultTraceUrl = params.get("trace") || "/workers/simple-nethint/worker-0/run-1/trace.jsonl";
+    const state = { frames: [], index: 0, playing: false, timer: null, traceUrl: defaultTraceUrl };
 
     const $ = (id) => document.getElementById(id);
     const pct = (value) => `${Math.round(value * 100)}%`;
@@ -379,9 +393,37 @@
       return { machineJobs, linkJobs };
     }
 
-    async function loadTrace() {
-      $("tracePath").textContent = traceUrl;
-      const response = await fetch(traceUrl, { cache: "no-store" });
+    function stopPlayback() {
+      if (state.playing) {
+        state.playing = false;
+        $("play").textContent = "Play";
+      }
+      clearInterval(state.timer);
+      state.timer = null;
+    }
+
+    function normalizeTraceUrl(traceUrl) {
+      const value = traceUrl.trim();
+      if (!value || value.startsWith("/") || /^https?:\/\//i.test(value)) {
+        return value;
+      }
+      return `/${value}`;
+    }
+
+    async function loadTrace(nextTraceUrl = state.traceUrl) {
+      stopPlayback();
+      const normalizedUrl = normalizeTraceUrl(nextTraceUrl);
+      if (!normalizedUrl) {
+        setStatus("Enter a trace path");
+        return;
+      }
+
+      state.traceUrl = normalizedUrl;
+      $("traceInput").value = normalizedUrl;
+      $("tracePath").textContent = normalizedUrl;
+      setStatus("Loading trace...");
+
+      const response = await fetch(normalizedUrl, { cache: "no-store" });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       const text = await response.text();
       state.frames = text.trim().split(/\n+/).filter(Boolean).map((line) => JSON.parse(line));
@@ -390,6 +432,10 @@
       state.maxTime = Math.max(...state.frames.map((frame) => frame.time || 0), ...state.events.map((event) => event.time || 0), 1);
       $("scrub").max = String(state.frames.length - 1);
       render(0);
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("trace", normalizedUrl);
+      history.replaceState(null, "", url);
     }
 
     function collectEvents(frames) {
@@ -801,11 +847,24 @@
     }
 
     $("play").addEventListener("click", togglePlay);
+    $("loadTrace").addEventListener("click", () => {
+      loadTrace($("traceInput").value).catch((error) => {
+        setStatus(`Could not load trace: ${error.message}`);
+      });
+    });
+    $("traceInput").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        loadTrace($("traceInput").value).catch((error) => {
+          setStatus(`Could not load trace: ${error.message}`);
+        });
+      }
+    });
     $("prev").addEventListener("click", () => render(state.index - 1));
     $("next").addEventListener("click", () => render(state.index + 1));
     $("scrub").addEventListener("input", (event) => render(Number(event.target.value)));
 
-    loadTrace().catch((error) => {
+    $("traceInput").value = state.traceUrl;
+    loadTrace(state.traceUrl).catch((error) => {
       setStatus(`Could not load trace: ${error.message}`);
     });
   </script>
