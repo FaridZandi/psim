@@ -1,4 +1,4 @@
-![banner](docs/banner3.png)
+![banner](docs/banner4.png)
 
 <!-- # PSIM -->
 
