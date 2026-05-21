@@ -136,11 +136,15 @@
       font-size: 12px;
     }
 
-    .topology-wrap { padding: 12px; }
+    .topology-wrap {
+      padding: 12px;
+      overflow-x: auto;
+    }
 
     #topology {
       display: block;
       width: 100%;
+      min-width: 1120px;
       height: 460px;
       border: 1px solid var(--line);
       border-radius: 8px;
@@ -452,9 +456,6 @@
         });
       }
 
-      placeRow(cores, 58);
-      placeRow(switches, height * 0.43);
-
       const machineGroups = new Map();
       for (const machine of machines) machineGroups.set(machine.id, "all");
       for (const link of frame.links) {
@@ -469,14 +470,25 @@
         if (!groupedMachines.has(parent)) groupedMachines.set(parent, []);
         groupedMachines.get(parent).push(machine);
       }
+
+      const machineSpacing = Math.min(46, Math.max(28, width / Math.max(40, machines.length + switches.length * 2)));
+      const maxGroupSize = Math.max(1, ...[...groupedMachines.values()].map((group) => group.length));
+      const switchSideMargin = Math.max(64, machineSpacing * (maxGroupSize - 1) / 2 + 40);
+
+      placeRow(cores, 58, switchSideMargin, width - switchSideMargin);
+      placeRow(switches, height * 0.43, switchSideMargin, width - switchSideMargin);
+
       for (const [parent, group] of groupedMachines) {
         group.sort((a, b) => sortNodeIds(a.id, b.id));
         const parentPos = positioned.get(parent);
         if (!parentPos) continue;
-        const spacing = Math.min(58, Math.max(34, width / Math.max(8, machines.length)));
-        const start = parentPos.x - spacing * (group.length - 1) / 2;
+        const groupWidth = machineSpacing * (group.length - 1);
+        const minStart = 34;
+        const maxStart = width - 34 - groupWidth;
+        const centeredStart = parentPos.x - groupWidth / 2;
+        const start = Math.max(minStart, Math.min(maxStart, centeredStart));
         group.forEach((node, index) => {
-          positioned.set(node.id, { ...node, x: start + index * spacing, y: height - 62 });
+          positioned.set(node.id, { ...node, x: start + index * machineSpacing, y: height - 62 });
         });
       }
       const unpositionedMachines = machines.filter((machine) => !positioned.has(machine.id));
