@@ -28,7 +28,7 @@ class PComp;
 class EmptyTask;
 
 struct history_entry {
-    int time;
+    double time;
     int flow_count;
     int step_finished_flows;
     int comp_task_count;
@@ -93,6 +93,7 @@ private:
 
     std::vector<history_entry> history;
     void log_history_entry(history_entry& h);
+    void write_trace_snapshot(history_entry& h, int snapshot_index);
 
     void draw_plots(std::initializer_list<std::pair<std::string, std::function<double(history_entry)>>> plots, 
                     int smoothing = auto_smooth);

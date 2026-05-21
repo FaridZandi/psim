@@ -13,6 +13,26 @@
 
 using namespace psim;
 
+static std::string machine_node(int machine_num) {
+    return "m" + std::to_string(machine_num);
+}
+
+static std::string ft_tor_node(int pod, int rack) {
+    return "tor-p" + std::to_string(pod) + "-r" + std::to_string(rack);
+}
+
+static std::string ft_agg_node(int pod, int agg) {
+    return "agg-p" + std::to_string(pod) + "-a" + std::to_string(agg);
+}
+
+static std::string ft_core_node(int core) {
+    return "core" + std::to_string(core);
+}
+
+static std::string leaf_tor_node(int tor) {
+    return "tor" + std::to_string(tor);
+}
+
 
 CoreConnectedNetwork::CoreConnectedNetwork() : Network() {}
 
@@ -145,9 +165,17 @@ FatTreeNetwork::FatTreeNetwork() : CoreConnectedNetwork() {
                 server_loc_map[machine_num] = ft_loc{i, j, k, -1, -1};
 
                 Bottleneck *bn_up = create_bottleneck(server_tor_link_capacity);
+                bn_up->endpoint_a = machine_node(machine_num);
+                bn_up->endpoint_b = ft_tor_node(i, j);
+                bn_up->link_type = "machine-tor";
+                bn_up->direction = 1;
                 server_tor_bottlenecks[ft_loc{i, j, k, 1, -1}] = bn_up;
 
                 Bottleneck *bn_down = create_bottleneck(server_tor_link_capacity);
+                bn_down->endpoint_a = ft_tor_node(i, j);
+                bn_down->endpoint_b = machine_node(machine_num);
+                bn_down->link_type = "tor-machine";
+                bn_down->direction = 2;
                 server_tor_bottlenecks[ft_loc{i, j, k, 2, -1}] = bn_down;
             }
         }
@@ -155,9 +183,17 @@ FatTreeNetwork::FatTreeNetwork() : CoreConnectedNetwork() {
         for (int j = 0; j < rack_per_pod; j++){
             for (int k = 0; k < agg_per_pod; k++) {
                 Bottleneck *bn_up = create_bottleneck(tor_agg_link_capacity);
+                bn_up->endpoint_a = ft_tor_node(i, j);
+                bn_up->endpoint_b = ft_agg_node(i, k);
+                bn_up->link_type = "tor-agg";
+                bn_up->direction = 1;
                 tor_agg_bottlenecks[ft_loc{i, j, k, 1, -1}] = bn_up;
 
                 Bottleneck *bn_down = create_bottleneck(tor_agg_link_capacity);
+                bn_down->endpoint_a = ft_agg_node(i, k);
+                bn_down->endpoint_b = ft_tor_node(i, j);
+                bn_down->link_type = "agg-tor";
+                bn_down->direction = 2;
                 tor_agg_bottlenecks[ft_loc{i, j, k, 2, -1}] = bn_down;
             }
         }
@@ -166,9 +202,17 @@ FatTreeNetwork::FatTreeNetwork() : CoreConnectedNetwork() {
             int agg_num = c / (core_link_per_agg);
 
             Bottleneck *bn_up = create_bottleneck(core_link_capacity);
+            bn_up->endpoint_a = ft_agg_node(i, agg_num);
+            bn_up->endpoint_b = ft_core_node(c);
+            bn_up->link_type = "agg-core";
+            bn_up->direction = 1;
             core_bottlenecks[ft_loc{i, -1, -1, 1, c}] = bn_up;
 
             Bottleneck *bn_down = create_bottleneck(core_link_capacity);
+            bn_down->endpoint_a = ft_core_node(c);
+            bn_down->endpoint_b = ft_agg_node(i, agg_num);
+            bn_down->link_type = "core-agg";
+            bn_down->direction = 2;
             core_bottlenecks[ft_loc{i, -1, -1, 2, c}] = bn_down;
 
             pod_core_agg_map[ft_loc{i, -1, -1, -1, c}] = agg_num;
@@ -308,10 +352,18 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
 
             Bottleneck *bn_up = create_bottleneck(server_tor_link_capacity);
             bn_up->tier = 1;
+            bn_up->endpoint_a = machine_node(machine_num);
+            bn_up->endpoint_b = leaf_tor_node(i);
+            bn_up->link_type = "machine-tor";
+            bn_up->direction = 1;
             server_tor_bottlenecks[ft_loc{-1, i, k, 1, -1}] = bn_up;
 
             Bottleneck *bn_down = create_bottleneck(server_tor_link_capacity);
             bn_down->tier = 1;  
+            bn_down->endpoint_a = leaf_tor_node(i);
+            bn_down->endpoint_b = machine_node(machine_num);
+            bn_down->link_type = "tor-machine";
+            bn_down->direction = 2;
             server_tor_bottlenecks[ft_loc{-1, i, k, 2, -1}] = bn_down;
         }
 
@@ -328,6 +380,16 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
                         if (g1 != g2) {
                             Bottleneck *bn_dir1 = create_bottleneck(gpu_gpu_link_capacity);
                             Bottleneck *bn_dir2 = create_bottleneck(gpu_gpu_link_capacity);
+                            int src_gpu = i * server_per_rack + g1;
+                            int dst_gpu = i * server_per_rack + g2;
+                            bn_dir1->endpoint_a = machine_node(src_gpu);
+                            bn_dir1->endpoint_b = machine_node(dst_gpu);
+                            bn_dir1->link_type = "gpu-gpu";
+                            bn_dir1->direction = 1;
+                            bn_dir2->endpoint_a = machine_node(dst_gpu);
+                            bn_dir2->endpoint_b = machine_node(src_gpu);
+                            bn_dir2->link_type = "gpu-gpu";
+                            bn_dir2->direction = 2;
 
                             ft_loc src_loc{-1, i, g1, -1, -1};
                             ft_loc dst_loc{-1, i, g2, -1, -1};
@@ -343,10 +405,18 @@ LeafSpineNetwork::LeafSpineNetwork() : CoreConnectedNetwork() {
         for (int c = 0; c < core_count; c++) {
             Bottleneck *bn_up = create_bottleneck(core_link_capacity);
             bn_up->tier = 2;    
+            bn_up->endpoint_a = leaf_tor_node(i);
+            bn_up->endpoint_b = ft_core_node(c);
+            bn_up->link_type = "tor-core";
+            bn_up->direction = 1;
             core_bottlenecks[ft_loc{-1, i, -1, 1, c}] = bn_up;
 
             Bottleneck *bn_down = create_bottleneck(core_link_capacity);
             bn_down->tier = 2;
+            bn_down->endpoint_a = ft_core_node(c);
+            bn_down->endpoint_b = leaf_tor_node(i);
+            bn_down->link_type = "core-tor";
+            bn_down->direction = 2;
             core_bottlenecks[ft_loc{-1, i, -1, 2, c}] = bn_down;
         }
     }

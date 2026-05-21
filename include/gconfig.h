@@ -75,6 +75,9 @@ public:
     bool export_dot = false;
     bool record_bottleneck_history = false;
     bool record_machine_history = false;
+    bool trace_snapshots = false;
+    int trace_snapshot_interval = 10;
+    std::string trace_file = "";
     std::string output_dir = "output/";
     int console_log_level = 2;
     int file_log_level = 2;

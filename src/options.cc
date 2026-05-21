@@ -30,6 +30,9 @@ po::variables_map psim::parse_arguments(int argc, char** argv) {
         ("export-dot", po::value<int>()->implicit_value(1), "enable exporting dot")
         ("record-bottleneck-history", po::value<int>()->implicit_value(1), "record bn history")
         ("record-machine-history", po::value<int>()->implicit_value(1), "record machine history")
+        ("trace-snapshots", po::value<int>()->implicit_value(1), "write JSONL snapshots for the web viewer")
+        ("trace-snapshot-interval", po::value<int>(), "write one trace snapshot every N simulator steps")
+        ("trace-file", po::value<std::string>(), "path for JSONL trace snapshots")
         ("output-dir", po::value<std::string>(), "set output directory")
         ("console-log-level", po::value<int>(), "set console log level")
         ("file-log-level", po::value<int>(), "set file log level")
@@ -364,6 +367,15 @@ void psim::process_arguments(po::variables_map vm){
     if (vm.count("record-machine-history")) {
         GConf::inst().record_machine_history = true;
     }
+    if (vm.count("trace-snapshots")) {
+        GConf::inst().trace_snapshots = true;
+    }
+    if (vm.count("trace-snapshot-interval")) {
+        GConf::inst().trace_snapshot_interval = vm["trace-snapshot-interval"].as<int>();
+    }
+    if (vm.count("trace-file")) {
+        GConf::inst().trace_file = vm["trace-file"].as<std::string>();
+    }
     if (vm.count("rep-count")) {
         GConf::inst().rep_count = vm["rep-count"].as<int>();
     }
@@ -447,6 +459,9 @@ void psim::log_config() {
     spdlog::info("==== export_dot: {}", GConf::inst().export_dot);
     spdlog::info("==== record_bottleneck_history: {}", GConf::inst().record_bottleneck_history);
     spdlog::info("==== record_machine_history: {}", GConf::inst().record_machine_history);
+    spdlog::info("==== trace_snapshots: {}", GConf::inst().trace_snapshots);
+    spdlog::info("==== trace_snapshot_interval: {}", GConf::inst().trace_snapshot_interval);
+    spdlog::info("==== trace_file: {}", GConf::inst().trace_file);
     spdlog::info("==== output_dir: {}", GConf::inst().output_dir);
     spdlog::info("==== console_log_level: {}", GConf::inst().console_log_level);
     spdlog::info("==== file_log_level: {}", GConf::inst().file_log_level);

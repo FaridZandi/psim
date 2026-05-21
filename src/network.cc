@@ -240,9 +240,17 @@ BigSwitchNetwork::BigSwitchNetwork(): Network() {
 
     for (int i = 0; i < this->server_count; i++) {
         Bottleneck *ds_bn = create_bottleneck(server_switch_link_capacity);
+        ds_bn->endpoint_a = "switch0";
+        ds_bn->endpoint_b = "m" + std::to_string(i);
+        ds_bn->link_type = "switch-machine";
+        ds_bn->direction = 2;
         this->server_bottlenecks_downstream[i] = ds_bn;
 
         Bottleneck *us_bn = create_bottleneck(server_switch_link_capacity);
+        us_bn->endpoint_a = "m" + std::to_string(i);
+        us_bn->endpoint_b = "switch0";
+        us_bn->link_type = "machine-switch";
+        us_bn->direction = 1;
         this->server_bottlenecks_upstream[i] = us_bn;
     }
 }
@@ -336,6 +344,10 @@ Bottleneck::Bottleneck(double bandwidth) {
     this->drop_chance_multiplier = GConf::inst().drop_chance_multiplier;
 
     this->congested_time = 0; 
+    this->direction = 0;
+    this->endpoint_a = "";
+    this->endpoint_b = "";
+    this->link_type = "";
 }
 
 

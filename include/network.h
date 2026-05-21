@@ -6,6 +6,7 @@
 #include <map>
 #include <queue>
 #include <deque>
+#include <string>
 #include "protocol.h"
 #include "gconfig.h"
 #include "bwalloc.h"
@@ -234,6 +235,10 @@ public:
 
     double congested_time;  
     int tier;
+    int direction;
+    std::string endpoint_a;
+    std::string endpoint_b;
+    std::string link_type;
 
 private:
     void setup_bwalloc();

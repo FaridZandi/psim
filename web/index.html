@@ -1,0 +1,575 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PSIM Viewer</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f6f7f9;
+      --panel: #ffffff;
+      --ink: #18202a;
+      --muted: #657080;
+      --line: #dce1e8;
+      --blue: #246bfe;
+      --green: #15845b;
+      --red: #c4362e;
+      --gold: #a66a00;
+      --violet: #6f4bc1;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel);
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      background: #fff;
+      color: var(--ink);
+      height: 34px;
+      min-width: 38px;
+      border-radius: 6px;
+      cursor: pointer;
+      font: inherit;
+    }
+
+    button.primary {
+      background: var(--blue);
+      border-color: var(--blue);
+      color: #fff;
+      min-width: 86px;
+    }
+
+    input[type="range"] {
+      width: min(42vw, 520px);
+      accent-color: var(--blue);
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 1.3fr 0.9fr;
+      gap: 14px;
+      padding: 14px;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      min-width: 0;
+    }
+
+    .section-head {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 14px;
+      font-weight: 650;
+      letter-spacing: 0;
+    }
+
+    .subtle { color: var(--muted); }
+
+    .metrics {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(120px, 1fr));
+      gap: 10px;
+      padding: 14px;
+    }
+
+    .metric {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 10px;
+      background: #fbfcfe;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 20px;
+      line-height: 1.2;
+    }
+
+    .metric span {
+      color: var(--muted);
+      font-size: 12px;
+    }
+
+    .topology-wrap { padding: 12px; }
+
+    #topology {
+      display: block;
+      width: 100%;
+      height: 460px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      background: #fbfcfe;
+    }
+
+    .jobs, .links {
+      display: grid;
+      gap: 8px;
+      padding: 14px;
+      max-height: 380px;
+      overflow: auto;
+    }
+
+    .job, .link-row {
+      display: grid;
+      grid-template-columns: 72px 1fr 56px;
+      gap: 10px;
+      align-items: center;
+      min-height: 28px;
+    }
+
+    .bar {
+      height: 9px;
+      border-radius: 999px;
+      background: #e7ebf0;
+      overflow: hidden;
+    }
+
+    .bar > div {
+      height: 100%;
+      width: 0;
+      background: var(--green);
+    }
+
+    .link-row.congested .bar > div { background: var(--red); }
+    .link-row.core .bar > div { background: var(--violet); }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+
+    th, td {
+      padding: 8px 10px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      font-weight: 600;
+      background: #fbfcfe;
+      position: sticky;
+      top: 0;
+    }
+
+    .table-wrap {
+      max-height: 360px;
+      overflow: auto;
+    }
+
+    .wide { grid-column: 1 / -1; }
+
+    #status {
+      min-width: 180px;
+      text-align: right;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      .metrics { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
+      header { align-items: stretch; flex-direction: column; }
+      .controls { justify-content: flex-start; }
+      input[type="range"] { width: 100%; }
+      #status { text-align: left; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PSIM Viewer</h1>
+    <div class="controls">
+      <button id="prev" title="Previous snapshot">◀</button>
+      <button id="play" class="primary">Play</button>
+      <button id="next" title="Next snapshot">▶</button>
+      <input id="scrub" type="range" min="0" max="0" value="0">
+      <span id="status" class="subtle">Loading trace...</span>
+    </div>
+  </header>
+
+  <main>
+    <section class="wide">
+      <div class="section-head">
+        <h2>Run</h2>
+        <span id="tracePath" class="subtle"></span>
+      </div>
+      <div class="metrics">
+        <div class="metric"><strong id="time">0</strong><span>time</span></div>
+        <div class="metric"><strong id="flowCount">0</strong><span>active flows</span></div>
+        <div class="metric"><strong id="compCount">0</strong><span>compute tasks</span></div>
+        <div class="metric"><strong id="bwUtil">0%</strong><span>network utilization</span></div>
+      </div>
+    </section>
+
+    <section class="wide">
+      <div class="section-head">
+        <h2>Network</h2>
+        <span class="subtle">machines, switches, and bottleneck links</span>
+      </div>
+      <div class="topology-wrap">
+        <canvas id="topology"></canvas>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Jobs</h2>
+        <span class="subtle">per-step communication</span>
+      </div>
+      <div id="jobs" class="jobs"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Links</h2>
+        <span class="subtle">hottest bottlenecks</span>
+      </div>
+      <div id="links" class="links"></div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Flows</h2>
+        <span class="subtle">active transfers</span>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Flow</th>
+              <th>Job</th>
+              <th>Route</th>
+              <th>Progress</th>
+              <th>Rate</th>
+              <th>Path</th>
+            </tr>
+          </thead>
+          <tbody id="flows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const traceUrl = params.get("trace") || "/workers/simple-nethint/worker-0/run-1/trace.jsonl";
+    const state = { frames: [], index: 0, playing: false, timer: null };
+
+    const $ = (id) => document.getElementById(id);
+    const pct = (value) => `${Math.round(value * 100)}%`;
+    const fixed = (value, digits = 2) => Number.isFinite(value) ? value.toFixed(digits) : "0.00";
+
+    function setStatus(text) {
+      $("status").textContent = text;
+    }
+
+    async function loadTrace() {
+      $("tracePath").textContent = traceUrl;
+      const response = await fetch(traceUrl, { cache: "no-store" });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      const text = await response.text();
+      state.frames = text.trim().split(/\n+/).filter(Boolean).map((line) => JSON.parse(line));
+      if (state.frames.length === 0) throw new Error("trace is empty");
+      $("scrub").max = String(state.frames.length - 1);
+      render(0);
+    }
+
+    function render(nextIndex) {
+      state.index = Math.max(0, Math.min(nextIndex, state.frames.length - 1));
+      $("scrub").value = String(state.index);
+
+      const frame = state.frames[state.index];
+      $("time").textContent = fixed(frame.time, 2);
+      $("flowCount").textContent = frame.flow_count ?? frame.flows.length;
+      $("compCount").textContent = frame.compute_task_count ?? frame.compute_tasks.length;
+      const totalBw = frame.total_network_bw || 1;
+      $("bwUtil").textContent = pct((frame.total_bw_utilization || 0) / totalBw);
+      setStatus(`${state.index + 1} / ${state.frames.length}`);
+
+      renderTopology(frame);
+      renderJobs(frame);
+      renderLinks(frame);
+      renderFlows(frame);
+    }
+
+    function nodeKind(id) {
+      if (id.startsWith("m")) return "machine";
+      if (id.startsWith("core")) return "core";
+      if (id.startsWith("agg")) return "agg";
+      if (id.startsWith("tor")) return "tor";
+      return "switch";
+    }
+
+    function nodeLabel(id) {
+      if (id.startsWith("m")) return `M${id.slice(1)}`;
+      if (id.startsWith("core")) return `C${id.slice(4)}`;
+      if (id.startsWith("tor")) return id.toUpperCase();
+      if (id.startsWith("agg")) return id.toUpperCase();
+      return id;
+    }
+
+    function sortNodeIds(a, b) {
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: "base" });
+    }
+
+    function resizeCanvas(canvas) {
+      const rect = canvas.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      const width = Math.max(320, Math.floor(rect.width));
+      const height = Math.max(280, Math.floor(rect.height));
+      if (canvas.width !== Math.floor(width * dpr) || canvas.height !== Math.floor(height * dpr)) {
+        canvas.width = Math.floor(width * dpr);
+        canvas.height = Math.floor(height * dpr);
+      }
+      const ctx = canvas.getContext("2d");
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      return { ctx, width, height };
+    }
+
+    function renderTopology(frame) {
+      const busyByMachine = new Map();
+      for (const flow of frame.flows) {
+        busyByMachine.set(flow.src, (busyByMachine.get(flow.src) || 0) + 1);
+        busyByMachine.set(flow.dst, (busyByMachine.get(flow.dst) || 0) + 1);
+      }
+
+      const canvas = $("topology");
+      const { ctx, width, height } = resizeCanvas(canvas);
+      ctx.clearRect(0, 0, width, height);
+
+      const nodes = new Map();
+      for (const machine of frame.machines) {
+        nodes.set(`m${machine.id}`, { id: `m${machine.id}`, kind: "machine", machine });
+      }
+      for (const link of frame.links) {
+        if (!link.endpoint_a || !link.endpoint_b) continue;
+        if (!nodes.has(link.endpoint_a)) nodes.set(link.endpoint_a, { id: link.endpoint_a, kind: nodeKind(link.endpoint_a) });
+        if (!nodes.has(link.endpoint_b)) nodes.set(link.endpoint_b, { id: link.endpoint_b, kind: nodeKind(link.endpoint_b) });
+      }
+
+      const byKind = (kind) => [...nodes.values()].filter((node) => node.kind === kind).sort((a, b) => sortNodeIds(a.id, b.id));
+      const cores = byKind("core");
+      const aggs = byKind("agg");
+      const tors = byKind("tor");
+      const switches = [...byKind("switch"), ...aggs, ...tors];
+      const machines = byKind("machine");
+      const positioned = new Map();
+
+      function placeRow(items, y, left = 54, right = width - 54) {
+        if (!items.length) return;
+        const span = Math.max(1, right - left);
+        items.forEach((node, index) => {
+          const x = items.length === 1 ? width / 2 : left + span * index / (items.length - 1);
+          positioned.set(node.id, { ...node, x, y });
+        });
+      }
+
+      placeRow(cores, 58);
+      placeRow(switches, height * 0.43);
+
+      const machineGroups = new Map();
+      for (const machine of machines) machineGroups.set(machine.id, "all");
+      for (const link of frame.links) {
+        const aKind = nodeKind(link.endpoint_a || "");
+        const bKind = nodeKind(link.endpoint_b || "");
+        if (aKind === "machine" && bKind !== "machine") machineGroups.set(link.endpoint_a, link.endpoint_b);
+        if (bKind === "machine" && aKind !== "machine") machineGroups.set(link.endpoint_b, link.endpoint_a);
+      }
+      const groupedMachines = new Map();
+      for (const machine of machines) {
+        const parent = machineGroups.get(machine.id) || "all";
+        if (!groupedMachines.has(parent)) groupedMachines.set(parent, []);
+        groupedMachines.get(parent).push(machine);
+      }
+      for (const [parent, group] of groupedMachines) {
+        group.sort((a, b) => sortNodeIds(a.id, b.id));
+        const parentPos = positioned.get(parent);
+        if (!parentPos) continue;
+        const spacing = Math.min(58, Math.max(34, width / Math.max(8, machines.length)));
+        const start = parentPos.x - spacing * (group.length - 1) / 2;
+        group.forEach((node, index) => {
+          positioned.set(node.id, { ...node, x: start + index * spacing, y: height - 62 });
+        });
+      }
+      const unpositionedMachines = machines.filter((machine) => !positioned.has(machine.id));
+      placeRow(unpositionedMachines, height - 62);
+
+      const activeLinkIds = new Set();
+      for (const flow of frame.flows) {
+        for (const linkId of flow.path) activeLinkIds.add(linkId);
+      }
+
+      for (const link of frame.links) {
+        const a = positioned.get(link.endpoint_a);
+        const b = positioned.get(link.endpoint_b);
+        if (!a || !b) continue;
+        const util = Math.min(1, (link.utilized || 0) / Math.max(1, link.bandwidth || 1));
+        const active = activeLinkIds.has(link.id);
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        const len = Math.max(1, Math.hypot(dx, dy));
+        const offset = link.direction === 2 ? 3 : -3;
+        const ox = -dy / len * offset;
+        const oy = dx / len * offset;
+
+        ctx.beginPath();
+        ctx.moveTo(a.x + ox, a.y + oy);
+        ctx.lineTo(b.x + ox, b.y + oy);
+        ctx.lineWidth = active ? 4 : 1.5 + util * 4;
+        ctx.strokeStyle = link.congested ? "#c4362e" : active ? "#246bfe" : link.tier >= 2 ? "#6f4bc1" : "#7b8794";
+        ctx.globalAlpha = active ? 0.95 : 0.25 + util * 0.65;
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+
+      for (const node of positioned.values()) {
+        const traffic = node.kind === "machine" ? (busyByMachine.get(Number(node.id.slice(1))) || 0) : 0;
+        const queue = node.machine?.queue_len || 0;
+        const hot = traffic > 0 || queue > 0;
+        const fill = node.kind === "core" ? "#eef0ff" : node.kind === "machine" ? (hot ? "#fff2d5" : "#ffffff") : "#eaf6f0";
+        const stroke = node.kind === "core" ? "#6f4bc1" : node.kind === "machine" ? (hot ? "#a66a00" : "#9aa4b2") : "#15845b";
+
+        ctx.beginPath();
+        if (node.kind === "machine") {
+          ctx.roundRect(node.x - 22, node.y - 16, 44, 32, 6);
+        } else {
+          ctx.roundRect(node.x - 28, node.y - 16, 56, 32, 6);
+        }
+        ctx.fillStyle = fill;
+        ctx.strokeStyle = stroke;
+        ctx.lineWidth = hot ? 2.5 : 1.5;
+        ctx.fill();
+        ctx.stroke();
+
+        ctx.fillStyle = "#18202a";
+        ctx.font = "12px system-ui, sans-serif";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(nodeLabel(node.id), node.x, node.y - (node.kind === "machine" ? 3 : 0));
+        if (node.kind === "machine") {
+          ctx.fillStyle = "#657080";
+          ctx.font = "10px system-ui, sans-serif";
+          ctx.fillText(`q${queue} f${traffic}`, node.x, node.y + 10);
+        }
+      }
+    }
+
+    function renderJobs(frame) {
+      const max = Math.max(1, ...frame.job_progress.map((job) => job.step_comm));
+      $("jobs").innerHTML = frame.job_progress.length ? frame.job_progress.map((job) => `
+        <div class="job">
+          <strong>Job ${job.jobid}</strong>
+          <div class="bar"><div style="width:${Math.min(100, job.step_comm / max * 100)}%"></div></div>
+          <span class="subtle">${fixed(job.step_comm, 1)}</span>
+        </div>
+      `).join("") : `<span class="subtle">No job progress in this snapshot.</span>`;
+    }
+
+    function renderLinks(frame) {
+      const links = [...frame.links]
+        .sort((a, b) => (b.utilized / Math.max(1, b.bandwidth)) - (a.utilized / Math.max(1, a.bandwidth)))
+        .slice(0, 18);
+
+      $("links").innerHTML = links.map((link) => {
+        const util = Math.min(1, (link.utilized || 0) / Math.max(1, link.bandwidth || 1));
+        const cls = `${link.congested ? "congested" : ""} ${link.tier >= 2 ? "core" : ""}`;
+        return `
+          <div class="link-row ${cls}" title="registered ${fixed(link.registered)} allocated ${fixed(link.allocated)}">
+            <strong>L${link.id}</strong>
+            <div class="bar"><div style="width:${Math.round(util * 100)}%"></div></div>
+            <span class="subtle">${pct(util)}</span>
+          </div>
+        `;
+      }).join("");
+    }
+
+    function renderFlows(frame) {
+      $("flows").innerHTML = frame.flows.map((flow) => {
+        const progress = Math.min(1, (flow.progress || 0) / Math.max(1, flow.size || 1));
+        return `
+          <tr>
+            <td>${flow.id}</td>
+            <td>${flow.jobid}</td>
+            <td>${flow.src} → ${flow.dst}</td>
+            <td>${pct(progress)}</td>
+            <td>${fixed(flow.rate, 2)}</td>
+            <td>${flow.path.join(" ")}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function togglePlay() {
+      state.playing = !state.playing;
+      $("play").textContent = state.playing ? "Pause" : "Play";
+      if (state.playing) {
+        state.timer = setInterval(() => {
+          if (state.index >= state.frames.length - 1) {
+            togglePlay();
+            return;
+          }
+          render(state.index + 1);
+        }, 120);
+      } else {
+        clearInterval(state.timer);
+      }
+    }
+
+    $("play").addEventListener("click", togglePlay);
+    $("prev").addEventListener("click", () => render(state.index - 1));
+    $("next").addEventListener("click", () => render(state.index + 1));
+    $("scrub").addEventListener("input", (event) => render(Number(event.target.value)));
+
+    loadTrace().catch((error) => {
+      setStatus(`Could not load trace: ${error.message}`);
+    });
+  </script>
+</body>
+</html>
