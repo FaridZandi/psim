@@ -427,6 +427,7 @@ void Bottleneck::setup_bwalloc() {
 
 void Bottleneck::reset_register(){
     bwalloc->reset();
+    utilized_by_job.clear();
 }
 
 void Bottleneck::register_rate(int id, double rate, int priority){

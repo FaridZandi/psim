@@ -23,7 +23,7 @@ cat > "${PLACEMENT_FILE}" <<'JSON'
     "job_id": 1,
     "machine_count": 8,
     "comm_size": 10000,
-    "comp_size": 180,
+    "comp_size": 380,
     "layer_count": 1,
     "iter_count": 4,
     "machines": [3, 14, 17, 28, 6, 9, 22, 25]
@@ -32,7 +32,7 @@ cat > "${PLACEMENT_FILE}" <<'JSON'
     "job_id": 2,
     "machine_count": 8,
     "comm_size": 12000,
-    "comp_size": 240,
+    "comp_size": 440,
     "layer_count": 1,
     "iter_count": 4,
     "machines": [0, 11, 20, 31, 5, 8, 19, 26]
@@ -41,7 +41,7 @@ cat > "${PLACEMENT_FILE}" <<'JSON'
     "job_id": 3,
     "machine_count": 8,
     "comm_size": 9000,
-    "comp_size": 300,
+    "comp_size": 500,
     "layer_count": 1,
     "iter_count": 4,
     "machines": [2, 12, 23, 29, 7, 10, 16, 27]
@@ -50,9 +50,9 @@ cat > "${PLACEMENT_FILE}" <<'JSON'
     "job_id": 4,
     "machine_count": 8,
     "comm_size": 14000,
-    "comp_size": 210,
+    "comp_size": 610,
     "layer_count": 1,
-    "iter_count": 4,
+    "iter_count": 3,
     "machines": [1, 15, 18, 30, 4, 13, 21, 24]
   }
 ]
@@ -62,7 +62,7 @@ JSON
   --protocol-file-name nethint-test \
   --placement-file "${PLACEMENT_FILE}" \
   --network-type leafspine \
-  --lb-scheme random \
+  --lb-scheme leastloaded \
   --load-metric utilization \
   --machine-count 32 \
   --ft-server-per-rack 8 \
@@ -72,6 +72,9 @@ JSON
   --priority-allocator maxmin \
   --initial-rate 3 \
   --min-rate 3 \
+  --rate-increase 1.4 \
+  --punish-oversubscribed 1 \
+  --punish-oversubscribed-min 0.8 \
   --step-size 0.1 \
   --trace-snapshots \
   --ft-agg-core-link-capacity-mult 1 \

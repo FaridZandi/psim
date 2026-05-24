@@ -479,6 +479,18 @@ void PSim::write_trace_snapshot(history_entry& h, int snapshot_index) {
         link_json["allocated"] = bottleneck->bwalloc->total_allocated;
         link_json["utilized"] = bottleneck->bwalloc->utilized_bandwidth;
         link_json["congested"] = bottleneck->bwalloc->is_congested();
+        link_json["job_utilization"] = json::array();
+        for (auto& entry : bottleneck->utilized_by_job) {
+            double share = 0;
+            if (bottleneck->bwalloc->utilized_bandwidth > 0) {
+                share = entry.second / bottleneck->bwalloc->utilized_bandwidth;
+            }
+            link_json["job_utilization"].push_back({
+                {"jobid", entry.first},
+                {"utilized", entry.second},
+                {"share", share}
+            });
+        }
         link_json["flows"] = json::array();
         for (auto flow : bottleneck->flows) {
             link_json["flows"].push_back(flow->id);
@@ -495,7 +507,9 @@ void PSim::write_trace_snapshot(history_entry& h, int snapshot_index) {
         flow_json["dst"] = flow->dst_dev_id;
         flow_json["size"] = flow->size;
         flow_json["progress"] = flow->progress;
-        flow_json["rate"] = flow->current_rate;
+        flow_json["rate"] = flow->last_rate;
+        flow_json["utilization_rate"] = flow->last_rate;
+        flow_json["desired_rate"] = flow->current_rate;
         flow_json["registered_rate"] = flow->registered_rate;
         flow_json["lb_decision"] = flow->lb_decision;
         flow_json["path"] = json::array();

@@ -92,7 +92,7 @@
 
     main {
       display: grid;
-      grid-template-columns: 0.62fr 0.9fr 1.48fr;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
       gap: 14px;
       padding: 14px;
     }
@@ -164,13 +164,36 @@
 
     .progress-wrap { padding: 12px; }
 
-    #jobTimeline {
+    .progress-wrap { position: relative; }
+
+    #jobTimeline, #networkUtilization {
       display: block;
       width: 100%;
       height: 260px;
       border: 1px solid var(--line);
       border-radius: 8px;
       background: #fbfcfe;
+    }
+
+    .canvas-tooltip {
+      position: fixed;
+      z-index: 10;
+      max-width: 300px;
+      padding: 8px 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.96);
+      box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+      color: var(--ink);
+      font-size: 12px;
+      pointer-events: none;
+      display: none;
+    }
+
+    .canvas-tooltip strong {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 12px;
     }
 
     .jobs, .links {
@@ -190,16 +213,19 @@
     }
 
     .bar {
-      height: 9px;
+      height: 15px;
       border-radius: 999px;
       background: #e7ebf0;
       overflow: hidden;
+      display: flex;
     }
 
     .bar > div {
       height: 100%;
       width: 0;
       background: var(--green);
+      border: 1px solid black; 
+      transition: width 0.3s ease, background 0.3s ease;
     }
 
     .link-row.congested .bar > div { background: var(--red); }
@@ -232,9 +258,11 @@
     }
 
     .wide { grid-column: 1 / -1; }
-    .jobs-panel { grid-column: 1; }
-    .links-panel { grid-column: 2; }
-    .flows-panel { grid-column: 3; }
+    .chart-left { grid-column: 1 / 4; }
+    .chart-right { grid-column: 4 / 7; }
+    .jobs-panel { grid-column: 1 / 2; }
+    .links-panel { grid-column: 2 / 4; }
+    .flows-panel { grid-column: 4 / 7; }
 
     #status {
       min-width: 180px;
@@ -243,7 +271,7 @@
 
     @media (max-width: 900px) {
       main { grid-template-columns: 1fr; }
-      .jobs-panel, .links-panel, .flows-panel { grid-column: 1; }
+      .chart-left, .chart-right, .jobs-panel, .links-panel, .flows-panel { grid-column: 1; }
       .metrics { grid-template-columns: repeat(2, minmax(120px, 1fr)); }
       header { align-items: stretch; flex-direction: column; }
       .controls { justify-content: flex-start; }
@@ -270,19 +298,6 @@
   <main>
     <section class="wide">
       <div class="section-head">
-        <h2>Run</h2>
-        <span id="tracePath" class="subtle"></span>
-      </div>
-      <div class="metrics">
-        <div class="metric"><strong id="time">0</strong><span>time</span></div>
-        <div class="metric"><strong id="flowCount">0</strong><span>active flows</span></div>
-        <div class="metric"><strong id="compCount">0</strong><span>compute tasks</span></div>
-        <div class="metric"><strong id="bwUtil">0%</strong><span>network utilization</span></div>
-      </div>
-    </section>
-
-    <section class="wide">
-      <div class="section-head">
         <h2>Network</h2>
         <span class="subtle">machines, switches, and bottleneck links</span>
       </div>
@@ -291,13 +306,24 @@
       </div>
     </section>
 
-    <section class="wide">
+    <section class="chart-left">
+      <div class="section-head">
+        <h2>Network Utilization</h2>
+        <span id="networkUtilizationStatus" class="subtle">over time</span>
+      </div>
+      <div class="progress-wrap">
+        <canvas id="networkUtilization"></canvas>
+      </div>
+    </section>
+
+    <section class="chart-right">
       <div class="section-head">
         <h2>Progress</h2>
         <span id="progressStatus" class="subtle">job milestones</span>
       </div>
       <div class="progress-wrap">
         <canvas id="jobTimeline"></canvas>
+        <div id="progressTooltip" class="canvas-tooltip"></div>
       </div>
     </section>
 
@@ -330,7 +356,7 @@
               <th>Job</th>
               <th>Route</th>
               <th>Progress</th>
-              <th>Rate</th>
+              <th>Utilization</th>
               <th>Path</th>
             </tr>
           </thead>
@@ -420,7 +446,6 @@
 
       state.traceUrl = normalizedUrl;
       $("traceInput").value = normalizedUrl;
-      $("tracePath").textContent = normalizedUrl;
       setStatus("Loading trace...");
 
       const response = await fetch(normalizedUrl, { cache: "no-store" });
@@ -448,20 +473,44 @@
       return [...byId.values()].sort((a, b) => (a.time - b.time) || (a.id - b.id));
     }
 
+    function allreduceInfo(start, end, fallbackEndTime) {
+      const message = start.message || end?.message || "";
+      const match = message.match(/job\s+(\d+)\s+iter\s+(\d+)\s+layer\s+(\d+)/);
+      const endTime = end?.time ?? fallbackEndTime;
+      return {
+        jobid: Number(start.jobid),
+        iter: match ? Number(match[2]) : null,
+        layer: match ? Number(match[3]) : null,
+        startTime: start.time,
+        endTime,
+        complete: Boolean(end),
+        duration: Math.max(0, endTime - start.time)
+      };
+    }
+
+    function progressTooltipHtml(info) {
+      const iter = info.iter === null ? "" : ` iter ${info.iter}`;
+      const layer = info.layer === null ? "" : ` layer ${info.layer}`;
+      const stateText = info.complete ? "finished" : "running";
+      return `
+        <strong>Job ${info.jobid}${iter}${layer} all-reduce</strong>
+        <div>start: ${fixed(info.startTime, 2)}</div>
+        <div>end: ${info.complete ? fixed(info.endTime, 2) : "in progress"}</div>
+        <div>duration: ${fixed(info.duration, 2)}</div>
+        <div>state: ${stateText}</div>
+      `;
+    }
+
     function render(nextIndex) {
       state.index = Math.max(0, Math.min(nextIndex, state.frames.length - 1));
       $("scrub").value = String(state.index);
 
       const frame = state.frames[state.index];
-      $("time").textContent = fixed(frame.time, 2);
-      $("flowCount").textContent = frame.flow_count ?? frame.flows.length;
-      $("compCount").textContent = frame.compute_task_count ?? frame.compute_tasks.length;
-      const totalBw = frame.total_network_bw || 1;
-      $("bwUtil").textContent = pct((frame.total_bw_utilization || 0) / totalBw);
-      setStatus(`${state.index + 1} / ${state.frames.length}`);
+      setStatus(`${state.index + 1} / ${state.frames.length} · t=${fixed(frame.time, 2)}`);
 
       renderTopology(frame);
       renderProgress(frame);
+      renderNetworkUtilization(frame);
       renderJobs(frame);
       renderLinks(frame);
       renderFlows(frame);
@@ -471,6 +520,7 @@
       const canvas = $("jobTimeline");
       const { ctx, width, height } = resizeCanvas(canvas);
       ctx.clearRect(0, 0, width, height);
+      state.progressHits = [];
 
       const events = state.events || [];
       const currentTime = frame.time || 0;
@@ -511,9 +561,18 @@
           ctx.lineWidth = 9;
           ctx.lineCap = "round";
           ctx.beginPath();
-          ctx.moveTo(xForTime(start.time), y);
-          ctx.lineTo(xForTime(event.time), y);
+          const startX = xForTime(start.time);
+          const endX = xForTime(event.time);
+          ctx.moveTo(startX, y);
+          ctx.lineTo(endX, y);
           ctx.stroke();
+          state.progressHits.push({
+            x1: Math.min(startX, endX) - 5,
+            x2: Math.max(startX, endX) + 5,
+            y1: y - 8,
+            y2: y + 8,
+            info: allreduceInfo(start, event, currentTime)
+          });
           openStarts.delete(jobid);
         }
       }
@@ -523,9 +582,18 @@
         ctx.lineWidth = 9;
         ctx.lineCap = "round";
         ctx.beginPath();
-        ctx.moveTo(xForTime(start.time), y);
+        const startX = xForTime(start.time);
+        const endX = currentX;
+        ctx.moveTo(startX, y);
         ctx.lineTo(currentX, y);
         ctx.stroke();
+        state.progressHits.push({
+          x1: Math.min(startX, endX) - 5,
+          x2: Math.max(startX, endX) + 5,
+          y1: y - 8,
+          y2: y + 8,
+          info: allreduceInfo(start, null, currentTime)
+        });
       }
       ctx.lineCap = "butt";
 
@@ -579,6 +647,99 @@
 
       const lastEvent = visibleEvents[visibleEvents.length - 1];
       $("progressStatus").textContent = lastEvent ? `${fixed(lastEvent.time, 1)}: ${lastEvent.message}` : "job milestones";
+    }
+
+    function renderNetworkUtilization(frame) {
+      const canvas = $("networkUtilization");
+      const { ctx, width, height } = resizeCanvas(canvas);
+      ctx.clearRect(0, 0, width, height);
+
+      const left = 64;
+      const right = width - 24;
+      const top = 22;
+      const bottom = height - 34;
+      const currentTime = frame.time || 0;
+      const xForTime = (time) => left + Math.min(1, Math.max(0, time / Math.max(1, state.maxTime))) * (right - left);
+      const yForUtil = (util) => bottom - Math.min(1, Math.max(0, util)) * (bottom - top);
+
+      ctx.strokeStyle = "#dce1e8";
+      ctx.lineWidth = 1;
+      ctx.fillStyle = "#657080";
+      ctx.font = "11px system-ui, sans-serif";
+      ctx.textAlign = "right";
+      ctx.textBaseline = "middle";
+      for (let tick = 0; tick <= 4; tick++) {
+        const util = tick / 4;
+        const y = yForUtil(util);
+        ctx.beginPath();
+        ctx.moveTo(left, y);
+        ctx.lineTo(right, y);
+        ctx.stroke();
+        ctx.fillText(`${Math.round(util * 100)}%`, left - 8, y);
+      }
+
+      ctx.textAlign = "center";
+      ctx.textBaseline = "top";
+      for (let tick = 0; tick <= 4; tick++) {
+        const x = left + (right - left) * tick / 4;
+        const t = state.maxTime * tick / 4;
+        ctx.beginPath();
+        ctx.moveTo(x, top);
+        ctx.lineTo(x, bottom);
+        ctx.stroke();
+        ctx.fillText(fixed(t, 0), x, bottom + 8);
+      }
+
+      const points = state.frames.map((sample) => {
+        const total = sample.total_network_bw || 1;
+        const util = (sample.total_bw_utilization || 0) / total;
+        return { x: xForTime(sample.time || 0), y: yForUtil(util), util, time: sample.time || 0 };
+      });
+
+      if (points.length > 1) {
+        ctx.beginPath();
+        points.forEach((point, index) => {
+          if (index === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        });
+        ctx.strokeStyle = colorWithAlpha("#246bfe", 0.24);
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+      }
+
+      const filledPoints = points.slice(0, state.index + 1);
+      if (filledPoints.length > 1) {
+        ctx.beginPath();
+        filledPoints.forEach((point, index) => {
+          if (index === 0) ctx.moveTo(point.x, point.y);
+          else ctx.lineTo(point.x, point.y);
+        });
+        ctx.strokeStyle = "#246bfe";
+        ctx.lineWidth = 2.5;
+        ctx.stroke();
+
+        ctx.lineTo(filledPoints[filledPoints.length - 1].x, bottom);
+        ctx.lineTo(filledPoints[0].x, bottom);
+        ctx.closePath();
+        ctx.fillStyle = colorWithAlpha("#246bfe", 0.12);
+        ctx.fill();
+      }
+
+      const currentX = xForTime(currentTime);
+      const currentUtil = (frame.total_bw_utilization || 0) / Math.max(1, frame.total_network_bw || 1);
+      ctx.strokeStyle = "#18202a";
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      ctx.moveTo(currentX, top);
+      ctx.lineTo(currentX, bottom);
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(currentX, yForUtil(currentUtil), 4, 0, Math.PI * 2);
+      ctx.fillStyle = "#246bfe";
+      ctx.fill();
+
+      $("networkUtilizationStatus").textContent = `${pct(currentUtil)} at t=${fixed(currentTime, 1)}`;
     }
 
     function nodeKind(id) {
@@ -802,12 +963,20 @@
       $("links").innerHTML = links.map((link) => {
         const util = Math.min(1, (link.utilized || 0) / Math.max(1, link.bandwidth || 1));
         const cls = `${link.congested ? "congested" : ""} ${link.tier >= 2 ? "core" : ""}`;
-        const jobs = [...(linkJobs.get(link.id) || [])].sort((a, b) => a - b);
+        const breakdown = [...(link.job_utilization || [])].sort((a, b) => a.jobid - b.jobid);
+        const jobs = breakdown.length ? breakdown.map((entry) => entry.jobid) : [...(linkJobs.get(link.id) || [])].sort((a, b) => a - b);
         const swatches = jobs.map((jobid) => `<span style="display:inline-block;width:8px;height:8px;border-radius:999px;background:${jobColor(jobid)};margin-left:3px"></span>`).join("");
+        const segments = breakdown.length ? breakdown.map((entry) => {
+          const width = Math.min(100, Math.max(0, (entry.utilized || 0) / Math.max(1, link.bandwidth || 1) * 100));
+          return `<div title="Job ${entry.jobid}: ${fixed(entry.utilized, 2)} (${pct(entry.share || 0)} of used)" style="width:${width}%;background:${jobColor(entry.jobid)}"></div>`;
+        }).join("") : `<div style="width:${Math.round(util * 100)}%;background:${jobs.length === 1 ? jobColor(jobs[0]) : ""}"></div>`;
+        const title = breakdown.length
+          ? breakdown.map((entry) => `job ${entry.jobid}: ${fixed(entry.utilized, 2)} (${pct(entry.share || 0)} of used)`).join(", ")
+          : `registered ${fixed(link.registered)} allocated ${fixed(link.allocated)}`;
         return `
-          <div class="link-row ${cls}" title="registered ${fixed(link.registered)} allocated ${fixed(link.allocated)}">
+          <div class="link-row ${cls}" title="${title}">
             <strong>L${link.id}${swatches}</strong>
-            <div class="bar"><div style="width:${Math.round(util * 100)}%;background:${jobs.length === 1 ? jobColor(jobs[0]) : ""}"></div></div>
+            <div class="bar">${segments}</div>
             <span class="subtle">${pct(util)}</span>
           </div>
         `;
@@ -817,13 +986,14 @@
     function renderFlows(frame) {
       $("flows").innerHTML = frame.flows.map((flow) => {
         const progress = Math.min(1, (flow.progress || 0) / Math.max(1, flow.size || 1));
+        const utilizationRate = flow.utilization_rate ?? flow.rate ?? 0;
         return `
           <tr>
             <td>${flow.id}</td>
             <td><span style="display:inline-block;width:10px;height:10px;border-radius:999px;background:${jobColor(flow.jobid)};margin-right:6px"></span>${flow.jobid}</td>
             <td>${flow.src} → ${flow.dst}</td>
             <td>${pct(progress)}</td>
-            <td>${fixed(flow.rate, 2)}</td>
+            <td>${fixed(utilizationRate, 2)}</td>
             <td>${flow.path.join(" ")}</td>
           </tr>
         `;
@@ -862,6 +1032,28 @@
     $("prev").addEventListener("click", () => render(state.index - 1));
     $("next").addEventListener("click", () => render(state.index + 1));
     $("scrub").addEventListener("input", (event) => render(Number(event.target.value)));
+    $("jobTimeline").addEventListener("mousemove", (event) => {
+      const canvas = $("jobTimeline");
+      const rect = canvas.getBoundingClientRect();
+      const scaleX = canvas.clientWidth ? canvas.getBoundingClientRect().width / canvas.clientWidth : 1;
+      const x = (event.clientX - rect.left) / scaleX;
+      const y = event.clientY - rect.top;
+      const hit = [...(state.progressHits || [])].reverse().find((item) =>
+        x >= item.x1 && x <= item.x2 && y >= item.y1 && y <= item.y2
+      );
+      const tooltip = $("progressTooltip");
+      if (!hit) {
+        tooltip.style.display = "none";
+        return;
+      }
+      tooltip.innerHTML = progressTooltipHtml(hit.info);
+      tooltip.style.left = `${event.clientX + 14}px`;
+      tooltip.style.top = `${event.clientY + 14}px`;
+      tooltip.style.display = "block";
+    });
+    $("jobTimeline").addEventListener("mouseleave", () => {
+      $("progressTooltip").style.display = "none";
+    });
 
     $("traceInput").value = state.traceUrl;
     loadTrace(state.traceUrl).catch((error) => {

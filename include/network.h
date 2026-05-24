@@ -226,6 +226,7 @@ public:
     int current_flow_count;
     double current_flow_size_sum;
     std::vector<Flow*> flows;
+    std::map<int, double> utilized_by_job;
     LoadMetric load_metric;
     double drop_chance_multiplier;
 
