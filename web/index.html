@@ -7,16 +7,21 @@
   <style>
     :root {
       color-scheme: light;
-      --bg: #f6f7f9;
-      --panel: #ffffff;
-      --ink: #18202a;
-      --muted: #657080;
-      --line: #dce1e8;
-      --blue: #246bfe;
-      --green: #15845b;
-      --red: #c4362e;
-      --gold: #a66a00;
-      --violet: #6f4bc1;
+      --bg: #f9edf0;
+      --panel: #fff8f5;
+      --panel-head: #e6c8b7;
+      --canvas: #fffaf7;
+      --ink: #261311;
+      --muted: #795d54;
+      --line: #d7b3a1;
+      --blue: #1c3934;
+      --green: #1c3934;
+      --red: #ba6a36;
+      --gold: #c3955b;
+      --violet: #7e4c39;
+      --code: #fffaf7;
+      --amber: #ba6a36;
+      --emerald: #1c3934;
     }
 
     * { box-sizing: border-box; }
@@ -25,7 +30,7 @@
       margin: 0;
       background: var(--bg);
       color: var(--ink);
-      font: 14px/1.4 system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      font: 14px/1.4 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
     }
 
     header {
@@ -33,9 +38,10 @@
       align-items: center;
       justify-content: space-between;
       gap: 16px;
-      padding: 14px 18px;
+      padding: 12px 18px;
       border-bottom: 1px solid var(--line);
-      background: var(--panel);
+      background: var(--code);
+      box-shadow: 0 1px 0 rgba(38, 19, 17, 0.06);
       position: sticky;
       top: 0;
       z-index: 2;
@@ -46,11 +52,18 @@
       font-size: 18px;
       font-weight: 650;
       letter-spacing: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    h1::before {
+      content: "./";
+      color: var(--amber);
+      margin-right: 8px;
     }
 
     button {
       border: 1px solid var(--line);
-      background: #fff;
+      background: #fff8f5;
       color: var(--ink);
       height: 34px;
       min-width: 38px;
@@ -60,10 +73,11 @@
     }
 
     button.primary {
-      background: var(--blue);
-      border-color: var(--blue);
-      color: #fff;
+      background: var(--emerald);
+      border-color: var(--emerald);
+      color: #fffaf7;
       min-width: 86px;
+      font-weight: 650;
     }
 
     input[type="text"] {
@@ -73,8 +87,8 @@
       border-radius: 6px;
       padding: 0 10px;
       color: var(--ink);
-      background: #fff;
-      font: inherit;
+      background: #fffaf7;
+      font: 13px/1.4 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }
 
     input[type="range"] {
@@ -100,8 +114,9 @@
     section {
       background: var(--panel);
       border: 1px solid var(--line);
-      border-radius: 8px;
+      border-radius: 6px;
       min-width: 0;
+      box-shadow: 0 8px 22px rgba(38, 19, 17, 0.06);
     }
 
     .section-head {
@@ -111,6 +126,8 @@
       gap: 12px;
       padding: 12px 14px;
       border-bottom: 1px solid var(--line);
+      background: var(--panel-head);
+      border-radius: 6px 6px 0 0;
     }
 
     h2 {
@@ -118,6 +135,13 @@
       font-size: 14px;
       font-weight: 650;
       letter-spacing: 0;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    h2::before {
+      content: "▸";
+      color: var(--emerald);
+      margin-right: 7px;
     }
 
     .subtle { color: var(--muted); }
@@ -133,7 +157,7 @@
       border: 1px solid var(--line);
       border-radius: 8px;
       padding: 10px;
-      background: #fbfcfe;
+      background: var(--code);
     }
 
     .metric strong {
@@ -159,7 +183,7 @@
       height: 460px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: #fbfcfe;
+      background: var(--canvas);
     }
 
     .progress-wrap { padding: 12px; }
@@ -172,7 +196,7 @@
       height: 260px;
       border: 1px solid var(--line);
       border-radius: 8px;
-      background: #fbfcfe;
+      background: var(--canvas);
     }
 
     .canvas-tooltip {
@@ -182,8 +206,8 @@
       padding: 8px 10px;
       border: 1px solid var(--line);
       border-radius: 6px;
-      background: rgba(255, 255, 255, 0.96);
-      box-shadow: 0 8px 24px rgba(16, 24, 40, 0.14);
+      background: rgba(255, 250, 247, 0.98);
+      box-shadow: 0 14px 30px rgba(38, 19, 17, 0.18);
       color: var(--ink);
       font-size: 12px;
       pointer-events: none;
@@ -215,7 +239,7 @@
     .bar {
       height: 15px;
       border-radius: 999px;
-      background: #e7ebf0;
+      background: #ead8cf;
       overflow: hidden;
       display: flex;
     }
@@ -224,7 +248,7 @@
       height: 100%;
       width: 0;
       background: var(--green);
-      border: 1px solid black; 
+      border: 1px solid rgba(38, 19, 17, 0.18); 
       transition: width 0.3s ease, background 0.3s ease;
     }
 
@@ -247,7 +271,7 @@
     th {
       color: var(--muted);
       font-weight: 600;
-      background: #fbfcfe;
+      background: var(--panel-head);
       position: sticky;
       top: 0;
     }
@@ -374,7 +398,22 @@
     const $ = (id) => document.getElementById(id);
     const pct = (value) => `${Math.round(value * 100)}%`;
     const fixed = (value, digits = 2) => Number.isFinite(value) ? value.toFixed(digits) : "0.00";
-    const JOB_COLORS = ["#246bfe", "#d45500", "#15845b", "#8b5cf6", "#c4362e", "#0e7490", "#a66a00", "#db2777"];
+    const CANVAS = {
+      ink: "#261311",
+      muted: "#795d54",
+      grid: "#e0c5b7",
+      cursor: "#261311",
+      idleLink: "#b99686",
+      coreFill: "#f5e2dc",
+      switchFill: "#edf5ef",
+      machineFill: "#fff8f5",
+      canvasBlue: "#1c3934",
+      danger: "#ba6a36",
+      violet: "#7e4c39",
+      green: "#1c3934",
+      gold: "#c3955b"
+    };
+    const JOB_COLORS = ["#1c3934", "#ba6a36", "#c3955b", "#7e4c39", "#4f6b4f", "#9b4f35", "#5d4a25", "#b76583"];
 
     function setStatus(text) {
       $("status").textContent = text;
@@ -533,10 +572,10 @@
       const xForTime = (time) => left + Math.min(1, Math.max(0, time / Math.max(1, state.maxTime))) * (right - left);
       const currentX = xForTime(currentTime);
 
-      ctx.strokeStyle = "#dce1e8";
+      ctx.strokeStyle = CANVAS.grid;
       ctx.lineWidth = 1;
-      ctx.fillStyle = "#657080";
-      ctx.font = "11px system-ui, sans-serif";
+      ctx.fillStyle = CANVAS.muted;
+      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
       ctx.textAlign = "center";
       ctx.textBaseline = "top";
       for (let tick = 0; tick <= 4; tick++) {
@@ -599,7 +638,7 @@
 
       for (const jobid of jobIds) {
         const y = top + jobIds.indexOf(jobid) * rowGap;
-        ctx.strokeStyle = "#cfd6df";
+        ctx.strokeStyle = CANVAS.grid;
         ctx.lineWidth = 1;
         ctx.beginPath();
         ctx.moveTo(left, y);
@@ -607,7 +646,7 @@
         ctx.stroke();
 
         ctx.fillStyle = jobColor(jobid);
-        ctx.font = "12px system-ui, sans-serif";
+        ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
         ctx.textAlign = "right";
         ctx.textBaseline = "middle";
         ctx.fillText(`Job ${jobid}`, left - 12, y);
@@ -621,7 +660,7 @@
         if (event.kind === "allreduce_started" || event.kind === "allreduce_finished") {
           ctx.beginPath();
           ctx.arc(x, y, 4, 0, Math.PI * 2);
-          ctx.fillStyle = event.kind === "allreduce_started" ? "#ffffff" : color;
+          ctx.fillStyle = event.kind === "allreduce_started" ? CANVAS.machineFill : color;
           ctx.strokeStyle = color;
           ctx.lineWidth = 2;
           ctx.fill();
@@ -638,7 +677,7 @@
         }
       }
 
-      ctx.strokeStyle = "#18202a";
+      ctx.strokeStyle = CANVAS.cursor;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(currentX, 14);
@@ -662,10 +701,10 @@
       const xForTime = (time) => left + Math.min(1, Math.max(0, time / Math.max(1, state.maxTime))) * (right - left);
       const yForUtil = (util) => bottom - Math.min(1, Math.max(0, util)) * (bottom - top);
 
-      ctx.strokeStyle = "#dce1e8";
+      ctx.strokeStyle = CANVAS.grid;
       ctx.lineWidth = 1;
-      ctx.fillStyle = "#657080";
-      ctx.font = "11px system-ui, sans-serif";
+      ctx.fillStyle = CANVAS.muted;
+      ctx.font = "11px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
       ctx.textAlign = "right";
       ctx.textBaseline = "middle";
       for (let tick = 0; tick <= 4; tick++) {
@@ -702,7 +741,7 @@
           if (index === 0) ctx.moveTo(point.x, point.y);
           else ctx.lineTo(point.x, point.y);
         });
-        ctx.strokeStyle = colorWithAlpha("#246bfe", 0.24);
+        ctx.strokeStyle = colorWithAlpha(CANVAS.canvasBlue, 0.24);
         ctx.lineWidth = 1.5;
         ctx.stroke();
       }
@@ -714,20 +753,20 @@
           if (index === 0) ctx.moveTo(point.x, point.y);
           else ctx.lineTo(point.x, point.y);
         });
-        ctx.strokeStyle = "#246bfe";
+        ctx.strokeStyle = CANVAS.canvasBlue;
         ctx.lineWidth = 2.5;
         ctx.stroke();
 
         ctx.lineTo(filledPoints[filledPoints.length - 1].x, bottom);
         ctx.lineTo(filledPoints[0].x, bottom);
         ctx.closePath();
-        ctx.fillStyle = colorWithAlpha("#246bfe", 0.12);
+        ctx.fillStyle = colorWithAlpha(CANVAS.canvasBlue, 0.12);
         ctx.fill();
       }
 
       const currentX = xForTime(currentTime);
       const currentUtil = (frame.total_bw_utilization || 0) / Math.max(1, frame.total_network_bw || 1);
-      ctx.strokeStyle = "#18202a";
+      ctx.strokeStyle = CANVAS.cursor;
       ctx.lineWidth = 1.5;
       ctx.beginPath();
       ctx.moveTo(currentX, top);
@@ -736,7 +775,7 @@
 
       ctx.beginPath();
       ctx.arc(currentX, yForUtil(currentUtil), 4, 0, Math.PI * 2);
-      ctx.fillStyle = "#246bfe";
+      ctx.fillStyle = CANVAS.canvasBlue;
       ctx.fill();
 
       $("networkUtilizationStatus").textContent = `${pct(currentUtil)} at t=${fixed(currentTime, 1)}`;
@@ -891,7 +930,7 @@
           ctx.moveTo(a.x + ox, a.y + oy);
           ctx.lineTo(b.x + ox, b.y + oy);
           ctx.lineWidth = 1.5 + util * 4;
-          ctx.strokeStyle = link.congested ? "#c4362e" : link.tier >= 2 ? "#6f4bc1" : "#7b8794";
+          ctx.strokeStyle = link.congested ? CANVAS.danger : link.tier >= 2 ? CANVAS.violet : CANVAS.idleLink;
           ctx.globalAlpha = 0.25 + util * 0.65;
           ctx.stroke();
         }
@@ -903,8 +942,16 @@
         const queue = node.machine?.queue_len || 0;
         const jobs = node.kind === "machine" ? [...(machineJobs.get(Number(node.id.slice(1))) || [])].sort((a, b) => a - b) : [];
         const hot = traffic > 0 || queue > 0;
-        const fill = node.kind === "core" ? "#eef0ff" : node.kind === "machine" ? (jobs.length === 1 ? colorWithAlpha(jobColor(jobs[0]), 0.16) : "#ffffff") : "#eaf6f0";
-        const stroke = node.kind === "core" ? "#6f4bc1" : node.kind === "machine" ? (jobs.length === 1 ? jobColor(jobs[0]) : hot ? "#a66a00" : "#9aa4b2") : "#15845b";
+        const fill = node.kind === "core"
+          ? CANVAS.coreFill
+          : node.kind === "machine"
+            ? CANVAS.machineFill
+            : CANVAS.switchFill;
+        const stroke = node.kind === "core"
+          ? CANVAS.violet
+          : node.kind === "machine"
+            ? (jobs.length === 1 ? jobColor(jobs[0]) : hot ? CANVAS.gold : CANVAS.idleLink)
+            : CANVAS.green;
 
         ctx.beginPath();
         if (node.kind === "machine") {
@@ -917,7 +964,13 @@
         ctx.lineWidth = hot ? 2.5 : 1.5;
         ctx.fill();
 
-        if (node.kind === "machine" && jobs.length > 1) {
+        if (node.kind === "machine" && jobs.length === 1) {
+          ctx.save();
+          ctx.clip();
+          ctx.fillStyle = colorWithAlpha(jobColor(jobs[0]), 0.18);
+          ctx.fillRect(node.x - 22, node.y - 16, 44, 32);
+          ctx.restore();
+        } else if (node.kind === "machine" && jobs.length > 1) {
           ctx.save();
           ctx.clip();
           const stripeWidth = 44 / jobs.length;
@@ -930,14 +983,14 @@
 
         ctx.stroke();
 
-        ctx.fillStyle = "#18202a";
-        ctx.font = "12px system-ui, sans-serif";
+        ctx.fillStyle = CANVAS.ink;
+        ctx.font = "12px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
         ctx.textAlign = "center";
         ctx.textBaseline = "middle";
         ctx.fillText(nodeLabel(node.id), node.x, node.y - (node.kind === "machine" ? 3 : 0));
         if (node.kind === "machine") {
-          ctx.fillStyle = "#657080";
-          ctx.font = "10px system-ui, sans-serif";
+          ctx.fillStyle = CANVAS.muted;
+          ctx.font = "10px ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace";
           ctx.fillText(`q${queue} f${traffic}`, node.x, node.y + 10);
         }
       }
