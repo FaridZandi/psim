@@ -29,6 +29,13 @@ During simulation, PSIM advances active compute tasks and flows in discrete time
 - **Experiment execution:** runs repeated simulations with per-run logs, flow information, load-balancing decisions, and regret measurements.
 - **Analysis workflow:** provides Python orchestration and plotting scripts for generating and processing paper-scale experiments.
 
+A demo visualization of PSIM's execution with different load-balancing policies is available at: 
+
+[Example 1:](https://www.cs.toronto.edu/~faridzandi/psimdemo.html?trace=%2F%7Efaridzandi%2Frandom.jsonl) 4 jobs sharing a 32-Machine Cluster, with 4 spines and 4 ToRs. Each jobs is running a data-parallel training protocol with Ring-Allreduce communication at the end of each training iteration. Each flow randomly picks one of the 4 spines for its path. 
+
+[Example 2:](https://www.cs.toronto.edu/~faridzandi/psimdemo.html?trace=%2F%7Efaridzandi%2Fleastloaded.jsonl) A similar setup, but with a load-aware routing policy. Each flow picks the least loaded spine when starts transmission. The load-aware policy achieves better performance, but requires end-hosts to access non-local congestion signals. 
+
+
 ## Repository Layout
 
 The repository has two main parts:
