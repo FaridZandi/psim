@@ -1,4 +1,4 @@
-# Configuration for examples/run-simple-nethint.sh.
+# Shared configuration for the sample nethint runner.
 #
 # The runner sources this file after defining SCRIPT_DIR and REPO_ROOT.
 
@@ -21,14 +21,14 @@ PSIM_ARGS=(
   --priority-allocator maxmin
   --initial-rate 3
   --min-rate 3
-  --rate-increase 1.4
+  --rate-increase 1.01
   --punish-oversubscribed 1
   --punish-oversubscribed-min 0.8
-  --step-size 0.1
+  --step-size 1 
   --trace-snapshots
   --ft-agg-core-link-capacity-mult 1
   --ft-tor-agg-link-capacity-mult 1
-  --trace-snapshot-interval 500
+  --trace-snapshot-interval 50
   --trace-file "${TRACE_FILE}"
   --rep-count 1
   --workers-dir "${WORKERS_DIR}"
