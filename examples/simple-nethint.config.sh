@@ -16,7 +16,7 @@ PSIM_ARGS=(
   --machine-count 32
   --ft-server-per-rack 8
   --ft-rack-per-pod 1
-  --ft-core-count 4
+  --ft-core-count 2
   --link-bandwidth 10
   --priority-allocator maxmin
   --initial-rate 3

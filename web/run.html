@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PSIM Runner</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #f9edf0;
+      --panel: #fff8f5;
+      --panel-head: #e6c8b7;
+      --canvas: #fffaf7;
+      --ink: #261311;
+      --muted: #795d54;
+      --line: #d7b3a1;
+      --emerald: #1c3934;
+      --amber: #ba6a36;
+      --gold: #c3955b;
+    }
+
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--ink);
+      font: 14px/1.4 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--line);
+      background: #fffaf7;
+      position: sticky;
+      top: 0;
+      z-index: 2;
+    }
+
+    h1, h2, label, code, pre {
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 18px;
+    }
+
+    h1::before {
+      content: "./";
+      color: var(--amber);
+      margin-right: 8px;
+    }
+
+    main {
+      display: grid;
+      grid-template-columns: 360px minmax(0, 1fr);
+      gap: 14px;
+      padding: 14px;
+    }
+
+    section {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      box-shadow: 0 8px 22px rgba(38, 19, 17, 0.06);
+      min-width: 0;
+    }
+
+    .section-head {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--line);
+      background: var(--panel-head);
+      border-radius: 6px 6px 0 0;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: baseline;
+    }
+
+    h2 {
+      margin: 0;
+      font-size: 14px;
+    }
+
+    h2::before {
+      content: "▸";
+      color: var(--emerald);
+      margin-right: 7px;
+    }
+
+    .body {
+      padding: 14px;
+    }
+
+    .subtle {
+      color: var(--muted);
+    }
+
+    .field {
+      display: grid;
+      gap: 6px;
+      margin-bottom: 14px;
+    }
+
+    label {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    select, input[type="number"] {
+      width: 100%;
+      height: 34px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fffaf7;
+      color: var(--ink);
+      padding: 0 10px;
+      font: inherit;
+    }
+
+    .toggle {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      padding: 10px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fffaf7;
+    }
+
+    input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--emerald);
+    }
+
+    button {
+      height: 36px;
+      border: 1px solid var(--emerald);
+      background: var(--emerald);
+      color: #fffaf7;
+      border-radius: 6px;
+      padding: 0 14px;
+      cursor: pointer;
+      font-weight: 650;
+    }
+
+    button:disabled {
+      opacity: 0.55;
+      cursor: not-allowed;
+    }
+
+    .runs {
+      display: grid;
+      gap: 10px;
+    }
+
+    .run {
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #fffaf7;
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .run-top, .metrics, .links {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .pill {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #f9edf0;
+      color: var(--muted);
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
+    .pill.running { color: var(--emerald); border-color: var(--emerald); }
+    .pill.failed { color: var(--amber); border-color: var(--amber); }
+
+    .metric {
+      min-width: 118px;
+    }
+
+    .metric strong {
+      display: block;
+      font-size: 18px;
+    }
+
+    a {
+      color: var(--emerald);
+      text-decoration: none;
+      font-weight: 650;
+    }
+
+    pre {
+      max-height: 280px;
+      overflow: auto;
+      margin: 0;
+      padding: 12px;
+      border: 1px solid var(--line);
+      border-radius: 6px;
+      background: #261311;
+      color: #fffaf7;
+      font-size: 12px;
+      white-space: pre-wrap;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>PSIM Runner</h1>
+    <span class="subtle">launch simulations and open traces</span>
+  </header>
+
+  <main>
+    <section>
+      <div class="section-head">
+        <h2>Run Settings</h2>
+      </div>
+      <div class="body">
+        <div class="field">
+          <div class="toggle">
+            <div>
+              <label for="schedule">Scheduling</label>
+              <div>Generate timing and routing before simulation</div>
+            </div>
+            <input id="schedule" type="checkbox">
+          </div>
+        </div>
+
+        <div id="scheduledOptions">
+          <div class="field">
+            <label for="subflows">Subflows</label>
+            <input id="subflows" type="number" min="1" max="16" value="4">
+          </div>
+          <div class="field">
+            <label for="faridRounds">Fixing rounds</label>
+            <input id="faridRounds" type="number" min="0" max="100" value="10">
+          </div>
+          <div class="field">
+            <label for="timingScheme">Timing scheme</label>
+            <select id="timingScheme">
+              <option value="faridv6">faridv6</option>
+              <option value="faridv5">faridv5</option>
+              <option value="faridv4">faridv4</option>
+              <option value="zero">zero</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="routingFitStrategy">Routing strategy</label>
+            <select id="routingFitStrategy">
+              <option value="graph-coloring-v7">graph-coloring-v7</option>
+              <option value="graph-coloring-v8">graph-coloring-v8</option>
+              <option value="graph-coloring-v5">graph-coloring-v5</option>
+              <option value="graph-coloring-v3">graph-coloring-v3</option>
+              <option value="best">best</option>
+            </select>
+          </div>
+        </div>
+
+        <button id="runButton">Run Simulation</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Runs</h2>
+        <span id="status" class="subtle">idle</span>
+      </div>
+      <div class="body">
+        <div id="runs" class="runs"></div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let activeRunId = null;
+
+    function fixed(value, digits = 2) {
+      return Number.isFinite(value) ? value.toFixed(digits) : "-";
+    }
+
+    function metric(run, key, label, digits = 2) {
+      const value = run.metrics?.[key];
+      return `
+        <div class="metric">
+          <strong>${fixed(value, digits)}</strong>
+          <span class="subtle">${label}</span>
+        </div>
+      `;
+    }
+
+    function renderRun(run) {
+      const statusClass = run.status === "running" ? "running" : run.status === "failed" ? "failed" : "";
+      const openViewer = run.trace_exists
+        ? `<a href="${run.viewer_url}" target="_blank" rel="noreferrer">Open visualizer</a>`
+        : `<span class="subtle">trace not ready</span>`;
+      return `
+        <div class="run">
+          <div class="run-top">
+            <div>
+              <strong>${run.schedule ? "Scheduled" : "Unscheduled"} run</strong>
+              <div class="subtle"><code>${run.id}</code></div>
+            </div>
+            <span class="pill ${statusClass}">${run.status}</span>
+          </div>
+          <div class="metrics">
+            ${metric(run, "psim_time", "psim time", 0)}
+            ${metric(run, "total_congested_time", "congested time", 1)}
+            ${metric(run, "average_fct", "avg FCT", 2)}
+            ${metric(run, "average_flow_bw", "avg flow BW", 2)}
+            ${metric(run, "machine_utilization", "machine util", 3)}
+          </div>
+          <div class="links">
+            ${openViewer}
+            <span class="subtle">${run.duration === null ? "" : `${run.duration}s`}</span>
+          </div>
+          ${run.error ? `<div class="pill failed">${run.error}</div>` : ""}
+          <pre>${run.log_tail || ""}</pre>
+        </div>
+      `;
+    }
+
+    async function loadRuns() {
+      const response = await fetch("/api/runs", { cache: "no-store" });
+      const data = await response.json();
+      $("runs").innerHTML = data.runs.length
+        ? data.runs.map(renderRun).join("")
+        : `<span class="subtle">No runs yet.</span>`;
+
+      const active = activeRunId ? data.runs.find((run) => run.id === activeRunId) : null;
+      if (active) $("status").textContent = `${active.status} ${active.id}`;
+      else $("status").textContent = "idle";
+    }
+
+    async function startRun() {
+      $("runButton").disabled = true;
+      const payload = {
+        schedule: $("schedule").checked,
+        subflows: Number($("subflows").value),
+        farid_rounds: Number($("faridRounds").value),
+        timing_scheme: $("timingScheme").value,
+        routing_fit_strategy: $("routingFitStrategy").value
+      };
+      const response = await fetch("/api/runs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload)
+      });
+      const run = await response.json();
+      activeRunId = run.id;
+      $("runButton").disabled = false;
+      loadRuns();
+    }
+
+    $("runButton").addEventListener("click", startRun);
+    $("schedule").addEventListener("change", () => {
+      $("scheduledOptions").style.opacity = $("schedule").checked ? "1" : "0.55";
+    });
+    $("schedule").dispatchEvent(new Event("change"));
+
+    loadRuns();
+    setInterval(loadRuns, 1500);
+  </script>
+</body>
+</html>
