@@ -4,6 +4,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import subprocess
 import threading
 import time
@@ -140,6 +141,24 @@ def update_run(run_id, **updates):
         RUNS[run_id].update(updates)
         run = dict(RUNS[run_id])
     write_run_manifest(run)
+
+
+def delete_run(run_id):
+    with RUNS_LOCK:
+        run = RUNS.get(run_id)
+        if not run:
+            return None, "not_found"
+        if run["status"] in {"queued", "running"}:
+            return run, "active"
+        RUNS.pop(run_id)
+
+    output_dir = Path(run["output_dir"]).resolve()
+    runs_root = RUNS_ROOT.resolve()
+    if output_dir == runs_root or runs_root not in output_dir.parents:
+        return run, "unsafe_path"
+
+    shutil.rmtree(output_dir, ignore_errors=True)
+    return run, "deleted"
 
 
 def run_manifest_path(run):
@@ -482,6 +501,22 @@ class RunnerHandler(SimpleHTTPRequestHandler):
         thread = threading.Thread(target=run_background, args=(run,), daemon=True)
         thread.start()
         return self.send_json(public_run(run), HTTPStatus.CREATED)
+
+    def do_DELETE(self):
+        parsed = urlparse(self.path)
+        match = re.fullmatch(r"/api/runs/([^/]+)", parsed.path)
+        if not match:
+            return self.send_json({"error": "not found"}, HTTPStatus.NOT_FOUND)
+
+        run_id = match.group(1)
+        run, result = delete_run(run_id)
+        if result == "not_found":
+            return self.send_json({"error": "run not found"}, HTTPStatus.NOT_FOUND)
+        if result == "active":
+            return self.send_json({"error": "cannot delete a queued or running run"}, HTTPStatus.CONFLICT)
+        if result == "unsafe_path":
+            return self.send_json({"error": "refusing to delete unsafe path"}, HTTPStatus.BAD_REQUEST)
+        return self.send_json({"deleted": run_id})
 
 
 def main():

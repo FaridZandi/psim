@@ -4,7 +4,7 @@
     "machine_count": 8,
     "comm_size": 10000,
     "comp_size": 380,
-    "layer_count": 1,
+    "layer_count": 2,
     "iter_count": 4,
     "machines": [3, 14, 17, 28, 6, 9, 22, 25]
   },
@@ -13,7 +13,7 @@
     "machine_count": 8,
     "comm_size": 12000,
     "comp_size": 440,
-    "layer_count": 1,
+    "layer_count": 2,
     "iter_count": 4,
     "machines": [0, 11, 20, 31, 5, 8, 19, 26]
   },
@@ -22,7 +22,7 @@
     "machine_count": 8,
     "comm_size": 9000,
     "comp_size": 500,
-    "layer_count": 1,
+    "layer_count": 2,
     "iter_count": 4,
     "machines": [2, 12, 23, 29, 7, 10, 16, 27]
   },
@@ -31,7 +31,7 @@
     "machine_count": 8,
     "comm_size": 14000,
     "comp_size": 610,
-    "layer_count": 1,
+    "layer_count": 2,
     "iter_count": 3,
     "machines": [1, 15, 18, 30, 4, 13, 21, 24]
   }

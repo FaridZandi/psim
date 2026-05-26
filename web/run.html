@@ -156,32 +156,57 @@
       cursor: not-allowed;
     }
 
-    .runs {
-      display: grid;
-      gap: 10px;
+    button.danger {
+      height: 26px;
+      border-color: var(--amber);
+      background: #fffaf7;
+      color: var(--amber);
+      padding: 0 9px;
+      font-size: 12px;
     }
 
-    .run {
+    .runs {
+      overflow-x: auto;
       border: 1px solid var(--line);
       border-radius: 6px;
       background: #fffaf7;
-      padding: 12px;
-      display: grid;
-      gap: 10px;
     }
 
-    .run-top, .metrics, .links {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 10px;
-      flex-wrap: wrap;
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 12px;
+    }
+
+    th, td {
+      padding: 7px 9px;
+      border-bottom: 1px solid var(--line);
+      text-align: left;
+      white-space: nowrap;
+    }
+
+    th {
+      color: var(--muted);
+      background: var(--panel-head);
+      position: sticky;
+      top: 0;
+      z-index: 1;
+      font-weight: 650;
+    }
+
+    tr:hover td {
+      background: #fff4ef;
+    }
+
+    .run-id {
+      color: var(--muted);
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }
 
     .pill {
       border: 1px solid var(--line);
       border-radius: 999px;
-      padding: 3px 8px;
+      padding: 2px 7px;
       background: #f9edf0;
       color: var(--muted);
       font-size: 12px;
@@ -191,26 +216,32 @@
     .pill.running { color: var(--emerald); border-color: var(--emerald); }
     .pill.failed { color: var(--amber); border-color: var(--amber); }
 
-    .metric {
-      min-width: 118px;
-    }
-
-    .metric strong {
-      display: block;
-      font-size: 18px;
-    }
-
     a {
       color: var(--emerald);
       text-decoration: none;
       font-weight: 650;
     }
 
+    details {
+      position: relative;
+    }
+
+    summary {
+      cursor: pointer;
+      color: var(--muted);
+      font-size: 12px;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+    }
+
     pre {
-      max-height: 280px;
+      position: absolute;
+      right: 0;
+      z-index: 4;
+      width: min(760px, 76vw);
+      max-height: 260px;
       overflow: auto;
-      margin: 0;
-      padding: 12px;
+      margin: 8px 0 0;
+      padding: 10px;
       border: 1px solid var(--line);
       border-radius: 6px;
       background: #261311;
@@ -299,44 +330,33 @@
       return Number.isFinite(value) ? value.toFixed(digits) : "-";
     }
 
-    function metric(run, key, label, digits = 2) {
-      const value = run.metrics?.[key];
-      return `
-        <div class="metric">
-          <strong>${fixed(value, digits)}</strong>
-          <span class="subtle">${label}</span>
-        </div>
-      `;
-    }
-
-    function renderRun(run) {
+    function renderRunRows(run) {
       const statusClass = run.status === "running" ? "running" : run.status === "failed" ? "failed" : "";
       const openViewer = run.trace_exists
-        ? `<a href="${run.viewer_url}" target="_blank" rel="noreferrer">Open visualizer</a>`
-        : `<span class="subtle">trace not ready</span>`;
+        ? `<a href="${run.viewer_url}" target="_blank" rel="noreferrer">visualizer</a>`
+        : `<span class="subtle">not ready</span>`;
+      const duration = run.duration === null ? "-" : `${run.duration}s`;
+      const mode = run.schedule ? "scheduled" : "unscheduled";
       return `
-        <div class="run">
-          <div class="run-top">
-            <div>
-              <strong>${run.schedule ? "Scheduled" : "Unscheduled"} run</strong>
-              <div class="subtle"><code>${run.id}</code></div>
-            </div>
-            <span class="pill ${statusClass}">${run.status}</span>
-          </div>
-          <div class="metrics">
-            ${metric(run, "psim_time", "psim time", 0)}
-            ${metric(run, "total_congested_time", "congested time", 1)}
-            ${metric(run, "average_fct", "avg FCT", 2)}
-            ${metric(run, "average_flow_bw", "avg flow BW", 2)}
-            ${metric(run, "machine_utilization", "machine util", 3)}
-          </div>
-          <div class="links">
-            ${openViewer}
-            <span class="subtle">${run.duration === null ? "" : `${run.duration}s`}</span>
-          </div>
-          ${run.error ? `<div class="pill failed">${run.error}</div>` : ""}
-          <pre>${run.log_tail || ""}</pre>
-        </div>
+        <tr>
+          <td><span class="run-id">${run.id}</span></td>
+          <td>${mode}</td>
+          <td><span class="pill ${statusClass}">${run.status}</span></td>
+          <td>${fixed(run.metrics?.psim_time, 0)}</td>
+          <td>${fixed(run.metrics?.total_congested_time, 1)}</td>
+          <td>${fixed(run.metrics?.average_fct, 2)}</td>
+          <td>${fixed(run.metrics?.average_flow_bw, 2)}</td>
+          <td>${fixed(run.metrics?.machine_utilization, 3)}</td>
+          <td>${duration}</td>
+          <td>${openViewer}</td>
+          <td>
+            <details>
+              <summary>log</summary>
+              <pre>${run.error ? `ERROR: ${run.error}\n\n` : ""}${run.log_tail || ""}</pre>
+            </details>
+          </td>
+          <td><button class="danger delete-run" data-run-id="${run.id}" ${run.status === "running" || run.status === "queued" ? "disabled" : ""}>Delete</button></td>
+        </tr>
       `;
     }
 
@@ -344,12 +364,43 @@
       const response = await fetch("/api/runs", { cache: "no-store" });
       const data = await response.json();
       $("runs").innerHTML = data.runs.length
-        ? data.runs.map(renderRun).join("")
+        ? `
+          <table>
+            <thead>
+              <tr>
+                <th>Run</th>
+                <th>Mode</th>
+                <th>Status</th>
+                <th>Time</th>
+                <th>Cong.</th>
+                <th>Avg FCT</th>
+                <th>Flow BW</th>
+                <th>Util</th>
+                <th>Wall</th>
+                <th>Trace</th>
+                <th>Log</th>
+                <th>Delete</th>
+              </tr>
+            </thead>
+            <tbody>${data.runs.map(renderRunRows).join("")}</tbody>
+          </table>
+        `
         : `<span class="subtle">No runs yet.</span>`;
 
       const active = activeRunId ? data.runs.find((run) => run.id === activeRunId) : null;
       if (active) $("status").textContent = `${active.status} ${active.id}`;
       else $("status").textContent = "idle";
+    }
+
+    async function deleteRun(runId) {
+      if (!confirm(`Delete results for ${runId}?`)) return;
+      const response = await fetch(`/api/runs/${runId}`, { method: "DELETE" });
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        alert(data.error || `Delete failed with HTTP ${response.status}`);
+      }
+      if (activeRunId === runId) activeRunId = null;
+      loadRuns();
     }
 
     async function startRun() {
@@ -373,6 +424,11 @@
     }
 
     $("runButton").addEventListener("click", startRun);
+    $("runs").addEventListener("click", (event) => {
+      const button = event.target.closest(".delete-run");
+      if (!button) return;
+      deleteRun(button.dataset.runId);
+    });
     $("schedule").addEventListener("change", () => {
       $("scheduledOptions").style.opacity = $("schedule").checked ? "1" : "0.55";
     });
