@@ -222,25 +222,30 @@
       font-weight: 650;
     }
 
-    details {
-      position: relative;
-    }
-
-    summary {
-      cursor: pointer;
+    button.link-button {
+      height: 24px;
+      border: 0;
+      background: transparent;
       color: var(--muted);
+      padding: 0;
       font-size: 12px;
+      font-weight: 650;
       font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
     }
 
+    .log-row[hidden] {
+      display: none;
+    }
+
+    .log-row td {
+      padding: 0 9px 9px;
+      background: #fffaf7;
+    }
+
     pre {
-      position: absolute;
-      right: 0;
-      z-index: 4;
-      width: min(760px, 76vw);
       max-height: 260px;
       overflow: auto;
-      margin: 8px 0 0;
+      margin: 0;
       padding: 10px;
       border: 1px solid var(--line);
       border-radius: 6px;
@@ -325,21 +330,63 @@
   <script>
     const $ = (id) => document.getElementById(id);
     let activeRunId = null;
+    let polling = false;
+    let tableReady = false;
 
     function fixed(value, digits = 2) {
       return Number.isFinite(value) ? value.toFixed(digits) : "-";
     }
 
-    function renderRunRows(run) {
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function ensureRunsTable() {
+      if (tableReady) return;
+      $("runs").innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Run</th>
+              <th>Mode</th>
+              <th>Status</th>
+              <th>Time</th>
+              <th>Cong.</th>
+              <th>Avg FCT</th>
+              <th>Flow BW</th>
+              <th>Util</th>
+              <th>Wall</th>
+              <th>Trace</th>
+              <th>Log</th>
+              <th>Delete</th>
+            </tr>
+          </thead>
+          <tbody id="runsBody"></tbody>
+        </table>
+      `;
+      tableReady = true;
+    }
+
+    function logText(run) {
+      return run.error ? `ERROR: ${run.error}\n\n${run.log_tail || ""}` : run.log_tail || "";
+    }
+
+    function renderRunRows(run, logOpen = false) {
       const statusClass = run.status === "running" ? "running" : run.status === "failed" ? "failed" : "";
       const openViewer = run.trace_exists
         ? `<a href="${run.viewer_url}" target="_blank" rel="noreferrer">visualizer</a>`
         : `<span class="subtle">not ready</span>`;
       const duration = run.duration === null ? "-" : `${run.duration}s`;
       const mode = run.schedule ? "scheduled" : "unscheduled";
+      const safeRunId = escapeHtml(run.id);
       return `
-        <tr>
-          <td><span class="run-id">${run.id}</span></td>
+        <tr data-run-id="${safeRunId}">
+          <td><span class="run-id">${safeRunId}</span></td>
           <td>${mode}</td>
           <td><span class="pill ${statusClass}">${run.status}</span></td>
           <td>${fixed(run.metrics?.psim_time, 0)}</td>
@@ -349,47 +396,65 @@
           <td>${fixed(run.metrics?.machine_utilization, 3)}</td>
           <td>${duration}</td>
           <td>${openViewer}</td>
-          <td>
-            <details>
-              <summary>log</summary>
-              <pre>${run.error ? `ERROR: ${run.error}\n\n` : ""}${run.log_tail || ""}</pre>
-            </details>
-          </td>
-          <td><button class="danger delete-run" data-run-id="${run.id}" ${run.status === "running" || run.status === "queued" ? "disabled" : ""}>Delete</button></td>
+          <td><button class="link-button toggle-log" data-run-id="${safeRunId}">${logOpen ? "hide" : "log"}</button></td>
+          <td><button class="danger delete-run" data-run-id="${safeRunId}" ${run.status === "running" || run.status === "queued" ? "disabled" : ""}>Delete</button></td>
+        </tr>
+        <tr class="log-row" data-log-run-id="${safeRunId}" ${logOpen ? "" : "hidden"}>
+          <td colspan="12"><pre>${escapeHtml(logText(run))}</pre></td>
         </tr>
       `;
     }
 
-    async function loadRuns() {
-      const response = await fetch("/api/runs", { cache: "no-store" });
-      const data = await response.json();
-      $("runs").innerHTML = data.runs.length
-        ? `
-          <table>
-            <thead>
-              <tr>
-                <th>Run</th>
-                <th>Mode</th>
-                <th>Status</th>
-                <th>Time</th>
-                <th>Cong.</th>
-                <th>Avg FCT</th>
-                <th>Flow BW</th>
-                <th>Util</th>
-                <th>Wall</th>
-                <th>Trace</th>
-                <th>Log</th>
-                <th>Delete</th>
-              </tr>
-            </thead>
-            <tbody>${data.runs.map(renderRunRows).join("")}</tbody>
-          </table>
-        `
-        : `<span class="subtle">No runs yet.</span>`;
+    function updateRunRow(run) {
+      ensureRunsTable();
+      const body = $("runsBody");
+      let row = body.querySelector(`tr[data-run-id="${CSS.escape(run.id)}"]`);
+      let logRow = body.querySelector(`tr[data-log-run-id="${CSS.escape(run.id)}"]`);
+      const wasOpen = logRow ? !logRow.hidden : false;
 
-      const active = activeRunId ? data.runs.find((run) => run.id === activeRunId) : null;
-      if (active) $("status").textContent = `${active.status} ${active.id}`;
-      else $("status").textContent = "idle";
+      const wrapper = document.createElement("tbody");
+      wrapper.innerHTML = renderRunRows(run, wasOpen).trim();
+      const nextRow = wrapper.firstElementChild;
+      const nextLogRow = nextRow.nextElementSibling;
+
+      if (row) {
+        row.replaceWith(nextRow);
+        if (logRow) logRow.replaceWith(nextLogRow);
+        else nextRow.after(nextLogRow);
+      } else {
+        body.appendChild(nextRow);
+        body.appendChild(nextLogRow);
+      }
+    }
+
+    async function loadRuns() {
+      if (polling) return;
+      polling = true;
+      try {
+        const response = await fetch("/api/runs", { cache: "no-store" });
+        const data = await response.json();
+
+        if (!data.runs.length) {
+          $("runs").innerHTML = `<span class="subtle">No runs yet.</span>`;
+          tableReady = false;
+        } else {
+          ensureRunsTable();
+          const seen = new Set(data.runs.map((run) => run.id));
+          for (const run of data.runs) updateRunRow(run);
+          for (const row of [...$("runsBody").querySelectorAll("tr[data-run-id]")]) {
+            if (!seen.has(row.dataset.runId)) {
+              $("runsBody").querySelector(`tr[data-log-run-id="${CSS.escape(row.dataset.runId)}"]`)?.remove();
+              row.remove();
+            }
+          }
+        }
+
+        const active = activeRunId ? data.runs.find((run) => run.id === activeRunId) : null;
+        if (active) $("status").textContent = `${active.status} ${active.id}`;
+        else $("status").textContent = "idle";
+      } finally {
+        polling = false;
+      }
     }
 
     async function deleteRun(runId) {
@@ -425,6 +490,15 @@
 
     $("runButton").addEventListener("click", startRun);
     $("runs").addEventListener("click", (event) => {
+      const toggle = event.target.closest(".toggle-log");
+      if (toggle) {
+        const logRow = $("runsBody").querySelector(`tr[data-log-run-id="${CSS.escape(toggle.dataset.runId)}"]`);
+        if (!logRow) return;
+        logRow.hidden = !logRow.hidden;
+        toggle.textContent = logRow.hidden ? "log" : "hide";
+        return;
+      }
+
       const button = event.target.closest(".delete-run");
       if (!button) return;
       deleteRun(button.dataset.runId);
