@@ -13,6 +13,27 @@ import math
 import networkx as nx
 
 
+def emit_scheduler_progress(run_context, event):
+    progress_callback = run_context.get("progress-callback")
+    if progress_callback is not None:
+        progress_callback(event)
+
+
+def summarize_ranges_for_progress(ranges, limit=8):
+    if not ranges:
+        return {"count": 0, "total_length": 0, "sample": []}
+
+    normalized = [(int(start), int(end)) for start, end in ranges]
+    return {
+        "count": len(normalized),
+        "total_length": sum(end - start + 1 for start, end in normalized),
+        "sample": [
+            {"start": start, "end": end, "length": end - start + 1}
+            for start, end in normalized[:limit]
+        ],
+    }
+
+
 
 def merge_overlapping_ranges_v7(ranges_dict, 
                                 traffic_pattern_to_src_racks, 
@@ -223,6 +244,16 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
         for t in range(flows_max_time):
             max_edge_count[t] = max(max_edge_count[t], edge_count_in[r][t] / max_subflow_count)
             max_edge_count[t] = max(max_edge_count[t], edge_count_out[r][t] / max_subflow_count)
+    emit_scheduler_progress(run_context, {
+        "phase": "routing",
+        "status": "coloring_precheck",
+        "suffix": suffix,
+        "available_colors": available_colors_max,
+        "available_spines": num_spines,
+        "subflow_capacity": subflow_capacity,
+        "max_required_spines_lower_bound": max(max_edge_count) if max_edge_count else 0,
+        "flow_time_end": flows_max_time,
+    })
             
     if early_return:
         # find all the ranges where the max_edge_count exceeds available_colors_max
@@ -308,6 +339,21 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     # unique hash values.   
     for key in hash_to_time_ranges.keys():
         hash_to_time_ranges[key].sort()
+    emit_scheduler_progress(run_context, {
+        "phase": "routing",
+        "status": "traffic_patterns_built",
+        "suffix": suffix,
+        "traffic_pattern_count": len(hash_to_time_ranges),
+        "pattern_sample": [
+            {
+                "pattern": pattern_hash,
+                "time_ranges": summarize_ranges_for_progress(ranges, limit=3),
+                "src_racks": sorted(traffic_pattern_to_src_racks[pattern_hash]),
+                "dst_racks": sorted(traffic_pattern_to_dst_racks[pattern_hash]),
+            }
+            for pattern_hash, ranges in list(hash_to_time_ranges.items())[:8]
+        ],
+    })
     
     if run_context["plot-merged-ranges"]:   
         plot_rack_dependencies(hash_to_time_ranges, 
@@ -327,6 +373,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     max_degrees = {}
     solutions = []
     bad_ranges = []
+    coloring_groups = []
 
     for overlapping_keys, overlapping_ranges in merged_ranges.items():
         current_flows = []
@@ -393,6 +440,28 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
             else: 
                 needed_color_count[time_range] = used_spines
             max_degrees[time_range] = max_degree / max_subflow_count
+
+        coloring_groups.append({
+            "patterns": list(overlapping_keys),
+            "range_count": len(overlapping_ranges),
+            "ranges": summarize_ranges_for_progress(overlapping_ranges, limit=4),
+            "flow_count": len(current_flows),
+            "edge_count": len(edges),
+            "colors_used": colors_used_count,
+            "used_spines": colors_used_count / max_subflow_count,
+            "max_degree_spines": max_degree / max_subflow_count,
+            "fits": (colors_used_count / max_subflow_count) <= num_spines,
+        })
+
+    emit_scheduler_progress(run_context, {
+        "phase": "routing",
+        "status": "coloring_solved",
+        "suffix": suffix,
+        "available_spines": num_spines,
+        "merged_group_count": len(merged_ranges),
+        "bad_ranges": summarize_ranges_for_progress(bad_ranges),
+        "group_sample": coloring_groups[:8],
+    })
 
     # print("solutions:", solutions, file=sys.stderr)
     
@@ -465,5 +534,12 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
                               src_leaf, dst_leaf)
         
     bad_ranges.sort()
+    emit_scheduler_progress(run_context, {
+        "phase": "routing",
+        "status": "spines_assigned",
+        "suffix": suffix,
+        "assignment_count": len(lb_decisions),
+        "bad_ranges": summarize_ranges_for_progress(bad_ranges),
+    })
     
     return min_affected_time, max_affected_time, bad_ranges

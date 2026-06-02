@@ -528,7 +528,7 @@ def generate_manual_4_placement_file(options, run_context):
     
     return jobs, 1.0
 
-def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path, stretch_factor=1):
+def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path, stretch_factor=1, progress_callback=None):
     for job in jobs:
         if "profiled-throttle-factors" not in run_context:  
             rage_quit("Error: profiled-throttle-factors not in run_context.")
@@ -536,6 +536,14 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
         job["period"] = {}
 
         for throttle_factor in run_context["profiled-throttle-factors"]:
+            if progress_callback is not None:
+                progress_callback({
+                    "phase": "profiling",
+                    "status": "started",
+                    "job_id": job["job_id"],
+                    "throttle": throttle_factor,
+                })
+
             profiling_job_options = copy.deepcopy(options)  
             profiling_job_options["isolate-job-id"] = job["job_id"]
             profiling_job_options["print-flow-progress-history"] = True
@@ -586,6 +594,16 @@ def profile_all_jobs(jobs, options, run_context, config_sweeper, placement_path,
                 job["base_period"] = psim_finish_time
                 
             print("profiled job: ", job_id, " with throttle factor: ", throttle_factor, " period: ", psim_finish_time)
+
+            if progress_callback is not None:
+                progress_callback({
+                    "phase": "profiling",
+                    "status": "finished",
+                    "job_id": job_id,
+                    "throttle": throttle_factor,
+                    "period": psim_finish_time,
+                    "flow_count": len(this_job_prof["flows"]),
+                })
             
             
 def handle_rings(jobs, placement_mode, ring_mode): 

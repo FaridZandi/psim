@@ -5,6 +5,8 @@ import json
 import os
 import subprocess
 import sys
+import time
+from collections.abc import Mapping
 from pathlib import Path
 
 
@@ -154,6 +156,36 @@ def write_json(path, data):
         f.write("\n")
 
 
+class ProgressWriter:
+    def __init__(self, path):
+        self.path = Path(path)
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        self.path.write_text("")
+        self.started_at = time.time()
+        self.seq = 0
+
+    def emit(self, event):
+        def json_safe(value):
+            if isinstance(value, Mapping):
+                return {str(key): json_safe(item) for key, item in value.items()}
+            if isinstance(value, (list, tuple, set)):
+                return [json_safe(item) for item in value]
+            if hasattr(value, "item"):
+                return value.item()
+            return value
+
+        self.seq += 1
+        data = {
+            "seq": self.seq,
+            "time": time.time(),
+            "elapsed": round(time.time() - self.started_at, 3),
+            **json_safe(event),
+        }
+        with open(self.path, "a") as f:
+            json.dump(data, f, sort_keys=True)
+            f.write("\n")
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Run one scheduled PSIM sample workload using the sample placement file."
@@ -190,6 +222,7 @@ def main():
     routings_dir = output_dir / "routings"
     trace_file = output_dir / "worker-0" / "run-1" / "trace.jsonl"
     output_file = output_dir / "scheduling-output.txt"
+    progress_file = output_dir / "scheduler-progress.jsonl"
     timing_file = timings_dir / "timing.json"
     routing_file = routings_dir / "routing.json"
     enriched_placement_file = output_dir / "sample-placement-with-profiles.json"
@@ -197,9 +230,20 @@ def main():
     for path in [output_dir, profiles_dir, timings_dir, routings_dir]:
         path.mkdir(parents=True, exist_ok=True)
     output_file.write_text("")
+    progress = ProgressWriter(progress_file)
+    progress.emit({
+        "phase": "setup",
+        "status": "started",
+        "timing_scheme": args.timing_scheme,
+        "routing_fit_strategy": args.routing_fit_strategy,
+        "farid_rounds": args.farid_rounds,
+        "subflows": args.subflows,
+    })
 
     build_psim()
+    progress.emit({"phase": "setup", "status": "build_ready"})
     jobs = load_jobs(placement_file)
+    progress.emit({"phase": "setup", "status": "loaded_placement", "job_count": len(jobs)})
 
     base_options.update({
         "placement-file": str(placement_file),
@@ -240,6 +284,7 @@ def main():
         "plot-routing-assignment": False,
         "plot-merged-ranges": False,
         "plot-runtime-timing": False,
+        "progress-callback": progress.emit,
         "plot-link-empty-times": False,
         "use_inflation": True,
     }
@@ -249,13 +294,30 @@ def main():
     print(f"Using placement: {placement_file}")
     print(f"Writing artifacts under: {output_dir}")
     print("Profiling sample jobs...")
+    progress.emit({
+        "phase": "profiling",
+        "status": "started",
+        "job_count": len(jobs),
+        "throttle_count": len(run_context["profiled-throttle-factors"]),
+    })
     profile_options = copy.deepcopy(base_options)
     for key in ["routing-file", "timing-file", "trace-file", "trace-snapshot-interval", "trace-snapshots"]:
         profile_options.pop(key, None)
-    profile_all_jobs(jobs, profile_options, run_context, runner, str(placement_file))
+    profile_all_jobs(jobs, profile_options, run_context, runner, str(placement_file), progress_callback=progress.emit)
     write_json(enriched_placement_file, jobs)
+    progress.emit({
+        "phase": "profiling",
+        "status": "finished",
+        "enriched_placement_file": str(enriched_placement_file),
+    })
 
     print("Generating timing and routing schedule...")
+    progress.emit({
+        "phase": "scheduling",
+        "status": "started",
+        "timing_file": str(timing_file),
+        "routing_file": str(routing_file),
+    })
     schedule_options = copy.deepcopy(base_options)
     for key in ["trace-file", "trace-snapshot-interval", "trace-snapshots"]:
         schedule_options.pop(key, None)
@@ -280,12 +342,22 @@ def main():
         "routing_decisions": len(lb_decisions or []),
         "scheduler_context": add_to_context,
     })
+    progress.emit({
+        "phase": "scheduling",
+        "status": "finished",
+        "timed_jobs": len(job_timings),
+        "routing_decisions": len(lb_decisions or []),
+        "scheduler_context": add_to_context,
+    })
 
     if args.skip_simulation:
+        progress.emit({"phase": "simulation", "status": "skipped"})
+        progress.emit({"phase": "done", "status": "finished"})
         print("Skipping final simulation.")
         return
 
     print("Running scheduled simulation...")
+    progress.emit({"phase": "simulation", "status": "started", "trace_file": str(trace_file)})
     final_options = copy.deepcopy(base_options)
     final_options.update({
         "timing-file": str(timing_file),
@@ -293,6 +365,8 @@ def main():
         "trace-file": str(trace_file),
     })
     runner.only_run_command_with_options(run_context, final_options)
+    progress.emit({"phase": "simulation", "status": "finished", "trace_file": str(trace_file)})
+    progress.emit({"phase": "done", "status": "finished"})
 
     print()
     print(f"Timing file: {timing_file}")

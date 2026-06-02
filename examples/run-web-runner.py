@@ -126,6 +126,7 @@ def make_run(schedule, settings):
             "output_dir": str(output_dir),
             "run_dir": str(output_dir / "worker-0" / "run-1"),
             "trace_file": str(output_dir / "worker-0" / "run-1" / "trace.jsonl"),
+            "scheduler_progress_file": str(output_dir / "scheduler-progress.jsonl"),
             "log_file": str(output_dir / "runner.log"),
             "command": [],
             "metrics": {},
@@ -203,6 +204,94 @@ def parse_results(run_dir):
     return metrics
 
 
+def read_scheduler_progress(path):
+    progress_path = Path(path)
+    if not progress_path.exists():
+        return []
+
+    events = []
+    with open(progress_path) as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                events.append(json.loads(line))
+            except json.JSONDecodeError:
+                continue
+    return events
+
+
+def scheduling_summary_from_file(output_dir):
+    summary_path = Path(output_dir) / "scheduling-summary.json"
+    if not summary_path.exists():
+        return {}
+    try:
+        with open(summary_path) as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {}
+
+
+def summarize_scheduler_progress(run):
+    events = read_scheduler_progress(run.get("scheduler_progress_file", ""))
+    summary = scheduling_summary_from_file(run["output_dir"])
+    profile_events = [
+        event for event in events
+        if event.get("phase") == "profiling" and event.get("status") == "finished" and "job_id" in event
+    ]
+    profile_started = [
+        event for event in events
+        if event.get("phase") == "profiling" and event.get("status") == "started" and "job_id" in event
+    ]
+    latest = events[-1] if events else {}
+    scheduler_context = summary.get("scheduler_context", {})
+    algorithm_events = [
+        event for event in events
+        if event.get("phase") in {"scheduling", "timing", "routing"}
+    ]
+    timing_rounds = []
+    rounds = {}
+    for event in algorithm_events:
+        if event.get("phase") != "timing" or "round" not in event:
+            continue
+        round_key = str(event.get("round"))
+        item = rounds.setdefault(round_key, {
+            "round": event.get("round"),
+            "step": event.get("step"),
+            "started": None,
+            "timings": [],
+            "evaluated": None,
+        })
+        if event.get("status") == "round_started":
+            item["started"] = event
+            item["step"] = event.get("step")
+        elif event.get("status") == "timing_produced":
+            item["timings"] = event.get("timings", [])
+        elif event.get("status") == "round_evaluated":
+            item["evaluated"] = event
+    for round_key in sorted(rounds, key=lambda value: int(value) if value.isdigit() else 0):
+        timing_rounds.append(rounds[round_key])
+
+    return {
+        "event_count": len(events),
+        "latest_phase": latest.get("phase"),
+        "latest_status": latest.get("status"),
+        "latest_elapsed": latest.get("elapsed"),
+        "profile_finished": len(profile_events),
+        "profile_total": max(len(profile_started), len(profile_events)),
+        "profiles": profile_events[-16:],
+        "routing_decisions": summary.get("routing_decisions"),
+        "timed_jobs": summary.get("timed_jobs"),
+        "fixing_rounds": scheduler_context.get("fixing_rounds"),
+        "remaining_bad_range_ratio": scheduler_context.get("remaining_bad_range_ratio"),
+        "fixed_bad_range_ratio": scheduler_context.get("fixed_bad_range_ratio"),
+        "timing_rounds": timing_rounds[-12:],
+        "algorithm_events": algorithm_events[-80:],
+        "events": events[-24:],
+    }
+
+
 def parse_time_from_run_id(run_id, fallback):
     try:
         return time.mktime(time.strptime(run_id[:15], "%Y%m%d-%H%M%S"))
@@ -250,6 +339,7 @@ def discover_run(run_dir):
     output_dir = str(run_dir)
     worker_run_dir = str(run_dir / "worker-0" / "run-1")
     trace_file = str(run_dir / "worker-0" / "run-1" / "trace.jsonl")
+    scheduler_progress_file = str(run_dir / "scheduler-progress.jsonl")
     log_file = str(run_dir / "runner.log")
     command = run.get("command") or read_command(log_file)
     schedule = run.get("schedule")
@@ -303,6 +393,7 @@ def discover_run(run_dir):
         "output_dir": output_dir,
         "run_dir": worker_run_dir,
         "trace_file": trace_file,
+        "scheduler_progress_file": scheduler_progress_file,
         "log_file": log_file,
         "command": command,
         "metrics": metrics,
@@ -421,6 +512,8 @@ def public_run(run):
     data["trace_url"] = f"/api/runs/{run['id']}/trace"
     data["viewer_url"] = f"/web/index.html?trace=/api/runs/{run['id']}/trace"
     data["log_tail"] = read_log_tail(run["log_file"])
+    data["scheduler_progress"] = summarize_scheduler_progress(run) if run.get("schedule") else None
+    data["scheduler_progress_url"] = f"/api/runs/{run['id']}/scheduler-progress" if run.get("schedule") else None
     return data
 
 
@@ -473,6 +566,24 @@ class RunnerHandler(SimpleHTTPRequestHandler):
             self.send_header("Content-Length", str(trace_path.stat().st_size))
             self.end_headers()
             with open(trace_path, "rb") as f:
+                self.wfile.write(f.read())
+            return
+
+        match = re.fullmatch(r"/api/runs/([^/]+)/scheduler-progress", path)
+        if match:
+            run_id = match.group(1)
+            with RUNS_LOCK:
+                run = RUNS.get(run_id)
+            if not run:
+                return self.send_json({"error": "run not found"}, HTTPStatus.NOT_FOUND)
+            progress_path = Path(run.get("scheduler_progress_file", ""))
+            if not progress_path.exists():
+                return self.send_json({"events": []})
+            self.send_response(HTTPStatus.OK)
+            self.send_header("Content-Type", "application/x-ndjson")
+            self.send_header("Content-Length", str(progress_path.stat().st_size))
+            self.end_headers()
+            with open(progress_path, "rb") as f:
                 self.wfile.write(f.read())
             return
 

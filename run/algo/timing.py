@@ -34,6 +34,49 @@ def log_results(run_context, key, value):
         f.write("\n---------------------------------\n")   
 
 
+def emit_scheduler_progress(run_context, event):
+    progress_callback = run_context.get("progress-callback")
+    if progress_callback is not None:
+        progress_callback(event)
+
+
+def summarize_ranges_for_progress(ranges, limit=8):
+    if not ranges:
+        return {"count": 0, "total_length": 0, "sample": []}
+
+    normalized = [(int(start), int(end)) for start, end in ranges]
+    total_length = sum(end - start + 1 for start, end in normalized)
+    return {
+        "count": len(normalized),
+        "total_length": total_length,
+        "sample": [
+            {"start": start, "end": end, "length": end - start + 1}
+            for start, end in normalized[:limit]
+        ],
+    }
+
+
+def summarize_job_timings_for_progress(job_timings, jobs, limit=8):
+    job_iter_counts = {job["job_id"]: job["iter_count"] for job in jobs}
+    summaries = []
+
+    for job_timing in sorted(job_timings, key=lambda item: item["job_id"]):
+        deltas = list(job_timing["deltas"])
+        throttle_rates = list(job_timing["throttle_rates"])
+        summaries.append({
+            "job_id": job_timing["job_id"],
+            "iter_count": job_iter_counts.get(job_timing["job_id"], len(deltas)),
+            "first_delta": deltas[0] if deltas else None,
+            "delta_sum": sum(deltas),
+            "delta_max": max(deltas) if deltas else None,
+            "throttle_rates": sorted(set(throttle_rates)),
+            "delta_sample": deltas[:limit],
+            "throttle_sample": throttle_rates[:limit],
+        })
+
+    return summaries
+
+
 def visualize_workload_timing(jobs, options, run_context, 
                               job_timings, job_profiles, lb_decisions, 
                               mode, intermediate_suffix=""):
@@ -1511,6 +1554,13 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
 
     # step 1: do the vanilla timing first.
     log_progress(run_context, "starting vanilla timing")    
+    emit_scheduler_progress(run_context, {
+        "phase": "timing",
+        "status": "round_started",
+        "round": current_round,
+        "step": "vanilla",
+        "reason": "initial timing without bad-range feedback",
+    })
     
     SEED_MAGIC = 23423
     random.seed(run_context["experiment-seed"] + SEED_MAGIC)
@@ -1518,6 +1568,13 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     early_return = should_early_return(current_round, max_attempts)
         
     job_timings, solution = solver.solve()
+    emit_scheduler_progress(run_context, {
+        "phase": "timing",
+        "status": "timing_produced",
+        "round": current_round,
+        "step": "vanilla",
+        "timings": summarize_job_timings_for_progress(job_timings, jobs),
+    })
     lb_decisions, new_bad_ranges = route_flows(jobs, options, run_context, 
                                                job_profiles, job_timings, 
                                                suffix=current_round, 
@@ -1528,6 +1585,15 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
     bad_range_ratio = get_bad_range_ratio(new_bad_ranges, [], run_context["sim-length"])
     add_to_context["bad_range_ratio"] = bad_range_ratio
     add_to_context["bad_range_ratios"].append(bad_range_ratio)
+    emit_scheduler_progress(run_context, {
+        "phase": "timing",
+        "status": "round_evaluated",
+        "round": current_round,
+        "step": "vanilla",
+        "bad_range_ratio": bad_range_ratio,
+        "remaining_bad_ranges": summarize_ranges_for_progress(new_bad_ranges),
+        "routing_decisions": len(lb_decisions or []),
+    })
 
     # step 1.5: if the routing is good, return the results.
     if len(new_bad_ranges) == 0:
@@ -1545,11 +1611,27 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
         random.seed(run_context["experiment-seed"] + SEED_MAGIC + current_round)
 
         append_to_bad_ranges(prev_bad_ranges, new_bad_ranges)
+        emit_scheduler_progress(run_context, {
+            "phase": "timing",
+            "status": "round_started",
+            "round": current_round,
+            "step": "fix",
+            "reason": "retry timing around previously bad ranges",
+            "fixed_bad_ranges": summarize_ranges_for_progress(prev_bad_ranges),
+        })
 
         # step 2.1: fix the timing.
         log_progress(run_context, "starting timing fix, round {}".format(current_round))    
         
         job_timings, solution = solver.solve_with_bad_ranges_and_inflation(prev_bad_ranges, 1)
+        emit_scheduler_progress(run_context, {
+            "phase": "timing",
+            "status": "timing_produced",
+            "round": current_round,
+            "step": "fix",
+            "fixed_bad_ranges": summarize_ranges_for_progress(prev_bad_ranges),
+            "timings": summarize_job_timings_for_progress(job_timings, jobs),
+        })
         # step 2.2: do the routing again.
         
         early_return = should_early_return(current_round, max_attempts)
@@ -1564,6 +1646,16 @@ def faridv5_scheduling(jobs, options, run_context, job_profiles):
         bad_range_ratio = get_bad_range_ratio(new_bad_ranges, prev_bad_ranges, run_context["sim-length"])
         add_to_context["bad_range_ratio"] = bad_range_ratio
         add_to_context["bad_range_ratios"].append(bad_range_ratio)
+        emit_scheduler_progress(run_context, {
+            "phase": "timing",
+            "status": "round_evaluated",
+            "round": current_round,
+            "step": "fix",
+            "bad_range_ratio": bad_range_ratio,
+            "remaining_bad_ranges": summarize_ranges_for_progress(new_bad_ranges),
+            "fixed_bad_ranges": summarize_ranges_for_progress(prev_bad_ranges),
+            "routing_decisions": len(lb_decisions or []),
+        })
         
         current_round += 1
         add_to_context["fixing_rounds"] += 1
@@ -1615,6 +1707,13 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
 
     # step 1: do the vanilla timing first.
     log_progress(run_context, "starting vanilla timing")    
+    emit_scheduler_progress(run_context, {
+        "phase": "timing",
+        "status": "round_started",
+        "round": current_round,
+        "step": "vanilla",
+        "reason": "initial timing without bad-range feedback",
+    })
     
     SEED_MAGIC = 23423
     random.seed(run_context["experiment-seed"] + SEED_MAGIC)
@@ -1622,6 +1721,13 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
     early_return = should_early_return(current_round, max_attempts)
         
     job_timings, solution = solver.solve()
+    emit_scheduler_progress(run_context, {
+        "phase": "timing",
+        "status": "timing_produced",
+        "round": current_round,
+        "step": "vanilla",
+        "timings": summarize_job_timings_for_progress(job_timings, jobs),
+    })
     
     if run_context["plot-intermediate-timing"]: 
         visualize_workload_timing(jobs, options, run_context, job_timings, job_profiles, 
@@ -1644,6 +1750,17 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
     add_to_context["fixed_bad_range_ratios"].append(fixed_bad_range_ratio)
     add_to_context["remaining_bad_range_ratio"] = remaining_bad_range_ratio
     add_to_context["remaining_bad_range_ratios"].append(remaining_bad_range_ratio)
+    emit_scheduler_progress(run_context, {
+        "phase": "timing",
+        "status": "round_evaluated",
+        "round": current_round,
+        "step": "vanilla",
+        "remaining_bad_range_ratio": remaining_bad_range_ratio,
+        "fixed_bad_range_ratio": fixed_bad_range_ratio,
+        "remaining_bad_ranges": summarize_ranges_for_progress(remaining_bad_ranges),
+        "fixed_bad_ranges": summarize_ranges_for_progress([]),
+        "routing_decisions": len(lb_decisions or []),
+    })
 
     # step 1.5: if the routing is good, return the results.
     if len(remaining_bad_ranges) == 0 or max_attempts == 0: 
@@ -1671,15 +1788,30 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         else: 
             append_to_bad_ranges(fixed_bad_ranges, remaining_bad_ranges)
 
-
-
-
-
         # Step 2.1: we have some bad ranges, we want to fix them. ######################
+        emit_scheduler_progress(run_context, {
+            "phase": "timing",
+            "status": "round_started",
+            "round": current_round,
+            "step": "fix",
+            "reason": "retry timing around previously bad ranges",
+            "inflate_factor": inflate_factor,
+            "fixed_bad_ranges": summarize_ranges_for_progress(fixed_bad_ranges),
+            "previous_remaining_bad_ranges": summarize_ranges_for_progress(remaining_bad_ranges),
+        })
         
         log_progress(run_context, "starting timing fix, round {}".format(current_round))    
 
         job_timings, solution = solver.solve_with_bad_ranges_and_inflation(fixed_bad_ranges, inflate_factor)
+        emit_scheduler_progress(run_context, {
+            "phase": "timing",
+            "status": "timing_produced",
+            "round": current_round,
+            "step": "fix",
+            "inflate_factor": inflate_factor,
+            "fixed_bad_ranges": summarize_ranges_for_progress(fixed_bad_ranges),
+            "timings": summarize_job_timings_for_progress(job_timings, jobs),
+        })
         # step 2.2: do the routing again.
         
         if run_context["plot-intermediate-timing"]: 
@@ -1709,6 +1841,18 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
         add_to_context["fixed_bad_range_ratios"].append(fixed_bad_range_ratio)
         add_to_context["remaining_bad_range_ratio"] = remaining_bad_range_ratio
         add_to_context["remaining_bad_range_ratios"].append(remaining_bad_range_ratio)
+        emit_scheduler_progress(run_context, {
+            "phase": "timing",
+            "status": "round_evaluated",
+            "round": current_round,
+            "step": "fix",
+            "inflate_factor": inflate_factor,
+            "remaining_bad_range_ratio": remaining_bad_range_ratio,
+            "fixed_bad_range_ratio": fixed_bad_range_ratio,
+            "remaining_bad_ranges": summarize_ranges_for_progress(remaining_bad_ranges),
+            "fixed_bad_ranges": summarize_ranges_for_progress(fixed_bad_ranges),
+            "routing_decisions": len(lb_decisions or []),
+        })
         
         current_round += 1
         add_to_context["fixing_rounds"] += 1
@@ -1718,6 +1862,13 @@ def faridv6_scheduling(jobs, options, run_context, job_profiles):
 
     else: 
         fixed_bad_ranges.clear()
+        emit_scheduler_progress(run_context, {
+            "phase": "timing",
+            "status": "fallback_started",
+            "round": current_round,
+            "step": "zero_timing",
+            "reason": "remaining bad ranges persisted after inflation rounds",
+        })
 
         job_timings, _ = solver.get_zero_solution()
         
@@ -1802,9 +1953,23 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
                          jobs, options, run_context):
 
     random.seed(run_context["experiment-seed"] + placement_seed)
+    emit_scheduler_progress(run_context, {
+        "phase": "scheduling",
+        "status": "loading_profiles",
+        "placement_seed": placement_seed,
+        "job_count": len(jobs),
+        "timing_scheme": run_context.get("timing-scheme"),
+        "routing_fit_strategy": run_context.get("routing-fit-strategy"),
+    })
 
     # load the job profiles. Might be a bit unnecassary in some cases, but anyway. 
     job_profiles = load_job_profiles(jobs, run_context)
+    emit_scheduler_progress(run_context, {
+        "phase": "scheduling",
+        "status": "profiles_loaded",
+        "profiled_jobs": len(job_profiles),
+        "profiled_throttles": run_context.get("profiled-throttle-factors", []),
+    })
 
     if run_context["plot-initial-timing"]: 
         visualize_workload_timing(jobs, options, run_context, None, 
@@ -1845,6 +2010,14 @@ def generate_timing_file(timing_file_path, routing_file_path, placement_seed,
         
     dump_scheduling_results(job_timings, lb_decisions, 
                             timing_file_path, routing_file_path)    
+    emit_scheduler_progress(run_context, {
+        "phase": "scheduling",
+        "status": "artifacts_written",
+        "timing_file": timing_file_path,
+        "routing_file": routing_file_path,
+        "timed_jobs": len(job_timings),
+        "routing_decisions": len(lb_decisions or []),
+    })
 
     job_ids = [job["job_id"] for job in jobs] 
     job_ids.sort()
