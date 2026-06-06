@@ -57,21 +57,45 @@ def summarize_ranges_for_progress(ranges, limit=8):
 
 
 def summarize_job_timings_for_progress(job_timings, jobs, limit=8):
-    job_iter_counts = {job["job_id"]: job["iter_count"] for job in jobs}
+    jobs_by_id = {job["job_id"]: job for job in jobs}
     summaries = []
 
     for job_timing in sorted(job_timings, key=lambda item: item["job_id"]):
+        job = jobs_by_id[job_timing["job_id"]]
         deltas = list(job_timing["deltas"])
         throttle_rates = list(job_timing["throttle_rates"])
+        intervals = []
+        cursor = 0
+
+        for iteration, (delta, throttle_rate) in enumerate(zip(deltas, throttle_rates)):
+            delay_start = cursor
+            delay_end = delay_start + delta
+            period = job["period"][str(throttle_rate)]
+            period_start = delay_end
+            period_end = period_start + period
+            if iteration < limit:
+                intervals.append({
+                    "iteration": iteration,
+                    "delay_start": delay_start,
+                    "delay_end": delay_end,
+                    "period_start": period_start,
+                    "period_end": period_end,
+                    "period": period,
+                    "throttle": throttle_rate,
+                })
+            cursor = period_end
+
         summaries.append({
             "job_id": job_timing["job_id"],
-            "iter_count": job_iter_counts.get(job_timing["job_id"], len(deltas)),
+            "iter_count": job["iter_count"],
             "first_delta": deltas[0] if deltas else None,
             "delta_sum": sum(deltas),
             "delta_max": max(deltas) if deltas else None,
             "throttle_rates": sorted(set(throttle_rates)),
             "delta_sample": deltas[:limit],
             "throttle_sample": throttle_rates[:limit],
+            "intervals": intervals,
+            "timeline_end": cursor,
         })
 
     return summaries

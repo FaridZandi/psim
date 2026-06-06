@@ -190,21 +190,69 @@ function findRoundEvent(round, phase, status) {
   return round.events.find((event) => event.phase === phase && event.status === status) || {};
 }
 
-function renderTimingVisual(event) {
+function profilePeriods(profiles) {
+  const periods = new Map();
+  for (const profile of profiles || []) {
+    periods.set(`${profile.job_id}:${profile.throttle}`, Number(profile.period));
+  }
+  return periods;
+}
+
+function timingIntervals(timing, periods) {
+  if (timing.intervals?.length) return timing.intervals;
+
+  let cursor = 0;
+  return (timing.delta_sample || []).map((delta, iteration) => {
+    const throttle = timing.throttle_sample?.[iteration] ?? 1;
+    const period = periods.get(`${timing.job_id}:${throttle}`) || 0;
+    const delayStart = cursor;
+    const delayEnd = delayStart + delta;
+    const periodStart = delayEnd;
+    const periodEnd = periodStart + period;
+    cursor = periodEnd;
+    return {
+      iteration,
+      delay_start: delayStart,
+      delay_end: delayEnd,
+      period_start: periodStart,
+      period_end: periodEnd,
+      period,
+      throttle
+    };
+  });
+}
+
+function renderTimingVisual(event, profiles) {
   const timings = event.timings || [];
   if (!timings.length) return `<div class="subtle">-</div>`;
-  const maxDelta = Math.max(1, ...timings.flatMap((timing) => timing.delta_sample || [0]));
+  const periods = profilePeriods(profiles);
+  const jobs = timings.slice(0, 5).map((timing) => ({
+    timing,
+    intervals: timingIntervals(timing, periods)
+  }));
+  const timelineEnd = Math.max(
+    1,
+    ...jobs.flatMap(({ intervals }) => intervals.map((interval) => interval.period_end))
+  );
 
-  return timings.slice(0, 5).map((timing) => {
-    const segments = (timing.delta_sample || []).slice(0, 5).map((delta) => {
-      const width = Math.max(3, pct(delta, maxDelta));
-      return `<span class="timing-segment" style="width:${width}%"></span>`;
+  return jobs.map(({ timing, intervals }) => {
+    const segments = intervals.map((interval) => {
+      const delayLength = interval.delay_end - interval.delay_start;
+      const delay = delayLength > 0
+        ? `<span class="timing-delay" title="Iteration ${interval.iteration} delay: ${interval.delay_start}-${interval.delay_end}" style="left:${pct(interval.delay_start, timelineEnd)}%;width:${pct(delayLength, timelineEnd)}%"></span>`
+        : "";
+      const activeLength = interval.period_end - interval.period_start;
+      const active = activeLength > 0
+        ? `<span class="timing-period" title="Iteration ${interval.iteration}: ${interval.period_start}-${interval.period_end}, throttle ${interval.throttle}" style="left:${pct(interval.period_start, timelineEnd)}%;width:${pct(activeLength, timelineEnd)}%"></span>`
+        : "";
+      return `${delay}${active}`;
     }).join("");
+    const end = intervals.at(-1)?.period_end ?? "-";
     return `
       <div class="job-line">
         <span>J${escapeHtml(timing.job_id)}</span>
-        <span class="bar-track"><span class="timing-segments">${segments}</span></span>
-        <span>${escapeHtml(timing.delta_sum ?? "-")}</span>
+        <span class="bar-track timing-track">${segments}</span>
+        <span>t=${escapeHtml(end)}</span>
       </div>
     `;
   }).join("");
@@ -289,7 +337,7 @@ function renderSchedulerVisual(progress) {
           <div class="visual-round">${escapeHtml(round.label)}</div>
           <div class="visual-note">${escapeHtml(roundStarted.step || routingStarted.strategy || "-")}</div>
         </div>
-        <div class="visual-cell">${renderTimingVisual(timingProduced)}</div>
+        <div class="visual-cell">${renderTimingVisual(timingProduced, progress.profiles || [])}</div>
         <div class="visual-cell">${renderTrafficVisual(trafficPatterns)}</div>
         <div class="visual-cell">${renderColoringVisual(coloringSolved)}</div>
         <div class="visual-cell">${renderOutcomeVisual(evaluated, routingStarted, strategyFinished)}</div>

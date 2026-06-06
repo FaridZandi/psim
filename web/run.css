@@ -365,6 +365,10 @@ button.link-button {
   margin-bottom: 5px;
 }
 
+.job-line {
+  grid-template-columns: 36px minmax(0, 1fr) 62px;
+}
+
 .pattern-line, .coloring-line {
   grid-template-columns: minmax(54px, 76px) minmax(0, 1fr) 48px;
 }
@@ -377,16 +381,29 @@ button.link-button {
   overflow: hidden;
 }
 
-.timing-segments {
-  display: flex;
-  height: 100%;
-  gap: 1px;
+.timing-track {
+  height: 14px;
 }
 
-.timing-segment, .pattern-bar, .spine-bar, .bad-fill, .bad-range {
+.timing-delay, .timing-period, .pattern-bar, .spine-bar, .bad-fill, .bad-range {
   display: block;
   height: 100%;
   background: var(--gold);
+}
+
+.timing-delay, .timing-period {
+  position: absolute;
+  top: 0;
+}
+
+.timing-delay {
+  background: #000;
+  z-index: 2;
+}
+
+.timing-period {
+  background: var(--gold);
+  border-left: 1px solid #fffaf7;
 }
 
 .pattern-bar {
