@@ -339,6 +339,38 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     # unique hash values.   
     for key in hash_to_time_ranges.keys():
         hash_to_time_ranges[key].sort()
+
+    def summarize_pattern(pattern_hash):
+        representative_id = hash_to_traffic_id[pattern_hash]
+        representative_flows = traffic_id_to_flows[representative_id]
+        member_counts = defaultdict(int)
+
+        for flow in representative_flows:
+            key = (
+                flow["job_id"],
+                flow["srcrack"],
+                flow["dstrack"],
+                flow["needed_subflows"],
+            )
+            member_counts[key] += 1
+
+        members = []
+        for (job_id, src_rack, dst_rack, needed_subflows), flow_count in sorted(member_counts.items()):
+            members.append({
+                "job_id": job_id,
+                "src_rack": src_rack,
+                "dst_rack": dst_rack,
+                "needed_subflows": needed_subflows,
+                "flow_count": flow_count,
+                "parallel_edge_count": flow_count * needed_subflows,
+            })
+
+        return {
+            "flow_count": len(representative_flows),
+            "parallel_edge_count": sum(flow["needed_subflows"] for flow in representative_flows),
+            "members": members,
+        }
+
     emit_scheduler_progress(run_context, {
         "phase": "routing",
         "status": "traffic_patterns_built",
@@ -350,6 +382,7 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
                 "time_ranges": summarize_ranges_for_progress(ranges, limit=3),
                 "src_racks": sorted(traffic_pattern_to_src_racks[pattern_hash]),
                 "dst_racks": sorted(traffic_pattern_to_dst_racks[pattern_hash]),
+                **summarize_pattern(pattern_hash),
             }
             for pattern_hash, ranges in list(hash_to_time_ranges.items())[:8]
         ],

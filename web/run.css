@@ -373,6 +373,22 @@ button.link-button {
   grid-template-columns: minmax(54px, 76px) minmax(0, 1fr) 48px;
 }
 
+.pattern-entry {
+  margin-bottom: 7px;
+}
+
+.pattern-entry .pattern-line {
+  margin-bottom: 2px;
+}
+
+.pattern-members {
+  color: var(--muted);
+  font-size: 10px;
+  line-height: 1.3;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
 .bar-track {
   height: 9px;
   background: #f9edf0;

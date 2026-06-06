@@ -74,6 +74,20 @@ function pillList(items) {
   return (items || []).map((item) => `<span class="algorithm-pill">${escapeHtml(item)}</span>`).join("");
 }
 
+function patternMemberText(pattern) {
+  const members = pattern.members || [];
+  if (!members.length) {
+    const sources = (pattern.src_racks || []).join(",");
+    const destinations = (pattern.dst_racks || []).join(",");
+    return sources || destinations ? `racks ${sources} -> ${destinations}` : "";
+  }
+
+  return members.map((member) => {
+    const flows = member.flow_count > 1 ? `, ${member.flow_count} flows` : "";
+    return `J${member.job_id} R${member.src_rack}->R${member.dst_rack} x${member.parallel_edge_count}${flows}`;
+  }).join("; ");
+}
+
 function eventInfo(event) {
   if (event.phase === "routing" && event.status === "started") {
     const flows = event.flows || {};
@@ -85,7 +99,10 @@ function eventInfo(event) {
     return `lower bound ${fixed(event.max_required_spines_lower_bound, 2)} spines, available ${event.available_spines}, subflow cap ${fixed(event.subflow_capacity, 2)}`;
   }
   if (event.phase === "routing" && event.status === "traffic_patterns_built") {
-    const patterns = (event.pattern_sample || []).slice(0, 3).map((item) => `${item.pattern}: ${rangeText(item.time_ranges)}`);
+    const patterns = (event.pattern_sample || []).slice(0, 3).map((item) => {
+      const members = patternMemberText(item);
+      return `${item.pattern}: ${rangeText(item.time_ranges)}${members ? `; ${members}` : ""}`;
+    });
     return `${event.traffic_pattern_count} traffic patterns ${pillList(patterns)}`;
   }
   if (event.phase === "routing" && event.status === "coloring_solved") {
@@ -265,11 +282,15 @@ function renderTrafficVisual(event) {
 
   return patterns.slice(0, 5).map((pattern) => {
     const length = pattern.time_ranges?.total_length || 0;
+    const members = patternMemberText(pattern);
     return `
-      <div class="pattern-line">
-        <span>${escapeHtml(String(pattern.pattern || "").slice(0, 6))}</span>
-        <span class="bar-track"><span class="pattern-bar" style="width:${pct(length, maxLength)}%"></span></span>
-        <span>${escapeHtml(pattern.time_ranges?.count ?? "-")}x</span>
+      <div class="pattern-entry">
+        <div class="pattern-line">
+          <span>${escapeHtml(String(pattern.pattern || "").slice(0, 6))}</span>
+          <span class="bar-track"><span class="pattern-bar" style="width:${pct(length, maxLength)}%"></span></span>
+          <span>${escapeHtml(pattern.time_ranges?.count ?? "-")}x</span>
+        </div>
+        <div class="pattern-members">${escapeHtml(members || "edge membership unavailable for this run")}</div>
       </div>
     `;
   }).join("");
