@@ -389,6 +389,9 @@ function renderPatternGraph(pattern) {
   const graphSummary = patternCount
     ? `${patternCount} patterns, ${pattern.parallel_edge_count ?? "-"} edges`
     : `${pattern.parallel_edge_count ?? "-"} edges`;
+  const graphLegend = patternCount
+    ? ""
+    : `<div class="pattern-graph-legend">${legend}</div>`;
 
   return `
     <div class="pattern-graph-title">
@@ -402,7 +405,7 @@ function renderPatternGraph(pattern) {
       ${sourceNodes}
       ${destinationNodes}
     </svg>
-    <div class="pattern-graph-legend">${legend}</div>
+    ${graphLegend}
   `;
 }
 
@@ -422,6 +425,11 @@ function showPatternGraph(trigger) {
 
   for (const item of row.querySelectorAll(".pattern-trigger")) {
     item.classList.toggle("active", item === trigger);
+  }
+  const associatedPatterns = new Set(pattern.patterns || []);
+  for (const item of row.querySelectorAll(".pattern-entry .pattern-trigger")) {
+    const itemPattern = patternGraphData(item);
+    item.classList.toggle("associated", associatedPatterns.has(itemPattern?.pattern));
   }
   graph.innerHTML = renderPatternGraph(pattern);
 }

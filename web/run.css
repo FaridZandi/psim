@@ -404,6 +404,14 @@ button.link-button {
   text-decoration: underline;
 }
 
+.pattern-trigger.associated {
+  color: var(--ink);
+  background: var(--panel-head);
+  box-shadow: inset 3px 0 var(--amber);
+  padding-left: 6px;
+  text-decoration: none;
+}
+
 .pattern-members {
   color: var(--muted);
   font-size: 10px;
