@@ -343,9 +343,12 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
     def summarize_pattern(pattern_hash):
         representative_id = hash_to_traffic_id[pattern_hash]
         representative_flows = traffic_id_to_flows[representative_id]
+        return summarize_flows(representative_flows)
+
+    def summarize_flows(flows):
         member_counts = defaultdict(int)
 
-        for flow in representative_flows:
+        for flow in flows:
             key = (
                 flow["job_id"],
                 flow["srcrack"],
@@ -366,8 +369,8 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
             })
 
         return {
-            "flow_count": len(representative_flows),
-            "parallel_edge_count": sum(flow["needed_subflows"] for flow in representative_flows),
+            "flow_count": len(flows),
+            "parallel_edge_count": sum(flow["needed_subflows"] for flow in flows),
             "members": members,
         }
 
@@ -478,8 +481,8 @@ def route_flows_graph_coloring_v7(all_flows, rem, usage, num_spines,
             "patterns": list(overlapping_keys),
             "range_count": len(overlapping_ranges),
             "ranges": summarize_ranges_for_progress(overlapping_ranges, limit=4),
-            "flow_count": len(current_flows),
             "edge_count": len(edges),
+            **summarize_flows(current_flows),
             "colors_used": colors_used_count,
             "used_spines": colors_used_count / max_subflow_count,
             "max_degree_spines": max_degree / max_subflow_count,

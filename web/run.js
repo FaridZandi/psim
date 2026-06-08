@@ -282,7 +282,6 @@ function renderTrafficVisual(event) {
 
   return patterns.slice(0, 5).map((pattern, index) => {
     const length = pattern.time_ranges?.total_length || 0;
-    const members = patternMemberText(pattern);
     const encodedPattern = encodeURIComponent(JSON.stringify(pattern));
     return `
       <div class="pattern-entry">
@@ -295,7 +294,6 @@ function renderTrafficVisual(event) {
           <span class="bar-track"><span class="pattern-bar" style="width:${pct(length, maxLength)}%"></span></span>
           <span>${escapeHtml(pattern.time_ranges?.count ?? "-")}x</span>
         </div>
-        <div class="pattern-members">${escapeHtml(members || "edge membership unavailable for this run")}</div>
       </div>
     `;
   }).join("");
@@ -387,11 +385,15 @@ function renderPatternGraph(pattern) {
       </span>
     `;
   }).join("");
+  const patternCount = pattern.patterns?.length;
+  const graphSummary = patternCount
+    ? `${patternCount} patterns, ${pattern.parallel_edge_count ?? "-"} edges`
+    : `${pattern.parallel_edge_count ?? "-"} edges`;
 
   return `
     <div class="pattern-graph-title">
       <span>${escapeHtml(String(pattern.pattern || "").slice(0, 8))}</span>
-      <span>${escapeHtml(pattern.parallel_edge_count ?? "-")} edges</span>
+      <span>${escapeHtml(graphSummary)}</span>
     </div>
     <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Bipartite rack graph for pattern ${escapeHtml(pattern.pattern)}">
       <text class="graph-side-label" x="${leftX}" y="12" text-anchor="middle">source</text>
@@ -424,7 +426,52 @@ function showPatternGraph(trigger) {
   graph.innerHTML = renderPatternGraph(pattern);
 }
 
-function renderColoringVisual(event) {
+function mergePatternMembers(group, trafficEvent) {
+  if (group.members?.length) return group.members;
+
+  const patternsById = new Map(
+    (trafficEvent.pattern_sample || []).map((pattern) => [pattern.pattern, pattern])
+  );
+  const patternIds = group.patterns || [];
+  if (!patternIds.length || !patternIds.every((patternId) => patternsById.get(patternId)?.members?.length)) {
+    return [];
+  }
+  const memberCounts = new Map();
+
+  for (const patternId of patternIds) {
+    const pattern = patternsById.get(patternId);
+    for (const member of pattern.members) {
+      const key = `${member.job_id}:${member.src_rack}:${member.dst_rack}:${member.needed_subflows}`;
+      const current = memberCounts.get(key) || {
+        job_id: member.job_id,
+        src_rack: member.src_rack,
+        dst_rack: member.dst_rack,
+        needed_subflows: member.needed_subflows,
+        flow_count: 0,
+        parallel_edge_count: 0
+      };
+      current.flow_count += Number(member.flow_count) || 0;
+      current.parallel_edge_count += Number(member.parallel_edge_count) || 0;
+      memberCounts.set(key, current);
+    }
+  }
+
+  return [...memberCounts.values()];
+}
+
+function mergedPatternPayload(group, trafficEvent, index) {
+  const members = mergePatternMembers(group, trafficEvent);
+  return {
+    pattern: `Merged ${index + 1}`,
+    patterns: group.patterns || [],
+    members,
+    parallel_edge_count: group.parallel_edge_count
+      ?? members.reduce((sum, member) => sum + (Number(member.parallel_edge_count) || 0), 0),
+    time_ranges: group.ranges
+  };
+}
+
+function renderColoringVisual(event, trafficEvent) {
   const groups = event.group_sample || [];
   if (!groups.length) return `<div class="subtle">-</div>`;
   const available = event.available_spines || 1;
@@ -432,11 +479,26 @@ function renderColoringVisual(event) {
   return groups.slice(0, 5).map((group, index) => {
     const used = group.used_spines || 0;
     const barClass = group.fits ? "spine-bar" : "spine-bar over";
+    const mergedPattern = mergedPatternPayload(group, trafficEvent, index);
+    const encodedPattern = encodeURIComponent(JSON.stringify(mergedPattern));
+    const patternNames = (group.patterns || [])
+      .map((pattern) => String(pattern).slice(0, 6))
+      .join(" + ");
     return `
-      <div class="coloring-line">
-        <span>G${index + 1}</span>
-        <span class="bar-track"><span class="${barClass}" style="width:${pct(used, available)}%"></span></span>
-        <span>${fixed(used, 1)}/${escapeHtml(available)}</span>
+      <div class="merged-pattern-entry">
+        <div class="coloring-line">
+          <button
+            class="pattern-trigger merged-pattern-trigger"
+            type="button"
+            data-pattern="${escapeHtml(encodedPattern)}"
+            title="${escapeHtml(`Merged from ${patternNames || "one pattern"}`)}"
+          >M${index + 1}</button>
+          <span class="bar-track"><span class="${barClass}" style="width:${pct(used, available)}%"></span></span>
+          <span>${fixed(used, 1)}/${escapeHtml(available)}</span>
+        </div>
+        <div class="merged-pattern-members">
+          ${escapeHtml(patternNames || "single pattern")}
+        </div>
       </div>
     `;
   }).join("");
@@ -490,7 +552,7 @@ function renderSchedulerVisual(progress) {
         <div class="visual-cell">${renderTimingVisual(timingProduced, progress.profiles || [])}</div>
         <div class="visual-cell">${renderTrafficVisual(trafficPatterns)}</div>
         <div class="visual-cell pattern-graph">${renderPatternGraph(initialPattern)}</div>
-        <div class="visual-cell">${renderColoringVisual(coloringSolved)}</div>
+        <div class="visual-cell">${renderColoringVisual(coloringSolved, trafficPatterns)}</div>
         <div class="visual-cell">${renderOutcomeVisual(evaluated, routingStarted, strategyFinished)}</div>
       </div>
     `;
@@ -503,7 +565,7 @@ function renderSchedulerVisual(progress) {
         <div class="visual-cell">Timing</div>
         <div class="visual-cell">Patterns</div>
         <div class="visual-cell">Pattern Graph</div>
-        <div class="visual-cell">Coloring</div>
+        <div class="visual-cell">Merged Patterns</div>
         <div class="visual-cell">Result</div>
       </div>
       ${rows}
