@@ -266,7 +266,7 @@ function renderTimingVisual(event, profiles) {
     }).join("");
     const end = intervals.at(-1)?.period_end ?? "-";
     return `
-      <div class="job-line">
+      <div class="job-line visual-list-item">
         <span>J${escapeHtml(timing.job_id)}</span>
         <span class="bar-track timing-track">${segments}</span>
         <span>t=${escapeHtml(end)}</span>
@@ -284,7 +284,7 @@ function renderTrafficVisual(event) {
     const length = pattern.time_ranges?.total_length || 0;
     const encodedPattern = encodeURIComponent(JSON.stringify(pattern));
     return `
-      <div class="pattern-entry">
+      <div class="pattern-entry visual-list-item">
         <div class="pattern-line">
           <button
             class="pattern-trigger ${index === 0 ? "active" : ""}"
@@ -493,7 +493,7 @@ function renderColoringVisual(event, trafficEvent) {
       .map((pattern) => String(pattern).slice(0, 6))
       .join(" + ");
     return `
-      <div class="merged-pattern-entry">
+      <div class="merged-pattern-entry visual-list-item">
         <div class="coloring-line">
           <button
             class="pattern-trigger merged-pattern-trigger"
@@ -504,7 +504,7 @@ function renderColoringVisual(event, trafficEvent) {
           <span class="bar-track"><span class="${barClass}" style="width:${pct(used, available)}%"></span></span>
           <span>${fixed(used, 1)}/${escapeHtml(available)}</span>
         </div>
-        <div class="merged-pattern-members">
+        <div class="merged-pattern-members" title="${escapeHtml(patternNames)}">
           ${escapeHtml(patternNames || "single pattern")}
         </div>
       </div>
