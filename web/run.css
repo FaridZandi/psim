@@ -321,8 +321,8 @@ button.link-button {
 
 .visual-head, .visual-row {
   display: grid;
-  grid-template-columns: 94px minmax(220px, 1.1fr) minmax(180px, 0.85fr) minmax(220px, 1fr) minmax(180px, 0.85fr);
-  min-width: 1080px;
+  grid-template-columns: 94px minmax(220px, 1.05fr) minmax(190px, 0.8fr) minmax(240px, 0.95fr) minmax(220px, 0.9fr) minmax(180px, 0.75fr);
+  min-width: 1200px;
 }
 
 .visual-head {
@@ -381,12 +381,95 @@ button.link-button {
   margin-bottom: 2px;
 }
 
+.pattern-trigger {
+  height: 22px;
+  border: 0;
+  background: transparent;
+  color: var(--emerald);
+  padding: 0;
+  text-align: left;
+  font: 700 11px/1 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.pattern-trigger:hover, .pattern-trigger.active {
+  color: var(--amber);
+  text-decoration: underline;
+}
+
 .pattern-members {
   color: var(--muted);
   font-size: 10px;
   line-height: 1.3;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.pattern-graph {
+  min-height: 174px;
+}
+
+.pattern-graph-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+  font: 700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.pattern-graph svg {
+  display: block;
+  width: 100%;
+  height: 130px;
+  border: 1px solid var(--line);
+  background: #fffaf7;
+}
+
+.pattern-graph .graph-side-label {
+  fill: var(--muted);
+  font-size: 9px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.pattern-graph .graph-node {
+  fill: #fffaf7;
+  stroke: var(--emerald);
+  stroke-width: 1.5;
+}
+
+.pattern-graph .graph-node-label {
+  fill: var(--ink);
+  font-size: 9px;
+  text-anchor: middle;
+  dominant-baseline: central;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+}
+
+.pattern-graph .graph-edge {
+  fill: none;
+  opacity: 0.88;
+  stroke-linecap: round;
+}
+
+.pattern-graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px 8px;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 9px;
+  line-height: 1.2;
+}
+
+.edge-key {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.edge-swatch {
+  width: 12px;
+  height: 3px;
+  background: var(--edge-color);
 }
 
 .bar-track {

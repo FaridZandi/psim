@@ -280,13 +280,18 @@ function renderTrafficVisual(event) {
   if (!patterns.length) return `<div class="subtle">-</div>`;
   const maxLength = Math.max(1, ...patterns.map((pattern) => pattern.time_ranges?.total_length || 0));
 
-  return patterns.slice(0, 5).map((pattern) => {
+  return patterns.slice(0, 5).map((pattern, index) => {
     const length = pattern.time_ranges?.total_length || 0;
     const members = patternMemberText(pattern);
+    const encodedPattern = encodeURIComponent(JSON.stringify(pattern));
     return `
       <div class="pattern-entry">
         <div class="pattern-line">
-          <span>${escapeHtml(String(pattern.pattern || "").slice(0, 6))}</span>
+          <button
+            class="pattern-trigger ${index === 0 ? "active" : ""}"
+            type="button"
+            data-pattern="${escapeHtml(encodedPattern)}"
+          >${escapeHtml(String(pattern.pattern || "").slice(0, 6))}</button>
           <span class="bar-track"><span class="pattern-bar" style="width:${pct(length, maxLength)}%"></span></span>
           <span>${escapeHtml(pattern.time_ranges?.count ?? "-")}x</span>
         </div>
@@ -294,6 +299,129 @@ function renderTrafficVisual(event) {
       </div>
     `;
   }).join("");
+}
+
+function jobEdgeColor(jobId) {
+  const colors = ["#1c3934", "#ba6a36", "#c3955b", "#795d54", "#8f3150", "#39708a"];
+  return colors[Math.abs(Number(jobId) || 0) % colors.length];
+}
+
+function renderPatternGraph(pattern) {
+  const members = pattern?.members || [];
+  if (!members.length) {
+    return `
+      <div class="pattern-graph-title">
+        <span>${escapeHtml(String(pattern?.pattern || "Pattern").slice(0, 8))}</span>
+      </div>
+      <div class="subtle">Edge membership unavailable for this run.</div>
+    `;
+  }
+
+  const srcRacks = [...new Set(members.map((member) => Number(member.src_rack)))].sort((a, b) => a - b);
+  const dstRacks = [...new Set(members.map((member) => Number(member.dst_rack)))].sort((a, b) => a - b);
+  const width = 280;
+  const height = 140;
+  const leftX = 42;
+  const rightX = width - 42;
+  const top = 28;
+  const bottom = height - 16;
+  const nodeY = (rack, racks) => {
+    const index = racks.indexOf(rack);
+    if (racks.length === 1) return (top + bottom) / 2;
+    return top + (index / (racks.length - 1)) * (bottom - top);
+  };
+  const edgeStrands = members.flatMap((member) => {
+    const count = Math.max(1, Number(member.parallel_edge_count) || 1);
+    return Array.from({ length: count }, (_, strand) => ({
+      ...member,
+      strand,
+      strand_count: count
+    }));
+  });
+  const pairTotals = new Map();
+  const pairSeen = new Map();
+
+  for (const edge of edgeStrands) {
+    const key = `${edge.src_rack}:${edge.dst_rack}`;
+    pairTotals.set(key, (pairTotals.get(key) || 0) + 1);
+  }
+
+  const edges = edgeStrands.map((edge) => {
+    const key = `${edge.src_rack}:${edge.dst_rack}`;
+    const edgeIndex = pairSeen.get(key) || 0;
+    pairSeen.set(key, edgeIndex + 1);
+    const edgeCount = pairTotals.get(key);
+    const lane = edgeCount === 1 ? 0 : (edgeIndex / (edgeCount - 1)) * 2 - 1;
+    const y1 = nodeY(Number(edge.src_rack), srcRacks);
+    const y2 = nodeY(Number(edge.dst_rack), dstRacks);
+    const endpointOffset = lane * 6;
+    const curveOffset = lane * Math.min(42, 12 + edgeCount * 2.5);
+    const color = jobEdgeColor(edge.job_id);
+    const description = `Job ${edge.job_id}: rack ${edge.src_rack} to rack ${edge.dst_rack}, edge ${edge.strand + 1} of ${edge.strand_count}`;
+    return `
+      <path
+        class="graph-edge"
+        d="M ${leftX + 9} ${y1 + endpointOffset}
+           C ${leftX + 70} ${y1 + curveOffset},
+             ${rightX - 70} ${y2 + curveOffset},
+             ${rightX - 9} ${y2 + endpointOffset}"
+        stroke="${color}"
+        stroke-width="1.5"
+      ><title>${escapeHtml(description)}</title></path>
+    `;
+  }).join("");
+  const sourceNodes = srcRacks.map((rack) => {
+    const y = nodeY(rack, srcRacks);
+    return `<circle class="graph-node" cx="${leftX}" cy="${y}" r="9"></circle><text class="graph-node-label" x="${leftX}" y="${y}">R${rack}</text>`;
+  }).join("");
+  const destinationNodes = dstRacks.map((rack) => {
+    const y = nodeY(rack, dstRacks);
+    return `<circle class="graph-node" cx="${rightX}" cy="${y}" r="9"></circle><text class="graph-node-label" x="${rightX}" y="${y}">R${rack}</text>`;
+  }).join("");
+  const legend = members.map((member) => {
+    const color = jobEdgeColor(member.job_id);
+    return `
+      <span class="edge-key">
+        <span class="edge-swatch" style="--edge-color:${color}"></span>
+        J${escapeHtml(member.job_id)} R${escapeHtml(member.src_rack)}-&gt;R${escapeHtml(member.dst_rack)} x${escapeHtml(member.parallel_edge_count)}
+      </span>
+    `;
+  }).join("");
+
+  return `
+    <div class="pattern-graph-title">
+      <span>${escapeHtml(String(pattern.pattern || "").slice(0, 8))}</span>
+      <span>${escapeHtml(pattern.parallel_edge_count ?? "-")} edges</span>
+    </div>
+    <svg viewBox="0 0 ${width} ${height}" role="img" aria-label="Bipartite rack graph for pattern ${escapeHtml(pattern.pattern)}">
+      <text class="graph-side-label" x="${leftX}" y="12" text-anchor="middle">source</text>
+      <text class="graph-side-label" x="${rightX}" y="12" text-anchor="middle">destination</text>
+      ${edges}
+      ${sourceNodes}
+      ${destinationNodes}
+    </svg>
+    <div class="pattern-graph-legend">${legend}</div>
+  `;
+}
+
+function patternGraphData(trigger) {
+  try {
+    return JSON.parse(decodeURIComponent(trigger.dataset.pattern));
+  } catch {
+    return null;
+  }
+}
+
+function showPatternGraph(trigger) {
+  const row = trigger.closest(".visual-row");
+  const graph = row?.querySelector(".pattern-graph");
+  const pattern = patternGraphData(trigger);
+  if (!graph || !pattern) return;
+
+  for (const item of row.querySelectorAll(".pattern-trigger")) {
+    item.classList.toggle("active", item === trigger);
+  }
+  graph.innerHTML = renderPatternGraph(pattern);
 }
 
 function renderColoringVisual(event) {
@@ -351,6 +479,7 @@ function renderSchedulerVisual(progress) {
     const coloringSolved = findRoundEvent(round, "routing", "coloring_solved");
     const strategyFinished = findRoundEvent(round, "routing", "strategy_finished");
     const evaluated = findRoundEvent(round, "timing", "round_evaluated");
+    const initialPattern = trafficPatterns.pattern_sample?.[0] || null;
 
     return `
       <div class="visual-row">
@@ -360,6 +489,7 @@ function renderSchedulerVisual(progress) {
         </div>
         <div class="visual-cell">${renderTimingVisual(timingProduced, progress.profiles || [])}</div>
         <div class="visual-cell">${renderTrafficVisual(trafficPatterns)}</div>
+        <div class="visual-cell pattern-graph">${renderPatternGraph(initialPattern)}</div>
         <div class="visual-cell">${renderColoringVisual(coloringSolved)}</div>
         <div class="visual-cell">${renderOutcomeVisual(evaluated, routingStarted, strategyFinished)}</div>
       </div>
@@ -372,6 +502,7 @@ function renderSchedulerVisual(progress) {
         <div class="visual-cell">Round</div>
         <div class="visual-cell">Timing</div>
         <div class="visual-cell">Patterns</div>
+        <div class="visual-cell">Pattern Graph</div>
         <div class="visual-cell">Coloring</div>
         <div class="visual-cell">Result</div>
       </div>
@@ -648,6 +779,10 @@ async function startRun() {
 
 $("runButton").addEventListener("click", startRun);
 $("refreshToggle").addEventListener("click", toggleRefresh);
+$("runs").addEventListener("pointerover", (event) => {
+  const trigger = event.target.closest(".pattern-trigger");
+  if (trigger) showPatternGraph(trigger);
+});
 $("runs").addEventListener("click", (event) => {
   const scheduleToggle = event.target.closest(".toggle-schedule");
   if (scheduleToggle) {
