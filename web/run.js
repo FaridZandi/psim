@@ -808,23 +808,38 @@ async function deleteRun(runId) {
 }
 
 async function startRun() {
+  for (const input of document.querySelectorAll(".run-settings-body input[type='number']")) {
+    if (!input.reportValidity()) return;
+  }
   $("runButton").disabled = true;
   const payload = {
     schedule: $("schedule").checked,
+    ft_core_count: Number($("coreSwitches").value),
+    ft_server_per_rack: Number($("serversPerRack").value),
+    initial_rate: Number($("initialRate").value),
+    rate_increase: Number($("aiRate").value),
+    min_rate: Number($("minRate").value),
+    lb_scheme: $("lbScheme").value,
     subflows: Number($("subflows").value),
     farid_rounds: Number($("faridRounds").value),
     timing_scheme: $("timingScheme").value,
     routing_fit_strategy: $("routingFitStrategy").value
   };
-  const response = await fetch("/api/runs", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  const run = await response.json();
-  activeRunId = run.id;
-  $("runButton").disabled = false;
-  loadRuns();
+  try {
+    const response = await fetch("/api/runs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    const run = await response.json();
+    if (!response.ok) throw new Error(run.error || `Run request failed with HTTP ${response.status}`);
+    activeRunId = run.id;
+    loadRuns();
+  } catch (error) {
+    alert(error.message);
+  } finally {
+    $("runButton").disabled = false;
+  }
 }
 
 $("runButton").addEventListener("click", startRun);
@@ -857,7 +872,13 @@ $("runs").addEventListener("click", (event) => {
   deleteRun(button.dataset.runId);
 });
 $("schedule").addEventListener("change", () => {
-  $("scheduledOptions").style.opacity = $("schedule").checked ? "1" : "0.55";
+  const scheduled = $("schedule").checked;
+  $("scheduledOptions").style.opacity = scheduled ? "1" : "0.55";
+  for (const control of $("scheduledOptions").querySelectorAll("input, select")) {
+    control.disabled = !scheduled;
+  }
+  $("lbScheme").disabled = scheduled;
+  $("unscheduledOptions").style.opacity = scheduled ? "0.55" : "1";
 });
 $("schedule").dispatchEvent(new Event("change"));
 

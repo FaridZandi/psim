@@ -71,7 +71,7 @@ h1::before {
 
 main {
   display: grid;
-  grid-template-columns: 360px minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   padding: 14px;
 }
@@ -108,6 +108,94 @@ h2::before {
 
 .body {
   padding: 14px;
+}
+
+.run-settings-body {
+  display: grid;
+  gap: 14px;
+}
+
+.settings-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(320px, 0.42fr);
+  gap: 0;
+}
+
+.settings-column {
+  min-width: 0;
+}
+
+.general-settings {
+  padding-right: 18px;
+}
+
+.scheduling-settings {
+  padding-left: 18px;
+  border-left: 1px solid var(--line);
+}
+
+.settings-group {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 14px;
+  align-items: start;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.settings-group:first-child {
+  padding-top: 0;
+}
+
+.settings-group:last-child {
+  padding-bottom: 0;
+  border-bottom: 0;
+}
+
+.settings-group-title {
+  padding-top: 25px;
+  color: var(--emerald);
+  font: 700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  text-transform: uppercase;
+}
+
+.settings-row {
+  display: grid;
+  gap: 12px;
+  align-items: end;
+}
+
+.topology-settings {
+  grid-template-columns: repeat(2, minmax(130px, 1fr));
+}
+
+.rate-settings {
+  grid-template-columns: repeat(3, minmax(120px, 1fr));
+}
+
+.routing-settings {
+  grid-template-columns: minmax(180px, 0.5fr);
+}
+
+.settings-row .field,
+.scheduling-settings .field {
+  margin-bottom: 0;
+}
+
+.scheduled-options {
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+  transition: opacity 120ms ease;
+}
+
+.scheduler-number-settings {
+  grid-template-columns: repeat(2, minmax(120px, 1fr));
+}
+
+.run-button {
+  width: max-content;
+  min-width: 150px;
 }
 
 .subtle {
@@ -603,6 +691,20 @@ pre {
 }
 
 @media (max-width: 900px) {
-  main { grid-template-columns: 1fr; }
   .header-actions .subtle { display: none; }
+  .settings-layout { grid-template-columns: 1fr; }
+  .general-settings { padding-right: 0; }
+  .scheduling-settings {
+    margin-top: 16px;
+    padding: 16px 0 0;
+    border-top: 1px solid var(--line);
+    border-left: 0;
+  }
+}
+
+@media (max-width: 520px) {
+  .settings-group { grid-template-columns: 1fr; gap: 8px; }
+  .settings-group-title { padding-top: 0; }
+  .topology-settings, .rate-settings, .scheduler-number-settings { grid-template-columns: 1fr; }
+  .routing-settings { grid-template-columns: 1fr; }
 }

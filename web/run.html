@@ -20,48 +20,106 @@
       <div class="section-head">
         <h2>Run Settings</h2>
       </div>
-      <div class="body">
-        <div class="field">
-          <div class="toggle">
-            <div>
-              <label for="schedule">Scheduling</label>
-              <div>Generate timing and routing before simulation</div>
+      <div class="body run-settings-body">
+        <div class="settings-layout">
+          <div class="settings-column general-settings">
+            <div class="settings-group">
+              <div class="settings-group-title">Topology</div>
+              <div class="settings-row topology-settings">
+                <div class="field">
+                  <label for="coreSwitches">Core switches</label>
+                  <input id="coreSwitches" type="number" min="1" max="128" value="4">
+                </div>
+                <div class="field">
+                  <label for="serversPerRack">Servers per rack</label>
+                  <input id="serversPerRack" type="number" min="1" max="32" value="8">
+                </div>
+              </div>
             </div>
-            <input id="schedule" type="checkbox">
+
+            <div class="settings-group">
+              <div class="settings-group-title">Rate</div>
+              <div class="settings-row rate-settings">
+                <div class="field">
+                  <label for="initialRate">Initial rate</label>
+                  <input id="initialRate" type="number" min="0.001" step="0.1" value="10">
+                </div>
+                <div class="field">
+                  <label for="aiRate">AI rate</label>
+                  <input id="aiRate" type="number" min="1" step="0.01" value="1.1" title="Multiplicative rate increase">
+                </div>
+                <div class="field">
+                  <label for="minRate">Minimum rate</label>
+                  <input id="minRate" type="number" min="1" step="1" value="3">
+                </div>
+              </div>
+            </div>
+
+            <div class="settings-group">
+              <div class="settings-group-title">Routing</div>
+              <div class="settings-row routing-settings">
+                <div id="unscheduledOptions" class="field">
+                  <label for="lbScheme">LB scheme</label>
+                  <select id="lbScheme">
+                    <option value="random">random</option>
+                    <option value="roundrobin">roundrobin</option>
+                    <option value="ecmp">ecmp</option>
+                    <option value="leastloaded">leastloaded</option>
+                    <option value="powerof2">powerof2</option>
+                    <option value="futureload">futureload</option>
+                    <option value="robinhood">robinhood</option>
+                    <option value="sita-e">sita-e</option>
+                    <option value="zero">zero</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="settings-column scheduling-settings">
+            <div class="toggle">
+              <div>
+                <label for="schedule">Scheduling</label>
+                <div>Generate timing and routing before simulation</div>
+              </div>
+              <input id="schedule" type="checkbox">
+            </div>
+
+            <div id="scheduledOptions" class="scheduled-options">
+              <div class="settings-row scheduler-number-settings">
+                <div class="field">
+                  <label for="subflows">Subflows</label>
+                  <input id="subflows" type="number" min="1" max="16" value="4">
+                </div>
+                <div class="field">
+                  <label for="faridRounds">Fixing rounds</label>
+                  <input id="faridRounds" type="number" min="0" max="100" value="10">
+                </div>
+              </div>
+              <div class="field">
+                <label for="timingScheme">Timing scheme</label>
+                <select id="timingScheme">
+                  <option value="faridv6">faridv6</option>
+                  <option value="faridv5">faridv5</option>
+                  <option value="faridv4">faridv4</option>
+                  <option value="zero">zero</option>
+                </select>
+              </div>
+              <div class="field">
+                <label for="routingFitStrategy">Routing strategy</label>
+                <select id="routingFitStrategy">
+                  <option value="graph-coloring-v7">graph-coloring-v7</option>
+                  <option value="graph-coloring-v8">graph-coloring-v8</option>
+                  <option value="graph-coloring-v5">graph-coloring-v5</option>
+                  <option value="graph-coloring-v3">graph-coloring-v3</option>
+                  <option value="best">best</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
-        <div id="scheduledOptions">
-          <div class="field">
-            <label for="subflows">Subflows</label>
-            <input id="subflows" type="number" min="1" max="16" value="4">
-          </div>
-          <div class="field">
-            <label for="faridRounds">Fixing rounds</label>
-            <input id="faridRounds" type="number" min="0" max="100" value="10">
-          </div>
-          <div class="field">
-            <label for="timingScheme">Timing scheme</label>
-            <select id="timingScheme">
-              <option value="faridv6">faridv6</option>
-              <option value="faridv5">faridv5</option>
-              <option value="faridv4">faridv4</option>
-              <option value="zero">zero</option>
-            </select>
-          </div>
-          <div class="field">
-            <label for="routingFitStrategy">Routing strategy</label>
-            <select id="routingFitStrategy">
-              <option value="graph-coloring-v7">graph-coloring-v7</option>
-              <option value="graph-coloring-v8">graph-coloring-v8</option>
-              <option value="graph-coloring-v5">graph-coloring-v5</option>
-              <option value="graph-coloring-v3">graph-coloring-v3</option>
-              <option value="best">best</option>
-            </select>
-          </div>
-        </div>
-
-        <button id="runButton">Run Simulation</button>
+        <button id="runButton" class="run-button">Run Simulation</button>
       </div>
     </section>
 

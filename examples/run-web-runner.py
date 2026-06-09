@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import math
 import os
 import re
 import shlex
@@ -23,6 +24,18 @@ RUNS_ROOT = REPO_ROOT / "workers" / "web-runs"
 
 RUNS = {}
 RUNS_LOCK = threading.Lock()
+
+UNSCHEDULED_LB_SCHEMES = {
+    "random",
+    "roundrobin",
+    "ecmp",
+    "futureload",
+    "zero",
+    "leastloaded",
+    "powerof2",
+    "robinhood",
+    "sita-e",
+}
 
 
 def coerce_value(value):
@@ -324,6 +337,83 @@ def setting_from_command(command, name, default):
     return default
 
 
+def run_settings_from_command(command, settings, schedule):
+    settings = dict(settings)
+    settings.update({
+        "ft_core_count": int(setting_from_command(command, "ft-core-count", settings.get("ft_core_count", 4))),
+        "ft_server_per_rack": int(setting_from_command(command, "ft-server-per-rack", settings.get("ft_server_per_rack", 8))),
+        "initial_rate": float(setting_from_command(command, "initial-rate", settings.get("initial_rate", 10))),
+        "rate_increase": float(setting_from_command(command, "rate-increase", settings.get("rate_increase", 1.1))),
+        "min_rate": int(setting_from_command(command, "min-rate", settings.get("min_rate", 3))),
+    })
+    if schedule:
+        settings.update({
+            "timing_scheme": setting_from_command(command, "timing-scheme", settings.get("timing_scheme", "faridv6")),
+            "routing_fit_strategy": setting_from_command(command, "routing-fit-strategy", settings.get("routing_fit_strategy", "graph-coloring-v7")),
+            "farid_rounds": int(setting_from_command(command, "farid-rounds", settings.get("farid_rounds", 10))),
+            "subflows": int(setting_from_command(command, "subflows", settings.get("subflows", 4))),
+        })
+    else:
+        settings["lb_scheme"] = setting_from_command(command, "lb-scheme", settings.get("lb_scheme", "random"))
+    return settings
+
+
+def numeric_setting(payload, name, default, cast, minimum, maximum=None):
+    value = payload.get(name, default)
+    if isinstance(value, bool):
+        raise ValueError(f"{name} must be a number")
+    if cast is int and isinstance(value, float) and not value.is_integer():
+        raise ValueError(f"{name} must be a whole number")
+    try:
+        value = cast(value)
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must be a number") from None
+    if not math.isfinite(value):
+        raise ValueError(f"{name} must be finite")
+    if value < minimum or (maximum is not None and value > maximum):
+        upper = f" and at most {maximum}" if maximum is not None else ""
+        raise ValueError(f"{name} must be at least {minimum}{upper}")
+    return value
+
+
+def validated_run_settings(payload, schedule):
+    config = load_shell_config()
+    defaults = config["psim_options"]
+    machine_count = int(defaults["machine-count"])
+    settings = {
+        "ft_core_count": numeric_setting(
+            payload, "ft_core_count", defaults["ft-core-count"], int, 1, 128
+        ),
+        "ft_server_per_rack": numeric_setting(
+            payload, "ft_server_per_rack", defaults["ft-server-per-rack"], int, 1, machine_count
+        ),
+        "initial_rate": numeric_setting(
+            payload, "initial_rate", defaults["initial-rate"], float, 0.001
+        ),
+        "rate_increase": numeric_setting(
+            payload, "rate_increase", defaults["rate-increase"], float, 1.0
+        ),
+        "min_rate": numeric_setting(
+            payload, "min_rate", defaults["min-rate"], int, 1
+        ),
+        "lb_scheme": str(payload.get("lb_scheme", defaults["lb-scheme"])),
+        "timing_scheme": str(payload.get("timing_scheme", "faridv6")),
+        "routing_fit_strategy": str(payload.get("routing_fit_strategy", "graph-coloring-v7")),
+        "farid_rounds": numeric_setting(payload, "farid_rounds", 10, int, 0, 100),
+        "subflows": numeric_setting(payload, "subflows", 4, int, 1, 16),
+    }
+    if machine_count % settings["ft_server_per_rack"] != 0:
+        raise ValueError(
+            f"ft_server_per_rack must divide the {machine_count}-machine sample cluster"
+        )
+    if settings["min_rate"] > settings["initial_rate"]:
+        raise ValueError("min_rate cannot exceed initial_rate")
+    if settings["lb_scheme"] not in UNSCHEDULED_LB_SCHEMES:
+        choices = ", ".join(sorted(UNSCHEDULED_LB_SCHEMES))
+        raise ValueError(f"lb_scheme must be one of: {choices}")
+    return settings
+
+
 def discover_run(run_dir):
     run_id = run_dir.name
     manifest_path = run_dir / "run.json"
@@ -346,14 +436,7 @@ def discover_run(run_dir):
     if schedule is None:
         schedule = (run_dir / "scheduling-summary.json").exists() or any("run-sample-scheduling.py" in item for item in command)
 
-    settings = run.get("settings") or {}
-    if schedule:
-        settings = {
-            "timing_scheme": setting_from_command(command, "timing-scheme", settings.get("timing_scheme", "faridv6")),
-            "routing_fit_strategy": setting_from_command(command, "routing-fit-strategy", settings.get("routing_fit_strategy", "graph-coloring-v7")),
-            "farid_rounds": int(setting_from_command(command, "farid-rounds", settings.get("farid_rounds", 10))),
-            "subflows": int(setting_from_command(command, "subflows", settings.get("subflows", 4))),
-        }
+    settings = run_settings_from_command(command, run.get("settings") or {}, schedule)
 
     results_path = Path(worker_run_dir) / "results.txt"
     trace_path = Path(trace_file)
@@ -456,11 +539,17 @@ def run_process(run, cmd):
 def run_unscheduled(run):
     config = load_shell_config()
     build_psim()
+    settings = run["settings"]
     options = config["psim_options"]
     options.update({
         "workers-dir": run["output_dir"],
         "trace-file": run["trace_file"],
-        "lb-scheme": "random",
+        "ft-core-count": settings["ft_core_count"],
+        "ft-server-per-rack": settings["ft_server_per_rack"],
+        "initial-rate": settings["initial_rate"],
+        "rate-increase": settings["rate_increase"],
+        "min-rate": settings["min_rate"],
+        "lb-scheme": settings["lb_scheme"],
     })
     options.pop("timing-file", None)
     options.pop("routing-file", None)
@@ -478,6 +567,11 @@ def run_scheduled(run):
         "--routing-fit-strategy", settings.get("routing_fit_strategy", "graph-coloring-v7"),
         "--farid-rounds", str(settings.get("farid_rounds", 10)),
         "--subflows", str(settings.get("subflows", 4)),
+        "--ft-core-count", str(settings["ft_core_count"]),
+        "--ft-server-per-rack", str(settings["ft_server_per_rack"]),
+        "--initial-rate", str(settings["initial_rate"]),
+        "--rate-increase", str(settings["rate_increase"]),
+        "--min-rate", str(settings["min_rate"]),
     ]
     run_process(run, cmd)
 
@@ -602,12 +696,10 @@ class RunnerHandler(SimpleHTTPRequestHandler):
             return self.send_json({"error": "invalid JSON"}, HTTPStatus.BAD_REQUEST)
 
         schedule = bool(payload.get("schedule", False))
-        settings = {
-            "timing_scheme": str(payload.get("timing_scheme", "faridv6")),
-            "routing_fit_strategy": str(payload.get("routing_fit_strategy", "graph-coloring-v7")),
-            "farid_rounds": int(payload.get("farid_rounds", 10)),
-            "subflows": int(payload.get("subflows", 4)),
-        }
+        try:
+            settings = validated_run_settings(payload, schedule)
+        except ValueError as exc:
+            return self.send_json({"error": str(exc)}, HTTPStatus.BAD_REQUEST)
         run = make_run(schedule, settings)
         thread = threading.Thread(target=run_background, args=(run,), daemon=True)
         thread.start()

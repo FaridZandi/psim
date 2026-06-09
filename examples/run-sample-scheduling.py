@@ -209,11 +209,26 @@ def main():
     parser.add_argument("--routing-fit-strategy", default="graph-coloring-v7")
     parser.add_argument("--farid-rounds", type=int, default=10)
     parser.add_argument("--subflows", type=int, default=4)
+    parser.add_argument("--ft-core-count", type=int, default=None)
+    parser.add_argument("--ft-server-per-rack", type=int, default=None)
+    parser.add_argument("--initial-rate", type=float, default=None)
+    parser.add_argument("--rate-increase", type=float, default=None)
+    parser.add_argument("--min-rate", type=int, default=None)
     parser.add_argument("--skip-simulation", action="store_true")
     args = parser.parse_args()
 
     config = load_shell_config(Path(args.config_file).resolve())
     base_options = config["psim_options"]
+    option_overrides = {
+        "ft-core-count": args.ft_core_count,
+        "ft-server-per-rack": args.ft_server_per_rack,
+        "initial-rate": args.initial_rate,
+        "rate-increase": args.rate_increase,
+        "min-rate": args.min_rate,
+    }
+    base_options.update({
+        key: value for key, value in option_overrides.items() if value is not None
+    })
 
     placement_file = Path(args.placement_file or config["placement_file"]).resolve()
     output_dir = Path(args.output_dir).resolve()
