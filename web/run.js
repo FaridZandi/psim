@@ -512,29 +512,11 @@ function renderColoringVisual(event, trafficEvent) {
   }).join("");
 }
 
-function renderBadTimeline(summary, start, end) {
-  if (!summary || !summary.count || !Number.isFinite(start) || !Number.isFinite(end) || end <= start) {
-    return `<span class="bar-track bad-timeline"></span>`;
-  }
-
-  const ranges = (summary.sample || []).slice(0, 5).map((range) => {
-    const left = pct(range.start - start, end - start);
-    const width = Math.max(2, pct(range.end - range.start + 1, end - start));
-    return `<span class="bad-range" style="left:${left}%;width:${width}%"></span>`;
-  }).join("");
-  return `<span class="bar-track bad-timeline">${ranges}</span>`;
-}
-
-function renderOutcomeVisual(evaluated, routingStarted, strategyFinished) {
-  if (!evaluated.status) return `<div class="subtle">-</div>`;
-  const ratio = Number(evaluated.remaining_bad_range_ratio ?? 0);
-  const fill = pct(Math.min(ratio, 1), 1);
-  const ranges = evaluated.remaining_bad_ranges || evaluated.bad_ranges;
-  return `
-    <div class="bar-track"><span class="bad-fill" style="width:${fill}%"></span></div>
-    ${renderBadTimeline(ranges, routingStarted.flows?.time_start, strategyFinished.affected_time_end)}
-    <div class="visual-note">${fixed(ratio, 3)} remaining, ${escapeHtml(evaluated.routing_decisions ?? "-")} routes</div>
-  `;
+function renderRoundSuccess(evaluated) {
+  if (!evaluated.status) return "Success pending";
+  const remainingRatio = Number(evaluated.remaining_bad_range_ratio ?? 0);
+  const successPercentage = Math.max(0, Math.min(100, (1 - remainingRatio) * 100));
+  return `Success ${fixed(successPercentage, 1)}%`;
 }
 
 function renderSchedulerVisual(progress) {
@@ -547,7 +529,6 @@ function renderSchedulerVisual(progress) {
     const routingStarted = findRoundEvent(round, "routing", "started");
     const trafficPatterns = findRoundEvent(round, "routing", "traffic_patterns_built");
     const coloringSolved = findRoundEvent(round, "routing", "coloring_solved");
-    const strategyFinished = findRoundEvent(round, "routing", "strategy_finished");
     const evaluated = findRoundEvent(round, "timing", "round_evaluated");
     const initialPattern = trafficPatterns.pattern_sample?.[0] || null;
 
@@ -555,13 +536,13 @@ function renderSchedulerVisual(progress) {
       <div class="visual-row">
         <div class="visual-cell">
           <div class="visual-round">${escapeHtml(round.label)}</div>
+          <div class="visual-success">${escapeHtml(renderRoundSuccess(evaluated))}</div>
           <div class="visual-note">${escapeHtml(roundStarted.step || routingStarted.strategy || "-")}</div>
         </div>
         <div class="visual-cell">${renderTimingVisual(timingProduced, progress.profiles || [])}</div>
         <div class="visual-cell">${renderTrafficVisual(trafficPatterns)}</div>
         <div class="visual-cell pattern-graph">${renderPatternGraph(initialPattern)}</div>
         <div class="visual-cell">${renderColoringVisual(coloringSolved, trafficPatterns)}</div>
-        <div class="visual-cell">${renderOutcomeVisual(evaluated, routingStarted, strategyFinished)}</div>
       </div>
     `;
   }).join("");
@@ -574,7 +555,6 @@ function renderSchedulerVisual(progress) {
         <div class="visual-cell">Patterns</div>
         <div class="visual-cell">Pattern Graph</div>
         <div class="visual-cell">Merged Patterns</div>
-        <div class="visual-cell">Result</div>
       </div>
       ${rows}
     </div>

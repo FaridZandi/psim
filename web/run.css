@@ -322,8 +322,8 @@ button.link-button {
 
 .visual-head, .visual-row {
   display: grid;
-  grid-template-columns: 94px minmax(220px, 1.05fr) minmax(190px, 0.8fr) minmax(240px, 0.95fr) minmax(220px, 0.9fr) minmax(180px, 0.75fr);
-  min-width: 1200px;
+  grid-template-columns: 118px minmax(220px, 1.05fr) minmax(190px, 0.8fr) minmax(240px, 0.95fr) minmax(220px, 0.9fr);
+  min-width: 1020px;
 }
 
 .visual-head {
@@ -350,6 +350,12 @@ button.link-button {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
   font-weight: 700;
   color: var(--emerald);
+}
+
+.visual-success {
+  margin-top: 5px;
+  color: var(--amber);
+  font: 700 11px/1.2 ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
 }
 
 .visual-note {
@@ -527,7 +533,7 @@ button.link-button {
   height: 14px;
 }
 
-.timing-delay, .timing-period, .pattern-bar, .spine-bar, .bad-fill, .bad-range {
+.timing-delay, .timing-period, .pattern-bar, .spine-bar {
   display: block;
   height: 100%;
   background: var(--gold);
@@ -558,21 +564,6 @@ button.link-button {
 
 .spine-bar.over {
   background: var(--amber);
-}
-
-.bad-fill {
-  background: var(--amber);
-}
-
-.bad-timeline {
-  height: 16px;
-  margin-top: 7px;
-}
-
-.bad-range {
-  position: absolute;
-  background: var(--amber);
-  opacity: 0.85;
 }
 
 .profile-period {
