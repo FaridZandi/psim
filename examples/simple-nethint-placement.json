@@ -6,7 +6,7 @@
     "comp_size": 380,
     "layer_count": 1,
     "iter_count": 4,
-    "machines": [3, 2, 17, 28, 6, 9, 5, 27]
+    "machines": [3, 2, 17, 5, 6, 9, 28, 27]
   },
   {
     "job_id": 2,
@@ -15,7 +15,7 @@
     "comp_size": 440,
     "layer_count": 1,
     "iter_count": 4,
-    "machines": [0, 25, 20, 31, 22, 8, 14, 26]
+    "machines": [0, 25, 26, 20, 22, 31, 8, 14]
   },
   {
     "job_id": 3,
@@ -24,7 +24,7 @@
     "comp_size": 500,
     "layer_count": 1,
     "iter_count": 4,
-    "machines": [19, 12, 23, 29, 7, 10, 16, 30]
+    "machines": [19, 23, 12, 24, 7, 10, 16, 30]
   },
   {
     "job_id": 4,
@@ -33,6 +33,6 @@
     "comp_size": 610,
     "layer_count": 1,
     "iter_count": 3,
-    "machines": [1, 15, 18, 11, 4, 13, 21, 24]
+    "machines": [1, 15, 18, 11, 13, 4, 21, 29]
   }
 ]

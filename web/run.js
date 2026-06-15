@@ -3,6 +3,10 @@ let activeRunId = null;
 let polling = false;
 let refreshPaused = false;
 let tableReady = false;
+let placementData = null;
+let placementDirty = false;
+let draggedPlacementMachine = null;
+let placementDropAnimation = null;
 
 function fixed(value, digits = 2) {
   return Number.isFinite(value) ? value.toFixed(digits) : "-";
@@ -15,6 +19,179 @@ function escapeHtml(value) {
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
+}
+
+function placementJobColor(jobId) {
+  const colors = ["#1c3934", "#ba6a36", "#c3955b", "#795d54", "#8f3150", "#39708a"];
+  return colors[Math.abs(Number(jobId) || 0) % colors.length];
+}
+
+function placementRackIds(machines, serversPerRack) {
+  return [...new Set(machines.map((machine) => Math.floor(machine / serversPerRack)))];
+}
+
+function renderPlacementPreview() {
+  if (!placementData) return;
+  const dropAnimation = placementDropAnimation;
+  const serversPerRack = Math.max(1, Number($("serversPerRack").value) || 1);
+  const rackCount = Math.ceil(placementData.machine_count / serversPerRack);
+  const owners = new Map();
+  for (const job of placementData.jobs) {
+    for (const machine of job.machines || []) owners.set(machine, job.job_id);
+  }
+
+  const validation = placementData.validation || {};
+  const rackSettingValid = placementData.machine_count % serversPerRack === 0;
+  const valid = validation.valid && rackSettingValid;
+  const validationText = valid
+    ? "Valid"
+    : rackSettingValid
+      ? `${(validation.errors || []).length} errors`
+      : "Invalid rack size";
+  const jobRows = placementData.jobs.map((job) => {
+    const color = placementJobColor(job.job_id);
+    const racks = placementRackIds(job.machines || [], serversPerRack);
+    const assignment = (job.machines || []).map((machine) => {
+      const justDropped = dropAnimation
+        && Number(dropAnimation.machineId) === Number(machine)
+        && String(dropAnimation.targetJobId) === String(job.job_id);
+      return `
+        <span
+          class="assignment-machine ${justDropped ? "just-dropped" : ""}"
+          draggable="true"
+          data-machine-id="${escapeHtml(machine)}"
+          data-placement-job="${escapeHtml(job.job_id)}"
+          style="--job-color:${color}"
+          title="Move machine ${machine} from Job ${job.job_id}"
+        >M${escapeHtml(machine)}</span>
+      `;
+    }).join("");
+    return `
+      <tr data-placement-job="${escapeHtml(job.job_id)}" data-drop-job="${escapeHtml(job.job_id)}" tabindex="0">
+        <td><span class="job-key" style="--job-color:${color}">J${escapeHtml(job.job_id)}</span></td>
+        <td>${escapeHtml(job.machine_count)}</td>
+        <td><div class="assignment-list">${assignment}</div></td>
+        <td>${escapeHtml(racks.map((rack) => `R${rack}`).join(", "))}</td>
+        <td>${escapeHtml(job.comm_size)}</td>
+        <td>${escapeHtml(job.comp_size)}</td>
+        <td>${escapeHtml(job.layer_count)}</td>
+        <td>${escapeHtml(job.iter_count)}</td>
+      </tr>
+    `;
+  }).join("");
+  const racks = Array.from({ length: rackCount }, (_, rack) => {
+    const firstMachine = rack * serversPerRack;
+    const lastMachine = Math.min(placementData.machine_count, firstMachine + serversPerRack);
+    const machines = Array.from({ length: lastMachine - firstMachine }, (_, index) => firstMachine + index)
+      .map((machine) => {
+        const jobId = owners.get(machine);
+        const color = jobId === undefined ? "var(--line)" : placementJobColor(jobId);
+        const assignment = jobId === undefined ? "unassigned" : `Job ${jobId}`;
+        const jobAttribute = jobId === undefined ? "" : ` data-placement-job="${escapeHtml(jobId)}"`;
+        const justDropped = dropAnimation
+          && Number(dropAnimation.machineId) === machine
+          && String(dropAnimation.targetJobId) === String(jobId);
+        return `
+          <span
+            class="placement-machine ${jobId === undefined ? "unassigned" : ""} ${justDropped ? "just-dropped" : ""}"
+            style="--job-color:${color}"
+            title="Machine ${machine}, Rack ${rack}, ${assignment}"
+            tabindex="0"
+            ${jobAttribute}
+          >${machine}</span>
+        `;
+      }).join("");
+    return `
+      <div class="rack-row">
+        <div class="rack-label">Rack ${rack}</div>
+        <div class="rack-machines">${machines}</div>
+      </div>
+    `;
+  }).join("");
+  const messages = [
+    ...(validation.errors || []),
+    ...(validation.warnings || []),
+    ...(rackSettingValid ? [] : [`Servers per rack must divide ${placementData.machine_count}.`])
+  ];
+
+  $("placementSource").textContent = placementDirty
+    ? `${placementData.source} (local draft)`
+    : placementData.source;
+  $("placementPreview").innerHTML = `
+    <div class="placement-summary">
+      <div class="placement-stat"><strong>${placementData.jobs.length}</strong><span>jobs</span></div>
+      <div class="placement-stat"><strong>${placementData.assigned_machine_count}/${placementData.machine_count}</strong><span>machines assigned</span></div>
+      <div class="placement-stat"><strong>${rackCount}</strong><span>racks at ${serversPerRack} servers each</span></div>
+      <div class="placement-stat ${valid ? "validation-valid" : "validation-invalid"}"><strong>${validationText}</strong><span>placement validation</span></div>
+    </div>
+    <div class="placement-content">
+      <div class="placement-table-wrap">
+        <table class="placement-table">
+          <thead>
+            <tr><th>Job</th><th>Machines</th><th>Assignment</th><th>Racks</th><th>Comm.</th><th>Comp.</th><th>Layers</th><th>Iters</th></tr>
+          </thead>
+          <tbody>${jobRows}</tbody>
+        </table>
+      </div>
+      <div class="rack-map">${racks}</div>
+    </div>
+    ${messages.length ? `<div class="placement-errors">${messages.map(escapeHtml).join("<br>")}</div>` : ""}
+  `;
+  placementDropAnimation = null;
+}
+
+function clearPlacementDropTargets() {
+  for (const row of $("placementPreview").querySelectorAll("[data-drop-job]")) {
+    row.classList.remove("is-drop-target");
+  }
+}
+
+function movePlacementMachine(machineId, targetJobId) {
+  if (!placementData) return false;
+  const machine = Number(machineId);
+  const sourceJob = placementData.jobs.find((job) => (job.machines || []).includes(machine));
+  const targetJob = placementData.jobs.find((job) => String(job.job_id) === String(targetJobId));
+  if (!sourceJob || !targetJob) return false;
+
+  sourceJob.machines = sourceJob.machines.filter((item) => item !== machine);
+  targetJob.machines = [...targetJob.machines, machine];
+  sourceJob.machine_count = sourceJob.machines.length;
+  targetJob.machine_count = targetJob.machines.length;
+  placementDirty = true;
+  placementDropAnimation = { machineId: machine, targetJobId: targetJob.job_id };
+  renderPlacementPreview();
+  return true;
+}
+
+function setPlacementHighlight(jobId) {
+  for (const item of $("placementPreview").querySelectorAll("[data-placement-job]")) {
+    const matches = String(item.dataset.placementJob) === String(jobId);
+    item.classList.toggle("is-highlighted", matches);
+    item.classList.toggle("is-dimmed", !matches);
+  }
+  for (const item of $("placementPreview").querySelectorAll(".placement-machine.unassigned")) {
+    item.classList.add("is-dimmed");
+  }
+}
+
+function clearPlacementHighlight() {
+  for (const item of $("placementPreview").querySelectorAll("[data-placement-job], .placement-machine.unassigned")) {
+    item.classList.remove("is-highlighted", "is-dimmed");
+  }
+}
+
+async function loadPlacement() {
+  try {
+    const response = await fetch("/api/placement", { cache: "no-store" });
+    const data = await response.json();
+    if (!response.ok) throw new Error(data.error || `Placement request failed with HTTP ${response.status}`);
+    placementData = data;
+    placementDirty = false;
+    renderPlacementPreview();
+  } catch (error) {
+    $("placementSource").textContent = "unavailable";
+    $("placementPreview").innerHTML = `<div class="placement-errors">${escapeHtml(error.message)}</div>`;
+  }
 }
 
 function ensureRunsTable() {
@@ -844,6 +1021,50 @@ async function startRun() {
 
 $("runButton").addEventListener("click", startRun);
 $("refreshToggle").addEventListener("click", toggleRefresh);
+$("serversPerRack").addEventListener("input", renderPlacementPreview);
+$("placementPreview").addEventListener("pointerover", (event) => {
+  const item = event.target.closest("[data-placement-job]");
+  if (item) setPlacementHighlight(item.dataset.placementJob);
+});
+$("placementPreview").addEventListener("pointerleave", clearPlacementHighlight);
+$("placementPreview").addEventListener("focusin", (event) => {
+  const item = event.target.closest("[data-placement-job]");
+  if (item) setPlacementHighlight(item.dataset.placementJob);
+});
+$("placementPreview").addEventListener("focusout", clearPlacementHighlight);
+$("placementPreview").addEventListener("dragstart", (event) => {
+  const machine = event.target.closest(".assignment-machine");
+  if (!machine) return;
+  draggedPlacementMachine = {
+    machineId: machine.dataset.machineId,
+    sourceJobId: machine.dataset.placementJob
+  };
+  machine.classList.add("is-dragging");
+  event.dataTransfer.effectAllowed = "move";
+  event.dataTransfer.setData("text/plain", machine.dataset.machineId);
+});
+$("placementPreview").addEventListener("dragover", (event) => {
+  const row = event.target.closest("[data-drop-job]");
+  if (!row || !draggedPlacementMachine) return;
+  event.preventDefault();
+  event.dataTransfer.dropEffect = "move";
+  clearPlacementDropTargets();
+  row.classList.add("is-drop-target");
+});
+$("placementPreview").addEventListener("drop", (event) => {
+  const row = event.target.closest("[data-drop-job]");
+  if (!row || !draggedPlacementMachine) return;
+  event.preventDefault();
+  movePlacementMachine(draggedPlacementMachine.machineId, row.dataset.dropJob);
+  draggedPlacementMachine = null;
+  clearPlacementDropTargets();
+  clearPlacementHighlight();
+});
+$("placementPreview").addEventListener("dragend", () => {
+  draggedPlacementMachine = null;
+  clearPlacementDropTargets();
+  clearPlacementHighlight();
+});
 $("runs").addEventListener("pointerover", (event) => {
   const trigger = event.target.closest(".pattern-trigger");
   if (trigger) showPatternGraph(trigger);
@@ -882,5 +1103,6 @@ $("schedule").addEventListener("change", () => {
 });
 $("schedule").dispatchEvent(new Event("change"));
 
+loadPlacement();
 loadRuns();
 setInterval(loadRuns, 1500);

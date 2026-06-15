@@ -110,6 +110,96 @@ printf '%s\0' "${WORKERS_DIR}" "${PLACEMENT_FILE}" "${TRACE_FILE}" "${PORT}" "${
     }
 
 
+def placement_payload():
+    config = load_shell_config()
+    placement_path = Path(config["placement_file"]).resolve()
+    machine_count = int(config["psim_options"]["machine-count"])
+    with open(placement_path) as placement_file:
+        jobs = json.load(placement_file)
+
+    errors = []
+    warnings = []
+    required = {
+        "job_id",
+        "machine_count",
+        "comm_size",
+        "comp_size",
+        "layer_count",
+        "iter_count",
+        "machines",
+    }
+    seen_jobs = set()
+    machine_owners = {}
+
+    if not isinstance(jobs, list):
+        raise ValueError("placement file must contain a list of jobs")
+
+    for index, job in enumerate(jobs):
+        if not isinstance(job, dict):
+            errors.append(f"job entry {index} must be an object")
+            continue
+        missing = required - set(job)
+        if missing:
+            errors.append(
+                f"job entry {index} is missing: {', '.join(sorted(missing))}"
+            )
+            continue
+
+        job_id = job["job_id"]
+        if job_id in seen_jobs:
+            errors.append(f"job id {job_id} is duplicated")
+        seen_jobs.add(job_id)
+
+        machines = job["machines"]
+        if not isinstance(machines, list):
+            errors.append(f"job {job_id} machines must be a list")
+            continue
+        if job["machine_count"] != len(machines):
+            errors.append(
+                f"job {job_id} declares {job['machine_count']} machines but lists {len(machines)}"
+            )
+
+        for machine in machines:
+            if not isinstance(machine, int):
+                errors.append(f"job {job_id} has non-integer machine id {machine!r}")
+                continue
+            if machine < 0 or machine >= machine_count:
+                errors.append(
+                    f"job {job_id} machine {machine} is outside 0-{machine_count - 1}"
+                )
+                continue
+            if machine in machine_owners:
+                errors.append(
+                    f"machine {machine} is assigned to jobs {machine_owners[machine]} and {job_id}"
+                )
+            else:
+                machine_owners[machine] = job_id
+
+    unassigned = [
+        machine for machine in range(machine_count) if machine not in machine_owners
+    ]
+    if unassigned:
+        warnings.append(f"{len(unassigned)} machines are unassigned")
+
+    try:
+        source = str(placement_path.relative_to(REPO_ROOT))
+    except ValueError:
+        source = str(placement_path)
+
+    return {
+        "source": source,
+        "machine_count": machine_count,
+        "jobs": jobs,
+        "assigned_machine_count": len(machine_owners),
+        "unassigned_machines": unassigned,
+        "validation": {
+            "valid": not errors,
+            "errors": errors,
+            "warnings": warnings,
+        },
+    }
+
+
 def build_psim():
     if PSIM_BIN.exists() and os.access(PSIM_BIN, os.X_OK):
         return
@@ -635,6 +725,15 @@ class RunnerHandler(SimpleHTTPRequestHandler):
             with RUNS_LOCK:
                 runs = [public_run(run) for run in sorted(RUNS.values(), key=lambda item: item["created_at"], reverse=True)]
             return self.send_json({"runs": runs})
+
+        if path == "/api/placement":
+            try:
+                return self.send_json(placement_payload())
+            except (OSError, ValueError, json.JSONDecodeError) as exc:
+                return self.send_json(
+                    {"error": f"could not load placement: {exc}"},
+                    HTTPStatus.INTERNAL_SERVER_ERROR,
+                )
 
         match = re.fullmatch(r"/api/runs/([^/]+)", path)
         if match:

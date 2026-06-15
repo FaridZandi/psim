@@ -89,7 +89,7 @@
               <div class="settings-row scheduler-number-settings">
                 <div class="field">
                   <label for="subflows">Subflows</label>
-                  <input id="subflows" type="number" min="1" max="16" value="4">
+                  <input id="subflows" type="number" min="1" max="16" value="1">
                 </div>
                 <div class="field">
                   <label for="faridRounds">Fixing rounds</label>
@@ -120,6 +120,16 @@
         </div>
 
         <button id="runButton" class="run-button">Run Simulation</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="section-head">
+        <h2>Workload &amp; Placement</h2>
+        <span id="placementSource" class="subtle">loading</span>
+      </div>
+      <div id="placementPreview" class="body placement-preview">
+        <span class="subtle">Loading placement...</span>
       </div>
     </section>
 
