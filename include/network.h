@@ -6,6 +6,7 @@
 #include <map>
 #include <queue>
 #include <deque>
+#include <string>
 #include "protocol.h"
 #include "gconfig.h"
 #include "bwalloc.h"
@@ -225,6 +226,7 @@ public:
     int current_flow_count;
     double current_flow_size_sum;
     std::vector<Flow*> flows;
+    std::map<int, double> utilized_by_job;
     LoadMetric load_metric;
     double drop_chance_multiplier;
 
@@ -234,6 +236,10 @@ public:
 
     double congested_time;  
     int tier;
+    int direction;
+    std::string endpoint_a;
+    std::string endpoint_b;
+    std::string link_type;
 
 private:
     void setup_bwalloc();

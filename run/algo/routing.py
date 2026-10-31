@@ -45,6 +45,58 @@ def log_results(run_context, key, value):
         f.write("\n---------------------------------\n")   
 
 
+def emit_scheduler_progress(run_context, event):
+    progress_callback = run_context.get("progress-callback")
+    if progress_callback is not None:
+        progress_callback(event)
+
+
+def summarize_ranges_for_progress(ranges, limit=8):
+    if not ranges:
+        return {"count": 0, "total_length": 0, "sample": []}
+
+    normalized = [(int(start), int(end)) for start, end in ranges]
+    return {
+        "count": len(normalized),
+        "total_length": sum(end - start + 1 for start, end in normalized),
+        "sample": [
+            {"start": start, "end": end, "length": end - start + 1}
+            for start, end in normalized[:limit]
+        ],
+    }
+
+
+def summarize_flows_for_progress(all_flows, limit=8):
+    if not all_flows:
+        return {
+            "flow_count": 0,
+            "time_start": None,
+            "time_end": None,
+            "jobs": [],
+            "rack_pairs": [],
+        }
+
+    jobs = defaultdict(int)
+    rack_pairs = defaultdict(int)
+    for flow in all_flows:
+        jobs[flow["job_id"]] += 1
+        rack_pairs[(flow["srcrack"], flow["dstrack"])] += 1
+
+    return {
+        "flow_count": len(all_flows),
+        "time_start": min(flow["eff_start_time"] for flow in all_flows),
+        "time_end": max(flow["eff_end_time"] for flow in all_flows),
+        "jobs": [
+            {"job_id": job_id, "flow_count": count}
+            for job_id, count in sorted(jobs.items())
+        ],
+        "rack_pairs": [
+            {"src_rack": src, "dst_rack": dst, "flow_count": count}
+            for (src, dst), count in sorted(rack_pairs.items(), key=lambda item: item[1], reverse=True)[:limit]
+        ],
+    }
+
+
 
 def route_flows(jobs, options, run_context, job_profiles, job_timings, 
                 suffix=1, highlighted_ranges=[], early_return=False, 
@@ -102,6 +154,19 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
     fit_strategy = run_context["routing-fit-strategy"] 
     if override_routing_strategy is not None:
         fit_strategy = override_routing_strategy
+    emit_scheduler_progress(run_context, {
+        "phase": "routing",
+        "status": "started",
+        "suffix": suffix,
+        "strategy": fit_strategy,
+        "routing_time": routing_time,
+        "num_leaves": num_leaves,
+        "num_spines": num_spines,
+        "max_subflow_count": max_subflow_count,
+        "highlighted_ranges": summarize_ranges_for_progress(highlighted_ranges),
+        "flows": summarize_flows_for_progress(all_flows),
+        "early_return": early_return,
+    })
         
     # TODO: the times ranges can be calculated in here, instead of copying in each of the functions. 
     ############################################################################################################  
@@ -140,6 +205,16 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
                                              lb_decisions, run_context, max_subflow_count)
         
     min_affected_time, max_affected_time, bad_ranges = times_range
+    emit_scheduler_progress(run_context, {
+        "phase": "routing",
+        "status": "strategy_finished",
+        "suffix": suffix,
+        "strategy": fit_strategy,
+        "affected_time_start": None if min_affected_time == 1e9 else min_affected_time,
+        "affected_time_end": max_affected_time,
+        "bad_ranges": summarize_ranges_for_progress(bad_ranges),
+        "raw_decision_count": len(lb_decisions),
+    })
         
     if run_context["plot-routing-assignment"]: 
         plot_routing(run_context, rem, usage, all_job_ids, 
@@ -160,5 +235,14 @@ def route_flows(jobs, options, run_context, job_profiles, job_timings,
             "spine_rates": [(s, mult) for s, mult in selected_spines]
         })
 
-    return lb_decisions_proper, bad_ranges
+    emit_scheduler_progress(run_context, {
+        "phase": "routing",
+        "status": "decisions_ready",
+        "suffix": suffix,
+        "strategy": fit_strategy,
+        "decision_count": len(lb_decisions_proper),
+        "decision_sample": lb_decisions_proper[:8],
+        "bad_ranges": summarize_ranges_for_progress(bad_ranges),
+    })
 
+    return lb_decisions_proper, bad_ranges

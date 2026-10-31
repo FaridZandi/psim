@@ -8,12 +8,51 @@
 #include "spdlog/fmt/ranges.h"
 #include <boost/algorithm/string.hpp>
 #include "gcontext.h"
+#include "nlohmann/json.hpp"
+#include <cctype>
 
 using namespace psim;
+using json = nlohmann::json;
 
 namespace plt = matplotlibcpp;
 
 static int simulation_counter = 0;
+
+static int parse_event_jobid(const std::string& message) {
+    std::string prefix = "job ";
+    size_t pos = message.find(prefix);
+    if (pos == std::string::npos) {
+        return -1;
+    }
+
+    pos += prefix.size();
+    size_t end = pos;
+    while (end < message.size() && std::isdigit(static_cast<unsigned char>(message[end]))) {
+        end += 1;
+    }
+
+    if (end == pos) {
+        return -1;
+    }
+
+    return std::stoi(message.substr(pos, end - pos));
+}
+
+static std::string classify_event_message(const std::string& message) {
+    if (message.find("all-reduce started") != std::string::npos) {
+        return "allreduce_started";
+    }
+    if (message.find("all-reduce finished") != std::string::npos) {
+        return "allreduce_finished";
+    }
+    if (message.find(" iter ") != std::string::npos && message.find(" finished") != std::string::npos) {
+        return "iteration_finished";
+    }
+    if (message.find(" started") != std::string::npos) {
+        return "job_started";
+    }
+    return "milestone";
+}
 
 PSim::PSim() {
     this->timer = 0;
@@ -171,6 +210,7 @@ void PSim::start_task(PTask *task, bool start_in_next_timestep) {
                 }
 
                 spdlog::critical("[{}]: {}", time_to_print, empty_task->print_message);
+                record_milestone_event(time_to_print, empty_task->print_message);
             }
 
             handle_task_completion(task);
@@ -185,6 +225,16 @@ void PSim::start_task(PTask *task, bool start_in_next_timestep) {
 
 }
 
+void PSim::record_milestone_event(double time, std::string message) {
+    milestone_event event;
+    event.id = milestone_events.size();
+    event.time = time;
+    event.jobid = parse_event_jobid(message);
+    event.kind = classify_event_message(message);
+    event.message = message;
+    milestone_events.push_back(event);
+}
+
 
 
 double PSim::simulate() {
@@ -195,6 +245,7 @@ double PSim::simulate() {
 
     // last time we've logged a summary.
     int last_summary_timer = -1;
+    int snapshot_index = 0;
 
     for (auto protocol : this->protocols) {
         for (auto task : protocol->initiators) {
@@ -307,6 +358,22 @@ double PSim::simulate() {
 
         history.push_back(h);
 
+        bool all_finished = true;
+        for (auto protocol : this->protocols) {
+            if (protocol->finished_task_count < protocol->total_task_count) {
+                all_finished = false;
+                break;
+            }
+        }
+
+        if (GConf::inst().trace_snapshots) {
+            int interval = std::max(1, GConf::inst().trace_snapshot_interval);
+            if (snapshot_index == 0 || snapshot_index % interval == 0 || all_finished) {
+                write_trace_snapshot(h, snapshot_index);
+            }
+            snapshot_index += 1;
+        }
+
         if ((int)timer % 1000 == 0){
             log_history_entry(h);
         }
@@ -316,14 +383,6 @@ double PSim::simulate() {
                       int(timer), network->flows.size(), compute_tasks.size(),
                       this->finished_task_count, this->total_task_count);
 
-        bool all_finished = true;
-        for (auto protocol : this->protocols) {
-            if (protocol->finished_task_count < protocol->total_task_count) {
-                all_finished = false;
-                break;
-            }
-        }
-        
         timer += this_step_step_size;
         
         if (all_finished) {
@@ -335,6 +394,132 @@ double PSim::simulate() {
     save_run_results();
 
     return timer;
+}
+
+void PSim::write_trace_snapshot(history_entry& h, int snapshot_index) {
+    std::string trace_file = GConf::inst().trace_file;
+    if (trace_file.empty()) {
+        trace_file = GConf::inst().output_dir + "/trace.jsonl";
+    }
+
+    std::ofstream ofs;
+    ofs.open(trace_file, snapshot_index == 0 ? std::ios::out : std::ios::app);
+    if (!ofs.is_open()) {
+        spdlog::error("Could not open trace file {}", trace_file);
+        return;
+    }
+
+    json snapshot;
+    snapshot["time"] = h.time;
+    snapshot["snapshot_index"] = snapshot_index;
+    snapshot["flow_count"] = h.flow_count;
+    snapshot["compute_task_count"] = h.comp_task_count;
+    snapshot["step_comm"] = h.step_comm;
+    snapshot["step_comp"] = h.step_comp;
+    snapshot["total_bw_utilization"] = h.total_bw_utilization;
+    snapshot["total_network_bw"] = h.total_network_bw;
+    snapshot["total_core_bw_utilization"] = h.total_core_bw_utilization;
+    snapshot["total_core_bw"] = h.total_core_bw;
+    snapshot["accelerator_utilization"] = h.total_accelerator_utilization_rate;
+
+    snapshot["events"] = json::array();
+    for (auto& event : milestone_events) {
+        snapshot["events"].push_back({
+            {"id", event.id},
+            {"time", event.time},
+            {"jobid", event.jobid},
+            {"kind", event.kind},
+            {"message", event.message}
+        });
+    }
+
+    snapshot["job_progress"] = json::array();
+    for (int i = 0; i < 10; i++) {
+        if (h.job_progress[i] > 0 || h.job_progress_through_core[i] > 0) {
+            snapshot["job_progress"].push_back({
+                {"jobid", i},
+                {"step_comm", h.job_progress[i]},
+                {"step_core_comm", h.job_progress_through_core[i]}
+            });
+        }
+    }
+
+    snapshot["machines"] = json::array();
+    for (auto machine : network->machines) {
+        json machine_json;
+        machine_json["id"] = machine->name;
+        machine_json["queue_len"] = machine->task_queue.size();
+        machine_json["running_task_id"] = machine->task_queue.empty() ? -1 : machine->task_queue.front()->id;
+        snapshot["machines"].push_back(machine_json);
+    }
+
+    snapshot["compute_tasks"] = json::array();
+    for (auto task : compute_tasks) {
+        snapshot["compute_tasks"].push_back({
+            {"id", task->id},
+            {"jobid", task->jobid},
+            {"machine", task->dev_id},
+            {"size", task->size},
+            {"progress", task->progress}
+        });
+    }
+
+    snapshot["links"] = json::array();
+    for (auto bottleneck : network->bottlenecks) {
+        json link_json;
+        link_json["id"] = bottleneck->id;
+        link_json["bandwidth"] = bottleneck->bandwidth;
+        link_json["tier"] = bottleneck->tier;
+        link_json["direction"] = bottleneck->direction;
+        link_json["endpoint_a"] = bottleneck->endpoint_a;
+        link_json["endpoint_b"] = bottleneck->endpoint_b;
+        link_json["link_type"] = bottleneck->link_type;
+        link_json["flow_count"] = bottleneck->current_flow_count;
+        link_json["registered"] = bottleneck->bwalloc->total_registered;
+        link_json["allocated"] = bottleneck->bwalloc->total_allocated;
+        link_json["utilized"] = bottleneck->bwalloc->utilized_bandwidth;
+        link_json["congested"] = bottleneck->bwalloc->is_congested();
+        link_json["job_utilization"] = json::array();
+        for (auto& entry : bottleneck->utilized_by_job) {
+            double share = 0;
+            if (bottleneck->bwalloc->utilized_bandwidth > 0) {
+                share = entry.second / bottleneck->bwalloc->utilized_bandwidth;
+            }
+            link_json["job_utilization"].push_back({
+                {"jobid", entry.first},
+                {"utilized", entry.second},
+                {"share", share}
+            });
+        }
+        link_json["flows"] = json::array();
+        for (auto flow : bottleneck->flows) {
+            link_json["flows"].push_back(flow->id);
+        }
+        snapshot["links"].push_back(link_json);
+    }
+
+    snapshot["flows"] = json::array();
+    for (auto flow : network->flows) {
+        json flow_json;
+        flow_json["id"] = flow->id;
+        flow_json["jobid"] = flow->jobid;
+        flow_json["src"] = flow->src_dev_id;
+        flow_json["dst"] = flow->dst_dev_id;
+        flow_json["size"] = flow->size;
+        flow_json["progress"] = flow->progress;
+        flow_json["rate"] = flow->last_rate;
+        flow_json["utilization_rate"] = flow->last_rate;
+        flow_json["desired_rate"] = flow->current_rate;
+        flow_json["registered_rate"] = flow->registered_rate;
+        flow_json["lb_decision"] = flow->lb_decision;
+        flow_json["path"] = json::array();
+        for (auto bottleneck : flow->path) {
+            flow_json["path"].push_back(bottleneck->id);
+        }
+        snapshot["flows"].push_back(flow_json);
+    }
+
+    ofs << snapshot.dump() << std::endl;
 }
 
 void PSim::log_flow_info(){

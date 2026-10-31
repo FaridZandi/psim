@@ -1,0 +1,38 @@
+[
+  {
+    "job_id": 1,
+    "machine_count": 8,
+    "comm_size": 10000,
+    "comp_size": 380,
+    "layer_count": 1,
+    "iter_count": 4,
+    "machines": [3, 2, 17, 5, 6, 9, 28, 27]
+  },
+  {
+    "job_id": 2,
+    "machine_count": 8,
+    "comm_size": 12000,
+    "comp_size": 440,
+    "layer_count": 1,
+    "iter_count": 4,
+    "machines": [0, 25, 26, 20, 22, 31, 8, 14]
+  },
+  {
+    "job_id": 3,
+    "machine_count": 8,
+    "comm_size": 9000,
+    "comp_size": 500,
+    "layer_count": 1,
+    "iter_count": 4,
+    "machines": [19, 23, 12, 24, 7, 10, 16, 30]
+  },
+  {
+    "job_id": 4,
+    "machine_count": 8,
+    "comm_size": 14000,
+    "comp_size": 610,
+    "layer_count": 1,
+    "iter_count": 3,
+    "machines": [1, 15, 18, 11, 13, 4, 21, 29]
+  }
+]
